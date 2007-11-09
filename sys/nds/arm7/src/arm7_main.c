@@ -18,118 +18,51 @@
 #include <nds/arm7/touch.h>
 #include <nds/arm7/clock.h>
 
-s32 xscale, yscale, xoffset, yoffset;
+#include <dswifi7.h>
 
-#define abs(n)	(n<0?-n:n)
 
 //---------------------------------------------------------------------------------
-s32 myReadTouchValue(int measure, int retry , int range) {
+void startSound(int sampleRate, const void* data, u32 bytes, u8 channel, u8 vol,  u8 pan, u8 format) {
+//---------------------------------------------------------------------------------
+	SCHANNEL_TIMER(channel)  = SOUND_FREQ(sampleRate);
+	SCHANNEL_SOURCE(channel) = (u32)data;
+	SCHANNEL_LENGTH(channel) = bytes >> 2 ;
+	SCHANNEL_CR(channel)     = SCHANNEL_ENABLE | SOUND_ONE_SHOT | SOUND_VOL(vol) | SOUND_PAN(pan) | (format==1?SOUND_8BIT:SOUND_16BIT);
+}
+
+
+//---------------------------------------------------------------------------------
+s32 getFreeSoundChannel() {
 //---------------------------------------------------------------------------------
 	int i;
-	s32 this_value=0, this_range;
-
-	s32 last_value = touchRead(measure | 1);
-
-	for ( i=0; i < retry; i++) {
-		touchRead(measure | 1);
-		this_value = touchRead(measure);
-		this_range = abs(last_value - this_value);
-		if (this_range <= range) break;
+	for (i=0; i<16; i++) {
+		if ( (SCHANNEL_CR(i) & SCHANNEL_ENABLE) == 0 ) return i;
 	}
-	
-	if ( i == range) this_value = 0;
-	return this_value;
-
+	return -1;
 }
-//*/
+
 //---------------------------------------------------------------------------------
 void VblankHandler(void) {
 //---------------------------------------------------------------------------------
-	u32 temp=0;
-	if (IPC->mailData == 0xDEADC0DE) {
-		SerialWaitBusy();
-		REG_SPICNT = SPI_ENABLE | SPI_DEVICE_POWER | SPI_BAUD_1MHz | SPI_CONTINUOUS;
-		REG_SPIDATA = 0x80;
-		SerialWaitBusy();
-		REG_SPICNT = SPI_ENABLE | SPI_DEVICE_POWER | SPI_BAUD_1MHz;
-		REG_SPIDATA = 0;
-		SerialWaitBusy();
-		temp = REG_SPIDATA & 0xFF;
-
-		REG_SPICNT = SPI_ENABLE | SPI_DEVICE_POWER | SPI_BAUD_1MHz | SPI_CONTINUOUS;
-		REG_SPIDATA = 0;
-		SerialWaitBusy();
-		REG_SPICNT = SPI_ENABLE | SPI_DEVICE_POWER | SPI_BAUD_1MHz;
-		REG_SPIDATA = temp | PM_SYSTEM_PWR;
-	}
-
-	static int heartbeat = 0;
-
-	u16 but=0, x=0, y=0, xpx=0, ypx=0, z1=0, z2=0, batt=0, aux=0;
-	s32 t1=0, t2=0;
-	u8 ct[sizeof(IPC->time.curtime)];
+	uint16 but=0, x=0, y=0, xpx=0, ypx=0, z1=0, z2=0, batt=0, aux=0;
+	int t1=0, t2=0;
+	uint32 temp=0;
+	uint8 ct[sizeof(IPC->time.curtime)];
 	u32 i;
-
-	// Update the heartbeat
-	heartbeat++;
 
 	// Read the touch screen
 
 	but = REG_KEYXY;
-#define REPEATS	9
+
 	if (!(but & (1<<6))) {
-/*	
-		s16 xarr[REPEATS], yarr[REPEATS];
-		u16 xtop=0, ytop=0, xbtm=0, ybtm=0, i,j;
 
-		for (i=0;i<REPEATS;i++) {
-			xarr[i] = myReadTouchValue(TSC_MEASURE_X, 5, 30);
-			yarr[i] = myReadTouchValue(TSC_MEASURE_Y, 5, 30);
-		}
-		for (j=0;j<REPEATS/2;j++) {
-			for (i=0;i<REPEATS;i++) {
-				if (xarr[i] != -1) {
-					if (xarr[i] < xarr[xbtm]) xbtm = i;
-					if (xarr[i] > xarr[xtop]) xtop = i;
-				}
-				if (yarr[i] != -1) {
-					if (yarr[i] < yarr[ybtm]) ybtm = i;
-					if (yarr[i] > yarr[ytop]) ytop = i;
-				}
-			}
-			xarr[xtop]=xarr[xbtm]=yarr[ytop]=yarr[ybtm]=-1;
-			xtop=ytop=xbtm=ybtm=0;
-			while (xarr[xtop] == -1) xtop++;
-			while (xarr[ytop] == -1) ytop++;
-			xbtm = xtop;
-			ybtm = ytop;
-		}
-  		for (i=0;i<REPEATS;i++) {
-			if (i != xtop && i != xbtm && xarr[i] != -1) x = xarr[i];
-			if (i != ytop && i != ybtm && yarr[i] != -1) t = yarr[i];
-		}
-	/*/
-	
-		x = myReadTouchValue(TSC_MEASURE_X, 5, 30);
-		y = myReadTouchValue(TSC_MEASURE_Y, 5, 30);		//*/
-		
-		xpx = ( x * xscale - xoffset + (xscale>>1) ) >>19;
-		ypx = ( y * yscale - yoffset + (yscale>>1) ) >>19;
-	
-		if ( xpx < 0) xpx = 0;
-		if ( ypx < 0) ypx = 0;
-		if ( xpx > (SCREEN_WIDTH -1)) xpx = SCREEN_WIDTH -1;
-		if ( ypx > (SCREEN_HEIGHT -1)) ypx = SCREEN_HEIGHT -1;//*/
-		
-
-/*		touchPosition tempPos = touchReadXY();
+		touchPosition tempPos = touchReadXY();
 
 		x = tempPos.x;
 		y = tempPos.y;
 		xpx = tempPos.px;
-		ypx = tempPos.py;//*/
+		ypx = tempPos.py;
 	}
-#undef REPEATS
 
 	z1 = touchRead(TSC_MEASURE_Z1);
 	z2 = touchRead(TSC_MEASURE_Z2);
@@ -146,7 +79,6 @@ void VblankHandler(void) {
 	temp = touchReadTemperature(&t1, &t2);
 
 	// Update the IPC struct
-//	IPC->heartbeat	= heartbeat;
 	IPC->buttons		= but;
 	IPC->touchX			= x;
 	IPC->touchY			= y;
@@ -167,7 +99,7 @@ void VblankHandler(void) {
 
 
 	//sound code  :)
-	/*TransferSound *snd = IPC->soundData;
+	TransferSound *snd = IPC->soundData;
 	IPC->soundData = 0;
 
 	if (0 != snd) {
@@ -179,48 +111,59 @@ void VblankHandler(void) {
 				startSound(snd->data[i].rate, snd->data[i].data, snd->data[i].len, chan, snd->data[i].vol, snd->data[i].pan, snd->data[i].format);
 			}
 		}
-	}*/
+	}
 
+	Wifi_Update(); // update wireless in vblank
+
+}
+
+// callback to allow wifi library to notify arm9
+void arm7_synctoarm9() { // send fifo message
+   REG_IPC_FIFO_TX = 0x87654321;
+}
+// interrupt handler to allow incoming notifications from arm9
+void arm7_fifo() { // check incoming fifo messages
+   u32 msg = REG_IPC_FIFO_RX;
+   if(msg==0x87654321) Wifi_Sync();
 }
 
 //---------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 //---------------------------------------------------------------------------------
-
+  REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR; // enable & prepare fifo asap
 	// Reset the clock if needed
 	rtcReset();
-	
-	xscale = ((PersonalData->calX2px - PersonalData->calX1px) << 19) / ((PersonalData->calX2) - (PersonalData->calX1));
-	yscale = ((PersonalData->calY2px - PersonalData->calY1px) << 19) / ((PersonalData->calY2) - (PersonalData->calY1));
-	
-	xoffset = ((PersonalData->calX1 + PersonalData->calX2) * xscale  - ((PersonalData->calX1px + PersonalData->calX2px) << 19) ) /2;
-	yoffset = ((PersonalData->calY1 + PersonalData->calY2) * yscale  - ((PersonalData->calY1px + PersonalData->calY2px) << 19) ) /2;
-//*/
+
 	//enable sound
-//	powerON(POWER_SOUND);
-//	SOUND_CR = SOUND_ENABLE | SOUND_VOL(0x7F);
-//	IPC->soundData = 0;
-
-	while (IPC->mailData != 0x00424242);	// wait for arm9 init
-// check if it is running on DS Lite or not
-	SerialWaitBusy();
-	REG_SPICNT = SPI_ENABLE | SPI_DEVICE_POWER | SPI_BAUD_1MHz | SPI_CONTINUOUS;
-	REG_SPIDATA = 0x80;
-	SerialWaitBusy();
-	REG_SPICNT = SPI_ENABLE | SPI_DEVICE_POWER | SPI_BAUD_1MHz;
-	REG_SPIDATA = 0;
-	SerialWaitBusy();
-
-// bit 6 set means it's a DS lite
-	if((REG_SPIDATA & BIT(6))) {
-		IPC->mailData = 0x42424201;
-	} else {
-		IPC->mailData = 0x42424200;
-	}
+	powerON(POWER_SOUND);
+	SOUND_CR = SOUND_ENABLE | SOUND_VOL(0x7F);
+	IPC->soundData = 0;
 
 	irqInit();
 	irqSet(IRQ_VBLANK, VblankHandler);
 	irqEnable(IRQ_VBLANK);
+	
+	irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
+	irqEnable(IRQ_WIFI);
+
+{ // sync with arm9 and init wifi
+  	u32 fifo_temp;   
+
+	  while(1) { // wait for magic number
+    	while(REG_IPC_FIFO_CR&IPC_FIFO_RECV_EMPTY) swiWaitForVBlank();
+      fifo_temp=REG_IPC_FIFO_RX;
+      if(fifo_temp==0x12345678) break;
+   	}
+   	while(REG_IPC_FIFO_CR&IPC_FIFO_RECV_EMPTY) swiWaitForVBlank();
+   	fifo_temp=REG_IPC_FIFO_RX; // give next value to wifi_init
+   	Wifi_Init(fifo_temp);
+   	
+   	irqSet(IRQ_FIFO_NOT_EMPTY,arm7_fifo); // set up fifo irq
+   	irqEnable(IRQ_FIFO_NOT_EMPTY);
+   	REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_RECV_IRQ;
+
+   	Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
+  } // arm7 wifi init complete
 
 	// Keep the ARM7 out of main RAM
 	while (1) swiWaitForVBlank();

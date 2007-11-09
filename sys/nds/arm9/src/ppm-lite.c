@@ -35,11 +35,11 @@ struct ppm *alloc_ppm(int width, int height)
 
   img = (struct ppm *)malloc(sizeof(struct ppm));
 
-  memset(img->rgba, 0, width * height * 4);
-
   img->width = width;
   img->height = height;
   img->rgba = (unsigned char *)malloc(width * height * 4);
+
+  memset(img->rgba, 0, width * height * 4);
 
   return img;
 }

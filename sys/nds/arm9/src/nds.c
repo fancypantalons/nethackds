@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include <fat.h>
 
+#ifdef _DEBUG_
+#  include <debug_stub.h>
+#  include <debug_tcp.h>
+#endif
+
 #include "hack.h"
 #include "ds_kbd.h"
 #include "nds_win.h"
@@ -98,6 +103,19 @@ void init_screen()
 
   irqInit();
   irqEnable(IRQ_VBLANK);
+
+#ifdef _DEBUG_
+  struct tcp_debug_comms_init_data init_data = {
+    .port = 30000
+  };
+
+  if (! init_debug(&tcpCommsIf_debug, &init_data)) {
+    iprintf("Failed to initialize debugger stub...\n");
+  } else {
+    iprintf("Debugger stub initialized, halting...\n");
+    debugHalt();
+  }
+#endif
 }
 
 /*

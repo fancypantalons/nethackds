@@ -25,7 +25,7 @@ DATA		:=
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lfat -lnds9
+LIBS	:= -lfat -ldebugstub9 -ldebugtcp9 -ldswifi9 -lnds9
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -84,9 +84,12 @@ ARCH	:=	-mthumb -mthumb-interwork
 
 # note: arm9tdmi isn't the correct CPU arch, but anything newer and LD
 # *insists* it has a FPU or VFP, and it won't take no for an answer!
-CFLAGS	:=	-g -Wall -O2\
+
+# removed -O2
+CFLAGS	:=	-g -Wall \
  			-mcpu=arm9tdmi -mtune=arm9tdmi -fomit-frame-pointer\
 			-ffast-math \
+			-D_DEBUG_ \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM9
@@ -123,11 +126,11 @@ $(ARM9ELF)	:	$(foreach ofile,$(OFILES),$(BUILD)/$(ofile)) $(foreach ofile,$(OTHE
 	
 $(BUILD)/%.o	:	$(SOURCES)/%.c
 	@echo $(notdir $<)
-	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
 	
 $(BUILD)/%.o	:	$(SOURCES)/%.s
 	@echo $(notdir $<)
-	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
 
 
 #---------------------------------------------------------------------------------

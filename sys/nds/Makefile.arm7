@@ -24,7 +24,7 @@ DATA		:=
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lnds7
+LIBS	:= -lnds7 -ldswifi7
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

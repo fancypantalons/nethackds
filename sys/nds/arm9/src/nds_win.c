@@ -8,6 +8,8 @@
 
 #include "ppm-lite.h"
 
+#define NULLFREE(ptr) { if (ptr != NULL) { free(ptr); ptr = NULL; } }
+
 /* Our allocated window structures */
 
 nds_nhwindow_t *windows[MAX_WINDOWS];
@@ -39,23 +41,22 @@ void _nds_win_destroy_text(nds_nhwindow_t *win)
   nds_charbuf_t *buf = win->buffer;
   int i;
 
-  for (i = 0; i < buf->lines; i++) {
-    free(buf->text[i]);
-  }
+  if ((buf != NULL) && (buf->text != NULL)) {
+    for (i = 0; i < buf->lines; i++) {
+      NULLFREE(buf->text[i]);
+    }
 
-  free(buf->text);
+    NULLFREE(buf->text);
+  }
 }
 
 void _nds_win_destroy_menu(nds_nhwindow_t *win)
 {
   nds_menu_t *menu = win->menu;
 
-  if (menu->items) {
-    free(menu->items);
-  }
-
-  if (menu->prompt) {
-    free(menu->prompt);
+  if (menu != NULL) {
+    NULLFREE(menu->items);
+    NULLFREE(menu->prompt);
   }
 }
 
@@ -123,7 +124,7 @@ int nds_create_nhwindow(int type)
   /* If we couldn't allocate an ID, return an error. */
 
   if (id < 0) {
-    free(win);
+    NULLFREE(win);
 
     return WIN_ERR;
   }
@@ -145,7 +146,7 @@ void nds_destroy_nhwindow(winid win)
 
   nds_clear_nhwindow(win);
 
-  free(window);
+  NULLFREE(window);
 
   windows[win] = NULL;
 }
@@ -166,9 +167,7 @@ void nds_clear_nhwindow(winid win)
       window->w = 256;
       window->h = 256;
 
-      if (window->glyphs != NULL) {
-        free(window->glyphs);
-      }
+      NULLFREE(window->glyphs);
 
       break;
 
@@ -177,7 +176,8 @@ void nds_clear_nhwindow(winid win)
       window->h = 64;
 
       _nds_win_destroy_text(window);
-      free(window->buffer);
+
+      NULLFREE(window->buffer);
 
       break;
 
@@ -186,7 +186,7 @@ void nds_clear_nhwindow(winid win)
       window->h = 128;
 
       _nds_win_destroy_text(window);
-      free(window->buffer);
+      NULLFREE(window->buffer);
 
       break;
 
@@ -196,12 +196,10 @@ void nds_clear_nhwindow(winid win)
 
       if (window->buffer) {
         _nds_win_destroy_text(window);
-        free(window->buffer);
+        NULLFREE(window->buffer);
       } else {
         _nds_win_destroy_menu(window);
-        free(window->menu);
-
-        window->menu = NULL;
+        NULLFREE(window->menu);
       }
 
       break;
@@ -211,7 +209,7 @@ void nds_clear_nhwindow(winid win)
       window->h = 224;
 
       _nds_win_destroy_text(window);
-      free(window->buffer);
+      NULLFREE(window->buffer);
 
       break;
   }
@@ -351,7 +349,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window,
         draw_ppm_bw(img, vram, x + HMARGIN, y + butheight + VMARGIN, 
                     256, 254, 255);
 
-        free(img);
+        NULLFREE(img);
       }
 
       break;
@@ -471,8 +469,8 @@ void nds_start_menu(winid win)
      Thus, we destroy the old items, if they're present. */
 
   if (windows[win]->menu != NULL) {
-    free(windows[win]->menu->items);
-    free(windows[win]->menu->prompt);
+    NULLFREE(windows[win]->menu->items);
+    NULLFREE(windows[win]->menu->prompt);
   } else {
     windows[win]->menu = (nds_menu_t *)malloc(sizeof(nds_menu_t));
   }

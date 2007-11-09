@@ -1,0 +1,46 @@
+# Sample config file for NDS NetHack
+# A '#' at the beginning of a line means the rest of the line is a comment.
+#
+# Some options MUST be set in this file, other options can be toggled while
+# playing.  For a list of options available see the <opthelp.> file.
+#
+# To change the configuration, comment out the unwanted lines, and
+# uncomment the configuration you want.
+
+# *** OPTIONS ***
+OPTIONS=tile_file:tiles.bin,tile_width:8,tile_height:8
+
+# *** Personal Preferences ***
+# Some options to set personal preferences.  Uncomment and change these to
+# suit your personal preference.  If several people are to use the same
+# configuration, options like these should not be set.
+#
+#OPTIONS=name:Janet,role:Valkyrie,race:Human,gender:female,align:lawful
+#OPTIONS=dogname:Fido,catname:Morris,fruit:guava
+#OPTIONS=horsename:Silver
+#OPTIONS=autopickup,pickup_types:$"=/!?+
+#OPTIONS=packorder:")[%?+/=!(*0_`
+#OPTIONS=scores:10 top/2 around/own
+#OPTIONS=nolegacy,noverbose
+#OPTIONS=menustyle:traditional
+
+#
+# General options.
+#
+# number_pad option can have an optional value of 0 (off), 1 (on), 
+# or 2(on,legacy-mode) which causes 5='g', alt-5='G', alt-0='I'
+# Right now, if number_pad is set to 0, the arrow keys will not work
+OPTIONS=time,noshowexp,number_pad:2,lit_corridor
+#
+# If you want to get rid of "use #quit to quit..." use:
+OPTIONS=suppress_alert:3.3.1
+#
+# Note: the rest_on_space in the next line may not be
+#       appropriate for a beginning NetHack player, since
+#       it could result in use of a turn unintentionally.
+#       If you're new to NetHack, leave it commented it out.
+#OPTIONS=rest_on_space
+
+# Other
+OPTIONS=hilite_pet
+#OPTIONS=!splash_screen,player_selection:prompts

@@ -160,6 +160,8 @@ void test_thinger()
 
 int main()
 {
+  srand(IPC->time.rtc.hours * 60 * 60 + IPC->time.rtc.minutes * 60 + IPC->time.rtc.seconds);
+
   init_screen();
 
   if (! fatInitDefault())

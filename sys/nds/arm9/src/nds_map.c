@@ -7,6 +7,10 @@
 
 #include "bmp.h"
 
+#include "nds_win.h"
+#include "nds_util.h"
+#include "nds_map.h"
+
 #define DEF_TILE_FILE "tiles.bmp"
 
 #define DEF_TILE_WIDTH		16
@@ -42,6 +46,7 @@ int tile_width;
 int tile_height;
 
 int map_width;
+int map_height;
 
 /*
  * Copy a tile from our tile image, loaded previously, into tile RAM.  In the
@@ -63,7 +68,7 @@ void nds_load_tile(int idx)
      */
 
     tile_idx = MAX_TILE_SLOTS - num_free_tiles;
-    num_free_tiles--;
+    num_free_tiles -= tile_width * tile_height;
   } else {
     /*
      * If there are no free slots, we look for the oldest tile and overwrite
@@ -164,8 +169,16 @@ void nds_draw_tile(int x, int y, int idx)
   int midx, tidx;
   int i, j;
 
-  if (tile_cache[idx].tile_ram_idx == 0) {
+  if ((idx >= 0) && (tile_cache[idx].tile_ram_idx == 0)) {
     nds_load_tile(idx);
+
+    tidx = tile_cache[idx].tile_ram_idx; 
+
+    iprintf("Drawing tile %d (ram idx %d)\n", idx, tidx);
+  } else if (idx < 0) {
+    tidx = 0;
+  } else {
+    tidx = tile_cache[idx].tile_ram_idx; 
   }
 
   /*
@@ -183,11 +196,14 @@ void nds_draw_tile(int x, int y, int idx)
    */
 
   midx = (y * tile_height) * 32 + x * tile_width;
-  tidx = tile_cache[idx].tile_ram_idx;
 
   for (j = 0; j < tile_height; j++, midx += 32) {
-    for (i = 0; i < tile_width; i++, tidx++) {
+    for (i = 0; i < tile_width; i++) {
       map_ram[midx + i] = tidx; 
+
+      if (tidx > 0) {
+        tidx++;
+      }
     }
   }
 }
@@ -210,7 +226,8 @@ int nds_init_map(u16 *palette, int *rows, int *cols)
   tile_width = TILE_WIDTH / 8;
   tile_height = TILE_HEIGHT / 8;
 
-  map_width = COLNO * tile_width;
+  map_width = 32 / tile_width;
+  map_height = 24 / tile_height;
 
   num_free_tiles = MAX_TILE_SLOTS / tile_width * tile_height - 1;
 
@@ -262,8 +279,43 @@ int nds_init_map(u16 *palette, int *rows, int *cols)
 
   /* Lastly, compute the number of rows and columns in our map. */
 
-  nds_draw_tile(1, 1, 1);
-
   return 0;
 }
 
+void nds_clear_map()
+{
+  memset(map_ram, 0, 32 * 24 * 2);
+}
+
+void nds_draw_map(nds_map_t *map)
+{
+  if (map != NULL) {
+    int sx = u.ux - map_width / 2;
+    int sy = u.uy - map_height / 2;
+
+    int x, y;
+
+    for (y = 0; y < map_height; y++) {
+      for (x = 0; x < map_width; x++) {
+        if (((sx + x) < 0) || ((sx + x) >= COLNO) ||
+            ((sy + y) < 0) || ((sy + y) >= ROWNO)) {
+
+          continue;
+        } else {
+          nds_draw_tile(x, y, glyph2tile[map->glyphs[sy + y][sx + x]]);
+        }
+      }
+    }
+  } else {
+    nds_clear_map();
+  }
+}
+
+void nds_map_translate_coords(int x, int y, int *tx, int *ty)
+{
+  int sx = u.ux - map_width / 2;
+  int sy = u.uy - map_height / 2;
+
+  *tx = sx + x / TILE_WIDTH;
+  *ty = sy + y / TILE_HEIGHT;
+}

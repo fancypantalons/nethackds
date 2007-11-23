@@ -47,7 +47,7 @@ void VblankHandler(void) {
 	uint16 but=0, x=0, y=0, xpx=0, ypx=0, z1=0, z2=0, batt=0, aux=0;
 	int t1=0, t2=0;
 	uint32 temp=0;
-	uint8 ct[sizeof(IPC->time.curtime)];
+	// uint8 ct[sizeof(IPC->time.curtime)];
 	u32 i;
 
 	// Read the touch screen
@@ -72,8 +72,8 @@ void VblankHandler(void) {
 	aux  = touchRead(TSC_MEASURE_AUX);
 
 	// Read the time
-	rtcGetTime((uint8 *)ct);
-	BCDToInteger((uint8 *)&(ct[1]), 7);
+	// rtcGetTime((uint8 *)ct);
+	// BCDToInteger((uint8 *)&(ct[1]), 7);
 
 	// Read the temperature
 	temp = touchReadTemperature(&t1, &t2);
@@ -89,9 +89,11 @@ void VblankHandler(void) {
 	IPC->battery		= batt;
 	IPC->aux			= aux;
 
+        /*
 	for(i=0; i<sizeof(ct); i++) {
 		IPC->time.curtime[i] = ct[i];
 	}
+        */
 
 	IPC->temperature = temp;
 	IPC->tdiode1 = t1;
@@ -140,11 +142,12 @@ int main(int argc, char ** argv) {
 	IPC->soundData = 0;
 
 	irqInit();
+        initClockIRQ();
+
 	irqSet(IRQ_VBLANK, VblankHandler);
-	irqEnable(IRQ_VBLANK);
-	
 	irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
-	irqEnable(IRQ_WIFI);
+
+	irqEnable(IRQ_VBLANK | IRQ_WIFI);
 
 { // sync with arm9 and init wifi
   	u32 fifo_temp;   

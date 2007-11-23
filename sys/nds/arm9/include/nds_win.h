@@ -1,3 +1,6 @@
+#ifndef _NDS_WIN_H_
+#define _NDS_WIN_H_
+
 #include "font-bdf.h"
 
 #define MAX_WINDOWS 8
@@ -49,3 +52,5 @@ typedef struct {
 
   u8 dirty;
 } nds_nhwindow_t;
+
+#endif

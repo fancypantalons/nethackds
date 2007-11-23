@@ -838,8 +838,7 @@ int _nds_display_yes_no_prompt(char *prompt)
 
 void _nds_display_map(nds_nhwindow_t *win, int blocking)
 {
-  iprintf("_nds_display_map stub called\n");
-  nds_wait_key(KEY_A);
+  nds_draw_map(win->map);
 }
 
 void _nds_display_message(nds_nhwindow_t *win, int blocking)
@@ -1298,8 +1297,39 @@ int nds_nhgetch()
 
 int nds_nh_poskey(int *x, int *y, int *mod)
 {
-  iprintf("nds_nh_poskey called...\n");
-  nds_wait_key(KEY_A);
+  int pressed;
+  touchPosition coords = { .x = 0, .y = 0 };
+  touchPosition lastCoords;
+
+  while(1) {
+    lastCoords = coords;
+    coords = touchReadXY();
+
+    scanKeys();
+
+    pressed = keysDown();
+
+    if (pressed & KEY_UP) {
+      return 'k';
+    } else if (pressed & KEY_DOWN) {
+      return 'j';
+    } else if (pressed & KEY_LEFT) {
+      return 'h';
+    } else if (pressed & KEY_RIGHT) {
+      return 'l';
+    }
+
+    if (((lastCoords.x != 0) || (lastCoords.y != 0)) &&
+        ((coords.x == 0) && (coords.y == 0))) {
+      nds_map_translate_coords(lastCoords.px, lastCoords.py, x, y);
+
+      *mod = CLICK_1;
+
+      return 0;
+    }
+
+    swiWaitForVBlank();
+  }
 
   return 0;
 }
@@ -1487,8 +1517,7 @@ void nds_resume_nhwindows()
 
 void nds_cliparound()
 {
-  iprintf("nds_cliparound stub called...\n");
-  nds_wait_key(KEY_A);
+  // Do nothing right now
 }
 
 void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
@@ -1496,11 +1525,20 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   nds_nhwindow_t *window = windows[win];
 
   if (window->map == NULL) {
+    int x, y;
+
     window->map = (nds_map_t *)malloc(sizeof(nds_map_t));
-    memset(window->map->glyphs, 0, sizeof(window->map->glyphs));
+
+    for (y = 0; y < ROWNO; y++) {
+      for (x = 0; x < COLNO; x++) {
+        window->map->glyphs[y][x] = -1;
+      }
+    }
   }
 
   window->map->glyphs[y][x] = glyph;
+
+  iprintf("printed a glyph %d\n", glyph);
 }
 
 void nds_nhbell()
@@ -1519,8 +1557,7 @@ int nds_doprev_message()
 
 void nds_delay_output()
 {
-  iprintf("nds_delay_output stub called...\n");
-  nds_wait_key(KEY_A);
+  // Do nothing for now
 }
 
 void nds_preference_update(const char *preferences)

@@ -14,6 +14,17 @@ u16 kbd_xy2key(u8 x, u8 y);
 void kbd_togglemod(int which, int how);
 void kbd_set_color_from_pos(u16 r, u16 k,u8 color);
 void kbd_set_color_from_code(u16 code,u8 color);
+u8 kbd_vblank(void);
+
+#define K_UP_LEFT       0x0F0
+#define K_UP            0x0F1
+#define K_UP_RIGHT      0x0F2
+#define K_LEFT          0x0F3
+#define K_NOOP          0x0F4
+#define K_RIGHT         0x0F5
+#define K_DOWN_LEFT     0x0F6
+#define K_DOWN          0x0F7
+#define K_DOWN_RIGHT    0x0F8
 
 #define K_MODIFIER	0x100	// if set: it's shift or ctrl or alt
 #define K_CAPS		0x101

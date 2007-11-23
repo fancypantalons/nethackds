@@ -5,17 +5,25 @@
 extern struct font *system_font;
 
 typedef struct {
-  char **text;
-  int lines;
+  char *text;
+  int width;
+  int height;
+} nds_line_t;
+
+typedef struct {
+  nds_line_t *lines;
+  int count;
 } nds_charbuf_t;
 
 typedef struct {
   ANY_P id;
-  char title[80];
   int count;
   int selected;
+  int highlighted;
+  int refresh;
   int x, y;
   int width, height;
+  char title[96];
 } nds_menuitem_t;
 
 typedef struct {
@@ -23,6 +31,10 @@ typedef struct {
   char *prompt;
   u16 count;
 } nds_menu_t;
+
+typedef struct {
+  int glyphs[ROWNO][COLNO];
+} nds_map_t;
 
 typedef struct {
   u8 type;
@@ -33,7 +45,7 @@ typedef struct {
 
   nds_charbuf_t *buffer;
   nds_menu_t *menu;
-  u8 *glyphs;
+  nds_map_t *map;
 
   u8 dirty;
 } nds_nhwindow_t;

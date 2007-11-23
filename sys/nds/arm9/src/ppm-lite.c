@@ -39,11 +39,15 @@ struct ppm *alloc_ppm(int width, int height)
   img->height = height;
   img->rgba = (unsigned char *)malloc(width * height * 4);
 
-  memset(img->rgba, 0, width * height * 4);
+  clear_ppm(img);
 
   return img;
 }
 
+void clear_ppm(struct ppm *img)
+{
+  memset(img->rgba, 0, img->width * img->height * 4);
+}
 
 /* Reads a non-blank line, stripping comments and blank lines.
    At EOF, either exits, or returns 0, depending on exit_p.

@@ -10,6 +10,7 @@
 #endif
 
 #include "hack.h"
+#include "dlb.h"
 #include "ds_kbd.h"
 #include "nds_win.h"
 #include "nds_gfx.h"
@@ -33,8 +34,8 @@ void init_screen()
 {
   powerON(POWER_ALL_2D | POWER_SWAP_LCDS);
 
-  videoSetMode(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE);
-  videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
+  videoSetMode(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG3_ACTIVE);
+  videoSetModeSub(MODE_5_2D | DISPLAY_BG1_ACTIVE);
 
   vramSetMainBanks(VRAM_A_MAIN_BG_0x06000000,
                    VRAM_B_MAIN_BG_0x06020000,
@@ -57,11 +58,11 @@ void init_screen()
   /* Main screen setup. */
 
   /* Console layer */
-  BG0_CR = BG_MAP_BASE(8) | BG_TILE_BASE(0) | BG_PRIORITY_3;
+  BG0_CR = BG_MAP_BASE(8) | BG_TILE_BASE(0) | BG_PRIORITY_0;
 
   /* Prompt and Status/Message layers */
-  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_0;
-  BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(7) | BG_PRIORITY_1;
+  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_1;
+  BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(7) | BG_PRIORITY_2;
 
   BG2_XDX = 1 << 8;
   BG2_XDY = 0;
@@ -76,26 +77,21 @@ void init_screen()
   /* Sub screen setup. */
 
   /* Keyboard layer */
-  SUB_BG0_CR = BG_MAP_BASE(8) | BG_TILE_BASE(0) | BG_16_COLOR;
+  SUB_BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
 
   /* Menu/Text and Map layers */
   SUB_BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2);
-  SUB_BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(7);
 
   SUB_BG2_XDX = 1 << 8;
   SUB_BG2_XDY = 0;
   SUB_BG2_YDX = 0;
   SUB_BG2_YDY = 1 << 8;
 
-  SUB_BG3_XDX = 1 << 8;
-  SUB_BG3_XDY = 0;
-  SUB_BG3_YDX = 0;
-  SUB_BG2_YDY = 1 << 8;
-
   /* Now init our console. */
   /* Set up the palette entries for our text, while we're here. */
 
   BG_PALETTE[255] = RGB15(31,31,31);
+  BG_PALETTE[253] = RGB15(31,0, 0);
 
   consoleInitDefault((u16 *)SCREEN_BASE_BLOCK(8),
                      (u16 *)CHAR_BASE_BLOCK(0),
@@ -147,6 +143,21 @@ void mallinfo_dump()
   iprintf("Fordblks: %d\n", info.fordblks);
 }
 
+void test_thinger()
+{
+  winid win = create_nhwindow(NHW_TEXT);
+  char buf[BUFSZ];
+  int i;
+
+  for (i = 0; i < 100; i++) {
+    sprintf(buf, "Testing line number %d", i);
+
+    putstr(win, ATR_NONE, buf);
+  }
+
+  display_nhwindow(win, 1);
+}
+
 int main()
 {
   init_screen();
@@ -158,12 +169,19 @@ int main()
     return 0;
   }
 
+  chdir("/NetHack");
+
   kbd_init();
   initoptions();
 
   choose_windows(DEFAULT_WINDOW_SYS);
 
   init_nhwindows(NULL, NULL);
+
+  create_levelfile(0, (char *)NULL);
+
+  vision_init();
+  dlb_init();
 
   /* TODO: Display the copyright thinger and title screen. */
 
@@ -172,23 +190,17 @@ int main()
 
   display_gamewindows();
 
-  {
-    winid win = create_nhwindow(NHW_MENU);
-    menu_item *sel[3];
-    ANY_P id1, id2, id3;
+  // test_thinger();
 
-    id1.a_int = 1;
-    id2.a_int = 2;
-    id3.a_int = 3;
+  player_selection();
+  newgame();
+  set_wear();
 
-    start_menu(win);
-    add_menu(win, NO_GLYPH, &id1, 0, 0, 0, "Item 1", 0);
-    add_menu(win, NO_GLYPH, &id2, 0, 0, 0, "Item 2", 0);
-    add_menu(win, NO_GLYPH, &id3, 0, 0, 0, "Item 3", 0);
-    end_menu(win, "Select An Item");
+  flags.move = 0;
 
-    select_menu(win, PICK_ANY, sel);
-  }
+  (void) pickup(1);
+
+  moveloop();
 
   iprintf("Ready!\n");
 

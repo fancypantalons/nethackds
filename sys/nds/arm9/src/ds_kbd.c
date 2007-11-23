@@ -29,13 +29,9 @@ static int shift = false, ctrl = false, alt = false, caps = false;
 void kbd_init() {
 	u16 i;
 
-	for (i=0;i<16;i++) {
-		BG_PALETTE_SUB[i+16] = BG_PALETTE_SUB[i] ^ 0x7FFF;
-	}
-
-        nds_load_file("/NetHack/kbd.bin", BG_TILE_RAM_SUB(0));
-        nds_load_file("/NetHack/kbd.pal", BG_PALETTE_SUB);
-        nds_load_file("/NetHack/kbd.map", BG_MAP_RAM_SUB(8));
+        nds_load_file("/NetHack/kbd.bin", (void *)BG_TILE_RAM_SUB(0));
+        nds_load_file("/NetHack/kbd.pal", (void *)BG_PALETTE_SUB);
+        nds_load_file("/NetHack/kbd.map", (void *)BG_MAP_RAM_SUB(4));
 }
 
 u16 kbd_mod_code(u16 ret) {
@@ -59,9 +55,9 @@ u16 kbd_mod_code(u16 ret) {
 
 void kbd_set_color_from_pos(u16 r, u16 k,u8 color) {
 	u16 ii,xx=0,jj;
-	u16* map[] = { (u16*)(BG_MAP_RAM_SUB(8)+3*32*2), 
-	 (u16*)(BG_MAP_RAM_SUB(9)+3*32*2), (u16*)(BG_MAP_RAM_SUB(10)+3*32*2),
-	 (u16*)(BG_MAP_RAM_SUB(11)+3*32*2) };
+	u16* map[] = { (u16*)(BG_MAP_RAM_SUB(4)+3*32*2), 
+	 (u16*)(BG_MAP_RAM_SUB(5)+3*32*2), (u16*)(BG_MAP_RAM_SUB(6)+3*32*2),
+	 (u16*)(BG_MAP_RAM_SUB(7)+3*32*2) };
 	for (ii=0;ii<k;ii++) {
 		xx += kbdrows[r][ii].width >> 3;
 	}
@@ -89,11 +85,15 @@ void kbd_set_color_from_code(u16 code,u8 color) {
 }
 
 void kbd_set_map() {
-	SUB_BG0_CR = BG_TILE_BASE(0) | BG_MAP_BASE(8 + (caps | (shift<<1))) | BG_PRIORITY(0) | BG_16_COLOR;
+	SUB_BG0_CR = BG_TILE_BASE(0) | BG_MAP_BASE(4 + (caps | (shift<<1))) | BG_PRIORITY(0) | BG_16_COLOR;
 	
 }
 
-const u8 vi_move[] = {'b','j','n','h','g','l','y','k','u'};
+// down-left, down, down-right, left, pause, right, up-left, up, up-right
+
+const u8 vi_move[] = { K_DOWN_LEFT, K_DOWN, K_DOWN_RIGHT,
+                       K_LEFT, K_NOOP, K_RIGHT,
+                       K_UP_LEFT, K_UP, K_UP_RIGHT };
 
 u16 kbd_xy2key(u8 x, u8 y) {
 	//draw_char(0,32,x+1);

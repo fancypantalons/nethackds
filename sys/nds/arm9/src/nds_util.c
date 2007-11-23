@@ -57,3 +57,18 @@ int nds_load_file(char *fname, void *dest)
   return 0;
 }
 
+void nds_wait_key(int keys)
+{
+  while(1) {
+    int pressed;
+
+    swiWaitForVBlank();
+    scanKeys();
+
+    pressed = keysDown();
+
+    if (pressed & keys) {
+      break;
+    }
+  }
+}

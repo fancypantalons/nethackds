@@ -379,7 +379,7 @@ draw_char (struct font *font, const unsigned char c,
    Newlines are allowed; tabs are not handled specially.
  */
 void
-draw_string (struct font *font, const unsigned char *string,
+draw_string (struct font *font, char *string,
              struct ppm *into, int x, int y,
              int alignment,
              unsigned long fg, unsigned long bg,
@@ -387,7 +387,7 @@ draw_string (struct font *font, const unsigned char *string,
 {
   int ox = x;
   int w;
-  const unsigned char *s2;
+  char *s2;
 
  LINE:
   x = ox;

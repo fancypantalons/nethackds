@@ -27,6 +27,8 @@ struct ppm {
 /* Filenames below may be "-" for stdin/stdout. */
 extern struct ppm *alloc_ppm(int width, int height);
 
+extern void clear_ppm(struct ppm *ppm);
+
 extern struct ppm *read_ppm (const char *filename);
 extern void write_ppm (struct ppm *ppm, const char *filename);
 

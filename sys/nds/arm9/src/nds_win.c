@@ -129,9 +129,9 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   /* Set up our palettes. */
 
-  BG_PALETTE_SUB[253] = RGB15(0, 31, 0);
-  BG_PALETTE_SUB[254] = RGB15(0, 0, 0);
-  BG_PALETTE_SUB[255] = RGB15(31, 31, 31);
+  BG_PALETTE[253] = RGB15(0, 31, 0);
+  BG_PALETTE[254] = RGB15(0, 0, 0);
+  BG_PALETTE[255] = RGB15(31, 31, 31);
 
   iflags.window_inited = true;
 }
@@ -667,7 +667,7 @@ void nds_putstr(winid win, int attr, const char *str)
 
 void _nds_draw_prompt(char *title)
 {
-  u16 *vram = (u16 *)BG_BMP_RAM(2);
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(0);
   int w, h;
 
   text_dims(system_font, title, &w, &h);
@@ -694,7 +694,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
                        int how,
                        int clear)
 {
-  u16 *vram = (u16 *)BG_BMP_RAM_SUB(2);
+  u16 *vram = (u16 *)BG_BMP_RAM(2);
 
   int start_x, end_x, start_y, end_y;
   int bottomidx;
@@ -897,7 +897,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
    * Clear VRAM in the BG2 layer and then activate it.
    */
 
-  SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
   while (1) {
     int keys;
@@ -955,7 +955,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     }
   }
 
-  SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 }
 
 /*
@@ -1367,7 +1367,7 @@ char nds_yn_function(const char *ques, const char *choices, char def)
 
 void nds_getlin(const char *prompt, char *buffer)
 {
-  u16 *vram = (u16 *)BG_BMP_RAM(2);
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(0);
 
   char front[BUFSZ];
   char back[BUFSZ];
@@ -1396,8 +1396,8 @@ void nds_getlin(const char *prompt, char *buffer)
 
   /* First, display the keyboard and prompting layers */
 
-  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
-  SUB_DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+  SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
   /* Now, enter the key loop */
 
@@ -1478,8 +1478,8 @@ void nds_getlin(const char *prompt, char *buffer)
 
   NULLFREE(input_img);
 
-  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
-  SUB_DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+  DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+  SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 
   strcpy(buffer, front);
   strcat(buffer, back);

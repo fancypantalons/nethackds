@@ -15,6 +15,33 @@
 #include "nds_win.h"
 #include "nds_gfx.h"
 
+int consoleEnabled = 0;
+int wasConsoleLayerVisible = 0;
+
+/*
+ * Key interrupt handler.  Right now, I only use this to toggle the console
+ * layer on and off.
+ */
+void keysInterruptHandler()
+{
+  if (consoleEnabled) {
+    BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
+
+    if (! wasConsoleLayerVisible) {
+      DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+    }
+
+    consoleEnabled = 0;
+  } else {
+    wasConsoleLayerVisible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
+
+    BG0_CR = BG_MAP_BASE(12) | BG_TILE_BASE(10) | BG_16_COLOR;
+    DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+
+    consoleEnabled = 1;
+  }
+}
+
 /*
  * Here we'll power on the screen, initialize the memory bases, and
  * get our console set up.
@@ -33,9 +60,10 @@
 void init_screen()
 {
   powerON(POWER_ALL_2D | POWER_SWAP_LCDS);
+  lcdMainOnBottom();
 
-  videoSetMode(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG3_ACTIVE);
-  videoSetModeSub(MODE_5_2D | DISPLAY_BG1_ACTIVE | DISPLAY_BG_EXT_PALETTE);
+  videoSetMode(MODE_5_2D | DISPLAY_BG1_ACTIVE | DISPLAY_BG_EXT_PALETTE);
+  videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
 
   vramSetMainBanks(VRAM_A_MAIN_BG_0x06000000,
                    VRAM_B_MAIN_BG_0x06020000,
@@ -54,48 +82,47 @@ void init_screen()
 
   /* Main screen setup. */
 
-  /* Console layer */
-  BG0_CR = BG_MAP_BASE(8) | BG_TILE_BASE(0) | BG_PRIORITY_0;
-
   /* Prompt and Status/Message layers */
-  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_1;
-  BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(7) | BG_PRIORITY_2;
-
-  BG2_XDX = 1 << 8;
-  BG2_XDY = 0;
-  BG2_YDX = 0;
-  BG2_YDY = 1 << 8;
-
-  BG3_XDX = 1 << 8;
-  BG3_XDY = 0;
-  BG3_YDX = 0;
-  BG3_YDY = 1 << 8;
-
-  /* Sub screen setup. */
-
-  /* Keyboard layer */
-  SUB_BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
-
-  /* Menu/Text and Map layers */
-  SUB_BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2);
+  SUB_BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(0) | BG_PRIORITY_1;
+  SUB_BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(4) | BG_PRIORITY_2;
 
   SUB_BG2_XDX = 1 << 8;
   SUB_BG2_XDY = 0;
   SUB_BG2_YDX = 0;
   SUB_BG2_YDY = 1 << 8;
 
+  SUB_BG3_XDX = 1 << 8;
+  SUB_BG3_XDY = 0;
+  SUB_BG3_YDX = 0;
+  SUB_BG3_YDY = 1 << 8;
+
+  /* Sub screen setup. */
+
+  /* Keyboard layer */
+  BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
+
+  /* Menu/Text and Map layers */
+  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2);
+
+  BG2_XDX = 1 << 8;
+  BG2_XDY = 0;
+  BG2_YDX = 0;
+  BG2_YDY = 1 << 8;
+
   /* Now init our console. */
   /* Set up the palette entries for our text, while we're here. */
 
-  BG_PALETTE[255] = RGB15(31,31,31);
-  BG_PALETTE[253] = RGB15(31,0, 0);
+  BG_PALETTE_SUB[255] = RGB15(31,31,31);
+  BG_PALETTE_SUB[253] = RGB15(31,0, 0);
 
-  consoleInitDefault((u16 *)SCREEN_BASE_BLOCK(8),
-                     (u16 *)CHAR_BASE_BLOCK(0),
+  consoleInitDefault((u16 *)BG_MAP_RAM(12),
+                     (u16 *)BG_TILE_RAM(10),
                      16);
 
   irqInit();
-  irqEnable(IRQ_VBLANK);
+  irqEnable(IRQ_VBLANK | IRQ_KEYS);
+  irqSet(IRQ_KEYS, keysInterruptHandler);
+  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_L | KEY_R;
 
 #ifdef _DEBUG_
   scanKeys();

@@ -35,8 +35,8 @@ bmp_t tiles;
 int width_in_tiles;
 int height_in_tiles;
 
-u16 *tile_ram = (u16 *)BG_TILE_RAM_SUB(6);
-u16 *map_ram = (u16 *)BG_MAP_RAM_SUB(8);
+u16 *tile_ram = (u16 *)BG_TILE_RAM(6);
+u16 *map_ram = (u16 *)BG_MAP_RAM(8);
 
 tile_cache_entry_t tile_cache[NUM_TILES];
 
@@ -253,17 +253,17 @@ int nds_init_map(int *rows, int *cols)
    * which maximizes the amount of tile RAM we have.
    */
 
-  SUB_BG1_CR = BG_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_PRIORITY_3;
+  BG1_CR = BG_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_PRIORITY_3;
 
   switch (bmp_bpp(&tiles)) {
     case 4:
-      SUB_BG1_CR |= BG_16_COLOR;
+      BG1_CR |= BG_16_COLOR;
 
-      palette = (u16 *)BG_PALETTE_SUB + 32;
+      palette = (u16 *)BG_PALETTE + 32;
       break;
 
     case 8:
-      SUB_BG1_CR |= BG_256_COLOR;
+      BG1_CR |= BG_256_COLOR;
 
       vramSetBankH(VRAM_H_LCD);
       palette = VRAM_H;

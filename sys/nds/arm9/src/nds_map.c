@@ -141,17 +141,22 @@ void nds_load_tile(int idx)
         /* Again, this works because 8 * (bpp / 8) == bpp */
 
         for (x = 0; x < bpp; x += 2, bmp_row_start += 2) {
-          u16 a, b, c, d;
+          if (bpp == 4) {
+            u16 a, b, c, d;
 
-          a = (bmp_row_start[0] & 0xF0) >> 4;
-          b = (bmp_row_start[0] & 0x0F);
-          c = (bmp_row_start[1] & 0xF0) >> 4;
-          d = (bmp_row_start[1] & 0x0F);
+            a = (bmp_row_start[0] & 0xF0) >> 4;
+            b = (bmp_row_start[0] & 0x0F);
+            c = (bmp_row_start[1] & 0xF0) >> 4;
+            d = (bmp_row_start[1] & 0x0F);
 
-          //tile_row_start[x / 2] = (bmp_row_start[1]) |
-          //                        (bmp_row_start[0] << 8);
+            //tile_row_start[x / 2] = (bmp_row_start[1]) |
+            //                        (bmp_row_start[0] << 8);
 
-          tile_row_start[x / 2] = (d << 12) | (c << 8) | (b << 4) | (a << 0);
+            tile_row_start[x / 2] = (d << 12) | (c << 8) | (b << 4) | (a << 0);
+          } else {
+            tile_row_start[x / 2] = (bmp_row_start[1] << 8) |
+                                     bmp_row_start[0];
+          }
         }
       }
 
@@ -169,14 +174,12 @@ void nds_draw_tile(int x, int y, int idx)
   int midx, tidx;
   int i, j;
 
-  if ((idx >= 0) && (tile_cache[idx].tile_ram_idx == 0)) {
+  if (idx < 0) {
+    tidx = 0x0000;
+  } else if (tile_cache[idx].tile_ram_idx == 0) {
     nds_load_tile(idx);
 
     tidx = tile_cache[idx].tile_ram_idx; 
-
-    iprintf("Drawing tile %d (ram idx %d)\n", idx, tidx);
-  } else if (idx < 0) {
-    tidx = 0;
   } else {
     tidx = tile_cache[idx].tile_ram_idx; 
   }
@@ -199,7 +202,7 @@ void nds_draw_tile(int x, int y, int idx)
 
   for (j = 0; j < tile_height; j++, midx += 32) {
     for (i = 0; i < tile_width; i++) {
-      map_ram[midx + i] = tidx; 
+      map_ram[midx + i] = tidx | 0x2000; 
 
       if (tidx > 0) {
         tidx++;
@@ -214,8 +217,9 @@ void nds_draw_tile(int x, int y, int idx)
  * is loaded, we populate the palette provided.  This involves converting the 
  * 24-bit RGB tuplets to 15-bit NDS palette entries.
  */
-int nds_init_map(u16 *palette, int *rows, int *cols)
+int nds_init_map(int *rows, int *cols)
 {
+  u16 *palette;
   char *fname = TILE_FILE ? TILE_FILE : DEF_TILE_FILE;
   int i;
 
@@ -254,10 +258,16 @@ int nds_init_map(u16 *palette, int *rows, int *cols)
   switch (bmp_bpp(&tiles)) {
     case 4:
       SUB_BG1_CR |= BG_16_COLOR;
+
+      palette = (u16 *)BG_PALETTE_SUB + 32;
       break;
 
     case 8:
       SUB_BG1_CR |= BG_256_COLOR;
+
+      vramSetBankH(VRAM_H_LCD);
+      palette = VRAM_H;
+
       break;
 
     default:
@@ -275,6 +285,10 @@ int nds_init_map(u16 *palette, int *rows, int *cols)
     palette[i] = RGB15((tiles.palette[i].r >> 3),
                        (tiles.palette[i].g >> 3),
                        (tiles.palette[i].b >> 3));
+  }
+
+  if (bmp_bpp(&tiles) == 8) {
+    vramSetBankH(VRAM_H_SUB_BG_EXT_PALETTE);
   }
 
   /* Lastly, compute the number of rows and columns in our map. */
@@ -299,8 +313,7 @@ void nds_draw_map(nds_map_t *map)
       for (x = 0; x < map_width; x++) {
         if (((sx + x) < 0) || ((sx + x) >= COLNO) ||
             ((sy + y) < 0) || ((sy + y) >= ROWNO)) {
-
-          continue;
+          nds_draw_tile(x, y, -1);
         } else {
           nds_draw_tile(x, y, glyph2tile[map->glyphs[sy + y][sx + x]]);
         }

@@ -38,6 +38,8 @@ void _nds_win_append_text(nds_nhwindow_t *win, const char *str)
 {
   nds_line_t *ptr;
 
+  iprintf("%s\n", str);
+
   if (win->buffer == NULL) {
     win->buffer = (nds_charbuf_t *)malloc(sizeof(nds_charbuf_t));
     win->buffer->lines = NULL;
@@ -113,7 +115,7 @@ void nds_init_nhwindows(int *argc, char **argv)
     return;
   }
 
-  if (nds_init_map(BG_PALETTE_SUB, &map_rows, &map_cols)) {
+  if (nds_init_map(&map_rows, &map_cols)) {
     iprintf("Error loading tiles!\n");
 
     return;
@@ -721,7 +723,6 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
       nds_draw_rect_outline(0, 191 - butheight, 255, butheight, 254, 255, vram);
     }
   }
-      iprintf("%dx%d %d,%d,%d,%d\n", width, height, start_x, start_y, end_x, end_y);
 
   if (window->buffer == NULL) {
     nds_menu_t *menu = window->menu;
@@ -845,14 +846,14 @@ void _nds_display_message(nds_nhwindow_t *win, int blocking)
 {
   int i;
 
-  iprintf("_nds_display_message stub called\n");
-  nds_wait_key(KEY_A);
-
   if (win->buffer) {
     for (i = 0; i < win->buffer->count; i++) {
       iprintf("%s\n", win->buffer->lines[i].text);
     }
   }
+
+  iprintf("_nds_display_message stub called\n");
+  nds_wait_key(KEY_A);
 }
 
 void _nds_display_status(nds_nhwindow_t *win, int blocking)
@@ -1083,10 +1084,10 @@ void nds_end_menu(winid win, const char *prompt)
  * taps will cause items to be selected accordingly.  Note, this
  * only works with NHW_MENU windows.
  */
-void _nds_do_menu(nds_nhwindow_t *window, 
-                  int x, int y, 
-                  int width, int height,
-                  int how)
+int _nds_do_menu(nds_nhwindow_t *window, 
+                 int x, int y, 
+                 int width, int height,
+                 int how)
 {
   int topidx = 0;
   int bottomidx = 0;
@@ -1095,6 +1096,7 @@ void _nds_do_menu(nds_nhwindow_t *window,
   int clear = 1;
 
   int butheight = 10;
+  int ret = 1;
 
   touchPosition coords = { .x = 0, .y = 0 };
   touchPosition last_coords;
@@ -1108,6 +1110,7 @@ void _nds_do_menu(nds_nhwindow_t *window,
 
   while (1) {
     int i;
+    int pressed;
 
     if (refresh) {
       bottomidx = _nds_draw_scroller(window, x, y, width, height, topidx, butheight, how, clear);
@@ -1124,6 +1127,19 @@ void _nds_do_menu(nds_nhwindow_t *window,
     
     last_coords = coords;
     coords = touchReadXY();
+
+    scanKeys();
+    pressed = keysDown();
+
+    if (how == PICK_ANY) {
+      if (pressed & KEY_A) {
+        goto DONE;
+      } else if (pressed & KEY_B) {
+        ret = 0;
+
+        goto DONE;
+      }
+    }
 
     if ((coords.x == 0) && (coords.y == 0) && 
         (last_coords.x == 0) && (last_coords.y == 0)) {
@@ -1188,7 +1204,7 @@ void _nds_do_menu(nds_nhwindow_t *window,
 
           if (how == PICK_ONE) {
             goto DONE;
-          }
+          } 
         }
       }
     }
@@ -1224,6 +1240,8 @@ DONE:
 
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
   SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+
+  return ret;
 }
 
 /*
@@ -1235,6 +1253,7 @@ int nds_select_menu(winid win, int how, menu_item **sel)
   int i, j;
   int width, height;
   int cnt = 0;
+  int ret;
 
   /*
    * First, we compute the dimensions of our menu and all of the items.
@@ -1255,9 +1274,9 @@ int nds_select_menu(winid win, int how, menu_item **sel)
     height += item->height;
   }
 
-  _nds_do_menu(window, 1, 1, width, height, how);
+  ret = _nds_do_menu(window, 1, 1, width, height, how);
   
-  if (how != PICK_NONE) {
+  if ((how != PICK_NONE) && ret) {
     for (i = 0; i < window->menu->count; i++) {
       if (window->menu->items[i].selected) {
         cnt++;
@@ -1317,6 +1336,10 @@ int nds_nh_poskey(int *x, int *y, int *mod)
       return 'h';
     } else if (pressed & KEY_RIGHT) {
       return 'l';
+    } else if (pressed & KEY_X) {
+      return '<';
+    } else if (pressed & KEY_B) {
+      return '>';
     }
 
     if (((lastCoords.x != 0) || (lastCoords.y != 0)) &&
@@ -1537,8 +1560,6 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   }
 
   window->map->glyphs[y][x] = glyph;
-
-  iprintf("printed a glyph %d\n", glyph);
 }
 
 void nds_nhbell()

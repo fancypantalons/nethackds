@@ -5,7 +5,7 @@
 
 extern short glyph2tile[];
 
-int nds_init_map(u16 *palette, int *rows, int *cols);
+int nds_init_map(int *rows, int *cols);
 void nds_draw_tile(int x, int y, int idx);
 void nds_clear_map();
 void nds_draw_map(nds_map_t *glyphs);

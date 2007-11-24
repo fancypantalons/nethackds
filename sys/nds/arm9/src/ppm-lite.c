@@ -686,8 +686,6 @@ void draw_ppm_bw(struct ppm *ppm, unsigned short *target,
 
   target += (py * width + px) / 2;
 
-  iprintf("%d %d\n", px, py);
-
   for (y = py; y < py + ppm->height; y++) {
     for (x = px; x < px + ppm->width; x += 2) {
       if (x & 0x01) {

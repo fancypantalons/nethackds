@@ -35,15 +35,12 @@ void init_screen()
   powerON(POWER_ALL_2D | POWER_SWAP_LCDS);
 
   videoSetMode(MODE_5_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG3_ACTIVE);
-  videoSetModeSub(MODE_5_2D | DISPLAY_BG1_ACTIVE);
+  videoSetModeSub(MODE_5_2D | DISPLAY_BG1_ACTIVE | DISPLAY_BG_EXT_PALETTE);
 
   vramSetMainBanks(VRAM_A_MAIN_BG_0x06000000,
                    VRAM_B_MAIN_BG_0x06020000,
                    VRAM_C_SUB_BG_0x06200000,
                    VRAM_D_MAIN_BG_0x06040000);
-
-  vramSetBankE(VRAM_E_LCD);
-  vramSetBankF(VRAM_F_LCD);
 
   /*
    * Set up the main screen.  We're using BG0 for the console, BG2
@@ -160,6 +157,8 @@ void test_thinger()
 
 int main()
 {
+  int fd;
+
   srand(IPC->time.rtc.hours * 60 * 60 + IPC->time.rtc.minutes * 60 + IPC->time.rtc.seconds);
 
   init_screen();
@@ -177,10 +176,17 @@ int main()
   initoptions();
 
   choose_windows(DEFAULT_WINDOW_SYS);
-
   init_nhwindows(NULL, NULL);
 
-  create_levelfile(0, (char *)NULL);
+  fd = create_levelfile(0, (char *)NULL);
+
+  if (fd < 0) {
+    iprintf("Cannot create lock file");
+  } else {
+    hackpid = 1;
+    write(fd, (genericptr_t) &hackpid, sizeof(hackpid));
+    close(fd);
+  }
 
   vision_init();
   dlb_init();

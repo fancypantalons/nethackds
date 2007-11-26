@@ -2,21 +2,11 @@
 #define _NDS_WIN_H_
 
 #include "font-bdf.h"
+#include "nds_charbuf.h"
 
 #define MAX_WINDOWS 8
 
 extern struct font *system_font;
-
-typedef struct {
-  char *text;
-  int width;
-  int height;
-} nds_line_t;
-
-typedef struct {
-  nds_line_t *lines;
-  int count;
-} nds_charbuf_t;
 
 typedef struct {
   ANY_P id;
@@ -51,6 +41,7 @@ typedef struct {
   nds_map_t *map;
 
   u8 dirty;
+  struct ppm *img; 
 } nds_nhwindow_t;
 
 #endif

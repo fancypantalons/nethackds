@@ -253,8 +253,6 @@ int nds_init_map(int *rows, int *cols)
    * which maximizes the amount of tile RAM we have.
    */
 
-  BG1_CR = BG_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_PRIORITY_3;
-
   switch (bmp_bpp(&tiles)) {
     case 4:
       BG1_CR |= BG_16_COLOR;

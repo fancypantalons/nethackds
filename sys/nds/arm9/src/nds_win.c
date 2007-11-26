@@ -5,14 +5,16 @@
 #include "func_tab.h"
 
 #include "nds_win.h"
+#include "nds_charbuf.h"
 #include "nds_gfx.h"
 #include "nds_util.h"
+#include "nds_status.h"
+#include "nds_msg.h"
+#include "nds_cmd.h"
 
 #include "ppm-lite.h"
 #include "ds_kbd.h"
 #include "nds_map.h"
-
-#define NULLFREE(ptr) { if (ptr != NULL) { free(ptr); ptr = NULL; } }
 
 #define PROMPT_LAYER_WIDTH 40
 
@@ -36,50 +38,20 @@ int map_cols;
 
 void _nds_win_append_text(nds_nhwindow_t *win, const char *str)
 {
-  nds_line_t *ptr;
-
   iprintf("%s\n", str);
 
   if (win->buffer == NULL) {
-    win->buffer = (nds_charbuf_t *)malloc(sizeof(nds_charbuf_t));
-    win->buffer->lines = NULL;
-    win->buffer->count = 0;
+    win->buffer = nds_charbuf_create(0);
   }
 
-  ptr = (nds_line_t *)realloc(win->buffer->lines, 
-                              (win->buffer->count + 1) * sizeof(nds_line_t));
-
-  if (ptr == NULL) {
-    iprintf("Uhoh, ran out of memory!\n");
-    exit(0);
-  } else {
-    win->buffer->lines = ptr;
-  }
-
-  win->buffer->lines[win->buffer->count].text = strdup(str);
-
-  text_dims(system_font, 
-            (char *)str, 
-            &(win->buffer->lines[win->buffer->count].width), 
-            &(win->buffer->lines[win->buffer->count].height));
-
-  win->buffer->count = win->buffer->count + 1;
+  nds_charbuf_append(win->buffer, str);
 }
 
 void _nds_win_destroy_text(nds_nhwindow_t *win)
 {
-  nds_charbuf_t *buf = win->buffer;
-  int i;
+  nds_charbuf_destroy(win->buffer);
 
-  if ((buf != NULL) && (buf->lines != NULL)) {
-    for (i = 0; i < buf->count; i++) {
-      NULLFREE(buf->lines[i].text);
-    }
-
-    NULLFREE(buf->lines);
-  }
-
-  NULLFREE(win->buffer);
+  win->buffer = NULL;
 }
 
 void _nds_win_destroy_menu(nds_nhwindow_t *win)
@@ -121,6 +93,8 @@ void nds_init_nhwindows(int *argc, char **argv)
     return;
   }
 
+  nds_init_cmd();
+
   /* TODO: Load our tiles here. */
 
   for (i = 0; i < MAX_WINDOWS; i++) {
@@ -132,6 +106,9 @@ void nds_init_nhwindows(int *argc, char **argv)
   BG_PALETTE[253] = RGB15(0, 31, 0);
   BG_PALETTE[254] = RGB15(0, 0, 0);
   BG_PALETTE[255] = RGB15(31, 31, 31);
+
+  BG_PALETTE_SUB[255] = RGB15(31,31,31);
+  BG_PALETTE_SUB[253] = RGB15(31,0, 0);
 
   iflags.window_inited = true;
 }
@@ -543,6 +520,7 @@ int nds_create_nhwindow(int type)
 
   /* Initialize the window. */
   win->type = type;
+  win->img = NULL;
 
   nds_clear_nhwindow(id);
 
@@ -557,6 +535,10 @@ void nds_destroy_nhwindow(winid win)
   nds_nhwindow_t *window = windows[win];
 
   nds_clear_nhwindow(win);
+
+  if (window->img) {
+    free_ppm(window->img);
+  }
 
   NULLFREE(window);
 
@@ -649,15 +631,27 @@ void nds_putstr(winid win, int attr, const char *str)
     tmp = *c;
     *c = '\0';
 
-    _nds_win_append_text(window, str);
-
+    if (win == WIN_STATUS) {
+      nds_update_status(str);
+    } else {
+      _nds_win_append_text(window, str);
+    }
+    
     *c = tmp;
 
     str = c + 1;
   }
 
   if (*str) {
-    _nds_win_append_text(window, str);
+    if (win == WIN_STATUS) {
+      nds_update_status(str);
+    } else {
+      _nds_win_append_text(window, str);
+    }
+  }
+
+  if (win == WIN_MESSAGE) {
+    nds_update_msg(window, 0);
   }
 }
 
@@ -727,21 +721,25 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
   if (window->buffer == NULL) {
     nds_menu_t *menu = window->menu;
     int cur_y = 0;
-    int tag_w;
+    int tag_w, tag_h;
     int i;
 
-    text_dims(system_font, "*", &tag_w, NULL);
+    text_dims(system_font, "*", &tag_w, &tag_h);
 
     tag_w *= 4;
     start_x -= tag_w;
 
+    if (! window->img) {
+      window->img = alloc_ppm(end_x - start_x, tag_h);
+    }
+
     for (i = topidx; (i < menu->count) && (cur_y < (end_y - start_y)); i++) {
       if (clear || menu->items[i].refresh) {
-        struct ppm *img = alloc_ppm(end_x - start_x, menu->items[i].height);
+        clear_ppm(window->img);
 
         draw_string(system_font,
                     menu->items[i].title,
-                    img, tag_w, 0, 1,
+                    window->img, tag_w, 0, 1,
                     255, 0, 255);
 
         if (menu->items[i].selected) {
@@ -753,7 +751,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
           draw_string(system_font,
                       str,
-                      img, 0, 0, 1,
+                      window->img, 0, 0, 1,
                       255, 0, 255);
         }
 
@@ -763,10 +761,8 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
                         254, vram);
         }
 
-        draw_ppm_bw(img, vram, start_x, start_y + cur_y, 
+        draw_ppm_bw(window->img, vram, start_x, start_y + cur_y, 
                     256, 254, (menu->items[i].highlighted) ? 253 : 255);
-
-        NULLFREE(img);
 
         menu->items[i].refresh = 0;
       }
@@ -781,17 +777,24 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
     bottomidx = i;
 
-    _nds_draw_prompt(window->menu->prompt);
+    if (window->menu->prompt) {
+      _nds_draw_prompt(window->menu->prompt);
+    }
   } else {
     nds_charbuf_t *charbuf = window->buffer;
-    struct ppm *img = alloc_ppm(end_x - start_x, end_y - start_y);
     int cur_y = 0;
     int i;
+
+    if (! window->img) {
+      window->img = alloc_ppm(end_x - start_x, end_y - start_y);
+    } else {
+      clear_ppm(window->img);
+    }
 
     for (i = topidx; (i < charbuf->count) && (cur_y < (end_y - start_y)); i++) {
       draw_string(system_font,
                   charbuf->lines[i].text,
-                  img, 0, cur_y, 1,
+                  window->img, 0, cur_y, 1,
                   255, 0, 255);
 
       cur_y += charbuf->lines[i].height;
@@ -799,13 +802,9 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
     bottomidx = i;
 
-    draw_ppm_bw(img, vram, start_x, start_y, 
+    draw_ppm_bw(window->img, vram, start_x, start_y, 
                 256, 254, 255);
   }
-
-  /*
-   * TODO: Draw prompt to top screen.
-   */
   
   return bottomidx;
 }
@@ -834,6 +833,8 @@ int _nds_display_yes_no_prompt(char *prompt)
     free(sel);
   }
 
+  destroy_nhwindow(win);
+
   return ret;
 }
 
@@ -853,19 +854,11 @@ void _nds_display_message(nds_nhwindow_t *win, int blocking)
   }
 
   iprintf("_nds_display_message stub called\n");
-  nds_wait_key(KEY_A);
 }
 
 void _nds_display_status(nds_nhwindow_t *win, int blocking)
 {
-  iprintf("_nds_display_status stub called\n");
-  nds_wait_key(KEY_A);
-}
-
-void _nds_display_chooser_menu(nds_nhwindow_t *win, int blocking)
-{
-  iprintf("_nds_display_chooser_menu stub called\n");
-  nds_wait_key(KEY_A);
+  // Don't really do anything here, now
 }
 
 void _nds_display_text(nds_nhwindow_t *win, int blocking)
@@ -976,7 +969,7 @@ void nds_display_nhwindow(winid win, int blocking)
       break;
 
     case NHW_STATUS:
-      _nds_display_status(window, blocking);
+      nds_update_msg(window, blocking);
       break;
 
     case NHW_MENU:
@@ -1070,7 +1063,11 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
  */
 void nds_end_menu(winid win, const char *prompt)
 {
-  windows[win]->menu->prompt = strdup(prompt);
+  if (prompt != NULL) {
+    windows[win]->menu->prompt = strdup(prompt);
+  } else {
+    windows[win]->menu->prompt = NULL;
+  }
 }
 
 /*****************************************
@@ -1105,15 +1102,18 @@ int _nds_do_menu(nds_nhwindow_t *window,
    * Clear VRAM in the BG2 layer and then activate it.
    */
 
-  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
-  SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
-
   while (1) {
     int i;
     int pressed;
 
     if (refresh) {
       bottomidx = _nds_draw_scroller(window, x, y, width, height, topidx, butheight, how, clear);
+
+      DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+
+      if (window->menu->prompt) {
+        SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+      }
 
       if ((bottomidx != window->menu->count) && (pagesize == 0)) {
         pagesize = bottomidx - topidx;
@@ -1131,14 +1131,12 @@ int _nds_do_menu(nds_nhwindow_t *window,
     scanKeys();
     pressed = keysDown();
 
-    if (how == PICK_ANY) {
-      if (pressed & KEY_A) {
-        goto DONE;
-      } else if (pressed & KEY_B) {
-        ret = 0;
+    if (pressed & KEY_A) {
+      goto DONE;
+    } else if (pressed & KEY_B) {
+      ret = 0;
 
-        goto DONE;
-      }
+      goto DONE;
     }
 
     if ((coords.x == 0) && (coords.y == 0) && 
@@ -1239,7 +1237,10 @@ int _nds_do_menu(nds_nhwindow_t *window,
 DONE:
 
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
-  SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+
+  if (window->menu->prompt) {
+    SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  }
 
   return ret;
 }
@@ -1254,6 +1255,10 @@ int nds_select_menu(winid win, int how, menu_item **sel)
   int width, height;
   int cnt = 0;
   int ret;
+
+  /* To begin with, let's initialize sel */
+
+  *sel = NULL;
 
   /*
    * First, we compute the dimensions of our menu and all of the items.
@@ -1275,7 +1280,7 @@ int nds_select_menu(winid win, int how, menu_item **sel)
   }
 
   ret = _nds_do_menu(window, 1, 1, width, height, how);
-  
+
   if ((how != PICK_NONE) && ret) {
     for (i = 0; i < window->menu->count; i++) {
       if (window->menu->items[i].selected) {
@@ -1288,8 +1293,8 @@ int nds_select_menu(winid win, int how, menu_item **sel)
 
       for (i = 0, j = 0; i < window->menu->count; i++) {
         if (window->menu->items[i].selected) {
-          sel[j]->item = window->menu->items[i].id;
-          sel[j]->count = window->menu->items[i].count;
+          (*sel)[j].item = window->menu->items[i].id;
+          (*sel)[j].count = window->menu->items[i].count;
 
           j++;
         }
@@ -1297,8 +1302,10 @@ int nds_select_menu(winid win, int how, menu_item **sel)
     } else {
       *sel = NULL;
     }
+  } else if (! ret) {
+    cnt = -1;
   }
-  
+
   return cnt;
 }
 
@@ -1316,11 +1323,12 @@ int nds_nhgetch()
 
 int nds_nh_poskey(int *x, int *y, int *mod)
 {
-  int pressed;
   touchPosition coords = { .x = 0, .y = 0 };
   touchPosition lastCoords;
 
   while(1) {
+    int pressed;
+
     lastCoords = coords;
     coords = touchReadXY();
 
@@ -1340,11 +1348,19 @@ int nds_nh_poskey(int *x, int *y, int *mod)
       return '<';
     } else if (pressed & KEY_B) {
       return '>';
+    } else if (pressed & KEY_L) {
+      char c = nds_do_cmd();
+
+      if (c != 0) {
+        return c;
+      }
     }
 
     if (((lastCoords.x != 0) || (lastCoords.y != 0)) &&
         ((coords.x == 0) && (coords.y == 0))) {
       nds_map_translate_coords(lastCoords.px, lastCoords.py, x, y);
+
+      iprintf("Click: %d,%d\n", *x, *y);
 
       *mod = CLICK_1;
 
@@ -1359,10 +1375,62 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
 char nds_yn_function(const char *ques, const char *choices, char def)
 {
-  iprintf("yn function called\n");
-  nds_wait_key(KEY_A);
+  winid win;
+  menu_item *sel;
+  ANY_P *ids;
+  int ret;
 
-  return 0;
+  iprintf("yn_function '%s'\n", ques);
+
+  if (choices != NULL) {
+    iprintf("yn_function choices '%s'\n", choices);
+  }
+
+  if (choices == NULL) {
+    // Just force a menu in these cases... hopefully '*' is an option.
+    return '*';
+  } 
+
+  win = create_nhwindow(NHW_MENU);
+
+  start_menu(win);
+  
+  if ((strcasecmp(choices, ynchars) == 0) ||
+      (strcasecmp(choices, ynqchars) == 0)) {
+
+    ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
+
+    ids[0].a_int = 'y';
+    ids[1].a_int = 'n';
+
+    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Yes", 0);
+    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "No", 0);
+  } else if (strcasecmp(choices, "rl") == 0) {
+
+    ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
+
+    ids[0].a_int = 'r';
+    ids[1].a_int = 'l';
+
+    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Right Hand", 0);
+    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Left Hand", 0);
+  } else {
+  }
+
+  end_menu(win, ques);
+
+  if (select_menu(win, PICK_ONE, &sel) == 0) {
+    ret = -1;
+  } else {
+    ret = sel->item.a_int;
+    free(sel);
+  }
+
+  free(ids);
+
+  destroy_nhwindow(win);
+
+  return ret;
 }
 
 void nds_getlin(const char *prompt, char *buffer)
@@ -1505,12 +1573,12 @@ void nds_number_pad(int thinger)
 
 void nds_raw_print(const char *str)
 {
-  iprintf(str);
+  iprintf("Raw: %s", str);
 }
 
 void nds_raw_print_bold(const char *str)
 {
-  iprintf(str);
+  iprintf("Raw bold: %s", str);
 }
 
 void nds_askname()
@@ -1546,6 +1614,7 @@ void nds_cliparound()
 void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
 {
   nds_nhwindow_t *window = windows[win];
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 
   if (window->map == NULL) {
     int x, y;
@@ -1560,6 +1629,11 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   }
 
   window->map->glyphs[y][x] = glyph;
+
+  /* Now plot the glyph on the mini-map */
+
+  vram[(y + 8) * 256 + x] = 0xFFFF;
+  vram[(y + 8) * 256 + x + 128] = 0xFFFF;
 }
 
 void nds_nhbell()

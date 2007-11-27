@@ -677,38 +677,31 @@ paste_ppm (struct ppm *into, int to_x, int to_y,
 /*
  * Draws a PPM image direct to VRAM.  This produces a black-and-white image.
  */
-void draw_ppm_bw(struct ppm *ppm, unsigned short *target, 
+void draw_ppm_bw(struct ppm *ppm, unsigned short *vram, 
                  int px, int py, int width,
                  int black, int white)
 {
-  int x, y;
+  int y;
   long *rgba = (long *)ppm->rgba;
 
-  target += (py * width + px) / 2;
-
   for (y = py; y < py + ppm->height; y++) {
-    for (x = px; x < px + ppm->width; x += 2) {
-      if (x & 0x01) {
-        *target = (*target & 0xFF00) | (*rgba++ != 0 ? white : black) << 8;
-        target++;
-        x++;
-      } 
-
-      if ((x - px) == (ppm->width - 1)) {
-        *target = (*target & 0x00FF) | (*rgba++ != 0 ? white : black);
-
-        break;
-      }
-
-      if ((x - px) < ppm->width) {
-        *target++ = (rgba[0] != 0 ? white : black) |
-                    ((rgba[1] != 0 ? white : black) << 8);
-
-        rgba += 2;
-      }
+    int x = 0;
+    u16 *target = vram + (y * width + px) / 2;
+    
+    if (px & 1) {
+      *target = (*target & 0x00FF) | ((*rgba++ ? white : black) << 8);
+      target++;
+      x++;
     }
 
-    target += (width - ppm->width) / 2;
+    for (; x < ppm->width; x += 2, rgba += 2) {
+      if (x == ppm->width - 1) {
+        *target = (*target & 0xFF00) | (*rgba++ ? white : black);
+        break;
+      } else {
+        *target++ = ((rgba[1] ? white : black) << 8) | (rgba[0] ? white : black);
+      }
+    }
   }
 }
 

@@ -1386,6 +1386,50 @@ char nds_yn_function(const char *ques, const char *choices, char def)
     iprintf("yn_function choices '%s'\n", choices);
   }
 
+  /* We're being asked for a direction... this is special. */
+  if (strcasecmp(ques, "In what direction?") == 0) {
+    /*
+     * We're going to use nh_poskey to get a command from the user.  However,
+     * we must handle clicks specially.  Unlike normal movement, you can't
+     * just click anywhere to pick a direction.  Instead, the user will be
+     * expected to click in one of the adjacent squares around the player,
+     * and the click will then be translated into a movement character.
+     */
+    while (1) {
+      int x, y, mod;
+      int sym;
+
+      clear_nhwindow(WIN_MESSAGE);
+      putstr(WIN_MESSAGE, ATR_NONE, "Tap a square adjacent to you or press a direction key.");
+
+      sym = nh_poskey(&x, &y, &mod);
+
+      if (mod == CLICK_1) {
+        if ((x == u.ux - 1) && (y == u.uy - 1)) {
+          return 'y';
+        } else if ((x == u.ux) && (y == u.uy - 1)) {
+          return 'k';
+        } else if ((x == u.ux + 1) && (y == u.uy - 1)) {
+          return 'u';
+        } else if ((x == u.ux - 1) && (y == u.uy)) {
+          return 'h';
+        } else if ((x == u.ux) && (y == u.uy)) {
+          return '.';
+        } else if ((x == u.ux + 1) && (y == u.uy)) {
+          return 'l';
+        } else if ((x == u.ux - 1) && (y == u.uy + 1)) {
+          return 'b';
+        } else if ((x == u.ux) && (y == u.uy + 1)) {
+          return 'j';
+        } else if ((x == u.ux + 1) && (y == u.uy + 1)) {
+          return 'n';
+        }
+      } else {
+        return sym;
+      }
+    }
+  }
+
   if (choices == NULL) {
     // Just force a menu in these cases... hopefully '*' is an option.
     return '*';
@@ -1415,6 +1459,7 @@ char nds_yn_function(const char *ques, const char *choices, char def)
     add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Right Hand", 0);
     add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Left Hand", 0);
   } else {
+    iprintf("I have no idea how to handle this: %s\n", choices);
   }
 
   end_menu(win, ques);
@@ -1555,16 +1600,27 @@ void nds_getlin(const char *prompt, char *buffer)
 
 int nds_get_ext_cmd()
 {
-  iprintf("Asked for an extended command\n");
-  nds_wait_key(KEY_A);
-  
-  return 0;
+  char buffer[BUFSZ];
+  int i;
+
+  getlin("Extended Command", buffer);
+
+  for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
+    if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {
+      nds_flush_touch();
+
+      return i;
+    }
+  }
+
+  nds_flush_touch();
+
+  return -1;
 } 
 
 void nds_number_pad(int thinger)
 {
-  iprintf("nds_number_pad stub called...\n");
-  nds_wait_key(KEY_A);
+  // We'll never do anything here
 }
 
 /****************

@@ -95,10 +95,10 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
     linecnt++;
   }
 
+  draw_ppm_bw(msg_img, vram, MSG_IMG_X, MSG_IMG_Y, 256, 254, 255);
+
   if (blocking) {
     nds_msg_wait_key(cur_y);
-  } else {
-    draw_ppm_bw(msg_img, vram, MSG_IMG_X, MSG_IMG_Y, 256, 254, 255);
   }
 
   nds_charbuf_destroy(win->buffer);

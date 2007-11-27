@@ -123,7 +123,7 @@ static nds_cmd_t cmdlist[] = {
 	{GOLD_SYM, TRUE, doprgold},
 	{SPBOOK_SYM, TRUE, dovspell},
         */
-//        {'#', "Ex-Cmd", 0, 0},
+        {'#', "Ex-Cmd", 0, 0},
         {0, NULL , 0, 0}
 };
 

@@ -72,3 +72,16 @@ void nds_wait_key(int keys)
     }
   }
 }
+
+void nds_flush_touch()
+{
+  touchPosition coords = { .x = 0, .y = 0 };
+
+  while (1) {
+    coords = touchReadXY();
+
+    if ((coords.x == 0) && (coords.y == 0)) {
+      return;
+    }
+  }
+}

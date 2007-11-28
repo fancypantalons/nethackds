@@ -30,87 +30,70 @@ typedef struct {
 } nds_cmd_t;
 
 static nds_cmd_t cmdlist[] = {
-	{C('d'), "Kick", 0, 0},
-/*
-#ifdef WIZARD
-	{C('e'), TRUE, wiz_detect},
-	{C('f'), TRUE, wiz_map},
-	{C('g'), TRUE, wiz_genesis},
-	{C('i'), TRUE, wiz_identify},
-#endif
-#ifdef WIZARD
-	{C('o'), TRUE, wiz_where},
-#endif
-	{C('p'), TRUE, doprev_message},
-*/
-	{C('t'), "Teleport", 0, 0},
-/*
-#ifdef WIZARD
-	{C('v'), TRUE, wiz_level_tele},
-	{C('w'), TRUE, wiz_wish},
-#endif
-*/
-	{C('x'), "Attributes", 0, 0},
-	{'a', "Apply", 0, 0},
-	{'A', "Armor", 0, 0},
-	{M('a'), "Adjust", 0, 0},
-	{'c', "Close", 0, 0},
-	{'C', "Call", 0, 0},
-	{M('c'), "Chat", 0, 0},
-	{'D', "Drop", 0, 0},
-	{M('d'), "Dip", 0, 0},
-	{'e', "Eat", 0, 0},
-	{'E', "Engrave", 0, 0},
-	{M('e'), "Enhance", 0, 0},
-	{'f', "Fire", 0, 0},
-	{M('f'), "Force", 0, 0},
-	{'i', "Inventory", 0, 0},
-	{'I', "Type-Inv", 0, 0},
-	{M('i'), "Invoke", 0, 0},
-	{M('j'), "Jump", 0, 0},
-	{M('l'), "Loot", 0, 0},
-	{M('m'), "Monster", 0, 0},
-	{M('n'), "Name", 0, 0},
-	{'o', "Open", 0, 0},
-	{'O', "Set", 0, 0},
-	{M('o'), "Sacrifice", 0, 0},
-	{'p', "Pay", 0, 0},
-	{'P', "Put On", 0, 0},
-	{M('p'), "Pray", 0, 0},
-	{'q', "Drink", 0, 0},
-	{'Q', "Quiver", 0, 0},
-	{'r', "Read", 0, 0},
-	{'R', "Remove", 0, 0},
-	{M('r'), "Rub", 0, 0},
-	{'s', "Search", 0, 0},
-	{'S', "Save", 0, 0},
-	{M('s'), "Sit", 0, 0},
-	{'t', "Throw", 0, 0},
-	{'T', "Take Off", 0, 0},
-	{M('t'), "Turn", 0, 0},
-	{M('u'), "Untrap", 0, 0},
-	{'v', "Version", 0, 0},
-	{'V', "History", 0, 0},
-	{'w', "Wield", 0, 0},
-	{'W', "Wear", 0, 0},
-	{M('w'), "Wipe", 0, 0},
-	{'x', "Swap", 0, 0},
-	{'X', "Explore", 0, 0},
-	{'z', "Zap", 0, 0},
-	{'Z', "Cast", 0, 0},
-	{'<', "Up", 0, 0},
-	{'>', "Down", 0, 0},
-//	{'/', "What Is", 0, 0},
-	{'&', "What Does", 0, 0},
-	{'?', "Help", 0, 0},
-	{'.', "Wait", 0, 0},
-	{',', "Pickup", 0, 0},
-	{':', "Look", 0, 0},
-	{';', "What Is", 0, 0},
-	{'^', "Id", 0, 0},
-	{'\\', "Discoveries", 0, 0},	
-	{'@', "Toggle Pickup", 0, 0},
-	{M('2'), "Two Weapon", 0, 0},
+	{C('d'), "Kick"},
+//	{C('p'), TRUE, doprev_message},
+	{C('t'), "Teleport"},
+	{C('x'), "Attributes"},
+	{'a', "Apply"},
+	{'A', "Armor"},
+	{M('a'), "Adjust"},
+	{'c', "Close"},
+	{'C', "Call"},
+	{M('c'), "Chat"},
+	{'D', "Drop"},
+	{M('d'), "Dip"},
+	{'e', "Eat"},
+	{'E', "Engrave"},
+	{M('e'), "Enhance"},
+	{'f', "Fire"},
+	{M('f'), "Force"},
+	{'i', "Inventory"},
+	{'I', "Type-Inv"},
+	{M('i'), "Invoke"},
+	{M('j'), "Jump"},
+	{M('l'), "Loot"},
+	{M('m'), "Monster"},
+	{M('n'), "Name"},
+	{'o', "Open"},
+	{'O', "Set"},
+	{M('o'), "Sacrifice"},
+	{'p', "Pay"},
+	{'P', "Put On"},
+	{M('p'), "Pray"},
+	{'q', "Drink"},
+	{'Q', "Quiver"},
+	{'r', "Read"},
+	{'R', "Remove"},
+	{M('r'), "Rub"},
+	{'s', "Search"},
+	{'S', "Save"},
+	{M('s'), "Sit"},
+	{'t', "Throw"},
+	{'T', "Take Off"},
+	{M('t'), "Turn"},
+	{M('u'), "Untrap"},
+	{'v', "Version"},
+	{'V', "History"},
+	{'w', "Wield"},
+	{'W', "Wear"},
+	{M('w'), "Wipe"},
+	{'x', "Swap"},
+	{'X', "Explore"},
+	{'z', "Zap"},
+	{'Z', "Cast"},
+	{'<', "Up"},
+	{'>', "Down"},
+//	{'/', "What Is"},
+	{'&', "What Does"},
+	{'?', "Help"},
+	{'.', "Wait"},
+	{',', "Pickup"},
+	{':', "Look"},
+	{';', "What Is"},
+	{'^', "Id"},
+	{'\\', "Discoveries"},	
+	{'@', "Toggle Pickup"},
+	{M('2'), "Two Weapon"},
         /*
 	{WEAPON_SYM,  TRUE, doprwep},
 	{ARMOR_SYM,  TRUE, doprarm},
@@ -118,13 +101,34 @@ static nds_cmd_t cmdlist[] = {
 	{AMULET_SYM, TRUE, dopramulet},
 	{TOOL_SYM, TRUE, doprtool},
         */
-	{'*', "In Use", 0, 0},
+	{'*', "In Use"},
         /*
 	{GOLD_SYM, TRUE, doprgold},
 	{SPBOOK_SYM, TRUE, dovspell},
         */
-        {'#', "Ex-Cmd", 0, 0},
-        {0, NULL , 0, 0}
+        {'#', "Ex-Cmd"},
+        {0, NULL},
+        {0, NULL},
+        {0, NULL},
+        {0, NULL},
+        {0, NULL},
+        {0, NULL},
+        {0, NULL},
+        {0, NULL}
+};
+
+
+static nds_cmd_t wiz_cmdlist[] = {
+#ifdef WIZARD
+	{C('e'), "Wiz-Detect"},
+	{C('f'), "Wiz-Map"},
+	{C('g'), "Wiz-Genesis"},
+	{C('i'), "Wiz-Identify"},
+	{C('o'), "Wiz-Where"},
+	{C('v'), "Wiz-Tele"},
+	{C('w'), "Wiz-Wish"},
+#endif
+        {0, NULL}
 };
 
 u16 *vram = (u16 *)BG_BMP_RAM(12);
@@ -138,7 +142,17 @@ void nds_init_cmd()
   int i;
   struct ppm *img = alloc_ppm(256, 192);
 
-  for (i = 0; (cmdlist[i].f_char != 0) && (cmdlist[i].name != NULL); i++) {
+  if (flags.debug) {
+    int idx = 0;
+
+    for (; cmdlist[idx].name != NULL; idx++);
+
+    for (i = 0; wiz_cmdlist[i].name != NULL; i++) {
+      cmdlist[idx++] = wiz_cmdlist[i];
+    }
+  }
+
+  for (i = 0; cmdlist[i].name != NULL; i++) {
     int text_h;
 
     text_dims(system_font, cmdlist[i].name, NULL, &text_h);
@@ -157,7 +171,11 @@ void nds_init_cmd()
     cmdlist[i].y1 = cur_y;
     cmdlist[i].y2 = cur_y + text_h;
 
-    cur_y += text_h + 2;
+    if (flags.debug) {
+      cur_y += text_h;
+    } else {
+      cur_y += text_h + 2;
+    }
   }
 
   draw_ppm_bw(img, vram, 0, 0, 256, 254, 255);

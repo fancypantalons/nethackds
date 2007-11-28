@@ -15,8 +15,9 @@
 #include "nds_win.h"
 #include "nds_gfx.h"
 
-int consoleEnabled = 0;
-int wasConsoleLayerVisible = 0;
+int console_enabled = 0;
+int was_console_layer_visible = 0;
+int debug_mode = 0;
 
 /*
  * Key interrupt handler.  Right now, I only use this to toggle the console
@@ -24,21 +25,21 @@ int wasConsoleLayerVisible = 0;
  */
 void keysInterruptHandler()
 {
-  if (consoleEnabled) {
+  if (console_enabled) {
     BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
 
-    if (! wasConsoleLayerVisible) {
+    if (! was_console_layer_visible) {
       DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
     }
 
-    consoleEnabled = 0;
+    console_enabled = 0;
   } else {
-    wasConsoleLayerVisible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
+    was_console_layer_visible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
 
     BG0_CR = BG_MAP_BASE(12) | BG_TILE_BASE(10) | BG_16_COLOR;
     DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
 
-    consoleEnabled = 1;
+    console_enabled = 1;
   }
 }
 
@@ -138,9 +139,11 @@ void init_screen()
   
   int pressed = keysDown();
 
-  if ((pressed & KEY_SELECT) && 
-      (pressed & KEY_START)) {
+  if (pressed & KEY_START) {
+    debug_mode = 1;
+  }
 
+  if (pressed & KEY_SELECT) {
     struct tcp_debug_comms_init_data init_data = {
       .port = 30000
     };
@@ -211,6 +214,28 @@ int main()
   kbd_init();
   initoptions();
 
+  /* Gotta initialize this before the command list is generated */
+
+  if (debug_mode) {
+    iprintf("Enabling debug mode.\n");
+
+    flags.debug = 1;
+  }
+
+  /* Initialize some nethack constants */
+
+  x_maze_max = COLNO-1;
+
+  if (x_maze_max % 2)
+    x_maze_max--;
+
+  y_maze_max = ROWNO-1;
+
+  if (y_maze_max % 2)
+    y_maze_max--;
+
+  /* Now get the window system set up */
+
   choose_windows(DEFAULT_WINDOW_SYS);
   init_nhwindows(NULL, NULL);
 
@@ -229,24 +254,25 @@ int main()
 
   /* TODO: Display the copyright thinger and title screen. */
 
-  /* TODO: In here, we'll put the new/pre-existing game selector, 
-     options menu, and so forth. */
-
   display_gamewindows();
 
-  // test_thinger();
+  /* Now restore or start a new game */
 
-  player_selection();
-  newgame();
-  set_wear();
+  set_savefile_name();
+
+  if (((fd = restore_saved_game()) >= 0) && dorecover(fd)) {
+    check_special_room(FALSE);
+  } else {
+    player_selection();
+    newgame();
+    set_wear();
+
+    (void) pickup(1);
+  }
 
   flags.move = 0;
 
-  (void) pickup(1);
-
   moveloop();
-
-  iprintf("Ready!\n");
 
   return 0;
 }

@@ -827,7 +827,7 @@ int _nds_display_yes_no_prompt(char *prompt)
 
   end_menu(win, prompt);
 
-  if (select_menu(win, PICK_ONE, &sel) == 0) {
+  if (select_menu(win, PICK_ONE, &sel) <= 0) {
     ret = -1;
   } else {
     ret = sel->item.a_int;
@@ -1421,7 +1421,8 @@ char nds_yn_function(const char *ques, const char *choices, char def)
   }
 
   /* We're being asked for a direction... this is special. */
-  if (strcasecmp(ques, "In what direction?") == 0) {
+  if ((strcasecmp(ques, "In what direction?") == 0) ||
+      (strstr(ques, "in what direction") != NULL)) {
     /*
      * We're going to use nh_poskey to get a command from the user.  However,
      * we must handle clicks specially.  Unlike normal movement, you can't
@@ -1498,7 +1499,7 @@ char nds_yn_function(const char *ques, const char *choices, char def)
 
   end_menu(win, ques);
 
-  if (select_menu(win, PICK_ONE, &sel) == 0) {
+  if (select_menu(win, PICK_ONE, &sel) <= 0) {
     ret = -1;
   } else {
     ret = sel->item.a_int;

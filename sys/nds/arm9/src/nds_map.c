@@ -10,6 +10,7 @@
 #include "nds_win.h"
 #include "nds_util.h"
 #include "nds_map.h"
+#include "nds_gfx.h"
 
 #define DEF_TILE_FILE "tiles.bmp"
 
@@ -19,6 +20,9 @@
 #define NUM_TILES               1057
 
 #define MAX_TILE_SLOTS          512
+
+#define MINIMAP_X               4
+#define MINIMAP_Y               16
 
 #define TILE_WIDTH		(iflags.wc_tile_width ? iflags.wc_tile_width : DEF_TILE_WIDTH)
 #define TILE_HEIGHT		(iflags.wc_tile_height ? iflags.wc_tile_height : DEF_TILE_HEIGHT)
@@ -47,6 +51,8 @@ int tile_height;
 
 int map_width;
 int map_height;
+
+int cx, cy;
 
 /*
  * Copy a tile from our tile image, loaded previously, into tile RAM.  In the
@@ -299,11 +305,106 @@ void nds_clear_map()
   memset(map_ram, 0, 32 * 24 * 2);
 }
 
-void nds_draw_map(nds_map_t *map)
+void nds_draw_minimap(nds_map_t *map)
 {
+  u16 *sub_vram = (u16 *)BG_BMP_RAM_SUB(4);
+  int x, y;
+  int rx1, rx2, ry1, ry2;
+
+  /* Clear the edges of the map */
+
+  rx1 = MINIMAP_X - 1;
+  ry1 = MINIMAP_Y - 1;
+  rx2 = MINIMAP_X + COLNO * 2;
+  ry2 = MINIMAP_Y + ROWNO * 2;
+
+  nds_draw_hline(rx1, ry1, COLNO * 2 + 1, 0, sub_vram);
+  nds_draw_hline(rx1, ry2, COLNO * 2 + 1, 0, sub_vram);
+
+  nds_draw_vline(rx1, ry1, ROWNO * 2 + 1, 0, sub_vram);
+  nds_draw_vline(rx2, ry1, ROWNO * 2 + 1, 0, sub_vram);
+
+  for (y = 0; y < ROWNO; y++) {
+    for (x = 0; x < COLNO; x++) {
+      if (map->glyphs[y][x] < 0) {
+        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2] = 0x0000;
+        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2 + 128] = 0x0000;
+      } else {
+        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2] = 0xFFFF;
+        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2 + 128] = 0xFFFF;
+      }
+    }
+  }
+
+  sub_vram[(u.uy + MINIMAP_Y / 2) * 256 + u.ux + MINIMAP_X / 2] = 0xFCFC;
+  sub_vram[(u.uy + MINIMAP_Y / 2) * 256 + u.ux + MINIMAP_X / 2 + 128] = 0xFCFC;
+
+  rx1 = cx * 2 - map_width + MINIMAP_X - 1;
+  rx2 = cx * 2 + map_width + MINIMAP_X;
+
+  ry1 = cy * 2 - map_height + MINIMAP_Y - 1;
+  ry2 = cy * 2 + map_height + MINIMAP_Y;
+
+  nds_draw_hline(rx1, ry1, map_width * 2 + 1, 253, sub_vram);
+  nds_draw_hline(rx1, ry2, map_width * 2 + 1, 253, sub_vram);
+  nds_draw_vline(rx1, ry1, map_height * 2 + 1, 253, sub_vram);
+  nds_draw_vline(rx2, ry1, map_height * 2 + 1, 253, sub_vram);
+}
+
+void nds_clear_minimap()
+{
+  u16 *sub_vram = (u16 *)BG_BMP_RAM_SUB(4);
+  int x, y;
+  int rx1, rx2, ry1, ry2;
+
+  for (y = 0; y < ROWNO; y++) {
+    for (x = 0; x < COLNO; x++) {
+      sub_vram[(y + MINIMAP_Y) * 256 + x + MINIMAP_X] = 0x0000;
+      sub_vram[(y + MINIMAP_Y) * 256 + x + MINIMAP_X + 128] = 0x0000;
+    }
+  }
+
+  rx1 = MINIMAP_X - 2;
+  ry1 = MINIMAP_Y - 2;
+  rx2 = MINIMAP_X + COLNO * 2 + 1;
+  ry2 = MINIMAP_Y + ROWNO * 2 + 1;
+
+  nds_draw_hline(rx1, ry1, COLNO * 2 + 3, 255, sub_vram);
+  nds_draw_hline(rx1, ry2, COLNO * 2 + 3, 255, sub_vram);
+
+  nds_draw_vline(rx1, ry1, ROWNO * 2 + 3, 255, sub_vram);
+  nds_draw_vline(rx2, ry1, ROWNO * 2 + 3, 255, sub_vram);
+}
+
+void nds_draw_map(nds_map_t *map, int *xp, int *yp)
+{
+  if (xp == NULL) {
+    cx = u.ux;
+  } else {
+    cx = *xp;
+  }
+  
+  if (yp == NULL) {
+    cy = u.uy;
+  } else {
+    cy = *yp;
+  }
+
+  if ((cx + map_width / 2) > COLNO) {
+    cx = COLNO - map_width / 2;
+  } else if ((cx - map_width / 2) < 0) {
+    cx = map_width / 2;
+  }
+
+  if ((cy + map_height / 2) > ROWNO) {
+    cy = ROWNO - map_height / 2;
+  } else if ((cy - map_height / 2) < 0) {
+    cy = map_height / 2;
+  }
+
   if (map != NULL) {
-    int sx = u.ux - map_width / 2;
-    int sy = u.uy - map_height / 2;
+    int sx = cx - map_width / 2;
+    int sy = cy - map_height / 2;
 
     int x, y;
 
@@ -317,16 +418,25 @@ void nds_draw_map(nds_map_t *map)
         }
       }
     }
+
+    nds_draw_minimap(map);
   } else {
     nds_clear_map();
+    nds_clear_minimap();
   }
 }
 
 void nds_map_translate_coords(int x, int y, int *tx, int *ty)
 {
-  int sx = u.ux - map_width / 2;
-  int sy = u.uy - map_height / 2;
+  int sx = cx - map_width / 2;
+  int sy = cy - map_height / 2;
 
   *tx = sx + x / TILE_WIDTH;
   *ty = sy + y / TILE_HEIGHT;
+}
+
+void nds_map_get_center(int *xp, int *yp)
+{
+  *xp = cx;
+  *yp = cy;
 }

@@ -11,7 +11,7 @@
 #define NUM_LINES 5
 
 #define MSG_IMG_X 3
-#define MSG_IMG_Y 130
+#define MSG_IMG_Y 100
 
 struct ppm *msg_img = NULL;
 

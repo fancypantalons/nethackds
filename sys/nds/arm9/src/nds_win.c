@@ -109,6 +109,7 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   BG_PALETTE_SUB[255] = RGB15(31,31,31);
   BG_PALETTE_SUB[253] = RGB15(31,0, 0);
+  BG_PALETTE_SUB[252] = RGB15(0,31, 0);
 
   iflags.window_inited = true;
 }
@@ -840,20 +841,20 @@ int _nds_display_yes_no_prompt(char *prompt)
 
 void _nds_display_map(nds_nhwindow_t *win, int blocking)
 {
-  nds_draw_map(win->map);
+  nds_draw_map(win->map, NULL, NULL);
 }
 
 void _nds_display_message(nds_nhwindow_t *win, int blocking)
 {
-  int i;
-
   if (win->buffer) {
+    int i;
+
     for (i = 0; i < win->buffer->count; i++) {
       iprintf("%s\n", win->buffer->lines[i].text);
     }
   }
 
-  iprintf("_nds_display_message stub called\n");
+  nds_update_msg(win, blocking);
 }
 
 void _nds_display_status(nds_nhwindow_t *win, int blocking)
@@ -1328,6 +1329,9 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
   while(1) {
     int pressed;
+    int held;
+
+    swiWaitForVBlank();
 
     lastCoords = coords;
     coords = touchReadXY();
@@ -1335,6 +1339,40 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     scanKeys();
 
     pressed = keysDown();
+    held = keysHeld();
+
+    if (held & KEY_R) {
+      int cx, cy;
+      int changed = 0;
+
+      nds_map_get_center(&cx, &cy);
+
+      if (pressed & KEY_UP) {
+        cy--;
+        changed |= 1;
+      } 
+      
+      if (pressed & KEY_DOWN) {
+        cy++;
+        changed |= 1;
+      } 
+      
+      if (pressed & KEY_LEFT) {
+        cx--;
+        changed |= 1;
+      } 
+      
+      if (pressed & KEY_RIGHT) {
+        cx++;
+        changed |= 1;
+      }
+
+      if (changed) {
+        nds_draw_map(windows[WIN_MAP]->map, &cx, &cy);
+      }
+      
+      continue;
+    }
 
     if (pressed & KEY_UP) {
       return 'k';
@@ -1360,14 +1398,10 @@ int nds_nh_poskey(int *x, int *y, int *mod)
         ((coords.x == 0) && (coords.y == 0))) {
       nds_map_translate_coords(lastCoords.px, lastCoords.py, x, y);
 
-      iprintf("Click: %d,%d\n", *x, *y);
-
       *mod = CLICK_1;
 
       return 0;
     }
-
-    swiWaitForVBlank();
   }
 
   return 0;
@@ -1459,7 +1493,7 @@ char nds_yn_function(const char *ques, const char *choices, char def)
     add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Right Hand", 0);
     add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Left Hand", 0);
   } else {
-    iprintf("I have no idea how to handle this: %s\n", choices);
+    iprintf("I have no idea how to handle this.", choices);
   }
 
   end_menu(win, ques);
@@ -1670,7 +1704,6 @@ void nds_cliparound()
 void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
 {
   nds_nhwindow_t *window = windows[win];
-  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 
   if (window->map == NULL) {
     int x, y;
@@ -1685,11 +1718,6 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   }
 
   window->map->glyphs[y][x] = glyph;
-
-  /* Now plot the glyph on the mini-map */
-
-  vram[(y + 8) * 256 + x] = 0xFFFF;
-  vram[(y + 8) * 256 + x + 128] = 0xFFFF;
 }
 
 void nds_nhbell()

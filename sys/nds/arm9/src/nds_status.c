@@ -11,6 +11,9 @@
 
 #define CUTCOUNT 2
 
+#define STATUS_X 3
+#define STATUS_Y 64
+
 struct ppm *status_img = NULL;
 
 char *name = NULL;
@@ -21,8 +24,6 @@ void nds_update_status(char *str)
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
   int text_h;
   int last = 1;
-
-  iprintf("Status: %s\n", str);
 
   if (status_img == NULL) {
     status_img = alloc_ppm(256, 30);
@@ -74,6 +75,6 @@ void nds_update_status(char *str)
                 0, text_h * 2, 1,
                 255, 0, 255);
 
-    draw_ppm_bw(status_img, vram, 3, 96, 256, 254, 255);
+    draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y, 256, 254, 255);
   }
 }

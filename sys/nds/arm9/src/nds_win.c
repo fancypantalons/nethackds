@@ -1327,6 +1327,10 @@ int nds_nh_poskey(int *x, int *y, int *mod)
   touchPosition coords = { .x = 0, .y = 0 };
   touchPosition lastCoords;
 
+  /* Clear out any taps that happen to be occuring right now. */
+
+  nds_flush_touch();
+
   while(1) {
     int pressed;
     int held;
@@ -1642,8 +1646,6 @@ int nds_get_ext_cmd()
 
   for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
     if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {
-      nds_flush_touch();
-
       return i;
     }
   }

@@ -93,6 +93,8 @@ void nds_init_nhwindows(int *argc, char **argv)
     return;
   }
 
+  keysSetRepeat(30, 2);
+
   nds_init_cmd();
 
   /* TODO: Load our tiles here. */
@@ -897,7 +899,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     int keys;
 
     if (refresh) {
-      bottomidx = _nds_draw_scroller(win, 1, 1, width, height, topidx, butheight, 0, 0);
+      bottomidx = _nds_draw_scroller(win, 1, 1, width, height, topidx, butheight, 0, 1);
 
       if ((bottomidx != win->buffer->count) && (pagesize == 0)) {
 
@@ -1342,7 +1344,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
     scanKeys();
 
-    pressed = keysDown();
+    pressed = keysDownRepeat();
     held = keysHeld();
 
     if (held & KEY_R) {
@@ -1386,9 +1388,13 @@ int nds_nh_poskey(int *x, int *y, int *mod)
       return 'h';
     } else if (pressed & KEY_RIGHT) {
       return 'l';
+    } else if (pressed & KEY_A) {
+      return ',';
+    } else if (pressed & KEY_B) {
+      return 's';
     } else if (pressed & KEY_X) {
       return '<';
-    } else if (pressed & KEY_B) {
+    } else if (pressed & KEY_Y) {
       return '>';
     } else if (pressed & KEY_L) {
       char c = nds_do_cmd();
@@ -1415,8 +1421,9 @@ char nds_yn_function(const char *ques, const char *choices, char def)
 {
   winid win;
   menu_item *sel;
-  ANY_P *ids;
+  ANY_P ids[3];
   int ret;
+  int ynaq = 0;
 
   iprintf("yn_function '%s'\n", ques);
 
@@ -1479,18 +1486,21 @@ char nds_yn_function(const char *ques, const char *choices, char def)
   start_menu(win);
   
   if ((strcasecmp(choices, ynchars) == 0) ||
-      (strcasecmp(choices, ynqchars) == 0)) {
-
-    ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
+      (strcasecmp(choices, ynqchars) == 0) ||
+      ((ynaq = strcasecmp(choices, ynaqchars)) == 0)) {
 
     ids[0].a_int = 'y';
     ids[1].a_int = 'n';
 
     add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Yes", 0);
     add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "No", 0);
-  } else if (strcasecmp(choices, "rl") == 0) {
 
-    ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
+    if (ynaq) {
+      ids[2].a_int = 'a';
+
+      add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "All", 0);
+    }
+  } else if (strcasecmp(choices, "rl") == 0) {
 
     ids[0].a_int = 'r';
     ids[1].a_int = 'l';
@@ -1499,6 +1509,7 @@ char nds_yn_function(const char *ques, const char *choices, char def)
     add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Left Hand", 0);
   } else {
     iprintf("I have no idea how to handle this.", choices);
+    return -1;
   }
 
   end_menu(win, ques);
@@ -1510,8 +1521,6 @@ char nds_yn_function(const char *ques, const char *choices, char def)
     free(sel);
   }
 
-  free(ids);
-
   destroy_nhwindow(win);
 
   return ret;
@@ -1519,7 +1528,12 @@ char nds_yn_function(const char *ques, const char *choices, char def)
 
 void nds_getlin(const char *prompt, char *buffer)
 {
-  u16 *vram = (u16 *)BG_BMP_RAM_SUB(0);
+  static struct ppm *prompt_img = NULL;
+  static struct ppm *input_img = NULL;
+  static int prompt_y;
+  static int input_y;
+
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 
   char front[BUFSZ];
   char back[BUFSZ];
@@ -1528,18 +1542,23 @@ void nds_getlin(const char *prompt, char *buffer)
   int length = 0;
 
   int done = 0;
-  int prompt_w, prompt_h;
+  int prompt_h;
 
-  int input_y = 96;
-  struct ppm *input_img = alloc_ppm(256, 16);
+  text_dims(system_font, prompt, NULL, &prompt_h);
 
-  /* Alright, fill the prompting layer and draw out prompt. */
+  if (prompt_img == NULL) {
+    prompt_img = alloc_ppm(252, prompt_h);
+    input_img = alloc_ppm(252, prompt_h); /* We'll presume the height is constant */
 
-  nds_fill(vram, 254);
+    prompt_y = 192 - prompt_h * 2 - 4;
+    input_y = 192 - prompt_h - 4;
+  }
 
-  text_dims(system_font, (char *)prompt, &prompt_w, &prompt_h);
+  /* Draw the prompt */
 
-  nds_draw_text(system_font, (char *)prompt, 256 / 2 - prompt_w / 2, prompt_h, 254, 255, vram);
+  clear_ppm(prompt_img);
+  draw_string(system_font, prompt, prompt_img, 0, 0, 1, 255, 0, 255);
+  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
 
   /* Now initialize our buffers */
 
@@ -1549,7 +1568,6 @@ void nds_getlin(const char *prompt, char *buffer)
   /* First, display the keyboard and prompting layers */
 
   DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
-  SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
   /* Now, enter the key loop */
 
@@ -1557,17 +1575,19 @@ void nds_getlin(const char *prompt, char *buffer)
     u8 key;
     int front_w;
 
-    text_dims(system_font, front, &front_w, NULL);
-
     clear_ppm(input_img);
+
+    /* Alright, fill the prompting layer and draw out prompt. */
+
+    text_dims(system_font, front, &front_w, NULL);
 
     draw_string(system_font, front, input_img, 0, 0, 1, 255, 0, 255);
     draw_string(system_font, back, input_img, front_w, 0, 1, 255, 0, 255);
 
     swiWaitForVBlank();
 
-    draw_ppm_bw(input_img, vram, 0, input_y, 256, 254, 255);
-    nds_draw_vline(front_w, 96, prompt_h, 253, vram);
+    draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);
+    nds_draw_vline(front_w + 4, input_y, prompt_h, 253, vram);
 
     scanKeys();
 
@@ -1628,10 +1648,15 @@ void nds_getlin(const char *prompt, char *buffer)
     }
   }
 
-  NULLFREE(input_img);
+  /* Yeah, it's cheesy... I could use draw_rect... but this works, too :) */
+
+  clear_ppm(prompt_img);
+  clear_ppm(input_img);
+
+  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
+  draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);
 
   DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
-  SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 
   strcpy(buffer, front);
   strcat(buffer, back);
@@ -1676,7 +1701,7 @@ void nds_raw_print_bold(const char *str)
 
 void nds_askname()
 {
-  getlin("Please Enter Your Name", plname);
+  getlin("Name:", plname);
 }
 
 void nds_get_nh_event()

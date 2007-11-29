@@ -97,8 +97,6 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   nds_init_cmd();
 
-  /* TODO: Load our tiles here. */
-
   for (i = 0; i < MAX_WINDOWS; i++) {
     windows[i] = NULL;
   }
@@ -1331,7 +1329,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
   /* Clear out any taps that happen to be occuring right now. */
 
-  nds_flush_touch();
+  nds_flush();
 
   while(1) {
     int pressed;
@@ -1675,8 +1673,6 @@ int nds_get_ext_cmd()
     }
   }
 
-  nds_flush_touch();
-
   return -1;
 } 
 
@@ -1701,7 +1697,7 @@ void nds_raw_print_bold(const char *str)
 
 void nds_askname()
 {
-  getlin("Name:", plname);
+  getlin("Enter You Name:", plname);
 }
 
 void nds_get_nh_event()
@@ -1709,7 +1705,7 @@ void nds_get_nh_event()
   // We don't really do anything here yet
 }
 
-void nds_exit_nhwindows()
+void nds_exit_nhwindows(const char *str)
 {
   // Should return to the main menu, here
 }
@@ -1722,11 +1718,6 @@ void nds_suspend_nhwindows()
 void nds_resume_nhwindows()
 {
   // Again, unsure...
-}
-
-void nds_cliparound()
-{
-  // Do nothing right now
 }
 
 void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
@@ -1751,13 +1742,11 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
 void nds_nhbell()
 {
   iprintf("*bing*\n");
-  nds_wait_key(KEY_A);
 }
 
 int nds_doprev_message()
 {
   iprintf("prev message... srsly yo\n");
-  nds_wait_key(KEY_A);
 
   return 0;
 }
@@ -1770,13 +1759,11 @@ void nds_delay_output()
 void nds_preference_update(const char *preferences)
 {
   iprintf("nds_preference_update called...\n");
-  nds_wait_key(KEY_A);
 }
 
 void nds_outrip(winid win, int thinger)
 {
   iprintf("nds_outrip stub called...\n");
-  nds_wait_key(KEY_A);
 }
 
 void do_null()
@@ -1816,7 +1803,7 @@ struct window_procs nds_procs = {
     do_null,                    // nds_mark_synch,
     do_null,                    // nds_wait_synch,
 #ifdef CLIPPING
-    nds_cliparound,
+    do_null,
 #endif
 #ifdef POSITIONBAR
     donull,

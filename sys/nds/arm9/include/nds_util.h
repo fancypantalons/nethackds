@@ -14,6 +14,6 @@
 void memcpy16(void *dest, void *src, int count);
 int nds_load_file(char *fname, void *dest);
 void nds_wait_key(int keys);
-void nds_flush_touch();
+void nds_flush();
 
 #endif

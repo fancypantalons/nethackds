@@ -8,7 +8,7 @@
 #include "nds_util.h"
 #include "ppm-lite.h"
 
-#define NUM_LINES 5
+#define NUM_LINES 7
 
 #define MSG_IMG_X 3
 #define MSG_IMG_Y 100

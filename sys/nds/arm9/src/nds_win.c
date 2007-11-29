@@ -1544,7 +1544,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   end_menu(win, ques);
 
   if (select_menu(win, PICK_ONE, &sel) <= 0) {
-    ret = -1;
+    ret = '\033';
   } else {
     ret = sel->item.a_int;
     free(sel);

@@ -1364,8 +1364,6 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     int pressed;
     int held;
 
-    swiWaitForVBlank();
-
     lastCoords = coords;
     coords = touchReadXY();
 
@@ -1402,10 +1400,14 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
       if (changed) {
         nds_draw_map(windows[WIN_MAP]->map, &cx, &cy);
+      } else {
+        swiWaitForVBlank();
       }
-      
+
       continue;
     }
+
+    swiWaitForVBlank();
 
     if (pressed & KEY_UP) {
       return 'k';

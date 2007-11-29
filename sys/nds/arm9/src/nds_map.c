@@ -41,6 +41,9 @@ int height_in_tiles;
 
 u16 *tile_ram = (u16 *)BG_TILE_RAM(6);
 u16 *map_ram = (u16 *)BG_MAP_RAM(8);
+u16 *spr_gfx_ram = SPRITE_GFX;
+u16 *oam_ram = OAM;
+tOAM oam_shadow;
 
 tile_cache_entry_t tile_cache[NUM_TILES];
 
@@ -67,6 +70,7 @@ void nds_load_tile(int idx)
   int bmp_tile_x, bmp_tile_y;
   u8 *bmp_row_start;
   u16 *tile_row_start;
+  u16 *spr_gfx_row_start;
 
   if (num_free_tiles > 0) {
     /*
@@ -142,7 +146,10 @@ void nds_load_tile(int idx)
 
     for (y = 0; y < 8; y++) {
       for (i = 0; i < tile_width; i++) {
-        tile_row_start = tile_ram + (tile_idx + j * tile_width + i) * bpp * 8 / 2 + y * bpp / 2;
+        int offset = (tile_idx + j * tile_width + i) * bpp * 8 / 2 + y * bpp / 2; 
+
+        tile_row_start = tile_ram + offset;
+        spr_gfx_row_start = spr_gfx_ram + offset;
 
         /* Again, this works because 8 * (bpp / 8) == bpp */
 
@@ -155,13 +162,14 @@ void nds_load_tile(int idx)
             c = (bmp_row_start[1] & 0xF0) >> 4;
             d = (bmp_row_start[1] & 0x0F);
 
-            //tile_row_start[x / 2] = (bmp_row_start[1]) |
-            //                        (bmp_row_start[0] << 8);
-
             tile_row_start[x / 2] = (d << 12) | (c << 8) | (b << 4) | (a << 0);
+            spr_gfx_row_start[x / 2] = (d << 12) | (c << 8) | (b << 4) | (a << 0);
           } else {
             tile_row_start[x / 2] = (bmp_row_start[1] << 8) |
                                      bmp_row_start[0];
+
+            spr_gfx_row_start[x / 2] = (bmp_row_start[1] << 8) |
+                                        bmp_row_start[0];
           }
         }
       }
@@ -217,6 +225,27 @@ void nds_draw_tile(int x, int y, int idx)
   }
 }
 
+void nds_draw_sprite(int x, int y, int idx)
+{
+  int tidx;
+  int hidden = 0;
+
+  if (idx < 0) {
+    hidden = 1;
+  } else if (tile_cache[idx].tile_ram_idx == 0) {
+    nds_load_tile(idx);
+
+    tidx = tile_cache[idx].tile_ram_idx; 
+  } else {
+    tidx = tile_cache[idx].tile_ram_idx; 
+  }
+
+  oam_shadow.spriteBuffer[0].isHidden = hidden;
+  oam_shadow.spriteBuffer[0].tileIdx = tidx;
+  oam_shadow.spriteBuffer[0].posX = x * TILE_WIDTH;
+  oam_shadow.spriteBuffer[0].posY = y * TILE_HEIGHT;
+}
+
 /*
  * Here we do two things.  First, we load the BMP into memory.  We throw an
  * error if it isn't an indexed file of some kind (bpp <= 8).  After the file 
@@ -226,6 +255,7 @@ void nds_draw_tile(int x, int y, int idx)
 int nds_init_map(int *rows, int *cols)
 {
   u16 *palette;
+  u16 *spr_palette = SPRITE_PALETTE;
   char *fname = TILE_FILE ? TILE_FILE : DEF_TILE_FILE;
   int i;
 
@@ -286,16 +316,39 @@ int nds_init_map(int *rows, int *cols)
   /* Alright, file loaded, let's copy over the palette */
 
   for (i = 0; i < tiles.palette_length; i++) {
-    palette[i] = RGB15((tiles.palette[i].r >> 3),
+    u16 val = RGB15((tiles.palette[i].r >> 3),
                        (tiles.palette[i].g >> 3),
                        (tiles.palette[i].b >> 3));
+
+    palette[i] = val;
+    spr_palette[i] = val;
   }
 
   if (bmp_bpp(&tiles) == 8) {
     vramSetBankH(VRAM_H_SUB_BG_EXT_PALETTE);
   }
 
-  /* Lastly, compute the number of rows and columns in our map. */
+  /* Now get the user sprite set up. */
+
+  /* First thing's f'ing last, let's disable all sprites */
+
+  for (i = 0; i < 128; i++) {
+    oam_shadow.spriteBuffer[i].isHidden = 1;
+  }
+
+  oam_shadow.spriteBuffer[0].isRotoscale = 0;
+  oam_shadow.spriteBuffer[0].rsDouble = 0;
+  oam_shadow.spriteBuffer[0].objMode = OBJMODE_BLENDED;
+  oam_shadow.spriteBuffer[0].isMosaic = 0;
+  oam_shadow.spriteBuffer[0].colMode = OBJCOLOR_16;
+  oam_shadow.spriteBuffer[0].objShape = OBJSHAPE_SQUARE;
+
+  oam_shadow.spriteBuffer[0].posX = 0;
+  oam_shadow.spriteBuffer[0].posY = 0;
+  oam_shadow.spriteBuffer[0].objSize = OBJSIZE_16;
+  oam_shadow.spriteBuffer[0].tileIdx = 0; /* Reset this later */
+  oam_shadow.spriteBuffer[0].objPriority = OBJPRIORITY_3;
+  oam_shadow.spriteBuffer[0].objPal = 0;
 
   return 0;
 }
@@ -378,6 +431,8 @@ void nds_clear_minimap()
 
 void nds_draw_map(nds_map_t *map, int *xp, int *yp)
 {
+  swiWaitForVBlank();
+
   if (xp == NULL) {
     cx = u.ux;
   } else {
@@ -405,6 +460,8 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
   if (map != NULL) {
     int sx = cx - map_width / 2;
     int sy = cy - map_height / 2;
+    int spr_x = u.ux - sx;
+    int spr_y = u.uy - sy;
 
     int x, y;
 
@@ -419,11 +476,25 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
       }
     }
 
+    if ((spr_x < 0) || (spr_y < 0) ||
+        (spr_x > map_width) || (spr_y > map_height) ||
+        (! Invisible)) {
+
+      nds_draw_sprite(0, 0, -1);
+    } else {
+      nds_draw_sprite(spr_x, spr_y, glyph2tile[hero_glyph]);
+    }
+
     nds_draw_minimap(map);
   } else {
+    nds_draw_sprite(0, 0, -1);
+
     nds_clear_map();
     nds_clear_minimap();
   }
+
+  DC_FlushAll();
+  dmaCopy(&oam_shadow, oam_ram, sizeof(oam_shadow));
 }
 
 void nds_map_translate_coords(int x, int y, int *tx, int *ty)

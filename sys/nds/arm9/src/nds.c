@@ -63,13 +63,13 @@ void init_screen()
   powerON(POWER_ALL_2D | POWER_SWAP_LCDS);
   lcdMainOnBottom();
 
-  videoSetMode(MODE_5_2D | DISPLAY_BG1_ACTIVE | DISPLAY_BG_EXT_PALETTE);
+  videoSetMode(MODE_5_2D | DISPLAY_BG1_ACTIVE | DISPLAY_BG_EXT_PALETTE | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D_LAYOUT);
   videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
 
   vramSetMainBanks(VRAM_A_MAIN_BG_0x06000000,
-                   VRAM_B_MAIN_BG_0x06020000,
+                   VRAM_B_MAIN_SPRITE_0x06400000,
                    VRAM_C_SUB_BG_0x06200000,
-                   VRAM_D_MAIN_BG_0x06040000);
+                   VRAM_D_MAIN_BG_0x06020000);
 
   /*
    * Set up the main screen.  We're using BG0 for the console, BG2
@@ -104,6 +104,9 @@ void init_screen()
 
   /* Map Layer (colour depth is selected in nds_init_map */
   BG1_CR = BG_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_PRIORITY_3;
+
+  BLEND_CR = BLEND_ALPHA | BLEND_SRC_SPRITE | BLEND_DST_BG1;
+  BLEND_AB = 0x0010;
 
   /* Menu/Text Layer */
   BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_2;

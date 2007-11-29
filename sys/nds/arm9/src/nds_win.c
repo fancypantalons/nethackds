@@ -692,10 +692,24 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
   u16 *vram = (u16 *)BG_BMP_RAM(2);
 
   int start_x, end_x, start_y, end_y;
+  int tag_w, tag_h;
+
   int bottomidx;
 
   start_x = (256 / 2 - (width / 2));
   end_x = 256 / 2 + (width / 2);
+
+  if (window->buffer == NULL) {
+    text_dims(system_font, "*", &tag_w, &tag_h);
+
+    tag_w *= 4;
+    start_x -= tag_w;
+  }
+
+  if (start_x < 0) {
+    end_x -= start_x;
+    start_x = 0;
+  }
 
   if (height > 192) {
     start_y = butheight + 1;
@@ -722,13 +736,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
   if (window->buffer == NULL) {
     nds_menu_t *menu = window->menu;
     int cur_y = 0;
-    int tag_w, tag_h;
     int i;
-
-    text_dims(system_font, "*", &tag_w, &tag_h);
-
-    tag_w *= 4;
-    start_x -= tag_w;
 
     if (! window->img) {
       window->img = alloc_ppm(end_x - start_x, tag_h);
@@ -736,6 +744,8 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
     for (i = topidx; (i < menu->count) && (cur_y < (end_y - start_y)); i++) {
       if (clear || menu->items[i].refresh) {
+        char tag[3] = "  ";
+
         clear_ppm(window->img);
 
         draw_string(system_font,
@@ -744,21 +754,27 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
                     255, 0, 255);
 
         if (menu->items[i].selected) {
-          char str[3] = "*";
-
           if (menu->items[i].count > 0) {
-            sprintf(str, "%d", menu->items[i].count);
+            sprintf(tag, "%d", menu->items[i].count);
+          } else {
+            strcpy(tag, "* ");
           }
-
-          draw_string(system_font,
-                      str,
-                      window->img, 0, 0, 1,
-                      255, 0, 255);
         }
 
+        draw_string(system_font,
+                    tag,
+                    window->img, 0, 0, 1,
+                    255, 0, 255);
+
         if (! clear) {
+          int width = end_x - start_x;
+
+          if (width > 256) {
+            width = 256;
+          }
+
           nds_draw_rect(start_x, start_y + cur_y, 
-                        end_x - start_x, menu->items[i].height,
+                        width, menu->items[i].height,
                         254, vram);
         }
 
@@ -777,10 +793,6 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
     /* Aight, render the offscreen buffer. */
 
     bottomidx = i;
-
-    if (window->menu->prompt) {
-      _nds_draw_prompt(window->menu->prompt);
-    }
   } else {
     nds_charbuf_t *charbuf = window->buffer;
     int cur_y = 0;
@@ -1103,9 +1115,14 @@ int _nds_do_menu(nds_nhwindow_t *window,
    * Clear VRAM in the BG2 layer and then activate it.
    */
 
+  if (window->menu->prompt) {
+    _nds_draw_prompt(window->menu->prompt);
+  }
+
   while (1) {
     int i;
     int pressed;
+    int held;
 
     if (refresh) {
       bottomidx = _nds_draw_scroller(window, x, y, width, height, topidx, butheight, how, clear);
@@ -1131,6 +1148,7 @@ int _nds_do_menu(nds_nhwindow_t *window,
 
     scanKeys();
     pressed = keysDown();
+    held = keysHeld();
 
     if (pressed & KEY_A) {
       goto DONE;
@@ -1179,7 +1197,6 @@ int _nds_do_menu(nds_nhwindow_t *window,
           int cnt = window->menu->items[i].count;
 
           window->menu->items[i].highlighted = 0;
-          window->menu->items[i].selected = 1;
           window->menu->items[i].refresh = 1;
 
           refresh = 1;
@@ -1193,12 +1210,24 @@ int _nds_do_menu(nds_nhwindow_t *window,
            *
            * And, last case, we've started counting for this item, so increment.
            */
-          if (cnt == 0) {
-            window->menu->items[i].count = -1;
-          } else if (cnt == -1) {
-            window->menu->items[i].count = 1;
+          if (held & KEY_L) {
+            if (cnt == -1) {
+              window->menu->items[i].selected = 0;
+              window->menu->items[i].count = 0;
+            } else if (cnt == 1) {
+              window->menu->items[i].count = -1;
+            } else if (cnt > 0) {
+              window->menu->items[i].count = cnt - 1;
+            }
           } else {
-            window->menu->items[i].count = cnt + 1;
+            if (cnt == 0) {
+              window->menu->items[i].selected = 1;
+              window->menu->items[i].count = -1;
+            } else if (cnt == -1) {
+              window->menu->items[i].count = 1;
+            } else {
+              window->menu->items[i].count = cnt + 1;
+            }
           }
 
           if (how == PICK_ONE) {

@@ -682,24 +682,24 @@ void draw_ppm_bw(struct ppm *ppm, unsigned short *vram,
                  int black, int white)
 {
   int y;
-  long *rgba = (long *)ppm->rgba;
 
   for (y = py; y < py + ppm->height; y++) {
     int x = 0;
     u16 *target = vram + (y * width + px) / 2;
+    long *rgba = ((long *)ppm->rgba) + ((y - py) * ppm->width);
     
     if (px & 1) {
-      *target = (*target & 0x00FF) | ((*rgba++ ? white : black) << 8);
+      *target = (*target & 0x00FF) | ((rgba[0] ? white : black) << 8);
       target++;
       x++;
     }
 
-    for (; x < ppm->width; x += 2, rgba += 2) {
+    for (; (x < ppm->width) && ((x + px) < width); x += 2) {
       if (x == ppm->width - 1) {
-        *target = (*target & 0xFF00) | (*rgba++ ? white : black);
+        *target = (*target & 0xFF00) | (rgba[x] ? white : black);
         break;
       } else {
-        *target++ = ((rgba[1] ? white : black) << 8) | (rgba[0] ? white : black);
+        *target++ = ((rgba[x + 1] ? white : black) << 8) | (rgba[x] ? white : black);
       }
     }
   }

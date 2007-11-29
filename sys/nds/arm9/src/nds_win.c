@@ -633,7 +633,7 @@ void nds_putstr(winid win, int attr, const char *str)
     *c = '\0';
 
     if (win == WIN_STATUS) {
-      nds_update_status(str);
+      nds_update_status((char *)str);
     } else {
       _nds_win_append_text(window, str);
     }
@@ -645,7 +645,7 @@ void nds_putstr(winid win, int attr, const char *str)
 
   if (*str) {
     if (win == WIN_STATUS) {
-      nds_update_status(str);
+      nds_update_status((char *)str);
     } else {
       _nds_win_append_text(window, str);
     }
@@ -1415,7 +1415,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
   return 0;
 }
 
-char nds_yn_function(const char *ques, const char *choices, char def)
+char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
 {
   winid win;
   menu_item *sel;
@@ -1542,7 +1542,7 @@ void nds_getlin(const char *prompt, char *buffer)
   int done = 0;
   int prompt_h;
 
-  text_dims(system_font, prompt, NULL, &prompt_h);
+  text_dims(system_font, (char *)prompt, NULL, &prompt_h);
 
   if (prompt_img == NULL) {
     prompt_img = alloc_ppm(252, prompt_h);
@@ -1555,7 +1555,7 @@ void nds_getlin(const char *prompt, char *buffer)
   /* Draw the prompt */
 
   clear_ppm(prompt_img);
-  draw_string(system_font, prompt, prompt_img, 0, 0, 1, 255, 0, 255);
+  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, 1, 255, 0, 255);
   draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
 
   /* Now initialize our buffers */

@@ -40,7 +40,7 @@ void nds_charbuf_destroy(nds_charbuf_t *buffer)
   NULLFREE(buffer);
 }
 
-nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, char *str)
+nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str)
 {
   nds_line_t *ptr;
 

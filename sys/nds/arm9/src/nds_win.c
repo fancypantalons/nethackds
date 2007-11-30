@@ -660,20 +660,34 @@ void nds_putstr(winid win, int attr, const char *str)
  * Window Display Functions
  ***************************/
 
-void _nds_draw_prompt(char *title)
+struct ppm *prompt_img = NULL;
+int prompt_y;
+
+void _nds_draw_prompt(char *prompt)
 {
-  u16 *vram = (u16 *)BG_BMP_RAM_SUB(0);
-  int w, h;
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
+  int prompt_h;
 
-  text_dims(system_font, title, &w, &h);
+  text_dims(system_font, (char *)prompt, NULL, &prompt_h);
 
-  /* Alright, fill the prompting layer and draw out prompt. */
+  if (prompt_img == NULL) {
+    prompt_img = alloc_ppm(252, prompt_h);
+    prompt_y = 192 - prompt_h * 2 - 4;
+  }
 
-  nds_fill(vram, 254);
-  nds_draw_text(system_font, title, 
-                256 / 2 - w / 2, 
-                192 / 2 - h / 2,
-                254, 255, vram);
+  /* Draw the prompt */
+
+  clear_ppm(prompt_img);
+  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, 1, 255, 0, 255);
+  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
+}
+
+void _nds_clear_prompt()
+{
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
+
+  clear_ppm(prompt_img);
+  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
 }
 
 /*
@@ -1257,7 +1271,7 @@ DONE:
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 
   if (window->menu->prompt) {
-    SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+    _nds_clear_prompt();
   }
 
   return ret;
@@ -1440,6 +1454,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   menu_item *sel;
   ANY_P ids[3];
   int ret;
+  int yn = 0;
   int ynaq = 0;
 
   iprintf("yn_function '%s'\n", ques);
@@ -1449,7 +1464,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   }
 
   /* We're being asked for a direction... this is special. */
-  if ((strcasecmp(ques, "In what direction?") == 0) ||
+  if ((strstr(ques, "In what direction") != NULL) ||
       (strstr(ques, "in what direction") != NULL)) {
     /*
      * We're going to use nh_poskey to get a command from the user.  However,
@@ -1505,6 +1520,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   if ((strcasecmp(choices, ynchars) == 0) ||
       (strcasecmp(choices, ynqchars) == 0) ||
       ((ynaq = strcasecmp(choices, ynaqchars)) == 0)) {
+    yn = 1;
 
     ids[0].a_int = 'y';
     ids[1].a_int = 'n';
@@ -1532,7 +1548,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   end_menu(win, ques);
 
   if (select_menu(win, PICK_ONE, &sel) <= 0) {
-    ret = '\033';
+    ret = yn ? 'n' : '\033';
   } else {
     ret = sel->item.a_int;
     free(sel);
@@ -1545,9 +1561,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
 
 void nds_getlin(const char *prompt, char *buffer)
 {
-  static struct ppm *prompt_img = NULL;
   static struct ppm *input_img = NULL;
-  static int prompt_y;
   static int input_y;
 
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
@@ -1559,23 +1573,16 @@ void nds_getlin(const char *prompt, char *buffer)
   int length = 0;
 
   int done = 0;
-  int prompt_h;
+  int text_h;
 
-  text_dims(system_font, (char *)prompt, NULL, &prompt_h);
+  text_dims(system_font, (char *)prompt, NULL, &text_h);
 
-  if (prompt_img == NULL) {
-    prompt_img = alloc_ppm(252, prompt_h);
-    input_img = alloc_ppm(252, prompt_h); /* We'll presume the height is constant */
-
-    prompt_y = 192 - prompt_h * 2 - 4;
-    input_y = 192 - prompt_h - 4;
+  if (input_img == NULL) {
+    input_img = alloc_ppm(252, text_h); /* We'll presume the height is constant */
+    input_y = 192 - text_h - 4;
   }
 
-  /* Draw the prompt */
-
-  clear_ppm(prompt_img);
-  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, 1, 255, 0, 255);
-  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
+  _nds_draw_prompt((char *)prompt);
 
   /* Now initialize our buffers */
 
@@ -1604,7 +1611,7 @@ void nds_getlin(const char *prompt, char *buffer)
     swiWaitForVBlank();
 
     draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);
-    nds_draw_vline(front_w + 4, input_y, prompt_h, 253, vram);
+    nds_draw_vline(front_w + 4, input_y, text_h, 253, vram);
 
     scanKeys();
 
@@ -1667,10 +1674,9 @@ void nds_getlin(const char *prompt, char *buffer)
 
   /* Yeah, it's cheesy... I could use draw_rect... but this works, too :) */
 
-  clear_ppm(prompt_img);
-  clear_ppm(input_img);
+  _nds_clear_prompt();
 
-  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
+  clear_ppm(input_img);
   draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);
 
   DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;

@@ -40,6 +40,8 @@ void keysInterruptHandler()
     DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
 
     console_enabled = 1;
+
+    mallinfo_dump();
   }
 }
 
@@ -63,7 +65,12 @@ void init_screen()
   powerON(POWER_ALL_2D | POWER_SWAP_LCDS);
   lcdMainOnBottom();
 
-  videoSetMode(MODE_5_2D | DISPLAY_BG1_ACTIVE | DISPLAY_BG_EXT_PALETTE | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D_LAYOUT);
+  videoSetMode(MODE_5_2D | 
+               DISPLAY_BG1_ACTIVE | 
+               DISPLAY_BG_EXT_PALETTE | 
+               DISPLAY_SPR_ACTIVE | 
+               DISPLAY_SPR_1D_LAYOUT);
+
   videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
 
   vramSetMainBanks(VRAM_A_MAIN_BG_0x06000000,
@@ -180,21 +187,6 @@ void mallinfo_dump()
   iprintf("Ordblks: %d\n", info.ordblks);
   iprintf("Uordblks: %d\n", info.uordblks);
   iprintf("Fordblks: %d\n", info.fordblks);
-}
-
-void test_thinger()
-{
-  winid win = create_nhwindow(NHW_TEXT);
-  char buf[BUFSZ];
-  int i;
-
-  for (i = 0; i < 100; i++) {
-    sprintf(buf, "Testing line number %d", i);
-
-    putstr(win, ATR_NONE, buf);
-  }
-
-  display_nhwindow(win, 1);
 }
 
 int main()

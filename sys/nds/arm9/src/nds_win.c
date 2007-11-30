@@ -748,11 +748,6 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
         clear_ppm(window->img);
 
-        draw_string(system_font,
-                    menu->items[i].title,
-                    window->img, tag_w, 0, 1,
-                    255, 0, 255);
-
         if (menu->items[i].selected) {
           if (menu->items[i].count > 0) {
             sprintf(tag, "%d", menu->items[i].count);
@@ -761,10 +756,22 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
           }
         }
 
-        draw_string(system_font,
-                    tag,
-                    window->img, 0, 0, 1,
-                    255, 0, 255);
+        if (menu->items[i].id.a_int == 0) {
+          draw_string(system_font,
+                      menu->items[i].title,
+                      window->img, 0, 0, 1,
+                      255, 0, 255);
+        } else {
+          draw_string(system_font,
+                      tag,
+                      window->img, 0, 0, 1,
+                      255, 0, 255);
+
+          draw_string(system_font,
+                      menu->items[i].title,
+                      window->img, tag_w, 0, 1,
+                      255, 0, 255);
+        }
 
         if (! clear) {
           int width = end_x - start_x;
@@ -824,31 +831,9 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
 int _nds_display_yes_no_prompt(char *prompt)
 {
-  winid win = create_nhwindow(NHW_MENU);
-  menu_item *sel;
-  ANY_P ids[2];
-  int ret;
+  char c = yn_function(prompt, ynchars, 0);
 
-  start_menu(win);
-
-  ids[0].a_int = 1;
-  ids[1].a_int = 0;
-
-  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Yes", 0);
-  add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "No", 0);
-
-  end_menu(win, prompt);
-
-  if (select_menu(win, PICK_ONE, &sel) <= 0) {
-    ret = -1;
-  } else {
-    ret = sel->item.a_int;
-    free(sel);
-  }
-
-  destroy_nhwindow(win);
-
-  return ret;
+  return (c == 'y');
 }
 
 void _nds_display_map(nds_nhwindow_t *win, int blocking)
@@ -1176,7 +1161,8 @@ int _nds_do_menu(nds_nhwindow_t *window,
             (coords.px >= item_x) && (coords.py >= item_y) &&
             (coords.px <= item_x2) && (coords.py <= item_y2)) {
 
-          if (! window->menu->items[i].highlighted) {
+          if (! window->menu->items[i].highlighted &&
+              (window->menu->items[i].id.a_int != 0)) {
             window->menu->items[i].highlighted = 1;
             window->menu->items[i].refresh = 1;
             refresh = 1;
@@ -1185,14 +1171,16 @@ int _nds_do_menu(nds_nhwindow_t *window,
                    (last_coords.px >= item_x) && (last_coords.py >= item_y) &&
                    (last_coords.px <= item_x2) && (last_coords.py <= item_y2)) {
 
-          if (window->menu->items[i].highlighted) {
+          if (window->menu->items[i].highlighted &&
+              (window->menu->items[i].id.a_int != 0)) {
             window->menu->items[i].highlighted = 0;
             window->menu->items[i].refresh = 1;
             refresh = 1;
           }
         } else if ((coords.x == 0) && (coords.y == 0) && 
                    (last_coords.px >= item_x) && (last_coords.py >= item_y) &&
-                   (last_coords.px <= item_x2) && (last_coords.py <= item_y2)) {
+                   (last_coords.px <= item_x2) && (last_coords.py <= item_y2) &&
+                   (window->menu->items[i].id.a_int != 0)) {
 
           int cnt = window->menu->items[i].count;
 

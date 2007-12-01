@@ -19,7 +19,6 @@
 
 #define CMD_CONFIG     0x0100
 #define CMD_SWAP_HANDS 0x0101
-#define CMD_LAST_CMD   0x0102
 
 /*
  * Missing commands:
@@ -85,8 +84,8 @@ static nds_cmd_t cmdlist[] = {
 	{'P', "Put On"},
 	{'Q', "Quiver"},
 	{'r', "Read"},
+        {'\001', "Redo"},
 	{'R', "Remove"},
-        {CMD_LAST_CMD, "Repeat Cmd"},
 	{M('r'), "Rub"},
         {CMD_SWAP_HANDS, "Handedness"},
 	{M('o'), "Sacrifice"},
@@ -174,8 +173,6 @@ u16 *vram = (u16 *)BG_BMP_RAM(12);
 
 u16 cmd_key = KEY_L;
 u16 scroll_key = KEY_R;
-
-int last_cmd = -1;
 
 nds_cmd_t nds_cmd_loop();
 void nds_load_key_config();
@@ -437,7 +434,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
   nds_flush();
 
   while(1) {
-    int key = -1;
+    int key = 0;
     int pressed;
     int held;
 
@@ -495,7 +492,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     }
 
     switch (key) {
-      case -1:
+      case 0:
         break;
 
       case CMD_CONFIG:
@@ -506,16 +503,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
         nds_swap_handedness();
         break;
 
-      case CMD_LAST_CMD:
-        if (last_cmd >= 0) {
-          return last_cmd;
-        }
-
-        break;
-
       default:
-        last_cmd = key;
-
         return key;
     }
 

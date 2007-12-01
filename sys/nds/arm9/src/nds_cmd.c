@@ -34,6 +34,11 @@ typedef struct {
   int y2;
 } nds_cmd_t;
 
+typedef struct {
+  int key;
+  char *name;
+} nds_key_t;
+
 static nds_cmd_t cmdlist[] = {
 //	{C('p'), TRUE, doprev_message},
 	{M('a'), "Adjust"},
@@ -140,11 +145,18 @@ static nds_cmd_t wiz_cmdlist[] = {
 
 /* We use this array for indexing into the key config list */
 
-static u16 keys[] = { 
-  KEY_A, KEY_B, 
-  KEY_X, KEY_Y,
-  KEY_SELECT, KEY_START, 
-  KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN, -1
+static nds_key_t keys[] = {
+  { KEY_A, "A" },
+  { KEY_B, "B" },
+  { KEY_X, "X" },
+  { KEY_Y, "Y" },
+  { KEY_SELECT, "Select" },
+  { KEY_START, "Start" },
+  { KEY_RIGHT, "Right" },
+  { KEY_LEFT, "Left" },
+  { KEY_UP, "Up" },
+  { KEY_DOWN, "Down" },
+  { -1, NULL }
 };
 
 u8 key_map[] = {
@@ -158,7 +170,7 @@ u16 *vram = (u16 *)BG_BMP_RAM(12);
 u16 cmd_key = KEY_L;
 u16 scroll_key = KEY_R;
 
-char nds_cmd_loop();
+nds_cmd_t nds_cmd_loop();
 void nds_load_key_config();
 
 void nds_init_cmd()
@@ -215,13 +227,187 @@ int nds_map_key(u16 pressed)
 {
   int i;
 
-  for (i = 0; keys[i] > 0; i++) {
-    if (pressed & keys[i]) {
+  for (i = 0; keys[i].key > 0; i++) {
+    if (pressed & keys[i].key) {
       return key_map[i];
     }
   }
   
   return 0;
+}
+
+void nds_load_key_config()
+{
+  FILE *fp = fopen(fqname(KEY_CONFIG_FILE, CONFIGPREFIX, 0), "r");
+  u8 buffer[BUFSZ];
+  int cnt = sizeof(key_map);
+  int ret;
+
+  iprintf("Load got %x\n", fp);
+
+  if (fp == (FILE *)0) {
+    return;
+  }
+
+  if ((ret = fread(buffer, 1, cnt, fp)) < cnt) {
+    iprintf("Only got %d, wanted %d\n", ret, cnt);
+  } else {
+    memcpy(key_map, buffer, cnt);
+  }
+
+  fclose(fp);
+}
+
+void nds_save_key_config()
+{
+  FILE *fp = fopen(fqname(KEY_CONFIG_FILE, CONFIGPREFIX, 0), "w");
+
+  iprintf("Save got %x\n", fp);
+
+  if (fp == (FILE *)0) {
+    return;
+  }
+
+  fwrite(key_map, 1, sizeof(key_map), fp);
+  fclose(fp);
+}
+
+nds_cmd_t nds_get_config_cmd()
+{
+  winid win;
+  menu_item *sel;
+  ANY_P ids[6];
+  nds_cmd_t cmd;
+
+  win = create_nhwindow(NHW_MENU);
+  start_menu(win);
+
+  ids[0].a_int = 0;
+  ids[1].a_int = 'k';
+  ids[2].a_int = 'j';
+  ids[3].a_int = 'h';
+  ids[4].a_int = 'l';
+  ids[5].a_int = 1;
+
+  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Direction Keys", 0);
+
+  add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Up", 0);
+  add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Down", 0);
+  add_menu(win, NO_GLYPH, &(ids[3]), 0, 0, 0, "Left", 0);
+  add_menu(win, NO_GLYPH, &(ids[4]), 0, 0, 0, "Right", 0);
+
+  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Other", 0);
+
+  add_menu(win, NO_GLYPH, &(ids[5]), 0, 0, 0, "Game Command", 0);
+
+  end_menu(win, "What do you want to assign to this key?");
+
+  if (select_menu(win, PICK_ONE, &sel) <= 0) {
+    cmd.f_char = 0;
+    cmd.name = NULL;
+  } else if (sel->item.a_int == 1) {
+    cmd = nds_cmd_loop(1);
+  } else {
+    cmd.f_char = sel->item.a_int;
+
+    switch (cmd.f_char) {
+      case 'k':
+        cmd.name = "Move Up";
+        break;
+
+      case 'j':
+        cmd.name = "Move Down";
+        break;
+
+      case 'h':
+        cmd.name = "Move Left";
+        break;
+
+      case 'l':
+        cmd.name = "Move Right";
+        break;
+
+      default:
+        cmd.name = NULL;
+        break;
+    }
+  }
+
+  NULLFREE(sel);
+
+  destroy_nhwindow(win);
+
+  return cmd;
+}
+
+void nds_config_key()
+{
+  int i;
+  int pressed;
+  nds_key_t key = { 0, NULL };
+  nds_cmd_t cmd;
+  char buf[BUFSZ];
+
+  nds_draw_prompt("Press a key.");
+
+  while (1) {
+    swiWaitForVBlank();
+
+    scanKeys();
+
+    pressed = keysDown();
+
+    /* We don't let the user configure these */
+
+    if ((pressed & KEY_L) ||
+        (pressed & KEY_R)) {
+      continue;
+    } else if (pressed) {
+      break;
+    }
+  }
+
+  nds_clear_prompt();
+
+  for (i = 0; keys[i].key > 0; i++) {
+    if (pressed & keys[i].key) {
+      key = keys[i];
+      break;
+    }
+  }
+
+  cmd = nds_get_config_cmd();
+
+  if (cmd.name == NULL) {
+    return;
+  }
+
+  key_map[i] = cmd.f_char;
+
+  sprintf(buf, "Mapped %s to %s.", key.name, cmd.name);
+
+  clear_nhwindow(WIN_MESSAGE);
+  putstr(WIN_MESSAGE, ATR_NONE, buf);
+
+  nds_save_key_config();
+}
+
+void nds_swap_handedness()
+{
+  u16 tmp = cmd_key;
+
+  cmd_key = scroll_key;
+  scroll_key = tmp;
+
+  nds_save_key_config();
+
+  clear_nhwindow(WIN_MESSAGE);
+
+  if (cmd_key == KEY_L) {
+    putstr(WIN_MESSAGE, ATR_NONE, "Switched to right-handed mode.");
+  } else {
+    putstr(WIN_MESSAGE, ATR_NONE, "Switched to left-handed mode.");
+  }
 }
 
 int nds_nh_poskey(int *x, int *y, int *mod)
@@ -286,10 +472,18 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     if (pressed && (key = nds_map_key(pressed))) {
       return key;
     } else if (pressed & cmd_key) {
-      char c = nds_cmd_loop(0);
+      nds_cmd_t cmd = nds_cmd_loop(0);
 
-      if (c != 0) {
-        return c;
+      if ((cmd.name != NULL) && (cmd.f_char != 0)) {
+        return cmd.f_char;
+      } else if ((cmd.name != NULL) && 
+                 (strcasecmp(cmd.name, "Key Config") == 0)) {
+
+        nds_config_key();
+      } else if ((cmd.name != NULL) && 
+                 (strcasecmp(cmd.name, "Handedness") == 0)) {
+
+        nds_swap_handedness();
       }
     }
 
@@ -306,155 +500,10 @@ int nds_nh_poskey(int *x, int *y, int *mod)
   return 0;
 }
 
-void nds_load_key_config()
-{
-  FILE *fp = fopen(fqname(KEY_CONFIG_FILE, CONFIGPREFIX, 0), "r");
-  u8 buffer[BUFSZ];
-  int cnt = sizeof(key_map);
-  int ret;
-
-  iprintf("Load got %x\n", fp);
-
-  if (fp == (FILE *)0) {
-    return;
-  }
-
-  if ((ret = fread(buffer, 1, cnt, fp)) < cnt) {
-    iprintf("Only got %d, wanted %d\n", ret, cnt);
-  } else {
-    memcpy(key_map, buffer, cnt);
-  }
-
-  fclose(fp);
-}
-
-void nds_save_key_config()
-{
-  FILE *fp = fopen(fqname(KEY_CONFIG_FILE, CONFIGPREFIX, 0), "w");
-
-  iprintf("Save got %x\n", fp);
-
-  if (fp == (FILE *)0) {
-    return;
-  }
-
-  fwrite(key_map, 1, sizeof(key_map), fp);
-  fclose(fp);
-}
-
-int nds_get_config_cmd()
-{
-  winid win;
-  menu_item *sel;
-  ANY_P ids[6];
-  int ret;
-
-  win = create_nhwindow(NHW_MENU);
-  start_menu(win);
-
-  ids[0].a_int = 0;
-  ids[1].a_int = 'k';
-  ids[2].a_int = 'j';
-  ids[3].a_int = 'h';
-  ids[4].a_int = 'l';
-  ids[5].a_int = 1;
-
-  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Direction Keys", 0);
-
-  add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Up", 0);
-  add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Down", 0);
-  add_menu(win, NO_GLYPH, &(ids[3]), 0, 0, 0, "Left", 0);
-  add_menu(win, NO_GLYPH, &(ids[4]), 0, 0, 0, "Right", 0);
-
-  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Other", 0);
-
-  add_menu(win, NO_GLYPH, &(ids[5]), 0, 0, 0, "Game Command", 0);
-
-  end_menu(win, "What do you want to assign to this key?");
-
-  if (select_menu(win, PICK_ONE, &sel) <= 0) {
-    ret = -1;
-  } else if (sel->item.a_int == 1) {
-    ret = nds_cmd_loop(1);
-  } else {
-    ret = sel->item.a_int;
-  }
-
-  NULLFREE(sel);
-
-  destroy_nhwindow(win);
-
-  return ret;
-}
-
-void nds_config_key()
-{
-  int i;
-  int pressed;
-  int key = -1;
-  int cmd;
-
-  nds_draw_prompt("Press a key.");
-
-  while (1) {
-    swiWaitForVBlank();
-
-    scanKeys();
-
-    pressed = keysDown();
-
-    /* We don't let the user configure these */
-
-    if ((pressed & KEY_L) ||
-        (pressed & KEY_R)) {
-      continue;
-    } else if (pressed) {
-      break;
-    }
-  }
-
-  nds_clear_prompt();
-
-  for (i = 0; keys[i] > 0; i++) {
-    if (pressed & keys[i]) {
-      key = i;
-      break;
-    }
-  }
-
-  cmd = nds_get_config_cmd();
-
-  if (cmd < 0) {
-    return;
-  }
-
-  key_map[i] = cmd;
-
-  nds_save_key_config();
-}
-
-void nds_swap_handedness()
-{
-  u16 tmp = cmd_key;
-
-  cmd_key = scroll_key;
-  scroll_key = tmp;
-
-  nds_save_key_config();
-
-  clear_nhwindow(WIN_MESSAGE);
-
-  if (cmd_key == KEY_L) {
-    putstr(WIN_MESSAGE, ATR_NONE, "Switched to right-handed mode.");
-  } else {
-    putstr(WIN_MESSAGE, ATR_NONE, "Switched to left-handed mode.");
-  }
-}
-
 nds_cmd_t nds_find_command(int x, int y)
 {
   int i;
-  nds_cmd_t cmd = {-1, NULL};
+  nds_cmd_t cmd = {0, NULL};
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
     if ((x >= cmdlist[i].x1) && (x <= cmdlist[i].x2) &&
@@ -468,10 +517,10 @@ nds_cmd_t nds_find_command(int x, int y)
   return cmd;
 }
 
-char nds_cmd_loop(int in_config)
+nds_cmd_t nds_cmd_loop(int in_config)
 {
-  nds_cmd_t curcmd = { -1, NULL };
-  nds_cmd_t picked_cmd = { -1, NULL };
+  nds_cmd_t curcmd = { 0, NULL };
+  nds_cmd_t picked_cmd = { 0, NULL };
 
   touchPosition coords = { .x = 0, .y = 0 };
   touchPosition lastCoords;
@@ -548,17 +597,7 @@ char nds_cmd_loop(int in_config)
   }
 
   DISPLAY_CR ^= DISPLAY_BG3_ACTIVE;
-  
-  if (picked_cmd.name == NULL) {
-    return 0;
-  } else if (picked_cmd.f_char != 0) {
-    return picked_cmd.f_char;
-  } else if (strcasecmp(picked_cmd.name, "Key Config") == 0) {
-    nds_config_key();
-  } else if (strcasecmp(picked_cmd.name, "Handedness") == 0) {
-    nds_swap_handedness();
-  }
 
-  return 0;
+  return picked_cmd;
 }
 

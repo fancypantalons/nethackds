@@ -258,6 +258,7 @@ int nds_init_map(int *rows, int *cols)
   u16 *spr_palette = SPRITE_PALETTE;
   char *fname = TILE_FILE ? TILE_FILE : DEF_TILE_FILE;
   int i;
+  u16 blend_dst;
 
   /* Initialize the data we need to manage the map and tiles */
 
@@ -291,16 +292,27 @@ int nds_init_map(int *rows, int *cols)
 
   switch (bmp_bpp(&tiles)) {
     case 4:
-      BG1_CR |= BG_16_COLOR;
+      BG1_CR = BG_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_16_COLOR | BG_PRIORITY_3; 
+      DISPLAY_CR |= DISPLAY_BG1_ACTIVE;
+
+      blend_dst = BLEND_DST_BG1;
 
       palette = (u16 *)BG_PALETTE + 32;
       break;
 
     case 8:
-      BG1_CR |= BG_256_COLOR;
+      BG3_CR = BG_RS_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_PRIORITY_3; 
+      DISPLAY_CR |= DISPLAY_BG3_ACTIVE;
 
-      vramSetBankH(VRAM_H_LCD);
-      palette = VRAM_H;
+      BG3_XDX = 1 << 8;
+      BG3_XDY = 0;
+      BG3_YDX = 0;
+      BG3_YDY = 1 << 8;
+
+      blend_dst = BLEND_DST_BG3;
+
+      vramSetBankE(VRAM_E_LCD);
+      palette = VRAM_E_EXT_PALETTE[3][2];
 
       break;
 
@@ -309,6 +321,9 @@ int nds_init_map(int *rows, int *cols)
 
       return -1;
   }
+
+  BLEND_CR = BLEND_ALPHA | BLEND_SRC_SPRITE | blend_dst;
+  BLEND_AB = 0x0010;
 
   width_in_tiles = bmp_width(&tiles) / TILE_WIDTH;
   height_in_tiles = bmp_height(&tiles) / TILE_HEIGHT;
@@ -325,7 +340,7 @@ int nds_init_map(int *rows, int *cols)
   }
 
   if (bmp_bpp(&tiles) == 8) {
-    vramSetBankH(VRAM_H_SUB_BG_EXT_PALETTE);
+    vramSetBankE(VRAM_E_BG_EXT_PALETTE);
   }
 
   /* Now get the user sprite set up. */

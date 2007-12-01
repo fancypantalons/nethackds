@@ -541,12 +541,16 @@ nds_cmd_t nds_cmd_loop(int in_config)
 {
   nds_cmd_t curcmd = { 0, NULL };
   nds_cmd_t picked_cmd = { 0, NULL };
+  u16 old_bg_cr;
 
   touchPosition coords = { .x = 0, .y = 0 };
   touchPosition lastCoords;
 
   /* Initialize our display */
-  DISPLAY_CR |= DISPLAY_BG3_ACTIVE;
+  old_bg_cr = BG2_CR;
+
+  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(12) | BG_PRIORITY_1;
+  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
   /*
    * Now, we loop until either a command is tapped and selected, or the left
@@ -616,7 +620,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
     }
   }
 
-  DISPLAY_CR ^= DISPLAY_BG3_ACTIVE;
+  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  BG2_CR = old_bg_cr;
 
   return picked_cmd;
 }

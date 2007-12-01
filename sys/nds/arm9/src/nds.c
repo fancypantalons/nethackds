@@ -66,7 +66,6 @@ void init_screen()
   lcdMainOnBottom();
 
   videoSetMode(MODE_5_2D | 
-               DISPLAY_BG1_ACTIVE | 
                DISPLAY_BG_EXT_PALETTE | 
                DISPLAY_SPR_ACTIVE | 
                DISPLAY_SPR_1D_LAYOUT);
@@ -109,28 +108,13 @@ void init_screen()
   /* Keyboard / Console Layer */
   BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR | BG_PRIORITY_0;
 
-  /* Map Layer (colour depth is selected in nds_init_map */
-  BG1_CR = BG_32x32 | BG_MAP_BASE(8) | BG_TILE_BASE(6) | BG_PRIORITY_3;
-
-  BLEND_CR = BLEND_ALPHA | BLEND_SRC_SPRITE | BLEND_DST_BG1;
-  BLEND_AB = 0x0010;
-
-  /* Menu/Text Layer */
+  /* Menu/Text/Command Layer */
   BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_2;
 
   BG2_XDX = 1 << 8;
   BG2_XDY = 0;
   BG2_YDX = 0;
   BG2_YDY = 1 << 8;
-
-  /* Command Layer */
-
-  BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(12) | BG_PRIORITY_1;
-
-  BG3_XDX = 1 << 8;
-  BG3_XDY = 0;
-  BG3_YDX = 0;
-  BG3_YDY = 1 << 8;
 
   /* Now init our console. */
   /* Set up the palette entries for our text, while we're here. */

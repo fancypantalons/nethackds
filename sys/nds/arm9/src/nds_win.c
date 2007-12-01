@@ -16,6 +16,8 @@
 #include "ds_kbd.h"
 #include "nds_map.h"
 
+#include "nds_win_gfx.h"
+
 #define PROMPT_LAYER_WIDTH 40
 
 /* Some prototypes. */
@@ -695,6 +697,18 @@ void nds_clear_prompt()
  * 'butwidth' corresponds to the width of the buttons we want to
  * display.
  */
+void _nds_copy_header_pixels(char *src, long *buf)
+{
+  while (*src) {
+    int rgb[3];
+
+    HEADER_PIXEL(src, rgb);
+
+    *buf = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+    buf++;
+  }
+}
+
 int _nds_draw_scroller(nds_nhwindow_t *window,
                        int x, int y,
                        int width, int height,
@@ -703,12 +717,24 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
                        int how,
                        int clear)
 {
+  static struct ppm *up_arrow = NULL;
+  static struct ppm *down_arrow = NULL; 
+
   u16 *vram = (u16 *)BG_BMP_RAM(2);
 
   int start_x, end_x, start_y, end_y;
   int tag_w, tag_h;
 
   int bottomidx;
+  int maxidx;
+
+  if (up_arrow == NULL) {
+    up_arrow = alloc_ppm(16, 16);
+    down_arrow = alloc_ppm(16, 16);
+
+    _nds_copy_header_pixels(up_arrow_data, (long *)up_arrow->rgba);
+    _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
+  }
 
   start_x = (256 / 2 - (width / 2));
   end_x = 256 / 2 + (width / 2);
@@ -725,9 +751,9 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
     start_x = 0;
   }
 
-  if (height > 192) {
-    start_y = 0;
-    end_y = 192;
+  if (height > 192 - 32) {
+    start_y = 16;
+    end_y = 192 - 16;
   } else {
     start_y = 192 / 2 - height / 2;
     end_y = 192 / 2 + height / 2;
@@ -806,6 +832,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
     /* Aight, render the offscreen buffer. */
 
     bottomidx = i;
+    maxidx = menu->count;
   } else {
     nds_charbuf_t *charbuf = window->buffer;
     int cur_y = 0;
@@ -827,6 +854,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
     }
 
     bottomidx = i;
+    maxidx = charbuf->count;
 
     if (clear) {
       nds_fill(vram, 254);
@@ -834,6 +862,14 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
     draw_ppm_bw(window->img, vram, start_x, start_y, 
                 256, 254, 255);
+  }
+
+  if (topidx > 0) {
+    draw_ppm_bw(up_arrow, vram, 120, 0, 256, 254, 255);
+  }
+
+  if (bottomidx < maxidx) {
+    draw_ppm_bw(down_arrow, vram, 120, 192 - 16, 256, 254, 255);
   }
   
   return bottomidx;

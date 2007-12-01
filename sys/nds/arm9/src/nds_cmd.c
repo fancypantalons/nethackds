@@ -17,6 +17,10 @@
 
 #define KEY_CONFIG_FILE "keys.cnf"
 
+#define CMD_CONFIG     0x0100
+#define CMD_SWAP_HANDS 0x0101
+#define CMD_LAST_CMD   0x0102
+
 /*
  * Missing commands:
  *
@@ -26,7 +30,7 @@
  */
 
 typedef struct {
-  char f_char;
+  u16 f_char;
   char *name;
   int x1;
   int y1;
@@ -68,7 +72,7 @@ static nds_cmd_t cmdlist[] = {
 	{'i', "Inventory"},
 	{M('i'), "Invoke"},
 	{M('j'), "Jump"},
-        {0, "Key Config"},
+        {CMD_CONFIG, "Key Config"},
 	{C('d'), "Kick"},
 	{':', "Look"},
 	{M('l'), "Loot"},
@@ -82,8 +86,9 @@ static nds_cmd_t cmdlist[] = {
 	{'Q', "Quiver"},
 	{'r', "Read"},
 	{'R', "Remove"},
+        {CMD_LAST_CMD, "Repeat Cmd"},
 	{M('r'), "Rub"},
-        {0, "Handedness"},
+        {CMD_SWAP_HANDS, "Handedness"},
 	{M('o'), "Sacrifice"},
 	{'S', "Save"},
 	{'s', "Search"},
@@ -94,7 +99,7 @@ static nds_cmd_t cmdlist[] = {
 	{C('t'), "Teleport"},
 	{'t', "Throw"},
 //	{'@', "Toggle Pickup"},
-	{M('2'), "Two Weapon"},
+//	{M('2'), "Two Weapon"},
 	{M('t'), "Turn"},
 	{'I', "Type-Inv"},
 	{'<', "Up"},
@@ -159,7 +164,7 @@ static nds_key_t keys[] = {
   { -1, NULL }
 };
 
-u8 key_map[] = {
+u16 key_map[] = {
   ',', 's', '<', '>',
   0, 0,
   'l', 'h', 'k', 'j'
@@ -169,6 +174,8 @@ u16 *vram = (u16 *)BG_BMP_RAM(12);
 
 u16 cmd_key = KEY_L;
 u16 scroll_key = KEY_R;
+
+int last_cmd = -1;
 
 nds_cmd_t nds_cmd_loop();
 void nds_load_key_config();
@@ -430,7 +437,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
   nds_flush();
 
   while(1) {
-    int key;
+    int key = -1;
     int pressed;
     int held;
 
@@ -479,22 +486,37 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
     swiWaitForVBlank();
 
-    if (pressed && (key = nds_map_key(pressed))) {
-      return key;
-    } else if (pressed & cmd_key) {
+    if (pressed & cmd_key) {
       nds_cmd_t cmd = nds_cmd_loop(0);
 
-      if ((cmd.name != NULL) && (cmd.f_char != 0)) {
-        return cmd.f_char;
-      } else if ((cmd.name != NULL) && 
-                 (strcasecmp(cmd.name, "Key Config") == 0)) {
+      key = cmd.f_char;
+    } else if (pressed) {
+      key = nds_map_key(pressed);
+    }
 
+    switch (key) {
+      case -1:
+        break;
+
+      case CMD_CONFIG:
         nds_config_key();
-      } else if ((cmd.name != NULL) && 
-                 (strcasecmp(cmd.name, "Handedness") == 0)) {
+        break;
 
+      case CMD_SWAP_HANDS:
         nds_swap_handedness();
-      }
+        break;
+
+      case CMD_LAST_CMD:
+        if (last_cmd >= 0) {
+          return last_cmd;
+        }
+
+        break;
+
+      default:
+        last_cmd = key;
+
+        return key;
     }
 
     if (((lastCoords.x != 0) || (lastCoords.y != 0)) &&

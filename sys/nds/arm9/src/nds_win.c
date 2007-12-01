@@ -726,11 +726,8 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
   }
 
   if (height > 192) {
-    start_y = butheight + 1;
-    end_y = 192 - (butheight + 1);
-
-    nds_draw_rect_outline(0, 0, 255, butheight, 254, 255, vram);
-    nds_draw_rect_outline(0, 191 - butheight, 255, butheight, 254, 255, vram);
+    start_y = 0;
+    end_y = 192;
   } else {
     start_y = 192 / 2 - height / 2;
     end_y = 192 / 2 + height / 2;
@@ -738,19 +735,14 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
   swiWaitForVBlank();
 
-  if (clear) {
-    nds_fill(vram, 254);
-
-    if (height > (end_y - start_y)) {
-      nds_draw_rect_outline(0, 0, 255, butheight, 254, 255, vram);
-      nds_draw_rect_outline(0, 191 - butheight, 255, butheight, 254, 255, vram);
-    }
-  }
-
   if (window->buffer == NULL) {
     nds_menu_t *menu = window->menu;
     int cur_y = 0;
     int i;
+
+    if (clear) {
+      nds_fill(vram, 254);
+    }
 
     if (! window->img) {
       window->img = alloc_ppm(end_x - start_x, tag_h);
@@ -836,6 +828,10 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
     bottomidx = i;
 
+    if (clear) {
+      nds_fill(vram, 254);
+    }
+
     draw_ppm_bw(window->img, vram, start_x, start_y, 
                 256, 254, 255);
   }
@@ -887,9 +883,6 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
   
   int i;
 
-  touchPosition coords = { .x = 0, .y = 0 };
-  touchPosition last_coords;
-
   for (i = 0; i < win->buffer->count; i++) {
     if (width < win->buffer->lines[i].width) {
       width = win->buffer->lines[i].width;
@@ -905,7 +898,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
   DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
   while (1) {
-    int keys;
+    int pressed;
 
     if (refresh) {
       bottomidx = _nds_draw_scroller(win, 1, 1, width, height, topidx, butheight, 0, 1);
@@ -919,43 +912,27 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     } else {
       swiWaitForVBlank();
     }
-    
-    last_coords = coords;
-    coords = touchReadXY();
 
     scanKeys();
-    keys = keysDown();
+    pressed = keysDown();
 
-    if (keys & KEY_A) {
+    if (pressed & KEY_A) {
       break;
     }
 
-    if ((coords.x == 0) && (coords.y == 0) && 
-        (last_coords.x == 0) && (last_coords.y == 0)) {
-      continue;
-    }
-
     if ((topidx != 0) || (bottomidx != win->buffer->count)) {
-      if ((coords.x != 0) && (coords.y != 0) &&
-          (coords.py <= butheight)) {
-      } else if ((coords.x != 0) && (coords.y != 0) &&
-                 (last_coords.py <= butheight)) {
-      } else if ((coords.x == 0) && (coords.y == 0) &&
-                 (last_coords.py <= butheight)) {
-
+      if (pressed & KEY_UP) {
         topidx -= pagesize;
         refresh = 1;
-      }
-                 
-      if ((coords.x != 0) && (coords.y != 0) &&
-          (coords.py >= (192 - butheight))) {
-      } else if ((coords.x != 0) && (coords.y != 0) &&
-                 (last_coords.py >= (192 - butheight))) {
-      } else if ((coords.x == 0) && (coords.y == 0) &&
-                 (last_coords.py >= (192 - butheight))) {
-
+      } else if (pressed & KEY_DOWN) {
         topidx += pagesize;
         refresh = 1;
+      }
+
+      if (topidx < 0) {
+        topidx = 0;
+      } else if (bottomidx > win->buffer->count) {
+        topidx = win->buffer->count - pagesize;
       }
     }
   }
@@ -1157,11 +1134,6 @@ int _nds_do_menu(nds_nhwindow_t *window,
       goto DONE;
     }
 
-    if ((coords.x == 0) && (coords.y == 0) && 
-        (last_coords.x == 0) && (last_coords.y == 0)) {
-      continue;
-    }
-
     if (how != PICK_NONE) {
       for (i = topidx; i < bottomidx; i++) {
         int item_x, item_y, item_x2, item_y2;
@@ -1212,7 +1184,7 @@ int _nds_do_menu(nds_nhwindow_t *window,
            *
            * And, last case, we've started counting for this item, so increment.
            */
-          if (held & KEY_L) {
+          if ((held & KEY_L) || (held & KEY_R)) {
             if (cnt == -1) {
               window->menu->items[i].selected = 0;
               window->menu->items[i].count = 0;
@@ -1240,25 +1212,11 @@ int _nds_do_menu(nds_nhwindow_t *window,
     }
 
     if ((topidx != 0) || (bottomidx != window->menu->count)) {
-      if ((coords.x != 0) && (coords.y != 0) &&
-          (coords.py <= butheight)) {
-      } else if ((coords.x != 0) && (coords.y != 0) &&
-                 (last_coords.py <= butheight)) {
-      } else if ((coords.x == 0) && (coords.y == 0) &&
-                 (last_coords.py <= butheight)) {
-
+      if ((pressed & KEY_UP) && (topidx > 0)) {
         topidx -= pagesize;
         refresh = 1;
         clear = 1;
-      }
-                 
-      if ((coords.x != 0) && (coords.y != 0) &&
-          (coords.py >= (192 - butheight))) {
-      } else if ((coords.x != 0) && (coords.y != 0) &&
-                 (last_coords.py >= (192 - butheight))) {
-      } else if ((coords.x == 0) && (coords.y == 0) &&
-                 (last_coords.py >= (192 - butheight))) {
-
+      } else if ((pressed & KEY_DOWN) && ((topidx + pagesize) < window->menu->count)) {
         topidx += pagesize;
         refresh = 1;
         clear = 1;

@@ -48,7 +48,6 @@ static nds_cmd_t cmdlist[] = {
 	{'C', "Call"},
 	{'Z', "Cast"},
 	{M('c'), "Chat"},
-        {0, "Key Config"},
 	{'c', "Close"},
 	{M('d'), "Dip"},
 	{'\\', "Discoveries"},	
@@ -69,6 +68,7 @@ static nds_cmd_t cmdlist[] = {
 	{'i', "Inventory"},
 	{M('i'), "Invoke"},
 	{M('j'), "Jump"},
+        {0, "Key Config"},
 	{C('d'), "Kick"},
 	{':', "Look"},
 	{M('l'), "Loot"},
@@ -243,17 +243,26 @@ void nds_load_key_config()
   int cnt = sizeof(key_map);
   int ret;
 
-  iprintf("Load got %x\n", fp);
-
   if (fp == (FILE *)0) {
     return;
   }
 
   if ((ret = fread(buffer, 1, cnt, fp)) < cnt) {
     iprintf("Only got %d, wanted %d\n", ret, cnt);
-  } else {
-    memcpy(key_map, buffer, cnt);
+    return;
+  } 
+
+  if ((ret = fread(&cmd_key, 1, sizeof(cmd_key), fp)) < sizeof(cmd_key)) {
+    iprintf("Only got %d, wanted %d\n", ret, sizeof(cmd_key));
+    return;
   }
+
+  if ((ret = fread(&scroll_key, 1, sizeof(scroll_key), fp)) < sizeof(scroll_key)) {
+    iprintf("Only got %d, wanted %d\n", ret, sizeof(scroll_key));
+    return;
+  }
+  
+  memcpy(key_map, buffer, cnt);
 
   fclose(fp);
 }
@@ -262,13 +271,14 @@ void nds_save_key_config()
 {
   FILE *fp = fopen(fqname(KEY_CONFIG_FILE, CONFIGPREFIX, 0), "w");
 
-  iprintf("Save got %x\n", fp);
-
   if (fp == (FILE *)0) {
     return;
   }
 
   fwrite(key_map, 1, sizeof(key_map), fp);
+  fwrite(&cmd_key, 1, sizeof(cmd_key), fp);
+  fwrite(&scroll_key, 1, sizeof(scroll_key), fp);
+
   fclose(fp);
 }
 

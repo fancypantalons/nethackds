@@ -663,7 +663,7 @@ void nds_putstr(winid win, int attr, const char *str)
 struct ppm *prompt_img = NULL;
 int prompt_y;
 
-void _nds_draw_prompt(char *prompt)
+void nds_draw_prompt(char *prompt)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
   int prompt_h;
@@ -682,7 +682,7 @@ void _nds_draw_prompt(char *prompt)
   draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
 }
 
-void _nds_clear_prompt()
+void nds_clear_prompt()
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 
@@ -1115,7 +1115,7 @@ int _nds_do_menu(nds_nhwindow_t *window,
    */
 
   if (window->menu->prompt) {
-    _nds_draw_prompt(window->menu->prompt);
+    nds_draw_prompt(window->menu->prompt);
   }
 
   while (1) {
@@ -1271,7 +1271,7 @@ DONE:
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 
   if (window->menu->prompt) {
-    _nds_clear_prompt();
+    nds_clear_prompt();
   }
 
   return ret;
@@ -1353,101 +1353,6 @@ int nds_nhgetch()
   return 0;
 }
 
-int nds_nh_poskey(int *x, int *y, int *mod)
-{
-  touchPosition coords = { .x = 0, .y = 0 };
-  touchPosition lastCoords;
-
-  /* Clear out any taps that happen to be occuring right now. */
-
-  nds_flush();
-
-  while(1) {
-    int pressed;
-    int held;
-
-    lastCoords = coords;
-    coords = touchReadXY();
-
-    scanKeys();
-
-    pressed = keysDownRepeat();
-    held = keysHeld();
-
-    if (held & KEY_R) {
-      int cx, cy;
-      int changed = 0;
-
-      nds_map_get_center(&cx, &cy);
-
-      if (pressed & KEY_UP) {
-        cy--;
-        changed |= 1;
-      } 
-      
-      if (pressed & KEY_DOWN) {
-        cy++;
-        changed |= 1;
-      } 
-      
-      if (pressed & KEY_LEFT) {
-        cx--;
-        changed |= 1;
-      } 
-      
-      if (pressed & KEY_RIGHT) {
-        cx++;
-        changed |= 1;
-      }
-
-      if (changed) {
-        nds_draw_map(windows[WIN_MAP]->map, &cx, &cy);
-      } else {
-        swiWaitForVBlank();
-      }
-
-      continue;
-    }
-
-    swiWaitForVBlank();
-
-    if (pressed & KEY_UP) {
-      return 'k';
-    } else if (pressed & KEY_DOWN) {
-      return 'j';
-    } else if (pressed & KEY_LEFT) {
-      return 'h';
-    } else if (pressed & KEY_RIGHT) {
-      return 'l';
-    } else if (pressed & KEY_A) {
-      return ',';
-    } else if (pressed & KEY_B) {
-      return 's';
-    } else if (pressed & KEY_X) {
-      return '<';
-    } else if (pressed & KEY_Y) {
-      return '>';
-    } else if (pressed & KEY_L) {
-      char c = nds_do_cmd();
-
-      if (c != 0) {
-        return c;
-      }
-    }
-
-    if (((lastCoords.x != 0) || (lastCoords.y != 0)) &&
-        ((coords.x == 0) && (coords.y == 0))) {
-      nds_map_translate_coords(lastCoords.px, lastCoords.py, x, y);
-
-      *mod = CLICK_1;
-
-      return 0;
-    }
-  }
-
-  return 0;
-}
-
 char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
 {
   winid win;
@@ -1477,10 +1382,9 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
       int x, y, mod;
       int sym;
 
-      clear_nhwindow(WIN_MESSAGE);
-      putstr(WIN_MESSAGE, ATR_NONE, "Tap a square adjacent to you or press a direction key.");
-
+      nds_draw_prompt("Tap an adjacent square or press a direction key.");
       sym = nh_poskey(&x, &y, &mod);
+      nds_clear_prompt();
 
       if (mod == CLICK_1) {
         if ((x == u.ux - 1) && (y == u.uy - 1)) {
@@ -1582,7 +1486,7 @@ void nds_getlin(const char *prompt, char *buffer)
     input_y = 192 - text_h - 4;
   }
 
-  _nds_draw_prompt((char *)prompt);
+  nds_draw_prompt((char *)prompt);
 
   /* Now initialize our buffers */
 
@@ -1674,7 +1578,7 @@ void nds_getlin(const char *prompt, char *buffer)
 
   /* Yeah, it's cheesy... I could use draw_rect... but this works, too :) */
 
-  _nds_clear_prompt();
+  nds_clear_prompt();
 
   clear_ppm(input_img);
   draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);

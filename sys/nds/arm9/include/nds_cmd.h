@@ -2,6 +2,6 @@
 #define _NDS_CMD_H_
 
 void nds_init_cmd();
-char nds_do_cmd();
+int nds_nh_poskey(int *x, int *y, int *mod);
 
 #endif

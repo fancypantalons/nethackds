@@ -6,8 +6,6 @@
 
 #define MAX_WINDOWS 8
 
-extern struct font *system_font;
-
 typedef struct {
   ANY_P id;
   int count;
@@ -43,5 +41,11 @@ typedef struct {
   u8 dirty;
   struct ppm *img; 
 } nds_nhwindow_t;
+
+extern nds_nhwindow_t *windows[MAX_WINDOWS];
+extern struct font *system_font;
+
+void nds_draw_prompt(char *prompt);
+void nds_clear_prompt();
 
 #endif

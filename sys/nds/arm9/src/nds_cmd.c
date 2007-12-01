@@ -348,7 +348,7 @@ void nds_config_key()
   nds_cmd_t cmd;
   char buf[BUFSZ];
 
-  nds_draw_prompt("Press a key.");
+  nds_draw_prompt("Press a key to modify.");
 
   while (1) {
     swiWaitForVBlank();

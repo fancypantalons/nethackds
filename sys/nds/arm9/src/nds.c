@@ -233,7 +233,6 @@ int main()
 
   chdir("/NetHack");
 
-  kbd_init();
   initoptions();
 
   /* Gotta initialize this before the command list is generated */
@@ -279,6 +278,7 @@ int main()
 
   vision_init();
   dlb_init();
+  kbd_init();
 
   /* TODO: Display the copyright thinger and title screen. */
 

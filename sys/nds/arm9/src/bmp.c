@@ -130,6 +130,8 @@ static int bmp_read_palette(FILE *file, bmp_t *bmp)
 }
 
 int bmp_read_bitmap(FILE *file, bmp_t *bmp) {
+  int len;
+
   switch (bmp->dib_header.length) {
     case BMP_WIN_V3_HEADER_LEN:
       bmp->bitmap_length = bmp->dib_header.fields.win_v3.bitmap_length;
@@ -150,7 +152,10 @@ int bmp_read_bitmap(FILE *file, bmp_t *bmp) {
 
   bmp->bitmap = (u8 *)malloc(bmp->bitmap_length);
 
-  if (fread(bmp->bitmap, 1, bmp->bitmap_length, file) < bmp->bitmap_length) {
+  if ((len = fread(bmp->bitmap, 1, bmp->bitmap_length, file)) < bmp->bitmap_length) {
+    iprintf("Short read on BMP, got %d bytes, expected %d\n", 
+            bmp->bitmap_length);
+
     return -1;
   }
 
@@ -189,6 +194,17 @@ DONE:
   fclose(file);
 
   return ret;
+}
+
+void bmp_free(bmp_t *bmp)
+{
+  if (bmp->bitmap) {
+    free(bmp->bitmap);
+  }
+
+  if (bmp->palette) {
+    free(bmp->palette);
+  }
 }
 
 int bmp_bpp(bmp_t *bmp)

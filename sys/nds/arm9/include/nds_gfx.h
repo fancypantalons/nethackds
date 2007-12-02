@@ -1,3 +1,9 @@
+#ifndef _NDS_GFX_H_
+#define _NDS_GFX_H_
+
+#include "bmp.h"
+#include "font-bdf.h"
+
 /*
  * Various graphics functions.
  */
@@ -13,4 +19,7 @@ void nds_draw_text(struct font *fnt,
                    u16 black, u16 white,
                    u16 *dest);
 
-void nds_fill(u16 *dest, int colour);
+void nds_fill(u16 *dest, u8 colour);
+void nds_draw_bmp(bmp_t *bmp, u16 *vram, u16 *palette);
+
+#endif

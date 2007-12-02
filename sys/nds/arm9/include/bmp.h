@@ -67,6 +67,7 @@ typedef struct {
 } bmp_t;
 
 int bmp_read(const char *name, bmp_t *bmp);
+void bmp_free(bmp_t *bmp);
 
 int bmp_bpp(bmp_t *bmp);
 int bmp_width(bmp_t *bmp);

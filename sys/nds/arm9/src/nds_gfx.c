@@ -1,8 +1,9 @@
 #include <nds.h>
+#include "nds_gfx.h"
 #include "font-bdf.h"
 #include "ppm-lite.h"
 
-void nds_draw_hline(int x, int y, int width, u8 colour, u16 *dest)
+void nds_draw_hline(int x, int y, int width, u16 colour, u16 *dest)
 {
   int i;
 
@@ -22,7 +23,7 @@ void nds_draw_hline(int x, int y, int width, u8 colour, u16 *dest)
   }
 }
 
-void nds_draw_vline(int x, int y, int height, u8 colour, u16 *dest)
+void nds_draw_vline(int x, int y, int height, u16 colour, u16 *dest)
 {
   int i;
 
@@ -37,7 +38,7 @@ void nds_draw_vline(int x, int y, int height, u8 colour, u16 *dest)
   }
 }
 
-void nds_draw_rect(int x, int y, int width, int height, u8 colour, u16 *dest)
+void nds_draw_rect(int x, int y, int width, int height, u16 colour, u16 *dest)
 {
   int i;
   u16 tmp = (colour << 8) | colour;
@@ -85,5 +86,60 @@ void nds_fill(u16 *dest, u8 colour)
 
   for (i = 0; i < 256 * 192 / 2; i++) {
     dest[i] = tmp;
+  }
+}
+
+void nds_draw_bmp(bmp_t *bmp, u16 *vram, u16 *palette)
+{
+  int i, y;
+  int height = bmp_height(bmp);
+  int bpp = bmp_bpp(bmp);
+  u8 *bitmap = bmp->bitmap;
+
+  for (i = 0; i < bmp->palette_length; i++) {
+    palette[i] = RGB15(bmp->palette[i].r >> 3,
+                       bmp->palette[i].g >> 3,
+                       bmp->palette[i].b >> 3);
+  }
+
+  for (y = height - 1; y >= 0; y--) {
+    u16 *target = vram + (192 / 2 - height / 2 + y) * 128;
+    u16 *tend = target + 128;
+
+    while (target < tend) {
+      switch (bpp) {
+        case 1:
+          target[0] = ((*bitmap & 0x80) >> 7) |
+                      (((*bitmap & 0x40) >> 6) << 8);
+          target[1] = ((*bitmap & 0x20) >> 5) |
+                      (((*bitmap & 0x10) >> 4) << 8);
+          target[2] = ((*bitmap & 0x08) >> 3) |
+                      (((*bitmap & 0x04) >> 2) << 8);
+          target[3] = ((*bitmap & 0x02) >> 1) |
+                      (((*bitmap & 0x01) >> 0) << 8);
+
+          bitmap++;
+          target += 4;
+          break;
+
+        case 4:
+          *target = ((*bitmap & 0xF0) >> 4) |
+                    ((*bitmap & 0x0F) << 8);
+
+          bitmap++;
+          target++;
+          break;
+
+        case 8:
+          *target = (bitmap[1] << 8) | bitmap[0];
+
+          bitmap += 2;
+          target++; 
+          break;
+
+        default:
+          break;
+      }
+    }
   }
 }

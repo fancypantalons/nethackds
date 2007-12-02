@@ -1141,10 +1141,6 @@ int _nds_do_menu(nds_nhwindow_t *window,
 
       DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
-      if (window->menu->prompt) {
-        SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
-      }
-
       if ((bottomidx != window->menu->count) && (pagesize == 0)) {
         pagesize = bottomidx - topidx;
       }

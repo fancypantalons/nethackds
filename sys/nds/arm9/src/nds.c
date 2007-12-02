@@ -2,6 +2,7 @@
 #include <nds.h>
 #include <nds/arm9/console.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <fat.h>
 
 #ifdef _DEBUG_
@@ -14,10 +15,17 @@
 #include "ds_kbd.h"
 #include "nds_win.h"
 #include "nds_gfx.h"
+#include "nds_util.h"
+#include "bmp.h"
+
+#define SPLASH_IMAGE "nhlogo.bmp"
+#define SPLASH_PROMPT "Tap to begin, Adventurer!"
 
 int console_enabled = 0;
 int was_console_layer_visible = 0;
 int debug_mode = 0;
+
+void mallinfo_dump();
 
 /*
  * Key interrupt handler.  Right now, I only use this to toggle the console
@@ -153,6 +161,41 @@ void init_screen()
 #endif
 }
 
+/* 
+ * The splash screen code... just display BMP on the screen and wait for a 
+ * tap event.
+ */
+void splash_screen()
+{
+  bmp_t logo;
+  int text_w, text_h;
+
+  bmp_read(SPLASH_IMAGE, &logo);
+  nds_draw_bmp(&logo, (u16 *)BG_BMP_RAM_SUB(0), BG_PALETTE_SUB);
+
+  bmp_free(&logo);
+
+  BG_PALETTE[0] = RGB15(0, 0, 0);
+  BG_PALETTE[1] = RGB15(31, 31, 31);
+
+  nds_fill((u16 *)BG_BMP_RAM(2), 0);
+
+  text_dims(system_font, SPLASH_PROMPT, &text_w, &text_h);
+  nds_draw_text(system_font, SPLASH_PROMPT,
+                256 / 2 - text_w / 2,
+                192 / 2 - text_h / 2,
+                0, 1,
+                (u16 *)BG_BMP_RAM(2));
+
+  SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+
+  nds_wait_key(KEY_TOUCH);
+
+  SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+}
+
 /*
  * Right now, we do nothing, but the plan is to have this jump back
  * to the main menu.
@@ -217,6 +260,12 @@ int main()
 
   choose_windows(DEFAULT_WINDOW_SYS);
   init_nhwindows(NULL, NULL);
+
+  /* Show our splash screen */
+
+  splash_screen();
+
+  /* Now continue initialization */
 
   fd = create_levelfile(0, (char *)NULL);
 

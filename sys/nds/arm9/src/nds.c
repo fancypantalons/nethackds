@@ -253,6 +253,7 @@ void splash_screen()
  */
 void nethack_exit()
 {
+  REG_IPC_FIFO_TX = 0xDEADBEEF;
 }
 
 void mallinfo_dump()

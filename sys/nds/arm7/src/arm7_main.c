@@ -130,6 +130,8 @@ void arm7_fifo() { // check incoming fifo messages
 
    if (msg == 0x87654321) {
      Wifi_Sync();
+   } else if (msg == 0xDEADBEEF) {
+     writePowerManagement(PM_CONTROL_REG, PM_POWER_DOWN);
    } else {
      NDSX_LedBlinkFifo(msg);
    }

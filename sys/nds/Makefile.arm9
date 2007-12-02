@@ -19,7 +19,7 @@ include $(DEVKITARM)/ds_rules
 BUILD		:=	build
 SOURCES		:=	sys/nds/arm9/src
 OTHERSRC	:=	src
-INCLUDES	:=	sys/nds/arm9/include include
+INCLUDES	:=	sys/nds/include sys/nds/arm9/include include
 DATA		:=
 
 #---------------------------------------------------------------------------------

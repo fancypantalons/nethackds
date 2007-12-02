@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <fat.h>
 
+#include "ndsx_ledblink.h"
+
 #ifdef _DEBUG_
 #  include <debug_stub.h>
 #  include <debug_tcp.h>
@@ -24,6 +26,7 @@
 int console_enabled = 0;
 int was_console_layer_visible = 0;
 int debug_mode = 0;
+int power_state = 0;
 
 void mallinfo_dump();
 
@@ -50,6 +53,45 @@ void keysInterruptHandler()
     console_enabled = 1;
 
     mallinfo_dump();
+  }
+}
+
+/*
+ * Right now, the main thing we do here is check for the lid state, so we
+ * can power on/off as appropriate.
+ */
+void vsyncHandler()
+{
+  int lid_closed = (((~IPC->buttons)<<6) & KEY_LID ) ^ KEY_LID;
+
+  switch (power_state) {
+    case 0:
+      if (lid_closed) {
+        powerOFF(POWER_ALL_2D);
+        REG_IPC_FIFO_TX = SET_LEDBLINK_ON;
+        power_state = 1;
+      }
+      
+      break;
+
+    case 1:
+      REG_IPC_FIFO_TX = SET_LEDBLINK_SLOW;
+      power_state = 2;
+
+      break;
+
+    case 2:
+      if (! lid_closed) {
+        powerON(POWER_ALL_2D);
+        REG_IPC_FIFO_TX = SET_LEDBLINK_OFF;
+        power_state = 0;
+      }
+
+      break;
+
+    default:
+      power_state = 0;
+      break;
   }
 }
 
@@ -132,9 +174,18 @@ void init_screen()
                      16);
 
   irqInit();
-  irqEnable(IRQ_VBLANK | IRQ_KEYS);
+  irqEnable(IRQ_VBLANK | IRQ_KEYS | IRQ_IPC_SYNC);
+
   irqSet(IRQ_KEYS, keysInterruptHandler);
   REG_KEYCNT |= 0x8000 | 0x4000 | KEY_L | KEY_R;
+
+  irqSet(IRQ_VBLANK, vsyncHandler);
+
+  REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR;
+
+//  REG_IPC_FIFO_TX=0x12345678;
+
+  NDSX_SetLedBlink_Off();
 
 #ifdef _DEBUG_
   scanKeys();

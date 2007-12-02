@@ -20,6 +20,7 @@
 
 #include <dswifi7.h>
 
+#include "ndsx_ledblink.h"
 
 //---------------------------------------------------------------------------------
 void startSound(int sampleRate, const void* data, u32 bytes, u8 channel, u8 vol,  u8 pan, u8 format) {
@@ -126,50 +127,68 @@ void arm7_synctoarm9() { // send fifo message
 // interrupt handler to allow incoming notifications from arm9
 void arm7_fifo() { // check incoming fifo messages
    u32 msg = REG_IPC_FIFO_RX;
-   if(msg==0x87654321) Wifi_Sync();
+
+   if (msg == 0x87654321) {
+     Wifi_Sync();
+   } else {
+     NDSX_LedBlinkFifo(msg);
+   }
 }
 
 //---------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 //---------------------------------------------------------------------------------
   REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR; // enable & prepare fifo asap
-	// Reset the clock if needed
-	rtcReset();
+  // Reset the clock if needed
+  rtcReset();
 
-	//enable sound
-	powerON(POWER_SOUND);
-	SOUND_CR = SOUND_ENABLE | SOUND_VOL(0x7F);
-	IPC->soundData = 0;
+  //enable sound
+  powerON(POWER_SOUND);
+  SOUND_CR = SOUND_ENABLE | SOUND_VOL(0x7F);
+  IPC->soundData = 0;
 
-	irqInit();
-        initClockIRQ();
+  irqInit();
+  initClockIRQ();
 
-	irqSet(IRQ_VBLANK, VblankHandler);
-	irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
+  irqSet(IRQ_VBLANK, VblankHandler);
+  irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
 
-	irqEnable(IRQ_VBLANK | IRQ_WIFI);
+  irqEnable(IRQ_VBLANK | IRQ_WIFI);
 
-{ // sync with arm9 and init wifi
-  	u32 fifo_temp;   
+  { // sync with arm9 and init wifi
+    /*
+    u32 fifo_temp;   
 
-	  while(1) { // wait for magic number
-    	while(REG_IPC_FIFO_CR&IPC_FIFO_RECV_EMPTY) swiWaitForVBlank();
+    while (1) { // wait for magic number
+      while(REG_IPC_FIFO_CR & IPC_FIFO_RECV_EMPTY) 
+        swiWaitForVBlank();
+
       fifo_temp=REG_IPC_FIFO_RX;
-      if(fifo_temp==0x12345678) break;
-   	}
-   	while(REG_IPC_FIFO_CR&IPC_FIFO_RECV_EMPTY) swiWaitForVBlank();
-   	fifo_temp=REG_IPC_FIFO_RX; // give next value to wifi_init
-   	Wifi_Init(fifo_temp);
-   	
-   	irqSet(IRQ_FIFO_NOT_EMPTY,arm7_fifo); // set up fifo irq
-   	irqEnable(IRQ_FIFO_NOT_EMPTY);
-   	REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_RECV_IRQ;
 
-   	Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
+      if (fifo_temp==0x12345678) 
+        break;
+    }
+
+    while (REG_IPC_FIFO_CR & IPC_FIFO_RECV_EMPTY) 
+      swiWaitForVBlank();
+    
+    fifo_temp=REG_IPC_FIFO_RX; // give next value to wifi_init
+    Wifi_Init(fifo_temp);
+    */
+
+    irqSet(IRQ_FIFO_NOT_EMPTY,arm7_fifo); // set up fifo irq
+    irqEnable(IRQ_FIFO_NOT_EMPTY);
+    
+    REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_RECV_IRQ;
+
+    /*
+    Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
+    */
   } // arm7 wifi init complete
 
-	// Keep the ARM7 out of main RAM
-	while (1) swiWaitForVBlank();
+  // Keep the ARM7 out of main RAM
+  while (1) 
+    swiWaitForVBlank();
 }
 
 

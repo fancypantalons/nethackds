@@ -18,7 +18,7 @@ include $(DEVKITARM)/ds_rules
 BUILD		:=	build
 SOURCES		:=	sys/nds/arm7/src
 #INCLUDES	:=	sys/nds/arm7/include
-INCLUDES	:=
+INCLUDES	:=	sys/nds/include
 DATA		:=
 
 #---------------------------------------------------------------------------------

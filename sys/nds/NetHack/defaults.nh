@@ -30,7 +30,7 @@ OPTIONS=tile_file:tiles.bmp,tile_width:16,tile_height:16
 # number_pad option can have an optional value of 0 (off), 1 (on), 
 # or 2(on,legacy-mode) which causes 5='g', alt-5='G', alt-0='I'
 # Right now, if number_pad is set to 0, the arrow keys will not work
-OPTIONS=noshowexp,lit_corridor
+OPTIONS=noshowexp,lit_corridor,!autopickup
 #
 # If you want to get rid of "use #quit to quit..." use:
 OPTIONS=suppress_alert:3.3.1

@@ -32,7 +32,7 @@
 
 typedef struct {
   u16 tile_ram_idx;   /* Position this tile is in the tile RAM */
-  long load_time;     /* This is in game time (moves)          */
+  long last_used;     /* This is in game time (moves)          */
 } tile_cache_entry_t;
 
 bmp_t tiles;
@@ -91,25 +91,25 @@ void nds_load_tile(int idx)
     int old_cache_idx;
 
     for (i = 0; i < NUM_TILES; i++) {
-      if (tile_cache[i].load_time < 0) {
+      if (tile_cache[i].last_used < 0) {
         continue;
-      } else if ((moves - tile_cache[i].load_time) > last_diff) {
+      } else if ((moves - tile_cache[i].last_used) > last_diff) {
         tile_idx = tile_cache[i].tile_ram_idx;
         old_cache_idx = i;
 
-        last_diff = moves - tile_cache[i].load_time;
+        last_diff = moves - tile_cache[i].last_used;
       }
     }
 
     /* Evict the old entry from the cache */
 
-    tile_cache[old_cache_idx].load_time = -1;
+    tile_cache[old_cache_idx].last_used = -1;
     tile_cache[old_cache_idx].tile_ram_idx = 0;
   }
 
   /* Now record the new entry */
 
-  tile_cache[idx].load_time = moves;
+  tile_cache[idx].last_used = moves;
   tile_cache[idx].tile_ram_idx = tile_idx;
 
   /*
@@ -198,6 +198,8 @@ void nds_draw_tile(int x, int y, int idx)
     tidx = tile_cache[idx].tile_ram_idx; 
   }
 
+  tile_cache[idx].last_used = moves;
+
   /*
    * midx is the starting map index.
    * tidx is the starting tile index.
@@ -273,7 +275,7 @@ int nds_init_map(int *rows, int *cols)
   num_free_tiles = MAX_TILE_SLOTS / (tile_width * tile_height) - 1;
 
   for (i = 0; i < NUM_TILES; i++) {
-    tile_cache[i].load_time = -1;
+    tile_cache[i].last_used = -1;
   }
 
   /* Now load the tiles into memory */

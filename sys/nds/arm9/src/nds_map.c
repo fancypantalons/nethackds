@@ -272,7 +272,7 @@ int nds_init_map(int *rows, int *cols)
   map_width = 32 / tile_width;
   map_height = 24 / tile_height;
 
-  num_free_tiles = MAX_TILE_SLOTS / (tile_width * tile_height) - 1;
+  num_free_tiles = MAX_TILE_SLOTS - 1;
 
   for (i = 0; i < NUM_TILES; i++) {
     tile_cache[i].last_used = -1;

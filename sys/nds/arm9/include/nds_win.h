@@ -29,8 +29,10 @@ typedef struct {
 
 typedef struct {
   u8 type;
-  u16 w, h;   // Only used to report back to the core.
-  u16 cx, cy; // Cursor position, in pixels.
+  int x, y;
+  int width, height;
+  int topidx, bottomidx;
+  int pagesize;
 
   // Window type-specific structures.
 

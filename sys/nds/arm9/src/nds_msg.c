@@ -85,6 +85,8 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
       clear_ppm(msg_img);
     }
 
+    iprintf("M: %s\n", buffer->lines[curline].text);
+
     draw_string(system_font, buffer->lines[curline].text, msg_img,
                 0, cur_y, 1,
                 255, 0, 255);

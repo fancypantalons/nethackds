@@ -561,33 +561,21 @@ void nds_clear_nhwindow(winid win)
 
   switch (window->type) {
     case NHW_MAP:
-      window->w = 256;
-      window->h = 256;
-
       NULLFREE(window->map);
 
       break;
 
     case NHW_MESSAGE:
-      window->w = 256;
-      window->h = 64;
-
       _nds_win_destroy_text(window);
 
       break;
 
     case NHW_STATUS:
-      window->w = 104;
-      window->h = 128;
-
       _nds_win_destroy_text(window);
 
       break;
 
     case NHW_MENU:
-      window->w = 192;
-      window->h = 224;
-
       if (window->buffer) {
         _nds_win_destroy_text(window);
       } else {
@@ -597,28 +585,16 @@ void nds_clear_nhwindow(winid win)
       break;
 
     case NHW_TEXT:
-      window->w = 256;
-      window->h = 224;
-
       _nds_win_destroy_text(window);
 
       break;
   }
-
-  window->cx = 0;
-  window->cy = 0;
 
   window->buffer = NULL;
   window->menu = NULL;
   window->map = NULL;
 
   window->dirty = 0;
-}
-
-void nds_curs(winid win, int x, int y)
-{
-  windows[win]->cx = x;
-  windows[win]->cy = y;
 }
 
 void nds_putstr(winid win, int attr, const char *str)
@@ -709,13 +685,7 @@ void _nds_copy_header_pixels(char *src, long *buf)
   }
 }
 
-int _nds_draw_scroller(nds_nhwindow_t *window,
-                       int x, int y,
-                       int width, int height,
-                       int topidx,
-                       int butheight,
-                       int how,
-                       int clear)
+void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 {
   static struct ppm *up_arrow = NULL;
   static struct ppm *down_arrow = NULL; 
@@ -725,7 +695,6 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
   int start_x, end_x, start_y, end_y;
   int tag_w, tag_h;
 
-  int bottomidx;
   int maxidx;
 
   if (up_arrow == NULL) {
@@ -736,8 +705,8 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
     _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
   }
 
-  start_x = (256 / 2 - (width / 2));
-  end_x = 256 / 2 + (width / 2);
+  start_x = (256 / 2 - (window->width / 2));
+  end_x = 256 / 2 + (window->width / 2);
 
   if (window->buffer == NULL) {
     text_dims(system_font, "*", &tag_w, &tag_h);
@@ -751,12 +720,12 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
     start_x = 0;
   }
 
-  if (height > 192 - 32) {
+  if (window->height > 192 - 32) {
     start_y = 16;
     end_y = 192 - 16;
   } else {
-    start_y = 192 / 2 - height / 2;
-    end_y = 192 / 2 + height / 2;
+    start_y = 192 / 2 - window->height / 2;
+    end_y = 192 / 2 + window->height / 2;
   }
 
   swiWaitForVBlank();
@@ -774,7 +743,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
       window->img = alloc_ppm(end_x - start_x, tag_h);
     }
 
-    for (i = topidx; (i < menu->count) && (cur_y < (end_y - start_y)); i++) {
+    for (i = window->topidx; (i < menu->count) && (cur_y < (end_y - start_y)); i++) {
       if (clear || menu->items[i].refresh) {
         char tag[3] = "  ";
 
@@ -831,7 +800,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
 
     /* Aight, render the offscreen buffer. */
 
-    bottomidx = i;
+    window->bottomidx = i;
     maxidx = menu->count;
   } else {
     nds_charbuf_t *charbuf = window->buffer;
@@ -844,7 +813,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
       clear_ppm(window->img);
     }
 
-    for (i = topidx; (i < charbuf->count) && (cur_y < (end_y - start_y)); i++) {
+    for (i = window->topidx; (i < charbuf->count) && (cur_y < (end_y - start_y)); i++) {
       draw_string(system_font,
                   charbuf->lines[i].text,
                   window->img, 0, cur_y, 1,
@@ -853,7 +822,7 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
       cur_y += charbuf->lines[i].height;
     }
 
-    bottomidx = i;
+    window->bottomidx = i;
     maxidx = charbuf->count;
 
     if (clear) {
@@ -864,15 +833,57 @@ int _nds_draw_scroller(nds_nhwindow_t *window,
                 256, 254, 255);
   }
 
-  if (topidx > 0) {
+  if (window->topidx > 0) {
     draw_ppm_bw(up_arrow, vram, 120, 0, 256, 254, 255);
   }
 
-  if (bottomidx < maxidx) {
+  if (window->bottomidx < maxidx) {
     draw_ppm_bw(down_arrow, vram, 120, 192 - 16, 256, 254, 255);
   }
-  
-  return bottomidx;
+}
+
+int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
+{
+  int pressed;
+  int count;
+
+  if (window->pagesize == 0) {
+    window->pagesize = window->bottomidx - window->topidx;
+  }
+
+  scanKeys();
+  scan_touch_screen();
+  pressed = keysDown();
+
+  if (pressed & KEY_A) {
+    return 1;
+  } else if (pressed & KEY_B) {
+    return -1;
+  }
+
+  if (window->buffer) {
+    count = window->buffer->count;
+  } else {
+    count = window->menu->count;
+  }
+
+  *refresh = 0;
+
+  if ((pressed & KEY_UP) && (window->topidx > 0)) {
+    window->topidx -= window->pagesize;
+    *refresh = 1;
+  } else if ((pressed & KEY_DOWN) && (window->bottomidx < count)) {
+    window->topidx += window->pagesize;
+    *refresh = 1;
+  }
+
+  if (window->topidx < 0) {
+    window->topidx = 0;
+  } else if (window->bottomidx > count) {
+    window->topidx = count - window->pagesize;
+  }
+
+  return 0;
 }
 
 int _nds_display_yes_no_prompt(char *prompt)
@@ -889,14 +900,6 @@ void _nds_display_map(nds_nhwindow_t *win, int blocking)
 
 void _nds_display_message(nds_nhwindow_t *win, int blocking)
 {
-  if (win->buffer) {
-    int i;
-
-    for (i = 0; i < win->buffer->count; i++) {
-      iprintf("%s\n", win->buffer->lines[i].text);
-    }
-  }
-
   nds_update_msg(win, blocking);
 }
 
@@ -907,12 +910,7 @@ void _nds_display_status(nds_nhwindow_t *win, int blocking)
 
 void _nds_display_text(nds_nhwindow_t *win, int blocking)
 {
-  int topidx = 0;
-  int bottomidx = 0;
-  int pagesize = 0;
   int refresh = 1;
-
-  int butheight = 10;
 
   int width = 0; 
   int height = 0;
@@ -927,6 +925,12 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     height += win->buffer->lines[i].height;
   }
 
+  win->width = width;
+  win->height = height;
+  win->topidx = 0;
+  win->bottomidx = 0;
+  win->pagesize = 0;
+
   /* 
    * Clear VRAM in the BG2 layer and then activate it.
    */
@@ -937,39 +941,15 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     int pressed;
 
     if (refresh) {
-      bottomidx = _nds_draw_scroller(win, 1, 1, width, height, topidx, butheight, 0, 1);
-
-      if ((bottomidx != win->buffer->count) && (pagesize == 0)) {
-
-        pagesize = bottomidx - topidx;
-      }
+      _nds_draw_scroller(win, 1);
 
       refresh = 0;
     } else {
       swiWaitForVBlank();
     }
 
-    scanKeys();
-    pressed = keysDown();
-
-    if (pressed & KEY_A) {
+    if (_nds_handle_scroller_buttons(win, &refresh)) {
       break;
-    }
-
-    if ((topidx != 0) || (bottomidx != win->buffer->count)) {
-      if (pressed & KEY_UP) {
-        topidx -= pagesize;
-        refresh = 1;
-      } else if (pressed & KEY_DOWN) {
-        topidx += pagesize;
-        refresh = 1;
-      }
-
-      if (topidx < 0) {
-        topidx = 0;
-      } else if (bottomidx > win->buffer->count) {
-        topidx = win->buffer->count - pagesize;
-      }
     }
   }
 
@@ -1106,18 +1086,11 @@ void nds_end_menu(winid win, const char *prompt)
  * taps will cause items to be selected accordingly.  Note, this
  * only works with NHW_MENU windows.
  */
-int _nds_do_menu(nds_nhwindow_t *window, 
-                 int x, int y, 
-                 int width, int height,
-                 int how)
+int _nds_do_menu(nds_nhwindow_t *window, int how)
 {
-  int topidx = 0;
-  int bottomidx = 0;
-  int pagesize = 0;
   int refresh = 1;
   int clear = 1;
 
-  int butheight = 10;
   int ret = 1;
 
   /* 
@@ -1130,17 +1103,13 @@ int _nds_do_menu(nds_nhwindow_t *window,
 
   while (1) {
     int i;
-    int pressed;
     int held;
+    int tmp;
 
     if (refresh) {
-      bottomidx = _nds_draw_scroller(window, x, y, width, height, topidx, butheight, how, clear);
+      _nds_draw_scroller(window, clear);
 
       DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
-
-      if ((bottomidx != window->menu->count) && (pagesize == 0)) {
-        pagesize = bottomidx - topidx;
-      }
 
       refresh = 0;
       clear = 0;
@@ -1148,22 +1117,21 @@ int _nds_do_menu(nds_nhwindow_t *window,
       swiWaitForVBlank();
     }
 
-    scanKeys();
-    scan_touch_screen();
-
-    pressed = keysDown();
+    tmp = _nds_handle_scroller_buttons(window, &refresh);
     held = keysHeld();
 
-    if (pressed & KEY_A) {
+    if (tmp > 0) {
       goto DONE;
-    } else if (pressed & KEY_B) {
+    } else if (tmp < 0) {
       ret = 0;
 
       goto DONE;
+    } else if (refresh) {
+      clear = 1;
     }
 
     if (how != PICK_NONE) {
-      for (i = topidx; i < bottomidx; i++) {
+      for (i = window->topidx; i < window->bottomidx; i++) {
         int item_x, item_y, item_x2, item_y2;
 
         item_x = window->menu->items[i].x;
@@ -1230,18 +1198,6 @@ int _nds_do_menu(nds_nhwindow_t *window,
         }
       }
     }
-
-    if ((topidx != 0) || (bottomidx != window->menu->count)) {
-      if ((pressed & KEY_UP) && (topidx > 0)) {
-        topidx -= pagesize;
-        refresh = 1;
-        clear = 1;
-      } else if ((pressed & KEY_DOWN) && ((topidx + pagesize) < window->menu->count)) {
-        topidx += pagesize;
-        refresh = 1;
-        clear = 1;
-      }
-    }
   }
 
 DONE:
@@ -1289,7 +1245,15 @@ int nds_select_menu(winid win, int how, menu_item **sel)
     height += item->height;
   }
 
-  ret = _nds_do_menu(window, 1, 1, width, height, how);
+  window->x = 1;
+  window->y = 1;
+  window->width = width;
+  window->height = height;
+  window->topidx = 0;
+  window->bottomidx = 0;
+  window->pagesize = 0;
+
+  ret = _nds_do_menu(window, how);
 
   if ((how != PICK_NONE) && ret) {
     for (i = 0; i < window->menu->count; i++) {
@@ -1698,7 +1662,7 @@ struct window_procs nds_procs = {
     nds_clear_nhwindow,
     nds_display_nhwindow,
     nds_destroy_nhwindow,
-    nds_curs,
+    do_null,
     nds_putstr,
     nds_display_file,
     nds_start_menu,

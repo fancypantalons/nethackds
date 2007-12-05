@@ -21,6 +21,7 @@ typedef struct {
   nds_menuitem_t *items;
   char *prompt;
   u16 count;
+  int how;
 } nds_menu_t;
 
 typedef struct {

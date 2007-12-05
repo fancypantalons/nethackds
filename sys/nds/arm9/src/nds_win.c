@@ -673,6 +673,12 @@ void nds_clear_prompt()
  * 'butwidth' corresponds to the width of the buttons we want to
  * display.
  */
+
+struct ppm *up_arrow = NULL;
+struct ppm *down_arrow = NULL; 
+struct ppm *okay_button = NULL;
+struct ppm *cancel_button = NULL;
+
 void _nds_copy_header_pixels(char *src, long *buf)
 {
   while (*src) {
@@ -687,9 +693,6 @@ void _nds_copy_header_pixels(char *src, long *buf)
 
 void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 {
-  static struct ppm *up_arrow = NULL;
-  static struct ppm *down_arrow = NULL; 
-
   u16 *vram = (u16 *)BG_BMP_RAM(2);
 
   int start_x, end_x, start_y, end_y;
@@ -700,9 +703,13 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
   if (up_arrow == NULL) {
     up_arrow = alloc_ppm(16, 16);
     down_arrow = alloc_ppm(16, 16);
+    okay_button = alloc_ppm(16, 16);
+    cancel_button = alloc_ppm(16, 16);
 
     _nds_copy_header_pixels(up_arrow_data, (long *)up_arrow->rgba);
     _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
+    _nds_copy_header_pixels(okay_data, (long *)okay_button->rgba);
+    _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
   }
 
   start_x = (256 / 2 - (window->width / 2));
@@ -802,6 +809,12 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 
     window->bottomidx = i;
     maxidx = menu->count;
+
+    if (menu->how == PICK_ANY) {
+      draw_ppm_bw(okay_button, vram,
+                  256 - okay_button->width * 2 - 8, 192 - okay_button->height,
+                  256, 254, 255);
+    }
   } else {
     nds_charbuf_t *charbuf = window->buffer;
     int cur_y = 0;
@@ -834,12 +847,20 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
   }
 
   if (window->topidx > 0) {
-    draw_ppm_bw(up_arrow, vram, 120, 0, 256, 254, 255);
+    draw_ppm_bw(up_arrow, vram, 
+                256 / 2 - up_arrow->width / 2, 0, 
+                256, 254, 255);
   }
 
   if (window->bottomidx < maxidx) {
-    draw_ppm_bw(down_arrow, vram, 120, 192 - 16, 256, 254, 255);
+    draw_ppm_bw(down_arrow, vram, 
+                256 / 2 - down_arrow->width / 2, 192 - down_arrow->height, 
+                256, 254, 255);
   }
+
+  draw_ppm_bw(cancel_button, vram,
+              256 - cancel_button->width, 192 - cancel_button->height,
+              256, 254, 255);
 }
 
 int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
@@ -847,6 +868,11 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
   int pressed;
   int count;
   int scroll_up, scroll_down;
+  int ret;
+
+  /* 
+   * Get a few variables initialized 
+   */
 
   if (window->pagesize == 0) {
     window->pagesize = window->bottomidx - window->topidx;
@@ -858,20 +884,75 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
     count = window->menu->count;
   }
 
+  *refresh = 0;
+
+  /* 
+   * Check for input 
+   */
+
   scanKeys();
   scan_touch_screen();
   pressed = keysDown();
 
+  /* 
+   * First, check OK/Cancel controls 
+   */
+
+  ret = 0;
+
+  /* Check the buttons */
+
   if (pressed & KEY_A) {
-    return 1;
+    ret = 1;
   } else if (pressed & KEY_B) {
-    return -1;
+    ret = -1;
+  }
+  
+  /* Now check the OK/Cancel buttons */
+
+  if (touch_released_in(256 - cancel_button->width, 
+                        192 - cancel_button->height,
+                        256, 
+                        192)) {
+    ret = -1;
   }
 
-  *refresh = 0;
+  if ((window->menu != NULL) && (window->menu->how == PICK_ANY) &&
+      touch_released_in(256 - okay_button->width * 2 - 8,
+                        192 - okay_button->height,
+                        256 - okay_button->width - 8,
+                        192)) {
+    ret = 1;
+  }
+
+  /* Return if OK/Cancel was triggered */
+
+  if (ret != 0) {
+    return ret;
+  }
+  
+  /* 
+   * Check scrolling controls 
+   */
+
+  /* First, check our buttons */
 
   scroll_up = pressed & KEY_UP;
   scroll_down = pressed & KEY_DOWN;
+
+  /* Next, check if the scroll buttons were tapped */
+
+  scroll_up |= touch_released_in(256 / 2 - up_arrow->width / 2, 
+                                 0,
+                                 256 / 2 + up_arrow->width / 2, 
+                                 up_arrow->height);
+
+  scroll_down |= touch_released_in(256 / 2 - down_arrow->width / 2,
+                                   192 - down_arrow->height,
+                                   256 / 2 + down_arrow->width / 2,
+                                   192);
+
+  /* And now to handle the actual scroll commands */
 
   if (scroll_up && (window->topidx > 0)) {
     window->topidx -= window->pagesize;
@@ -1088,7 +1169,7 @@ void nds_end_menu(winid win, const char *prompt)
  * taps will cause items to be selected accordingly.  Note, this
  * only works with NHW_MENU windows.
  */
-int _nds_do_menu(nds_nhwindow_t *window, int how)
+int _nds_do_menu(nds_nhwindow_t *window)
 {
   int refresh = 1;
   int clear = 1;
@@ -1132,7 +1213,7 @@ int _nds_do_menu(nds_nhwindow_t *window, int how)
       clear = 1;
     }
 
-    if (how != PICK_NONE) {
+    if (window->menu->how != PICK_NONE) {
       for (i = window->topidx; i < window->bottomidx; i++) {
         int item_x, item_y, item_x2, item_y2;
 
@@ -1194,7 +1275,7 @@ int _nds_do_menu(nds_nhwindow_t *window, int how)
             }
           }
 
-          if (how == PICK_ONE) {
+          if (window->menu->how == PICK_ONE) {
             goto DONE;
           } 
         }
@@ -1254,8 +1335,9 @@ int nds_select_menu(winid win, int how, menu_item **sel)
   window->topidx = 0;
   window->bottomidx = 0;
   window->pagesize = 0;
+  window->menu->how = how;
 
-  ret = _nds_do_menu(window, how);
+  ret = _nds_do_menu(window);
 
   if ((how != PICK_NONE) && ret) {
     for (i = 0; i < window->menu->count; i++) {

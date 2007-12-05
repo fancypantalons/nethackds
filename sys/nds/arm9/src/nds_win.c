@@ -1120,9 +1120,6 @@ int _nds_do_menu(nds_nhwindow_t *window,
   int butheight = 10;
   int ret = 1;
 
-  touchPosition coords = { .x = 0, .y = 0 };
-  touchPosition last_coords;
-
   /* 
    * Clear VRAM in the BG2 layer and then activate it.
    */
@@ -1150,11 +1147,10 @@ int _nds_do_menu(nds_nhwindow_t *window,
     } else {
       swiWaitForVBlank();
     }
-    
-    last_coords = coords;
-    coords = touchReadXY();
 
     scanKeys();
+    scan_touch_screen();
+
     pressed = keysDown();
     held = keysHeld();
 
@@ -1175,29 +1171,21 @@ int _nds_do_menu(nds_nhwindow_t *window,
         item_x2 = item_x + window->menu->items[i].width;
         item_y2 = item_y + window->menu->items[i].height;
 
-        if ((coords.x != 0) && (coords.y != 0) &&
-            (coords.px >= item_x) && (coords.py >= item_y) &&
-            (coords.px <= item_x2) && (coords.py <= item_y2)) {
+        if (touch_down_in(item_x, item_y, item_x2, item_y2) &&
+            ! window->menu->items[i].highlighted &&
+            (window->menu->items[i].id.a_int != 0)) {
 
-          if (! window->menu->items[i].highlighted &&
-              (window->menu->items[i].id.a_int != 0)) {
-            window->menu->items[i].highlighted = 1;
-            window->menu->items[i].refresh = 1;
-            refresh = 1;
-          }
-        } else if ((coords.x != 0) && (coords.y != 0) &&
-                   (last_coords.px >= item_x) && (last_coords.py >= item_y) &&
-                   (last_coords.px <= item_x2) && (last_coords.py <= item_y2)) {
+          window->menu->items[i].highlighted = 1;
+          window->menu->items[i].refresh = 1;
+          refresh = 1;
+        } else if (touch_was_down_in(item_x, item_y, item_x2, item_y2) &&
+                   window->menu->items[i].highlighted &&
+                   (window->menu->items[i].id.a_int != 0)) {
 
-          if (window->menu->items[i].highlighted &&
-              (window->menu->items[i].id.a_int != 0)) {
-            window->menu->items[i].highlighted = 0;
-            window->menu->items[i].refresh = 1;
-            refresh = 1;
-          }
-        } else if ((coords.x == 0) && (coords.y == 0) && 
-                   (last_coords.px >= item_x) && (last_coords.py >= item_y) &&
-                   (last_coords.px <= item_x2) && (last_coords.py <= item_y2) &&
+          window->menu->items[i].highlighted = 0;
+          window->menu->items[i].refresh = 1;
+          refresh = 1;
+        } else if (touch_released_in(item_x, item_y, item_x2, item_y2) &&
                    (window->menu->items[i].id.a_int != 0)) {
 
           int cnt = window->menu->items[i].count;

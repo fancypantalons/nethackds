@@ -426,8 +426,7 @@ void nds_swap_handedness()
 
 int nds_nh_poskey(int *x, int *y, int *mod)
 {
-  touchPosition coords = { .x = 0, .y = 0 };
-  touchPosition lastCoords;
+  touchPosition coords;
 
   /* Clear out any taps that happen to be occuring right now. */
 
@@ -438,9 +437,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     int pressed;
     int held;
 
-    lastCoords = coords;
-    coords = touchReadXY();
-
+    scan_touch_screen();
     scanKeys();
 
     pressed = keysDownRepeat();
@@ -507,9 +504,8 @@ int nds_nh_poskey(int *x, int *y, int *mod)
         return key;
     }
 
-    if (((lastCoords.x != 0) || (lastCoords.y != 0)) &&
-        ((coords.x == 0) && (coords.y == 0))) {
-      nds_map_translate_coords(lastCoords.px, lastCoords.py, x, y);
+    if (get_touch_coords(&coords)) {
+      nds_map_translate_coords(coords.px, coords.py, x, y);
 
       *mod = CLICK_1;
 

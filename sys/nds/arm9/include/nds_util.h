@@ -16,4 +16,9 @@ int nds_load_file(char *fname, void *dest);
 void nds_wait_key(int keys);
 void nds_flush();
 
+void scan_touch_screen();
+int touch_down_in(int x, int y, int x2, int y2);
+int touch_was_down_in(int x, int y, int x2, int y2);
+int touch_released_in(int x, int y, int x2, int y2);
+int get_touch_coords(touchPosition *coords);
 #endif

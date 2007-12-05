@@ -51,7 +51,7 @@ void text_dims(struct font *fnt, char *str, int *width, int *height);
    Alpha ranges from 0-255.
    Newlines are allowed; tabs are not handled specially.
  */
-extern void draw_string (struct font *font, char *string,
+extern void draw_string (struct font *font, unsigned char *string,
                          struct ppm *into, int x, int y,
                          int alignment,
                          unsigned long fg, unsigned long bg,

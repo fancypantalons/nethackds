@@ -183,8 +183,6 @@ void init_screen()
 
   REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR;
 
-//  REG_IPC_FIFO_TX=0x12345678;
-
   NDSX_SetLedBlink_Off();
 
 #ifdef _DEBUG_

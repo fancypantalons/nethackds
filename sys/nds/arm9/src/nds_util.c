@@ -1,6 +1,9 @@
 #include <nds.h>
 #include <stdio.h>
 
+touchPosition touch_coords = { .x = 0, .y = 0 };
+touchPosition old_touch_coords;
+
 /*
  * Copy a block of memory 2 bytes at a time.  This is needed for
  * things like VRAM.
@@ -88,4 +91,69 @@ void nds_flush()
       return;
     }
   }
+}
+
+/*
+ * Various utility functions for interacting with the touch screen.
+ */
+
+void scan_touch_screen()
+{
+  old_touch_coords = touch_coords;
+  touch_coords = touchReadXY();
+}
+
+int touch_down_in(int x, int y, int x2, int y2)
+{
+  if ((touch_coords.x == 0) || (touch_coords.y == 0)) {
+    return 0;
+  }
+
+  if ((touch_coords.px >= x) && (touch_coords.px <= x2) &&
+      (touch_coords.py >= y) && (touch_coords.py <= y2)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int touch_was_down_in(int x, int y, int x2, int y2)
+{
+  if ((touch_coords.x == 0) || (touch_coords.y == 0)) {
+    return 0;
+  }
+
+  if ((old_touch_coords.px >= x) && (old_touch_coords.px <= x2) &&
+      (old_touch_coords.py >= y) && (old_touch_coords.py <= y2)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int touch_released_in(int x, int y, int x2, int y2)
+{
+  if ((touch_coords.x != 0) || (touch_coords.y != 0)) {
+    return 0;
+  }
+
+  if ((old_touch_coords.px >= x) && (old_touch_coords.px <= x2) &&
+      (old_touch_coords.py >= y) && (old_touch_coords.py <= y2)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int get_touch_coords(touchPosition *coords)
+{
+  if ((old_touch_coords.x == 0) && (old_touch_coords.y == 0)) {
+    return 0;
+  } else if ((touch_coords.x != 0) || (touch_coords.y != 0)) {
+    return 0;
+  } 
+
+  *coords = old_touch_coords;
+
+  return 1;
 }

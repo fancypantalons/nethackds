@@ -9,6 +9,7 @@
 
 # *** OPTIONS ***
 OPTIONS=tile_file:tiles.bmp,tile_width:16,tile_height:16
+OPTIONS=color,ibmgraphics
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to

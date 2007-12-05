@@ -259,7 +259,7 @@ void nds_load_text_tile(int glyph, int idx, int gx, int gy)
               255, 0, 255);
 
   img_data = (long *)text_img->rgba;
-  tile_ptr = tile_ram + tile_idx * 32 / 2;
+  tile_ptr = tile_ram + tile_idx * 64 / 2;
 
   /* Now copy the contents of the PPM to tile RAM */
 
@@ -268,18 +268,14 @@ void nds_load_text_tile(int glyph, int idx, int gx, int gy)
       int tile_y = y & 0xF0;
       int tile_row = y & 0x0F;
       u16 *row_ptr = tile_ptr + 
-                     ((tile_y * tile_width + tile_x) * 32 +
-                      tile_row * 4) / 2;
+                     ((tile_y * tile_width + tile_x) * 64 +
+                      tile_row * 8) / 2;
 
-      for (i = 0; i < 2; i++, img_data += 4) {
-        u8 c0 = (img_data[0] ? color : 0);
-        u8 c1 = (img_data[1] ? color : 0);
-        u8 c2 = (img_data[2] ? color : 0);
-        u8 c3 = (img_data[3] ? color : 0);
+      for (i = 0; i < 4; i++, img_data += 2) {
+        u8 c0 = (img_data[0] ? color : 0) + 1;
+        u8 c1 = (img_data[1] ? color : 0) + 1;
 
-        row_ptr[i] = (c3 << 12) |
-                     (c2 << 8) |
-                     (c1 << 4) |
+        row_ptr[i] = (c1 << 8) |
                      c0;
       }
     }
@@ -295,6 +291,7 @@ void nds_draw_tile(int glyph, int x, int y, int gx, int gy)
   int midx, tidx;
   int i, j;
   int idx = (glyph < 0) ? glyph : glyph2tile[glyph];
+  int palette;
 
   if (idx < 0) {
     tidx = 0x0000;
@@ -322,11 +319,17 @@ void nds_draw_tile(int glyph, int x, int y, int gx, int gy)
    * increment the counter as we populate the map.
    */
 
+  if (TILE_FILE == NULL) {
+    palette = ((gx == u.ux) && (gy == u.uy)) ? 3 : 2;
+  } else {
+    palette = 2;
+  }
+
   midx = (y * tile_height) * 32 + x * tile_width;
 
   for (j = 0; j < tile_height; j++, midx += 32) {
     for (i = 0; i < tile_width; i++) {
-      map_ram[midx + i] = tidx | 0x2000; 
+      map_ram[midx + i] = tidx | (palette << 12); 
 
       if (tidx > 0) {
         tidx++;
@@ -381,7 +384,7 @@ int nds_init_text_map(u16 *palette, int *pallen)
   int ret;
   int img_w, img_h;
   u8 rgb[64];
-  int i;
+  int i, j;
 
   if ((map_font = read_bdf(FONT_FILE_NAME)) == NULL) {
     iprintf("Unable to open '%s'\n", FONT_FILE_NAME);
@@ -406,15 +409,15 @@ int nds_init_text_map(u16 *palette, int *pallen)
 
   /* Translate to 16-color NDS palette */
 
-  for (i = 0; i < sizeof(rgb); i += 4) {
-    u16 val = RGB15((rgb[i + 2] >> 3),
-                    (rgb[i + 1] >> 3),
-                    (rgb[i + 0] >> 3));
+  for (i = 0, j = 1; i < sizeof(rgb); i += 4, j++) {
+    palette[j] = RGB15((rgb[i + 2] >> 3),
+                       (rgb[i + 1] >> 3),
+                       (rgb[i + 0] >> 3));
 
-    *palette++ = val;
+    palette[j + 256] = palette[j] ^ 0x7FFF;
   }
 
-  *pallen = 16;
+  *pallen = 512;
 
   /* Now figure out our dimensions */
 
@@ -428,9 +431,7 @@ int nds_init_text_map(u16 *palette, int *pallen)
   tile_width = img_w / 8;
   tile_height = img_h / 8;
 
-  iprintf("w: %d, h: %d\n", tile_width, tile_height);
-
-  return 4;
+  return 8;
 }
 
 /*
@@ -472,7 +473,7 @@ int nds_init_map(int *rows, int *cols)
   u16 blend_dst;
 
   int bpp;
-  u16 palette_data[256];
+  u16 palette_data[512];
   int palette_length;
 
   /* 
@@ -544,12 +545,15 @@ int nds_init_map(int *rows, int *cols)
 
   for (i = 0; i < palette_length; i++) {
     palette[i] = palette_data[i];
-    spr_palette[i] = palette_data[i];
+
+    if (TILE_FILE != NULL) {
+      spr_palette[i] = palette_data[i];
+    }
   }
 
   /* If we're using extended palettes, get the VRAM set up. */
 
-  if (bmp_bpp(&tiles) == 8) {
+  if (bpp == 8) {
     vramSetBankE(VRAM_E_BG_EXT_PALETTE);
   }
 
@@ -682,6 +686,8 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
     cy = map_height / 2;
   }
 
+  iprintf("%d %d\n", cx, cy);
+
   if (map != NULL) {
     int sx = cx - map_width / 2;
     int sy = cy - map_height / 2;
@@ -694,9 +700,9 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
       for (x = 0; x < map_width; x++) {
         if (((sx + x) < 0) || ((sx + x) >= COLNO) ||
             ((sy + y) < 0) || ((sy + y) >= ROWNO)) {
-          nds_draw_tile(-1, x, y, sx, sy);
+          nds_draw_tile(-1, x, y, sx + x, sy + y);
         } else {
-          nds_draw_tile(map->glyphs[sy + y][sx + x], x, y, sx, sy);
+          nds_draw_tile(map->glyphs[sy + y][sx + x], x, y, sx + x, sy + y);
         }
       }
     }

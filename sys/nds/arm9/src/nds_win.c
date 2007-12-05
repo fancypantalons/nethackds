@@ -846,9 +846,16 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
 {
   int pressed;
   int count;
+  int scroll_up, scroll_down;
 
   if (window->pagesize == 0) {
     window->pagesize = window->bottomidx - window->topidx;
+  }
+
+  if (window->buffer) {
+    count = window->buffer->count;
+  } else {
+    count = window->menu->count;
   }
 
   scanKeys();
@@ -861,18 +868,15 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
     return -1;
   }
 
-  if (window->buffer) {
-    count = window->buffer->count;
-  } else {
-    count = window->menu->count;
-  }
-
   *refresh = 0;
 
-  if ((pressed & KEY_UP) && (window->topidx > 0)) {
+  scroll_up = pressed & KEY_UP;
+  scroll_down = pressed & KEY_DOWN;
+
+  if (scroll_up && (window->topidx > 0)) {
     window->topidx -= window->pagesize;
     *refresh = 1;
-  } else if ((pressed & KEY_DOWN) && (window->bottomidx < count)) {
+  } else if (scroll_down && (window->bottomidx < count)) {
     window->topidx += window->pagesize;
     *refresh = 1;
   }
@@ -938,8 +942,6 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
   DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
   while (1) {
-    int pressed;
-
     if (refresh) {
       _nds_draw_scroller(win, 1);
 

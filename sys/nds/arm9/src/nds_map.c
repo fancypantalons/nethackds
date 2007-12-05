@@ -286,7 +286,7 @@ void nds_load_text_tile(int glyph, int idx, int gx, int gy)
  * Plot the specified tile to the map.  Note, this represents the tile index
  * as present in the BMP file, *not* the tile RAM index.
  */
-void nds_draw_tile(int glyph, int x, int y, int gx, int gy)
+void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
 {
   int midx, tidx;
   int i, j;
@@ -320,7 +320,7 @@ void nds_draw_tile(int glyph, int x, int y, int gx, int gy)
    */
 
   if (TILE_FILE == NULL) {
-    palette = ((gx == u.ux) && (gy == u.uy)) ? 3 : 2;
+    palette = ((gx == map->cx) && (gy == map->cy)) ? 3 : 2;
   } else {
     palette = 2;
   }
@@ -700,9 +700,9 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
       for (x = 0; x < map_width; x++) {
         if (((sx + x) < 0) || ((sx + x) >= COLNO) ||
             ((sy + y) < 0) || ((sy + y) >= ROWNO)) {
-          nds_draw_tile(-1, x, y, sx + x, sy + y);
+          nds_draw_tile(map, -1, x, y, sx + x, sy + y);
         } else {
-          nds_draw_tile(map->glyphs[sy + y][sx + x], x, y, sx + x, sy + y);
+          nds_draw_tile(map, map->glyphs[sy + y][sx + x], x, y, sx + x, sy + y);
         }
       }
     }

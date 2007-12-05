@@ -634,6 +634,18 @@ void nds_putstr(winid win, int attr, const char *str)
   }
 }
 
+void nds_curs(winid win, int x, int y)
+{
+  nds_nhwindow_t *window = windows[win];
+
+  if ((window == NULL) || (window->map == NULL)) {
+    return;
+  }
+
+  window->map->cx = x;
+  window->map->cy = y;
+}
+
 /***************************
  * Window Display Functions
  ***************************/
@@ -1692,6 +1704,8 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   }
 
   window->map->glyphs[y][x] = glyph;
+  window->map->cx = x;
+  window->map->cy = y;
 }
 
 void nds_nhbell()
@@ -1746,7 +1760,7 @@ struct window_procs nds_procs = {
     nds_clear_nhwindow,
     nds_display_nhwindow,
     nds_destroy_nhwindow,
-    do_null,
+    nds_curs,
     nds_putstr,
     nds_display_file,
     nds_start_menu,

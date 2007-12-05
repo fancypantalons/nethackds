@@ -26,6 +26,7 @@ typedef struct {
 
 typedef struct {
   int glyphs[ROWNO][COLNO];
+  int cx, cy;
 } nds_map_t;
 
 typedef struct {

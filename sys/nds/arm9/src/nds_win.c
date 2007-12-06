@@ -1399,6 +1399,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   int ret;
   int yn = 0;
   int ynaq = 0;
+  int allow_none = 0;
 
   if (choices != NULL) {
     iprintf("yn_function choices '%s'\n", choices);
@@ -1448,22 +1449,22 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
     }
   }
 
+  allow_none = (strstr(ques, "[- ") != NULL);
+
+  if ((choices == NULL) && ! allow_none) {
+    return '*';
+  }
+
   win = create_nhwindow(NHW_MENU);
 
   start_menu(win);
   
-  if (strstr(ques, "[- ") != NULL) {
+  if (allow_none) {
     ids[0].a_int = '*';
     ids[1].a_int = '-';
 
     add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Something from your inventory", 0);
     add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Your finger", 0);
-  } else if (choices == NULL) {
-    // Just force a menu in these cases... hopefully '*' is an option.
-
-    destroy_nhwindow(win);
-
-    return '*';
   } else if ((strcasecmp(choices, ynchars) == 0) ||
              (strcasecmp(choices, ynqchars) == 0) ||
              ((ynaq = strcasecmp(choices, ynaqchars)) == 0)) {

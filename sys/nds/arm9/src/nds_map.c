@@ -24,14 +24,12 @@
 #define MAP_BASE BG_MAP_BASE(8)
 #define TILE_BASE BG_TILE_BASE(6)
 
-#define NUM_TILES               1057
-
 #define MAX_TILE_SLOTS          512
 
 #define MINIMAP_X               4
 #define MINIMAP_Y               16
 
-#define NDS_LOAD_TILE(glyph, idx, x, y) ((TILE_FILE == NULL) ? nds_load_text_tile(glyph, idx, x, y) : nds_load_graphics_tile(glyph, idx, x, y))
+#define NDS_LOAD_TILE(glyph, x, y) ((TILE_FILE == NULL) ? nds_load_text_tile(glyph, x, y) : nds_load_graphics_tile(glyph, x, y))
 #define NDS_INIT_MAP(pal, pallen) ((TILE_FILE == NULL) ? nds_init_text_map(pal, pallen) : nds_init_tiled_map(pal, pallen))
 
 #define ROUND_UP(val) ( (((val) & 0x07) == 0) ? (val) : (((val / 8) + 1) * 8) )
@@ -65,7 +63,7 @@ u16 *spr_gfx_ram = SPRITE_GFX;
 u16 *oam_ram = OAM;
 tOAM oam_shadow;
 
-tile_cache_entry_t tile_cache[NUM_TILES];
+tile_cache_entry_t tile_cache[MAX_GLYPH];
 
 int num_free_tiles;
 
@@ -81,7 +79,7 @@ int cx, cy;
  * Allocate a cache slot for the given glyph.  Note ,this may evict an entry
  * if the cache is full.
  */
-int nds_alloc_cache_slot(int idx)
+int nds_alloc_cache_slot(int glyph)
 {
   int tile_idx = -1;
 
@@ -104,7 +102,7 @@ int nds_alloc_cache_slot(int idx)
     int old_cache_idx;
     int i;
 
-    for (i = 0; i < NUM_TILES; i++) {
+    for (i = 0; i < MAX_GLYPH; i++) {
       if (tile_cache[i].last_used < 0) {
         continue;
       } else if ((moves - tile_cache[i].last_used) > last_diff) {
@@ -123,8 +121,8 @@ int nds_alloc_cache_slot(int idx)
 
   /* Now record the new entry */
 
-  tile_cache[idx].last_used = moves;
-  tile_cache[idx].tile_ram_idx = tile_idx;
+  tile_cache[glyph].last_used = moves;
+  tile_cache[glyph].tile_ram_idx = tile_idx;
 
   return tile_idx;
 }
@@ -134,7 +132,7 @@ int nds_alloc_cache_slot(int idx)
  * case of tiles with a width or height larger than 8 pixels, this will result
  * in multiple tile positions being occupied in video RAM.
  */
-void nds_load_graphics_tile(int glyph, int idx, int gx, int gy) 
+void nds_load_graphics_tile(int glyph, int gx, int gy) 
 {
   int i, j, x;
   int tile_idx = -1;
@@ -148,7 +146,7 @@ void nds_load_graphics_tile(int glyph, int idx, int gx, int gy)
    * Allocate a tile RAM block for the given glyph.
    */
 
-  tile_idx = nds_alloc_cache_slot(idx);
+  tile_idx = nds_alloc_cache_slot(glyph);
 
   /*
    * Alright, now load the tile into memory.
@@ -172,8 +170,8 @@ void nds_load_graphics_tile(int glyph, int idx, int gx, int gy)
 
   /* Now calculate the pointer which points to the start of the BMP row */
 
-  bmp_tile_y = idx / width_in_tiles;
-  bmp_tile_x = width_in_tiles - idx % width_in_tiles;
+  bmp_tile_y = glyph2tile[glyph] / width_in_tiles;
+  bmp_tile_x = width_in_tiles - glyph2tile[glyph] % width_in_tiles;
 
   bmp_row_start = tiles.bitmap + tiles.bitmap_length - 
                   bmp_tile_y * TILE_HEIGHT * width_in_tiles * row_bytes - 
@@ -220,7 +218,7 @@ void nds_load_graphics_tile(int glyph, int idx, int gx, int gy)
 /*
  * Render the glyph into a tile.
  */
-void nds_load_text_tile(int glyph, int idx, int gx, int gy) 
+void nds_load_text_tile(int glyph, int gx, int gy) 
 {
   int tile_idx = -1;
   int ch, color;
@@ -234,7 +232,7 @@ void nds_load_text_tile(int glyph, int idx, int gx, int gy)
    * Allocate a tile RAM block for the given glyph.
    */
 
-  tile_idx = nds_alloc_cache_slot(idx);
+  tile_idx = nds_alloc_cache_slot(glyph);
 
   /* Alright, now convert the glyph to a character */
 
@@ -290,19 +288,18 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
 {
   int midx, tidx;
   int i, j;
-  int idx = (glyph < 0) ? glyph : glyph2tile[glyph];
   int palette;
 
-  if (idx < 0) {
+  if (glyph < 0) {
     tidx = 0x0000;
-  } else if (tile_cache[idx].tile_ram_idx == 0) {
-    NDS_LOAD_TILE(glyph, idx, gx, gy);
+  } else if (tile_cache[glyph].tile_ram_idx == 0) {
+    NDS_LOAD_TILE(glyph, gx, gy);
 
-    tile_cache[idx].last_used = moves;
-    tidx = tile_cache[idx].tile_ram_idx; 
+    tile_cache[glyph].last_used = moves;
+    tidx = tile_cache[glyph].tile_ram_idx; 
   } else {
-    tile_cache[idx].last_used = moves;
-    tidx = tile_cache[idx].tile_ram_idx; 
+    tile_cache[glyph].last_used = moves;
+    tidx = tile_cache[glyph].tile_ram_idx; 
   }
 
   /*
@@ -441,16 +438,15 @@ void nds_draw_sprite(int glyph, int x, int y)
 {
   int tidx;
   int hidden = 0;
-  int idx = (glyph < 0) ? glyph : glyph2tile[glyph];
 
-  if (idx < 0) {
+  if (glyph < 0) {
     hidden = 1;
-  } else if (tile_cache[idx].tile_ram_idx == 0) {
-    NDS_LOAD_TILE(glyph, idx, x, y);
+  } else if (tile_cache[glyph].tile_ram_idx == 0) {
+    NDS_LOAD_TILE(glyph, x, y);
 
-    tidx = tile_cache[idx].tile_ram_idx; 
+    tidx = tile_cache[glyph].tile_ram_idx; 
   } else {
-    tidx = tile_cache[idx].tile_ram_idx; 
+    tidx = tile_cache[glyph].tile_ram_idx; 
   }
 
   oam_shadow.spriteBuffer[0].isHidden = hidden;
@@ -494,7 +490,7 @@ int nds_init_map(int *rows, int *cols)
 
   num_free_tiles = MAX_TILE_SLOTS - 1;
 
-  for (i = 0; i < NUM_TILES; i++) {
+  for (i = 0; i < MAX_GLYPH; i++) {
     tile_cache[i].last_used = -1;
   }
 

@@ -27,6 +27,7 @@ int console_enabled = 0;
 int was_console_layer_visible = 0;
 int debug_mode = 0;
 int power_state = 0;
+char *goodbye_msg = NULL;
 
 void mallinfo_dump();
 
@@ -218,6 +219,8 @@ void splash_screen()
 {
   bmp_t logo;
   int text_w, text_h;
+  int old_display_cr;
+  int old_sub_display_cr;
 
   bmp_read(SPLASH_IMAGE, &logo);
   nds_draw_bmp(&logo, (u16 *)BG_BMP_RAM_SUB(0), BG_PALETTE_SUB);
@@ -236,13 +239,19 @@ void splash_screen()
                 0, 1,
                 (u16 *)BG_BMP_RAM(2));
 
-  SUB_DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
-  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+  old_display_cr = DISPLAY_CR;
+  old_sub_display_cr = SUB_DISPLAY_CR;
+
+  videoSetMode(MODE_5_2D | 
+               DISPLAY_BG_EXT_PALETTE | 
+               DISPLAY_BG2_ACTIVE);
+
+  videoSetModeSub(MODE_5_2D | DISPLAY_BG2_ACTIVE);
 
   nds_wait_key(KEY_TOUCH);
 
-  SUB_DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
-  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  SUB_DISPLAY_CR = old_sub_display_cr;
+  DISPLAY_CR = old_display_cr;
 }
 
 /*
@@ -283,16 +292,6 @@ int main()
 
   chdir("/NetHack");
 
-  initoptions();
-
-  /* Gotta initialize this before the command list is generated */
-
-  if (debug_mode) {
-    iprintf("Enabling debug mode.\n");
-
-    flags.debug = 1;
-  }
-
   /* Initialize some nethack constants */
 
   x_maze_max = COLNO-1;
@@ -314,7 +313,21 @@ int main()
 
   splash_screen();
 
-  /* Now continue initialization */
+  /* Gotta init the keyboard here, so we have the right palette in place */
+
+  kbd_init();
+
+  goodbye_msg = NULL;
+
+  initoptions();
+
+  /* Gotta initialize this before the command list is generated */
+
+  if (debug_mode) {
+    iprintf("Enabling debug mode.\n");
+
+    flags.debug = 1;
+  }
 
   fd = create_levelfile(0, (char *)NULL);
 
@@ -328,7 +341,6 @@ int main()
 
   vision_init();
   dlb_init();
-  kbd_init();
 
   /* TODO: Display the copyright thinger and title screen. */
 

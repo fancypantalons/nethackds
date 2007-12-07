@@ -3,5 +3,6 @@
 
 void nds_init_cmd();
 int nds_nh_poskey(int *x, int *y, int *mod);
+int nds_get_ext_cmd();
 
 #endif

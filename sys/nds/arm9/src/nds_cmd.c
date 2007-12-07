@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "hack.h"
+#include "func_tab.h"
 
 #include "nds_win.h"
 #include "nds_cmd.h"
@@ -9,6 +10,7 @@
 #include "ppm-lite.h"
 #include "nds_util.h"
 #include "nds_map.h"
+#include "ds_kbd.h"
 
 #define M(c) (0x80 | (c))
 #define C(c) (0x1f & (c))
@@ -18,7 +20,6 @@
 #define KEY_CONFIG_FILE "keys.cnf"
 
 #define CMD_CONFIG     0x0100
-#define CMD_SWAP_HANDS 0x0101
 
 /*
  * Missing commands:
@@ -87,7 +88,6 @@ static nds_cmd_t cmdlist[] = {
         {'\001', "Redo"},
 	{'R', "Remove"},
 	{M('r'), "Rub"},
-        {CMD_SWAP_HANDS, "Handedness"},
 	{M('o'), "Sacrifice"},
 	{'S', "Save"},
 	{'s', "Search"},
@@ -98,7 +98,7 @@ static nds_cmd_t cmdlist[] = {
 	{C('t'), "Teleport"},
 	{'t', "Throw"},
 //	{'@', "Toggle Pickup"},
-//	{M('2'), "Two Weapon"},
+	{M('2'), "Two Weapon"},
 	{M('t'), "Turn"},
 	{'I', "Type-Inv"},
 	{'<', "Up"},
@@ -175,6 +175,7 @@ u16 cmd_key = KEY_L;
 u16 scroll_key = KEY_R;
 
 nds_cmd_t nds_cmd_loop();
+nds_cmd_t nds_kbd_cmd_loop();
 void nds_load_key_config();
 
 void nds_init_cmd()
@@ -225,6 +226,11 @@ void nds_init_cmd()
   free_ppm(img);
 
   nds_load_key_config();
+
+  if (iflags.lefthanded) {
+    cmd_key = KEY_R;
+    scroll_key = KEY_L;
+  }
 }
 
 int nds_map_key(u16 pressed)
@@ -255,16 +261,6 @@ void nds_load_key_config()
     iprintf("Only got %d, wanted %d\n", ret, cnt);
     return;
   } 
-
-  if ((ret = fread(&cmd_key, 1, sizeof(cmd_key), fp)) < sizeof(cmd_key)) {
-    iprintf("Only got %d, wanted %d\n", ret, sizeof(cmd_key));
-    return;
-  }
-
-  if ((ret = fread(&scroll_key, 1, sizeof(scroll_key), fp)) < sizeof(scroll_key)) {
-    iprintf("Only got %d, wanted %d\n", ret, sizeof(scroll_key));
-    return;
-  }
   
   memcpy(key_map, buffer, cnt);
 
@@ -280,8 +276,6 @@ void nds_save_key_config()
   }
 
   fwrite(key_map, 1, sizeof(key_map), fp);
-  fwrite(&cmd_key, 1, sizeof(cmd_key), fp);
-  fwrite(&scroll_key, 1, sizeof(scroll_key), fp);
 
   fclose(fp);
 }
@@ -481,7 +475,13 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     swiWaitForVBlank();
 
     if (pressed & cmd_key) {
-      nds_cmd_t cmd = nds_cmd_loop(0);
+      nds_cmd_t cmd;
+      
+      if (iflags.cmdwindow) {
+        cmd = nds_cmd_loop(0);
+      } else {
+        cmd = nds_kbd_cmd_loop();
+      }
 
       key = cmd.f_char;
     } else if (pressed) {
@@ -494,10 +494,6 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 
       case CMD_CONFIG:
         nds_config_key();
-        break;
-
-      case CMD_SWAP_HANDS:
-        nds_swap_handedness();
         break;
 
       default:
@@ -621,4 +617,81 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
   return picked_cmd;
 }
+
+nds_cmd_t nds_kbd_cmd_loop()
+{
+  nds_cmd_t cmd = { 0, NULL };
+  int key;
+  int held;
+  int done = 0;
+
+  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+
+  while (! done) {
+    swiWaitForVBlank();
+    scanKeys();
+
+    key = kbd_vblank();
+    held = keysHeld();
+
+    if (! (held & cmd_key)) {
+      goto DONE;
+    }
+
+    switch (key) {
+      case 0:
+      case K_UP_LEFT:
+      case K_UP:
+      case K_UP_RIGHT:
+      case K_NOOP:
+      case K_DOWN_LEFT:
+      case K_DOWN:
+      case K_DOWN_RIGHT:
+      case K_LEFT:
+      case K_RIGHT:
+      case '\n':
+      case '\b':
+        continue;
+
+      default:
+        done = 1;
+        break;
+    }
+  }
+
+  cmd.f_char = key;
+  cmd.name = "Dummy";
+
+  while (1) { 
+    swiWaitForVBlank();
+    scanKeys();
+    kbd_vblank();
+
+    if (keysUp() & KEY_TOUCH) {
+      break;
+    }
+  };
+
+DONE:
+
+  DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+
+  return cmd;
+}
+
+int nds_get_ext_cmd()
+{
+  char buffer[BUFSZ];
+  int i;
+
+  getlin("Extended Command", buffer);
+
+  for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
+    if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {
+      return i;
+    }
+  }
+
+  return -1;
+} 
 

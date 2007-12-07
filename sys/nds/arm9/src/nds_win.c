@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "hack.h"
-#include "func_tab.h"
 
 #include "nds_win.h"
 #include "nds_charbuf.h"
@@ -1633,22 +1632,6 @@ void nds_getlin(const char *prompt, char *buffer)
   strcpy(buffer, front);
   strcat(buffer, back);
 }
-
-int nds_get_ext_cmd()
-{
-  char buffer[BUFSZ];
-  int i;
-
-  getlin("Extended Command", buffer);
-
-  for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
-    if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {
-      return i;
-    }
-  }
-
-  return -1;
-} 
 
 void nds_number_pad(int thinger)
 {

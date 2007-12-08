@@ -1347,6 +1347,8 @@ int _nds_do_menu(nds_nhwindow_t *window)
       }
 
       if (menu->focused_item != old_focused) {
+        menu->tapped_item = menu->focused_item;
+
         menu->items[menu->focused_item].refresh = 1;
         refresh = 1;
       }

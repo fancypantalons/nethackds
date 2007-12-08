@@ -1385,6 +1385,18 @@ int _nds_do_menu(nds_nhwindow_t *window)
       menu->items[menu->focused_item].refresh = 1;
 
       refresh = 1;
+    } else if ((pressed & KEY_SELECT) && (menu->how == PICK_ANY)) {
+      for (i = 0; i < menu->count; i++) {
+        if (menu->items[i].id.a_int == 0) {
+          continue;
+        }
+
+        menu->items[i].selected = (! (held & KEY_L) && ! (held & KEY_R));
+        menu->items[i].count = menu->items[i].selected ? -1 : 0;
+        menu->items[i].refresh = 1;
+      }
+
+      refresh = 1;
     }
 
     /* Check touchscreen activity */

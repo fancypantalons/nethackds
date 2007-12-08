@@ -22,6 +22,7 @@ typedef struct {
   char *prompt;
   u16 count;
   int how;
+  int focused_item;
 } nds_menu_t;
 
 typedef struct {

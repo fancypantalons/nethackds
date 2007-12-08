@@ -104,6 +104,7 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   /* Set up our palettes. */
 
+  BG_PALETTE[252] = RGB15(0, 0, 10);
   BG_PALETTE[253] = RGB15(0, 31, 0);
   BG_PALETTE[254] = RGB15(0, 0, 0);
   BG_PALETTE[255] = RGB15(31, 31, 31);
@@ -731,6 +732,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 
     tag_w *= 4;
     start_x -= tag_w;
+    end_x += tag_w;
   }
 
   if (start_x < 0) {
@@ -805,7 +807,9 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
         }
 
         draw_ppm_bw(window->img, vram, start_x, start_y + cur_y, 
-                    256, 254, (menu->items[i].highlighted) ? 253 : 255);
+                    256, 
+                    (menu->focused_item == i) ? 252 : 254, 
+                    (menu->items[i].highlighted) ? 253 : 255);
 
         menu->items[i].refresh = 0;
       }
@@ -818,7 +822,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 
     /* Aight, render the offscreen buffer. */
 
-    window->bottomidx = i;
+    window->bottomidx = i - 1;
     maxidx = menu->count;
 
     if (menu->how == PICK_ANY) {
@@ -846,7 +850,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
       cur_y += charbuf->lines[i].height;
     }
 
-    window->bottomidx = i;
+    window->bottomidx = i - 1;
     maxidx = charbuf->count;
 
     if (clear) {
@@ -863,7 +867,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
                 256, 254, 255);
   }
 
-  if (window->bottomidx < maxidx) {
+  if (window->bottomidx < (maxidx - 1)) {
     draw_ppm_bw(down_arrow, vram, 
                 256 / 2 - down_arrow->width / 2, 192 - down_arrow->height, 
                 256, 254, 255);
@@ -874,19 +878,19 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
               256, 254, 255);
 }
 
-int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
+int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys)
 {
-  int pressed;
   int count;
   int scroll_up, scroll_down;
   int ret;
+  int pressed;
 
   /* 
    * Get a few variables initialized 
    */
 
   if (window->pagesize == 0) {
-    window->pagesize = window->bottomidx - window->topidx;
+    window->pagesize = window->bottomidx - window->topidx + 1;
   }
 
   if (window->buffer) {
@@ -903,7 +907,11 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
 
   scanKeys();
   scan_touch_screen();
-  pressed = keysDown();
+  pressed = keysDownRepeat();
+
+  if (keys) {
+    *keys = pressed;
+  }
 
   /* 
    * First, check OK/Cancel controls 
@@ -948,8 +956,8 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
 
   /* First, check our buttons */
 
-  scroll_up = pressed & KEY_UP;
-  scroll_down = pressed & KEY_DOWN;
+  scroll_up = pressed & KEY_LEFT;
+  scroll_down = pressed & KEY_RIGHT;
 
   /* Next, check if the scroll buttons were tapped */
 
@@ -967,15 +975,17 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh)
 
   if (scroll_up && (window->topidx > 0)) {
     window->topidx -= window->pagesize;
+    window->bottomidx -= window->pagesize;
     *refresh = 1;
   } else if (scroll_down && (window->bottomidx < count)) {
     window->topidx += window->pagesize;
+    window->bottomidx += window->pagesize;
     *refresh = 1;
   }
 
   if (window->topidx < 0) {
     window->topidx = 0;
-  } else if (window->bottomidx > count) {
+  } else if (window->bottomidx >= count) {
     window->topidx = count - window->pagesize;
   }
 
@@ -1042,7 +1052,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
       swiWaitForVBlank();
     }
 
-    if (_nds_handle_scroller_buttons(win, &refresh)) {
+    if (_nds_handle_scroller_buttons(win, &refresh, NULL)) {
       break;
     }
   }
@@ -1126,6 +1136,7 @@ void nds_start_menu(winid win)
 
   windows[win]->menu->items = NULL;
   windows[win]->menu->count = 0;
+  windows[win]->menu->focused_item = -1;
 }
 
 /*
@@ -1173,6 +1184,41 @@ void nds_end_menu(winid win, const char *prompt)
  * Actually menu display and select code.
  *****************************************/
 
+void _nds_menu_select_item(nds_menuitem_t *item, int decrement)
+{
+  int cnt = item->count;
+
+  /* 
+   * If the count is 0, it's never been selected, so start off with
+   * the "all" value (-1).
+   *
+   * If The count is -1, meaning "all", we start counting up, so start
+   * with 1.
+   *
+   * And, last case, we've started counting for this item, so increment.
+   */
+
+  if (decrement) {
+    if (cnt == -1) {
+      item->selected = 0;
+      item->count = 0;
+    } else if (cnt == 1) {
+      item->count = -1;
+    } else if (cnt > 0) {
+      item->count = cnt - 1;
+    }
+  } else {
+    if (cnt == 0) {
+      item->selected = 1;
+      item->count = -1;
+    } else if (cnt == -1) {
+      item->count = 1;
+    } else {
+      item->count = cnt + 1;
+    }
+  }
+}
+
 /*
  * Draws a scrollable window on the screen.  'how' is the standard
  * NetHack how types (PICK_NONE, PICK_ONE, PICK_ANY) and dictates 
@@ -1186,19 +1232,23 @@ int _nds_do_menu(nds_nhwindow_t *window)
   int clear = 1;
 
   int ret = 1;
+  nds_menu_t *menu = window->menu;
+  int prev_pressed;
 
   /* 
    * Clear VRAM in the BG2 layer and then activate it.
    */
 
-  if (window->menu->prompt) {
-    nds_draw_prompt(window->menu->prompt);
+  if (menu->prompt) {
+    nds_draw_prompt(menu->prompt);
   }
 
   while (1) {
     int i;
-    int held;
+    int pressed, held;
     int tmp;
+
+    swiWaitForVBlank();
 
     if (refresh) {
       _nds_draw_scroller(window, clear);
@@ -1207,11 +1257,11 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
       refresh = 0;
       clear = 0;
-    } else {
-      swiWaitForVBlank();
     }
 
-    tmp = _nds_handle_scroller_buttons(window, &refresh);
+    prev_pressed = pressed;
+    tmp = _nds_handle_scroller_buttons(window, &refresh, &pressed);
+
     held = keysHeld();
 
     if (tmp > 0) {
@@ -1224,72 +1274,163 @@ int _nds_do_menu(nds_nhwindow_t *window)
       clear = 1;
     }
 
-    if (window->menu->how != PICK_NONE) {
-      for (i = window->topidx; i < window->bottomidx; i++) {
-        int item_x, item_y, item_x2, item_y2;
+    if (menu->how == PICK_NONE) {
+      continue;
+    }
 
-        item_x = window->menu->items[i].x;
-        item_y = window->menu->items[i].y;
-        item_x2 = item_x + window->menu->items[i].width;
-        item_y2 = item_y + window->menu->items[i].height;
+    /* Check directional controls */
 
-        if (touch_down_in(item_x, item_y, item_x2, item_y2) &&
-            ! window->menu->items[i].highlighted &&
-            (window->menu->items[i].id.a_int != 0)) {
+    /* If there was an item focused, and page up/down was pressed, defocus it */
 
-          window->menu->items[i].highlighted = 1;
-          window->menu->items[i].refresh = 1;
-          refresh = 1;
-        } else if (touch_was_down_in(item_x, item_y, item_x2, item_y2) &&
-                   window->menu->items[i].highlighted &&
-                   (window->menu->items[i].id.a_int != 0)) {
+    if ((menu->focused_item >= 0) && 
+        ((menu->focused_item < window->topidx) || 
+         (menu->focused_item > window->bottomidx))) {
 
-          window->menu->items[i].highlighted = 0;
-          window->menu->items[i].refresh = 1;
-          refresh = 1;
-        } else if (touch_released_in(item_x, item_y, item_x2, item_y2) &&
-                   (window->menu->items[i].id.a_int != 0)) {
+      menu->focused_item = -1;
+    }
 
-          int cnt = window->menu->items[i].count;
+    if ((pressed & KEY_UP) || (pressed & KEY_DOWN)) {
+      int old_focused = menu->focused_item;
 
-          window->menu->items[i].highlighted = 0;
-          window->menu->items[i].refresh = 1;
+      if ((menu->focused_item >= window->topidx) && 
+          (menu->focused_item <= window->bottomidx)) {
+        menu->items[menu->focused_item].refresh = 1;
+      }
 
-          refresh = 1;
-
-          /* 
-           * If the count is 0, it's never been selected, so start off with
-           * the "all" value (-1).
-           *
-           * If The count is -1, meaning "all", we start counting up, so start
-           * with 1.
-           *
-           * And, last case, we've started counting for this item, so increment.
-           */
-          if ((held & KEY_L) || (held & KEY_R)) {
-            if (cnt == -1) {
-              window->menu->items[i].selected = 0;
-              window->menu->items[i].count = 0;
-            } else if (cnt == 1) {
-              window->menu->items[i].count = -1;
-            } else if (cnt > 0) {
-              window->menu->items[i].count = cnt - 1;
-            }
-          } else {
-            if (cnt == 0) {
-              window->menu->items[i].selected = 1;
-              window->menu->items[i].count = -1;
-            } else if (cnt == -1) {
-              window->menu->items[i].count = 1;
-            } else {
-              window->menu->items[i].count = cnt + 1;
-            }
-          }
-
-          if (window->menu->how == PICK_ONE) {
-            goto DONE;
-          } 
+      if (pressed & KEY_UP) {
+        if ((menu->focused_item > window->bottomidx) || (menu->focused_item < 0)) {
+          menu->focused_item = window->bottomidx;
+        } else {
+          menu->focused_item--;
         }
+
+        while ((menu->focused_item >= 0) && (menu->items[menu->focused_item].id.a_int == 0)) {
+          menu->focused_item--;
+        }
+      } else if (pressed & KEY_DOWN) {
+        if (menu->focused_item < window->topidx) {
+          menu->focused_item = window->topidx;
+        } else {
+          menu->focused_item++;
+        }
+
+        while ((menu->focused_item < menu->count) && (menu->items[menu->focused_item].id.a_int == 0)) {
+          menu->focused_item++;
+        }
+      } 
+
+      if (menu->focused_item < 0) {
+        do {
+          menu->focused_item++;
+        } while ((menu->focused_item < menu->count) && (menu->items[menu->focused_item].id.a_int == 0));
+      } else if (menu->focused_item >= menu->count) {
+        do {
+          menu->focused_item--;
+        } while ((menu->focused_item >= 0) && (menu->items[menu->focused_item].id.a_int == 0));
+      }
+
+      if (menu->focused_item < window->topidx) {
+        window->topidx -= window->pagesize;
+        window->bottomidx -= window->pagesize;
+        clear = 1;
+      } else if (menu->focused_item > window->bottomidx) {
+        window->topidx += window->pagesize;
+        window->bottomidx += window->pagesize;
+        clear = 1;
+      }
+
+      if (window->topidx < 0) {
+        window->topidx = 0;
+      } else if (window->bottomidx >= menu->count) {
+        window->topidx = menu->count - window->pagesize;
+      }
+
+      if (menu->focused_item != old_focused) {
+        menu->items[menu->focused_item].refresh = 1;
+        refresh = 1;
+      }
+    }
+    
+    if ((pressed & KEY_X) && (menu->focused_item >= 0) &&
+        (! menu->items[menu->focused_item].highlighted)) {
+      _nds_menu_select_item(&(menu->items[menu->focused_item]), 0);
+
+      if (menu->how == PICK_ONE) {
+        goto DONE;
+      } 
+
+      menu->items[menu->focused_item].highlighted = 1;
+      menu->items[menu->focused_item].refresh = 1;
+
+      refresh = 1;
+    } else if ((pressed & KEY_Y) && (menu->focused_item >= 0) &&
+               ! menu->items[menu->focused_item].highlighted) {
+
+      _nds_menu_select_item(&(menu->items[menu->focused_item]), 1);
+
+      if (menu->how == PICK_ONE) {
+        goto DONE;
+      } 
+
+      menu->items[menu->focused_item].highlighted = 1;
+      menu->items[menu->focused_item].refresh = 1;
+
+      refresh = 1;
+    } else if (((! (pressed & KEY_X) && (prev_pressed == KEY_X)) ||
+                (! (pressed & KEY_Y) && (prev_pressed == KEY_Y))) &&
+               (menu->focused_item >= 0) &&
+               menu->items[menu->focused_item].highlighted) {
+
+      menu->items[menu->focused_item].highlighted = 0;
+      menu->items[menu->focused_item].refresh = 1;
+
+      refresh = 1;
+    }
+
+    /* Check touchscreen activity */
+
+    for (i = window->topidx; i <= window->bottomidx; i++) {
+      int item_x, item_y, item_x2, item_y2;
+
+      item_x = menu->items[i].x;
+      item_y = menu->items[i].y;
+      item_x2 = item_x + menu->items[i].width;
+      item_y2 = item_y + menu->items[i].height;
+
+      if (touch_down_in(item_x, item_y, item_x2, item_y2) &&
+          ! menu->items[i].highlighted &&
+          (menu->items[i].id.a_int != 0)) {
+
+        menu->items[i].highlighted = 1;
+        menu->items[i].refresh = 1;
+        menu->focused_item = i;
+
+        refresh = 1;
+      } else if (touch_was_down_in(item_x, item_y, item_x2, item_y2) &&
+                 menu->items[i].highlighted &&
+                 (menu->items[i].id.a_int != 0)) {
+
+        menu->items[i].highlighted = 0;
+        menu->items[i].refresh = 1;
+
+        if (menu->focused_item == i) {
+          menu->focused_item = -1;
+        }
+
+        refresh = 1;
+      } else if (touch_released_in(item_x, item_y, item_x2, item_y2) &&
+                 (menu->items[i].id.a_int != 0)) {
+
+        menu->items[i].highlighted = 0;
+        menu->items[i].refresh = 1;
+
+        refresh = 1;
+
+        _nds_menu_select_item(&(menu->items[i]), (held & KEY_L) || (held & KEY_R));
+
+        if (menu->how == PICK_ONE) {
+          goto DONE;
+        } 
       }
     }
   }
@@ -1298,7 +1439,7 @@ DONE:
 
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 
-  if (window->menu->prompt) {
+  if (menu->prompt) {
     nds_clear_prompt();
   }
 

@@ -123,6 +123,11 @@ int touch_was_down_in(int x, int y, int x2, int y2)
     return 0;
   }
 
+  if ((touch_coords.px >= x) && (touch_coords.px <= x2) &&
+      (touch_coords.py >= y) && (touch_coords.py <= y2)) {
+    return 0;
+  }
+
   if ((old_touch_coords.px >= x) && (old_touch_coords.px <= x2) &&
       (old_touch_coords.py >= y) && (old_touch_coords.py <= y2)) {
     return 1;

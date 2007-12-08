@@ -83,6 +83,9 @@ static struct Bool_Opt
 #else
 	{"DECgraphics", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
+#ifdef NDS
+        {"doubletap", &iflags.doubletap, FALSE, SET_IN_GAME},
+#endif
 	{"eight_bit_tty", &iflags.wc_eight_bit_input, FALSE, SET_IN_GAME},	/*WC*/
 #ifdef TTY_GRAPHICS
 	{"extmenu", &iflags.extmenu, FALSE, SET_IN_GAME},

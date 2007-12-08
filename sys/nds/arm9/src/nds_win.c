@@ -1137,6 +1137,7 @@ void nds_start_menu(winid win)
   windows[win]->menu->items = NULL;
   windows[win]->menu->count = 0;
   windows[win]->menu->focused_item = -1;
+  windows[win]->menu->tapped_item = -1;
 }
 
 /*
@@ -1413,6 +1414,10 @@ int _nds_do_menu(nds_nhwindow_t *window)
           ! menu->items[i].highlighted &&
           (menu->items[i].id.a_int != 0)) {
 
+        if (menu->focused_item >= 0) {
+          menu->items[menu->focused_item].refresh = 1;
+        }
+
         menu->items[i].highlighted = 1;
         menu->items[i].refresh = 1;
         menu->focused_item = i;
@@ -1438,11 +1443,15 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
         refresh = 1;
 
-        _nds_menu_select_item(&(menu->items[i]), (held & KEY_L) || (held & KEY_R));
+        if ((! iflags.doubletap) || (menu->tapped_item == i)) {
+          _nds_menu_select_item(&(menu->items[i]), (held & KEY_L) || (held & KEY_R));
 
-        if (menu->how == PICK_ONE) {
-          goto DONE;
-        } 
+          if (menu->how == PICK_ONE) {
+            goto DONE;
+          } 
+        }
+
+        menu->tapped_item = i;
       }
     }
   }

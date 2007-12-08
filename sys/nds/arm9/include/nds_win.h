@@ -23,6 +23,7 @@ typedef struct {
   u16 count;
   int how;
   int focused_item;
+  int tapped_item;
 } nds_menu_t;
 
 typedef struct {

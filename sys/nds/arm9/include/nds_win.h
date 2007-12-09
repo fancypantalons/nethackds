@@ -54,4 +54,6 @@ extern struct font *system_font;
 void nds_draw_prompt(char *prompt);
 void nds_clear_prompt();
 
+char nds_prompt_char(const char *ques, const char *choices, int holdkey);
+
 #endif

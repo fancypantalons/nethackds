@@ -535,6 +535,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
   nds_cmd_t picked_cmd = { 0, NULL };
   u16 old_bg_cr;
 
+  int selected;
+
   touchPosition coords = { .x = 0, .y = 0 };
   touchPosition lastCoords;
 
@@ -621,60 +623,10 @@ nds_cmd_t nds_cmd_loop(int in_config)
 nds_cmd_t nds_kbd_cmd_loop()
 {
   nds_cmd_t cmd = { 0, NULL };
-  int key;
-  int held;
-  int done = 0;
-
-  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
-
-  while (! done) {
-    swiWaitForVBlank();
-    scanKeys();
-
-    key = kbd_vblank();
-    held = keysHeld();
-
-    if (! (held & cmd_key)) {
-      goto DONE;
-    }
-
-    switch (key) {
-      case 0:
-      case K_UP_LEFT:
-      case K_UP:
-      case K_UP_RIGHT:
-      case K_NOOP:
-      case K_DOWN_LEFT:
-      case K_DOWN:
-      case K_DOWN_RIGHT:
-      case K_LEFT:
-      case K_RIGHT:
-      case '\n':
-      case '\b':
-        continue;
-
-      default:
-        done = 1;
-        break;
-    }
-  }
+  int key = nds_prompt_char(NULL, NULL, cmd_key);
 
   cmd.f_char = key;
   cmd.name = "Dummy";
-
-  while (1) { 
-    swiWaitForVBlank();
-    scanKeys();
-    kbd_vblank();
-
-    if (keysUp() & KEY_TOUCH) {
-      break;
-    }
-  };
-
-DONE:
-
-  DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
 
   return cmd;
 }

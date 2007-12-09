@@ -1554,6 +1554,71 @@ int nds_nhgetch()
   return 0;
 }
 
+char nds_prompt_char(const char *ques, const char *choices, int holdkey)
+{
+  int key;
+  int held;
+  int done = 0;
+
+  if (ques) {
+    nds_draw_prompt(ques);
+  }
+
+  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+
+  while (! done) {
+    swiWaitForVBlank();
+    scanKeys();
+
+    key = kbd_vblank();
+    held = keysHeld();
+
+    if (holdkey && ! (held & holdkey)) {
+      goto DONE;
+    }
+
+    switch (key) {
+      case 0:
+      case K_UP_LEFT:
+      case K_UP:
+      case K_UP_RIGHT:
+      case K_NOOP:
+      case K_DOWN_LEFT:
+      case K_DOWN:
+      case K_DOWN_RIGHT:
+      case K_LEFT:
+      case K_RIGHT:
+      case '\n':
+      case '\b':
+        continue;
+
+      default:
+        done = 1;
+        break;
+    }
+  }
+
+  while (1) { 
+    swiWaitForVBlank();
+    scanKeys();
+    kbd_vblank();
+
+    if (keysUp() & KEY_TOUCH) {
+      break;
+    }
+  };
+
+DONE:
+
+  if (ques) {
+    nds_clear_prompt();
+  }
+
+  DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+
+  return key;
+}
+
 char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
 {
   winid win;
@@ -1569,7 +1634,9 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   }
 
   /* We're being asked for a direction... this is special. */
-  if ((strstr(ques, "In what direction") != NULL) ||
+  if (strstr(ques, "Adjust letter to what") != NULL) {
+    return nds_prompt_char(ques, choices, 0);
+  } else if ((strstr(ques, "In what direction") != NULL) ||
       (strstr(ques, "in what direction") != NULL)) {
     /*
      * We're going to use nh_poskey to get a command from the user.  However,

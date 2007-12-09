@@ -1573,7 +1573,7 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
     key = kbd_vblank();
     held = keysHeld();
 
-    if (holdkey && ! (held & holdkey)) {
+    if (iflags.holdmode && holdkey && ! (held & holdkey)) {
       goto DONE;
     }
 

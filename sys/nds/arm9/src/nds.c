@@ -306,6 +306,8 @@ int main()
 
   /* Now get the window system set up */
 
+  initoptions();
+
   choose_windows(DEFAULT_WINDOW_SYS);
   init_nhwindows(NULL, NULL);
 
@@ -318,8 +320,6 @@ int main()
   kbd_init();
 
   goodbye_msg = NULL;
-
-  initoptions();
 
   /* Gotta initialize this before the command list is generated */
 

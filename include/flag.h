@@ -282,6 +282,7 @@ struct instance_flags {
 #endif
 #ifdef NDS
         boolean cmdwindow;
+        boolean cursor;
         boolean lefthanded;
         boolean doubletap;
         boolean holdmode;

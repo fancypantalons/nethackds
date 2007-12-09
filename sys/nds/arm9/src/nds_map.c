@@ -84,14 +84,19 @@ tOAM oam_shadow;
 int nds_alloc_cache_slot(int glyph)
 {
   int tile_idx = -1;
+  int req_tiles = tile_width * tile_height;
 
-  if (num_free_tiles > 0) {
+  /* 
+   * We treat the zeroeth group of tiles "special", used for displaying 
+   * empty slots on the map.  So we don't allocate past that.
+   */
+  if ((num_free_tiles - req_tiles) > req_tiles) {
     /*
      * If there's still free tiles, just use the next empty ones.
      */
 
-    tile_idx = MAX_TILE_SLOTS - num_free_tiles;
-    num_free_tiles -= tile_width * tile_height;
+    num_free_tiles -= req_tiles;
+    tile_idx = num_free_tiles;
   } else {
     /*
      * If there are no free slots, we look for the oldest tile and overwrite
@@ -311,7 +316,7 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
    */
 
   if (TILE_FILE == NULL) {
-    palette = ((gx == map->cx) && (gy == map->cy)) ? 3 : 2;
+    palette = (iflags.cursor && (gx == map->cx) && (gy == map->cy)) ? 3 : 2;
   } else {
     palette = 2;
   }
@@ -422,17 +427,30 @@ int nds_init_text_map(u16 *palette, int *pallen)
   tile_width = img_w / 8;
   tile_height = img_h / 8;
 
+  /* Lastly, create out "blank" tile */
+
+  for (i = 0; i < tile_width * tile_height * 32; i++) {
+    tile_ram[i] = 0x0101;
+  }
+
   return 8;
 }
 
 /*
  * Get the user sprite set up and drawn.
  */
-void nds_draw_sprite(int glyph, int x, int y)
+void nds_draw_graphics_cursor(int x, int y)
 {
-//  oam_shadow.spriteBuffer[0].isHidden = (glyph < 0);
+  if ((x < 0) || (y < 0) || (x > map_width) || (y > map_height) ||
+      (! iflags.cursor)) {
+    oam_shadow.spriteBuffer[0].isHidden = 1;
+
+    return;
+  } 
+
   oam_shadow.spriteBuffer[0].posX = x * TILE_WIDTH;
   oam_shadow.spriteBuffer[0].posY = y * TILE_HEIGHT;
+  oam_shadow.spriteBuffer[0].isHidden = 0;
 }
 
 void nds_init_sprite(int bpp)
@@ -719,6 +737,8 @@ void nds_clear_minimap()
 
 void nds_draw_map(nds_map_t *map, int *xp, int *yp)
 {
+  int sx, sy;
+
   swiWaitForVBlank();
 
   if (xp == NULL) {
@@ -745,12 +765,10 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
     cy = map_height / 2;
   }
 
-  if (map != NULL) {
-    int sx = cx - map_width / 2;
-    int sy = cy - map_height / 2;
-    int spr_x = u.ux - sx;
-    int spr_y = u.uy - sy;
+  sx = cx - map_width / 2;
+  sy = cy - map_height / 2;
 
+  if (map != NULL) {
     int x, y;
 
     for (y = 0; y < map_height; y++) {
@@ -764,17 +782,13 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
       }
     }
 
-    if ((spr_x < 0) || (spr_y < 0) ||
-        (spr_x > map_width) || (spr_y > map_height)) {
-
-      nds_draw_sprite(-1, 0, 0);
-    } else {
-      nds_draw_sprite(glyph2tile[hero_glyph], spr_x, spr_y);
+    if (TILE_FILE != NULL) {
+      nds_draw_graphics_cursor(map->cx - sx, map->cy - sy);
     }
 
     nds_draw_minimap(map);
   } else {
-    nds_draw_sprite(0, 0, -1);
+    nds_draw_graphics_cursor(-1, -1);
 
     nds_clear_map();
     nds_clear_minimap();

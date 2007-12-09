@@ -71,6 +71,7 @@ static struct Bool_Opt
 	{"cmdassist", &iflags.cmdassist, TRUE, SET_IN_GAME},
 #ifdef NDS
         {"cmdwindow", &iflags.cmdwindow, TRUE, SET_IN_FILE},
+        {"cursor", &iflags.cursor, TRUE, SET_IN_GAME},
 #endif
 # if defined(MICRO) || defined(WIN32)
 	{"color",         &iflags.wc_color,TRUE, SET_IN_GAME},		/*WC*/

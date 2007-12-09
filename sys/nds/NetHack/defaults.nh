@@ -14,6 +14,25 @@ OPTIONS=toptenwin
 OPTIONS=autopickup,pickup_types:$
 OPTIONS=noshowexp,lit_corridor
 
+# *** Some NetHackDS Specific options ***
+#
+# Enable left-handed mode
+# OPTIONS=lefthanded
+#
+# You prefer a keyboard for commands?  If you insist...
+# OPTIONS=!cmdwindow
+#
+# Change command window to L/R toggle visibility, rather than require they
+# be held.
+# OPTIONS=!holdmode
+#
+# Enable doubletap mode.  Changes menus and windows to require double-taps for
+# selecting items.
+# OPTIONS=doubletap
+#
+# Disable the cursor?  Okay...
+# OPTIONS=!cursor
+
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to
 # suit your personal preference.  If several people are to use the same
@@ -27,3 +46,4 @@ OPTIONS=noshowexp,lit_corridor
 #OPTIONS=scores:10 top/2 around/own
 #OPTIONS=nolegacy,noverbose
 #OPTIONS=menustyle:traditional
+#

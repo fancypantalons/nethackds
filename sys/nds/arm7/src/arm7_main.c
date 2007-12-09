@@ -42,6 +42,76 @@ s32 getFreeSoundChannel() {
 	return -1;
 }
 
+#define SAMPLE_COUNT 16
+
+void sortTouchSamples(touchPosition *samples, int *indices, int sort_x)
+{
+  int i;
+  int done = 0;
+
+  /* Yeah, this is a bubble sort... live with it */
+  /* We re-order, here, so we can take the median */
+
+  while (! done) {
+    done = 1;
+
+    for (i = 0; i < SAMPLE_COUNT - 1; i++) {
+      int swap = sort_x ? samples[indices[i]].x > samples[indices[i + 1]].x :
+                          samples[indices[i]].y > samples[indices[i + 1]].y;
+
+      if (swap) {
+        int tmp = indices[i + 1];
+
+        indices[i + 1] = indices[i];
+        indices[i] = tmp;
+        
+        done = 0;
+      }
+    }
+  }
+}
+
+touchPosition readSampledPosition() {
+  touchPosition posData[SAMPLE_COUNT];
+  int indices_by_x[SAMPLE_COUNT];
+  int indices_by_y[SAMPLE_COUNT];
+  int i;
+  touchPosition ret;
+
+  /* First, take our samples */
+
+  for (i = 0; i < SAMPLE_COUNT; i++) {
+    while (1) {
+      posData[i] = touchReadXY();
+
+      /* 
+       * Yeah, this means you can't tap the far-right part of the screen...
+       * luckily, I don't care.  And this way, we toss out outliers that
+       * were throwing off the touchscreen handling code.
+       */
+      if (posData[i].px < 255) {
+        break;
+      }
+    }
+
+    indices_by_x[i] = i;
+    indices_by_y[i] = i;
+  }
+
+  sortTouchSamples(posData, indices_by_x, 1);
+  sortTouchSamples(posData, indices_by_y, 0);
+
+  /* And now get the median values for x and y */
+
+  ret.x = posData[indices_by_x[SAMPLE_COUNT / 2]].x;
+  ret.px = posData[indices_by_x[SAMPLE_COUNT / 2]].px;
+
+  ret.y = posData[indices_by_y[SAMPLE_COUNT / 2]].y;
+  ret.py = posData[indices_by_y[SAMPLE_COUNT / 2]].py;
+
+  return ret;
+}
+
 //---------------------------------------------------------------------------------
 void VblankHandler(void) {
 //---------------------------------------------------------------------------------
@@ -56,8 +126,7 @@ void VblankHandler(void) {
 	but = REG_KEYXY;
 
 	if (!(but & (1<<6))) {
-
-		touchPosition tempPos = touchReadXY();
+                touchPosition tempPos = readSampledPosition();
 
 		x = tempPos.x;
 		y = tempPos.y;

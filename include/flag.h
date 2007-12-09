@@ -284,6 +284,7 @@ struct instance_flags {
         boolean cmdwindow;
         boolean lefthanded;
         boolean doubletap;
+        boolean holdmode;
 #endif
 };
 

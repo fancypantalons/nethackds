@@ -71,7 +71,6 @@ static struct Bool_Opt
 	{"cmdassist", &iflags.cmdassist, TRUE, SET_IN_GAME},
 #ifdef NDS
         {"cmdwindow", &iflags.cmdwindow, TRUE, SET_IN_FILE},
-        {"cursor", &iflags.cursor, TRUE, SET_IN_GAME},
 #endif
 # if defined(MICRO) || defined(WIN32)
 	{"color",         &iflags.wc_color,TRUE, SET_IN_GAME},		/*WC*/
@@ -79,6 +78,9 @@ static struct Bool_Opt
 	{"color",         &iflags.wc_color, FALSE, SET_IN_GAME},	/*WC*/
 # endif
 	{"confirm",&flags.confirm, TRUE, SET_IN_GAME},
+#ifdef NDS
+        {"cursor", &iflags.cursor, TRUE, SET_IN_GAME},
+#endif
 #if defined(TERMLIB) && !defined(MAC_GRAPHICS_ENV)
 	{"DECgraphics", &iflags.DECgraphics, FALSE, SET_IN_GAME},
 #else
@@ -232,6 +234,9 @@ static struct Comp_Opt
 						1, SET_IN_GAME },
 	{ "catname",  "the name of your (first) cat (e.g., catname:Tabby)",
 						PL_PSIZ, DISP_IN_GAME },
+#ifdef NDS
+        { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
+#endif
 	{ "disclose", "the kinds of information to disclose at end of game",
 						sizeof(flags.end_disclose) * 2,
 						SET_IN_GAME },
@@ -540,6 +545,9 @@ initoptions()
 	for (i = 0; i < WARNCOUNT; i++)
 		warnsyms[i] = def_warnsyms[i].sym;
 	iflags.bouldersym = 0;
+#ifdef NDS
+        iflags.compassmode = 0;
+#endif
 	iflags.travelcc.x = iflags.travelcc.y = -1;
 	flags.warnlevel = 1;
 	flags.warntype = 0L;
@@ -1493,6 +1501,18 @@ goodfruit:
 		if (!initial) need_redraw = TRUE;
 		return;
 	}
+
+#ifdef NDS
+        /* compassmode:int */
+	fullname = "compassmode";
+	if (match_optname(opts, fullname, sizeof("compassmode") - 1, TRUE)) {
+		op = string_for_opt(opts, negated);
+		if ((negated && !op) || (!negated && op)) {
+			iflags.compassmode = negated ? 0 : atoi(op);
+		} else if (negated) bad_negation(fullname, TRUE);
+		return;
+	}
+#endif
 
 	/* name:string */
 	fullname = "name";
@@ -2932,6 +2952,10 @@ char *buf;
 			iflags.bouldersym : oc_syms[(int)objects[BOULDER].oc_class]);
 	else if (!strcmp(optname, "catname")) 
 		Sprintf(buf, "%s", catname[0] ? catname : none );
+#ifdef NDS
+        else if (!strcmp(optname, "compassmode"))
+                Sprintf(buf, "%d", iflags.compassmode);
+#endif
 	else if (!strcmp(optname, "disclose")) {
 		for (i = 0; i < NUM_DISCLOSURE_OPTIONS; i++) {
 			char topt[2];

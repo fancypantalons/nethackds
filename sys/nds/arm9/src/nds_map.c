@@ -812,3 +812,20 @@ void nds_map_get_center(int *xp, int *yp)
   *xp = cx;
   *yp = cy;
 }
+
+void nds_map_relativize(int *px, int *py)
+{
+  int upx, upy;
+  int sx = cx - map_width / 2;
+  int sy = cy - map_height / 2;
+  int t_width = tile_width * 8;
+  int t_height = tile_height * 8;
+
+  upx = (u.ux - sx) * t_width + t_width / 2;
+  upy = (u.uy - sy) * t_height + t_height / 2;
+
+  iprintf("%d %d\n", upx, upy);
+
+  *px -= upx;
+  *py -= upy;
+}

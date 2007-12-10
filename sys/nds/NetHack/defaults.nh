@@ -32,6 +32,13 @@ OPTIONS=noshowexp,lit_corridor
 #
 # Disable the cursor?  Okay...
 # OPTIONS=!cursor
+#
+# Enable compass mode.  A value of 1 enables relative mode, where taps around
+# the hero are mapped to a compass, and translated to movement keys.  A value
+# of 2 enables absolute mode, where the taps are examined relative to
+# the center of the screen.  See the iRogue website for examples of how this 
+# works.
+# OPTIONS=compassmode:1
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to

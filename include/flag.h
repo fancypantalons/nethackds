@@ -286,6 +286,7 @@ struct instance_flags {
         boolean lefthanded;
         boolean doubletap;
         boolean holdmode;
+        int compassmode;
 #endif
 };
 

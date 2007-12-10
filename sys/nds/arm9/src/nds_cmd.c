@@ -22,6 +22,8 @@
 
 #define CMD_CONFIG     0x0100
 
+#define INPUT_BUFFER_SIZE 32
+
 /*
  * Missing commands:
  *
@@ -159,6 +161,8 @@ static nds_cmd_t wiz_cmdlist[] = {
 int cmd_rows;
 int cmd_cols;
 
+int input_buffer[INPUT_BUFFER_SIZE];
+
 /* We use this array for indexing into the key config list */
 
 static nds_key_t keys[] = {
@@ -259,6 +263,8 @@ void nds_init_cmd()
     cmd_key = KEY_R;
     scroll_key = KEY_L;
   }
+
+  memset(input_buffer, 0, sizeof(input_buffer));
 }
 
 int nds_map_key(u16 pressed)
@@ -446,9 +452,80 @@ void nds_swap_handedness()
   }
 }
 
+int nds_handle_click(int px, int py, int *x, int *y, int *mod)
+{
+  int mx, my;
+  int ch;
+
+  nds_map_translate_coords(px, py, &mx, &my);
+
+  /* 
+   * If the click is somewhere around the user, or we're not in compass
+   * mode, pass the click back to the game engine directly.
+   */
+  if ( ( ((ABS(mx - u.ux) <= 1) && (ABS(my - u.uy) <= 1)) && (iflags.compassmode != 2) ) ||
+       (iflags.compassmode == 0) ) {
+    *x = mx;
+    *y = my;
+    *mod = CLICK_1;
+
+    ch = 0;
+  } else {
+    int tmp_x = px;
+    int tmp_y = py;
+    int dist;
+
+    if (iflags.compassmode == 1) {
+      nds_map_relativize(&tmp_x, &tmp_y);
+    } else {
+      tmp_x -= 128;
+      tmp_y -= 96;
+    }
+
+    dist = tmp_x * tmp_x + tmp_y * tmp_y;
+
+    /* 
+     * Here we take the click location and convert it to a direction key
+     * based on a movement compass.
+     */
+
+    if (ABS(tmp_x) > 2 * ABS(tmp_y)) {
+      ch = (tmp_x > 0) ? 'l' : 'h';
+    } else if (ABS(tmp_y) > 2 * ABS(tmp_x)) {
+      ch = (tmp_y > 0) ? 'j' : 'k';
+    } else if (tmp_y > 0) {
+      ch = (tmp_x > 0) ? 'n' : 'b';
+    } else {
+      ch = (tmp_x > 0) ? 'u' : 'y';
+    }
+
+    if (dist > 1024) {
+      input_buffer[0] = ch;
+      ch = 'g';
+    }
+  }
+
+  return ch;
+}
+
 int nds_nh_poskey(int *x, int *y, int *mod)
 {
   touchPosition coords;
+
+  /* 
+   * If there was characters stuffed in our input buffer, return one from
+   * there, instead.
+   */
+
+  if (input_buffer[0] != 0) {
+    int key = input_buffer[0];
+
+    memmove(&(input_buffer[0]), &(input_buffer[1]), (INPUT_BUFFER_SIZE - 1) * sizeof(input_buffer[0]));
+
+    input_buffer[INPUT_BUFFER_SIZE - 1] = 0;
+
+    return key;
+  }
 
   /* Clear out any taps that happen to be occuring right now. */
 
@@ -529,11 +606,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
     }
 
     if (get_touch_coords(&coords)) {
-      nds_map_translate_coords(coords.px, coords.py, x, y);
-
-      *mod = CLICK_1;
-
-      return 0;
+      return nds_handle_click(coords.px, coords.py, x, y, mod);
     }
   }
 

@@ -9,6 +9,8 @@
 
 #define ISWHITESPACE(c) ((c == ' ') || (c == '\t') || (c == '\0'))
 
+#define ABS(x) (((x) < 0) ? -(x) : (x))
+
 #include <stdio.h>
 
 void memcpy16(void *dest, void *src, int count);

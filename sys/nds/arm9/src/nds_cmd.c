@@ -791,12 +791,12 @@ nds_cmd_t nds_cmd_loop(int in_config)
       nds_flush();
 
       break;
-    } else if ((held & KEY_A) && curcmd) {
+    } else if (((held & KEY_A) || (held & KEY_X)) && curcmd) {
       curcmd->highlighted = 1;
       curcmd->refresh = 1;
 
       refresh = 1;
-    } else if ((prev_held & KEY_A) && curcmd) {
+    } else if (((prev_held & KEY_A) || (prev_held & KEY_X)) && curcmd) {
       picked_cmd = curcmd;
 
       break;

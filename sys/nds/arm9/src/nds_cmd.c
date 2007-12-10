@@ -512,6 +512,12 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 {
   touchPosition coords;
 
+  /* Set one, initialize these! */
+
+  *x = 0;
+  *y = 0;
+  *mod = 0;
+
   /* 
    * If there was characters stuffed in our input buffer, return one from
    * there, instead.

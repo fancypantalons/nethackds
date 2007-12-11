@@ -18,10 +18,10 @@
 
 struct ppm *status_img = NULL;
 
-char *name = NULL;
-
 char status_lines[STATUS_LINE_COUNT][BUFSZ];
 int cur_status_line = 0;
+
+int name_printed = 0;
 
 int _nds_status_line_dirty(char *str)
 {
@@ -75,8 +75,12 @@ void nds_update_status(char *str)
       }
     }
 
-    nds_draw_text(system_font, name,
-                  3, 3, 254, 255, vram);
+    if (! name_printed) {
+      nds_draw_text(system_font, name,
+                    3, 3, 254, 255, vram);
+
+      name_printed = 1;
+    }
 
     clear_ppm(status_img);
 

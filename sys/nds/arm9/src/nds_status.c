@@ -14,32 +14,67 @@
 #define STATUS_X 3
 #define STATUS_Y 64
 
+#define STATUS_LINE_COUNT 3
+
 struct ppm *status_img = NULL;
 
 char *name = NULL;
 
-void nds_update_status(char *str)
-{
-  int i;
-  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
-  int text_h;
-  int last = 1;
+char status_lines[STATUS_LINE_COUNT][BUFSZ];
+int cur_status_line = 0;
 
-  if (status_img == NULL) {
-    status_img = alloc_ppm(256, 30);
+int _nds_status_line_dirty(char *str)
+{
+  int ret;
+
+  if (strcmp(status_lines[cur_status_line], str) == 0) {
+    ret = 0;
+  } else {
+    strcpy(status_lines[cur_status_line], str);
+
+    ret = 1;
   }
 
-  for (i = 0; i < strlen(str); i++) {
-    if ((str[i] == ':') && (strncmp(str + i - 2, "St", 2) == 0)) {
-      name = str;
-      str[i - 3] = '\0';
-      str = str + i - 2;
+  cur_status_line++;
 
-      last = 0;
+  if (cur_status_line >= STATUS_LINE_COUNT) {
+    cur_status_line = 0;
+  }
+
+  return ret;
+}
+
+void nds_update_status(char *str)
+{
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
+  int text_h;
+
+  if (status_img == NULL) {
+    int i;
+
+    status_img = alloc_ppm(256, 10);
+
+    for (i = 0; i < STATUS_LINE_COUNT; i++) {
+      *(status_lines[i]) = '\0';
     }
   }
 
-  if (! last) {
+  if (cur_status_line == 0) {
+    char *name;
+    int i;
+
+    if (! _nds_status_line_dirty(str)) {
+      return;
+    }
+
+    for (i = 0; i < strlen(str); i++) {
+      if ((str[i] == ':') && (strncmp(str + i - 2, "St", 2) == 0)) {
+        name = str;
+        str[i - 3] = '\0';
+        str = str + i - 2;
+      }
+    }
+
     nds_draw_text(system_font, name,
                   3, 3, 254, 255, vram);
 
@@ -48,6 +83,8 @@ void nds_update_status(char *str)
     draw_string(system_font, str, status_img, 
                 0, 0, 1,
                 255, 0, 255);
+
+    draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y, 256, 254, 255);
   } else {
     int cnt = 0;
     char *cutptr;
@@ -67,14 +104,24 @@ void nds_update_status(char *str)
 
     text_dims(system_font, str, NULL, &text_h);
 
-    draw_string(system_font, str, status_img, 
-                0, text_h, 1,
-                255, 0, 255);
+    if (_nds_status_line_dirty(str)) {
+      clear_ppm(status_img);
 
-    draw_string(system_font, cutptr, status_img, 
-                0, text_h * 2, 1,
-                255, 0, 255);
+      draw_string(system_font, str, status_img, 
+                  0, 0, 1,
+                  255, 0, 255);
 
-    draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y, 256, 254, 255);
+      draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y + text_h, 256, 254, 255);
+    }
+
+    if (_nds_status_line_dirty(cutptr)) {
+      clear_ppm(status_img);
+
+      draw_string(system_font, cutptr, status_img, 
+                  0, 0, 1,
+                  255, 0, 255);
+
+      draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y + text_h * 2, 256, 254, 255);
+    }
   }
 }

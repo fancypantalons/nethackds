@@ -14,10 +14,27 @@
 const char input_history[HISTORY_SIZE][BUFSZ];
 int history_count = 0;
 
+void _nds_push_history(char *str)
+{
+  if (history_count >= HISTORY_SIZE) {
+    int i;
+
+    for (i = 0; i < history_count - 2; i++) {
+      strcpy(input_history[i], input_history[i + 1]);
+    }
+  } else {
+    history_count++;
+  }
+
+  strcpy(input_history[history_count - 1], str);
+}
+
 void nds_getlin(const char *prompt, char *buffer)
 {
   static struct ppm *input_img = NULL;
   static int input_y;
+
+  int history_pos = history_count;
 
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 
@@ -75,13 +92,45 @@ void nds_getlin(const char *prompt, char *buffer)
     switch (key) {
       case 0:
       case K_UP_LEFT:
-      case K_UP:
       case K_UP_RIGHT:
       case K_NOOP:
       case K_DOWN_LEFT:
-      case K_DOWN:
       case K_DOWN_RIGHT:
         continue;
+
+      case K_UP:
+        if (history_pos <= 0) {
+          break;
+        } else {
+          history_pos--;
+        }
+
+        strcpy(front, input_history[history_pos]);
+        *back = '\0';
+
+        length = strlen(front);
+        curspos = length;
+
+        break;
+
+      case K_DOWN:
+        if (history_pos >= history_count) {
+          break;
+        } else {
+          history_pos++;
+        }
+
+        if (history_pos == history_count) {
+          *front = '\0';
+        } else {
+          strcpy(front, input_history[history_pos]);
+        }
+
+        *back = '\0';
+        length = strlen(front);
+        curspos = length;
+
+        break;
 
       case '\n':
         done = 1;
@@ -138,4 +187,6 @@ void nds_getlin(const char *prompt, char *buffer)
 
   strcpy(buffer, front);
   strcat(buffer, back);
+  
+  _nds_push_history(buffer);
 }

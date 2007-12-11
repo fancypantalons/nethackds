@@ -1673,6 +1673,10 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
         } else if ((x == u.ux + 1) && (y == u.uy + 1)) {
           return 'n';
         }
+      } else if (mod == CLICK_2) {
+        if ((x == u.ux) && (y == u.uy)) {
+          return '>';
+        }
       } else {
         return sym;
       }

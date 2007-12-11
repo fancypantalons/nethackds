@@ -1043,6 +1043,8 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
 
   DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
+  nds_flush();
+
   while (1) {
     if (refresh) {
       _nds_draw_scroller(win, 1);
@@ -1243,6 +1245,8 @@ int _nds_do_menu(nds_nhwindow_t *window)
   if (menu->prompt) {
     nds_draw_prompt(menu->prompt);
   }
+
+  nds_flush();
 
   while (1) {
     int i;

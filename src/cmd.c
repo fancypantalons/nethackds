@@ -2269,11 +2269,28 @@ click_to_cmd(x, y, mod)
             cmd[1] = (iflags.num_pad ? ndir[dir] : sdir[dir]);
             cmd[2] = 0;
             if (IS_DOOR(levl[u.ux+x][u.uy+y].typ)) {
+                static int old_door_x = -1;
+                static int old_door_y = -1;
+                static int old_door_lev = -1;
+
+                /* 
+                 * We're allowed to kick this door if we've previously tried
+                 * to open it normally.
+                 */
+                int can_kick = (old_door_x == (u.ux + x)) &&
+                               (old_door_y == (u.uy + y)) &&
+                               (old_door_lev == u.uz.dnum);
+
+                old_door_x = u.ux + x;
+                old_door_y = u.uy + y;
+                old_door_lev = u.uz.dnum;
+
                 /* slight assistance to the player: choose kick/open for them */
                 if (levl[u.ux+x][u.uy+y].doormask & D_LOCKED) {
-                    cmd[0] = C('d');
+                    cmd[0] = can_kick ? C('d') : 'o';
                     return cmd;
                 }
+
                 if (levl[u.ux+x][u.uy+y].doormask & D_CLOSED) {
                     cmd[0] = 'o';
                     return cmd;

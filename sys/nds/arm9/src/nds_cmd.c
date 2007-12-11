@@ -510,7 +510,7 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
   return ch;
 }
 
-int nds_nh_poskey(int *x, int *y, int *mod)
+int nds_get_input(int *x, int *y, int *mod)
 {
   touchPosition coords;
   int held_frames = 0;

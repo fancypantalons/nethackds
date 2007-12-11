@@ -1,5 +1,6 @@
 #include <nds.h>
 #include <stdio.h>
+#include <string.h>
 
 touchPosition touch_coords = { .x = 0, .y = 0 };
 touchPosition old_touch_coords;
@@ -78,16 +79,14 @@ void nds_wait_key(int keys)
 
 void nds_flush()
 {
-  touchPosition coords = { .x = 0, .y = 0 };
-  int pressed;
+  memset(&old_touch_coords, 0, sizeof(old_touch_coords));
+  memset(&touch_coords, 0, sizeof(touch_coords));
 
   while (1) {
+    swiWaitForVBlank();
     scanKeys();
 
-    coords = touchReadXY();
-    pressed = keysHeld();
-
-    if ((coords.x == 0) && (coords.y == 0) && (pressed == 0)) {
+    if (keysHeld() == 0) {
       return;
     }
   }

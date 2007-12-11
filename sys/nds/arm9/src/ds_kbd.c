@@ -176,21 +176,18 @@ u8 process_special_keystrokes = 1;
 // assumes scankeys() was already called this frame (in real vblank handler)
 u8 kbd_vblank() {
 	
-	static u16 touched = 0;		// frames the stylus has been held down for
-	static s16 xarr[3],yarr[3];	// coordinates from each frame, the median is used to get the keycode
 	static u16 last_code;		// the keycode of the last key pressed, so it can be un-hilited
-	
-	// if screen is being touched...
-	if (keysHeld() & KEY_TOUCH) {
-		if (touched < 3) {	// if counter < 3...
-			touched++;				// add to counter
- 			xarr[touched-1] = IPC->touchXpx;	// add this to the array for
- 			yarr[touched-1] = IPC->touchYpx;	// finding the median
-		}
-	} else {	// not being touched
-		touched = 0;	// so reset the counter for next time
-	}
-	
+
+        if (keysDown() & KEY_UP) {
+          return K_UP;
+        } else if (keysDown() & KEY_DOWN) {
+          return K_DOWN;
+        } else if (keysDown() & KEY_LEFT) {
+          return K_LEFT;
+        } else if (keysDown() & KEY_RIGHT) {
+          return K_RIGHT;
+        }
+        
 	// if the stylus was released
 	if (keysUp() & KEY_TOUCH) {
 		// if last_code is set and it wasn't a modifier
@@ -202,37 +199,9 @@ u8 kbd_vblank() {
 	}
 	
 	// if the screen has been touched for 3 frames...
-	if (touched == 3) {
-		touched++;	// do not return the keycode again
-		// also, not setting to zero prevents the keysHeld() thing
-		//  from starting the process over and getting 3 more samples
-		
-		u16 i, tmp, the_x=0, the_y=0;
-		
-		// x/yarr now contains 3 values from each of the 3 frames
-		// take the median of each array and put into the_x/y
-		
-		// sort the array
-		// bubble sort, ugh
-		for (i=1;i<3;i++) {
-			if (xarr[i] < xarr[i-1]) {
-				tmp = xarr[i];
-				xarr[i] = xarr[i-1];
-				xarr[i-1] = tmp;
-			}
-			if (yarr[i] < yarr[i-1]) {
-				tmp = yarr[i];
-				yarr[i] = yarr[i-1];
-				yarr[i-1] = tmp;
-			}
-		}
-		
-		// get the middle value (median)
-		// if it's -1, take the top value
-		if (xarr[1] == -1) the_x = xarr[2];
-		else the_x = xarr[1];
-		if (yarr[1] == -1) the_y = yarr[2];
-		else the_y = yarr[1];
+	if (keysDown() & KEY_TOUCH) {
+                u16 the_x = IPC->touchXpx;
+                u16 the_y = IPC->touchYpx;
 		
 		// get the keycode that corresponds to this key
 		u16 keycode = kbd_xy2key(the_x,the_y);

@@ -820,10 +820,8 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
       cur_y += menu->items[i].height;
     } 
 
-    /* Aight, render the offscreen buffer. */
-
     window->bottomidx = i - 1;
-    maxidx = menu->count;
+    maxidx = menu->count - 1;
 
     if (menu->how == PICK_ANY) {
       draw_ppm_bw(okay_button, vram,
@@ -851,7 +849,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     }
 
     window->bottomidx = i - 1;
-    maxidx = charbuf->count;
+    maxidx = charbuf->count - 1;
 
     if (clear) {
       nds_fill(vram, 254);
@@ -867,7 +865,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
                 256, 254, 255);
   }
 
-  if (window->bottomidx < (maxidx - 1)) {
+  if (window->bottomidx < maxidx) {
     draw_ppm_bw(down_arrow, vram, 
                 256 / 2 - down_arrow->width / 2, 192 - down_arrow->height, 
                 256, 254, 255);
@@ -977,7 +975,7 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
     window->topidx -= window->pagesize;
     window->bottomidx -= window->pagesize;
     *refresh = 1;
-  } else if (scroll_down && (window->bottomidx < count)) {
+  } else if (scroll_down && (window->bottomidx < (count - 1))) {
     window->topidx += window->pagesize;
     window->bottomidx += window->pagesize;
     *refresh = 1;
@@ -985,8 +983,10 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
 
   if (window->topidx < 0) {
     window->topidx = 0;
+    window->bottomidx = window->pagesize - 1;
   } else if (window->bottomidx >= count) {
     window->topidx = count - window->pagesize;
+    window->bottomidx = count - 1;
   }
 
   return 0;
@@ -1153,6 +1153,12 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   nds_nhwindow_t *window = windows[win];
   nds_menuitem_t *items;
   int idx;
+
+  if (! str) {
+    return;
+  } else if (! *str) {
+    return;
+  }
 
   items = (nds_menuitem_t *)realloc(window->menu->items, 
                                     (window->menu->count + 1) * sizeof(nds_menuitem_t));
@@ -1360,6 +1366,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
     
     if ((pressed & KEY_X) && (menu->focused_item >= 0) &&
         (! menu->items[menu->focused_item].highlighted)) {
+
       _nds_menu_select_item(&(menu->items[menu->focused_item]), 0);
 
       if (menu->how == PICK_ONE) {
@@ -1405,8 +1412,6 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
       refresh = 1;
     }
-
-    /* Check touchscreen activity */
 
     for (i = window->topidx; i <= window->bottomidx; i++) {
       int item_x, item_y, item_x2, item_y2;

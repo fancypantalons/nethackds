@@ -308,6 +308,14 @@ int main()
 
   initoptions();
 
+  /* Gotta initialize this before the command list is generated */
+
+  if (debug_mode) {
+    iprintf("Enabling debug mode.\n");
+
+    flags.debug = 1;
+  }
+
   choose_windows(DEFAULT_WINDOW_SYS);
   init_nhwindows(NULL, NULL);
 
@@ -320,14 +328,6 @@ int main()
   kbd_init();
 
   goodbye_msg = NULL;
-
-  /* Gotta initialize this before the command list is generated */
-
-  if (debug_mode) {
-    iprintf("Enabling debug mode.\n");
-
-    flags.debug = 1;
-  }
 
   fd = create_levelfile(0, (char *)NULL);
 

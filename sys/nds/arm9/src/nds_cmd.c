@@ -24,6 +24,8 @@
 
 #define INPUT_BUFFER_SIZE 32
 
+#define CLICK_2_FRAMES 30
+
 /*
  * Missing commands:
  *
@@ -511,6 +513,7 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
 int nds_nh_poskey(int *x, int *y, int *mod)
 {
   touchPosition coords;
+  int held_frames = 0;
 
   /* Set one, initialize these! */
 
@@ -610,9 +613,22 @@ int nds_nh_poskey(int *x, int *y, int *mod)
       default:
         return key;
     }
+    
+    if (held_frames > CLICK_2_FRAMES) {
+      coords = touchReadXY();
 
-    if (get_touch_coords(&coords)) {
+      nds_map_translate_coords(coords.px, coords.py, x, y);
+      *mod = CLICK_2;
+
+      return 0;
+    } else if (get_touch_coords(&coords)) {
       return nds_handle_click(coords.px, coords.py, x, y, mod);
+    }
+
+    if (held & KEY_TOUCH) {
+      held_frames++;
+    } else {
+      held_frames = 0;
     }
   }
 

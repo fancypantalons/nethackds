@@ -53,4 +53,5 @@ OPTIONS=noshowexp,lit_corridor
 #OPTIONS=scores:10 top/2 around/own
 #OPTIONS=nolegacy,noverbose
 #OPTIONS=menustyle:traditional
+#OPTIONS=time
 #

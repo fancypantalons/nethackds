@@ -34,6 +34,13 @@ struct font *system_font;
 int map_rows;
 int map_cols;
 
+/* Some images for our menu code */
+
+struct ppm *up_arrow = NULL;
+struct ppm *down_arrow = NULL; 
+struct ppm *okay_button = NULL;
+struct ppm *cancel_button = NULL;
+
 /**********************************
  * Some internal window functions.
  **********************************/
@@ -115,6 +122,18 @@ void nds_init_nhwindows(int *argc, char **argv)
   BG_PALETTE_SUB[252] = RGB15(0,31, 0);
 
   iflags.window_inited = true;
+
+  /* Get these set up for our windowing routines */
+
+  up_arrow = alloc_ppm(16, 16);
+  down_arrow = alloc_ppm(16, 16);
+  okay_button = alloc_ppm(16, 16);
+  cancel_button = alloc_ppm(16, 16);
+
+  _nds_copy_header_pixels(up_arrow_data, (long *)up_arrow->rgba);
+  _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
+  _nds_copy_header_pixels(okay_data, (long *)okay_button->rgba);
+  _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
 }
 
 void nds_player_selection()
@@ -687,11 +706,6 @@ void nds_clear_prompt()
  * display.
  */
 
-struct ppm *up_arrow = NULL;
-struct ppm *down_arrow = NULL; 
-struct ppm *okay_button = NULL;
-struct ppm *cancel_button = NULL;
-
 void _nds_copy_header_pixels(char *src, long *buf)
 {
   while (*src) {
@@ -712,18 +726,6 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
   int tag_w, tag_h;
 
   int maxidx;
-
-  if (up_arrow == NULL) {
-    up_arrow = alloc_ppm(16, 16);
-    down_arrow = alloc_ppm(16, 16);
-    okay_button = alloc_ppm(16, 16);
-    cancel_button = alloc_ppm(16, 16);
-
-    _nds_copy_header_pixels(up_arrow_data, (long *)up_arrow->rgba);
-    _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
-    _nds_copy_header_pixels(okay_data, (long *)okay_button->rgba);
-    _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
-  }
 
   start_x = (256 / 2 - (window->width / 2));
   end_x = 256 / 2 + (window->width / 2);
@@ -1255,6 +1257,8 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
   nds_flush();
 
+  swiWaitForVBlank();
+
   while (1) {
     int i;
     int pressed, held;
@@ -1284,6 +1288,8 @@ int _nds_do_menu(nds_nhwindow_t *window)
       goto DONE;
     } else if (refresh) {
       clear = 1;
+
+      continue;
     }
 
     if (menu->how == PICK_NONE) {
@@ -1363,7 +1369,11 @@ int _nds_do_menu(nds_nhwindow_t *window)
         menu->items[menu->focused_item].refresh = 1;
         refresh = 1;
       }
+      
+      continue;
     }
+
+    /* Check if an item was selected using the joypad */
     
     if ((pressed & KEY_X) && (menu->focused_item >= 0) &&
         (! menu->items[menu->focused_item].highlighted)) {
@@ -1413,6 +1423,8 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
       refresh = 1;
     }
+
+    /* Finally, check for taps on items */
 
     for (i = window->topidx; i <= window->bottomidx; i++) {
       int item_x, item_y, item_x2, item_y2;

@@ -685,18 +685,42 @@ void nds_draw_minimap(nds_map_t *map)
 
   for (y = 0; y < ROWNO; y++) {
     for (x = 0; x < COLNO; x++) {
-      if (map->glyphs[y][x] < 0) {
-        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2] = 0x0000;
-        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2 + 128] = 0x0000;
+      int glyph = map->glyphs[y][x];
+      int typ = levl[x][y].typ;
+      u16 colour;
+
+      if (glyph < 0) {
+        colour = 0x00;
+      } else if ((x == u.ux) && (y == u.uy)) {
+        colour = C_YOU;
+      } else if (glyph_is_normal_monster(glyph)) {
+        colour = C_MON; 
+      } else if (glyph_is_pet(glyph)) {
+        colour = C_PET;
+      } else if (IS_WALL(typ)) {
+        colour = C_WALL;
+      } else if (IS_STWALL(typ)) {
+        colour = 0x00;
+      } else if (IS_DOOR(typ)) {
+        colour = C_DOOR;
+      } else if (typ == STAIRS) {
+        colour = C_STAIRS;
+      } else if (typ == ALTAR) {
+        colour = C_ALTAR;
+      } else if (typ == CORR) {
+        colour = C_CORR;
+      } else if (IS_FURNITURE(typ)) {
+        colour = C_FURNITURE;
+      } else if (IS_ROOM(typ)) {
+        colour = C_ROOM;
       } else {
-        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2] = 0xFFFF;
-        sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2 + 128] = 0xFFFF;
+        colour = 0xFF;
       }
+
+      sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2] = (colour << 8) | colour;
+      sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2 + 128] = (colour << 8) | colour;
     }
   }
-
-  sub_vram[(u.uy + MINIMAP_Y / 2) * 256 + u.ux + MINIMAP_X / 2] = 0xFCFC;
-  sub_vram[(u.uy + MINIMAP_Y / 2) * 256 + u.ux + MINIMAP_X / 2 + 128] = 0xFCFC;
 
   rx1 = cx * 2 - map_width + MINIMAP_X - 1;
   rx2 = cx * 2 + map_width + MINIMAP_X;

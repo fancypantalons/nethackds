@@ -6,6 +6,17 @@
 
 #define MAX_WINDOWS 8
 
+#define C_YOU       16 
+#define C_MON       17
+#define C_PET       18
+#define C_WALL      19
+#define C_DOOR      20
+#define C_ROOM      21
+#define C_STAIRS    22
+#define C_ALTAR     23
+#define C_FURNITURE 24
+#define C_CORR      25
+
 typedef struct {
   ANY_P id;
   int count;

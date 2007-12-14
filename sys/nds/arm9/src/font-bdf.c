@@ -147,6 +147,10 @@ read_bdf (const char *file)
           h = overall_bitmap_height;
           y = overall_bitmap_descent;
 
+          if (h > font->height) {
+            font->height = h;
+          }
+
           if (current_char != -1)
             {
               font->chars[current_char].lbearing = x;
@@ -331,22 +335,18 @@ text_dims(struct font *fnt, char *str, int *width, int *height)
 {
   if (width != NULL) {
     *width = 0;
+
+    for (; *str != '\0'; str++) {
+      struct font_char c = fnt->chars[(int) *str];
+
+      if (width != NULL) {
+        *width += c.width;
+      }
+    }
   }
 
   if (height != NULL) {
-    *height = 0;
-  }
-
-  for (; *str != '\0'; str++) {
-    struct font_char c = fnt->chars[(int) *str];
-
-    if (width != NULL) {
-      *width += c.width;
-    }
-
-    if (height != NULL) {
-      *height = c.ppm->height;
-    }
+    *height = fnt->height;
   }
 }
 

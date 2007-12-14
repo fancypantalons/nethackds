@@ -27,7 +27,6 @@
 #define MAX_TILE_SLOTS          512
 
 #define MINIMAP_X               4
-#define MINIMAP_Y               16
 
 #define NDS_LOAD_TILE(glyph, x, y) ((TILE_FILE == NULL) ? nds_load_text_tile(glyph, x, y) : nds_load_graphics_tile(glyph, x, y))
 #define NDS_INIT_MAP(pal, pallen) ((TILE_FILE == NULL) ? nds_init_text_map(pal, pallen) : nds_init_tiled_map(pal, pallen))
@@ -664,18 +663,27 @@ void nds_clear_map()
   memset(map_ram, 0, 32 * 24 * 2);
 }
 
+void nds_minimap_dims(int *x, int *y, int *x2, int *y2)
+{
+  int minimap_x = MINIMAP_X;
+  int minimap_y = system_font->height + 2;
+
+  /* Clear the edges of the map */
+
+  *x = minimap_x - 1;
+  *y = minimap_y - 1;
+  *x2 = minimap_x + COLNO * 2;
+  *y2 = minimap_y + ROWNO * 2;
+}
+
 void nds_draw_minimap(nds_map_t *map)
 {
   u16 *sub_vram = (u16 *)BG_BMP_RAM_SUB(4);
   int x, y;
-  int rx1, rx2, ry1, ry2;
+  int rx1, ry1, rx2, ry2;
+  int bx1, by1, bx2, by2;
 
-  /* Clear the edges of the map */
-
-  rx1 = MINIMAP_X - 1;
-  ry1 = MINIMAP_Y - 1;
-  rx2 = MINIMAP_X + COLNO * 2;
-  ry2 = MINIMAP_Y + ROWNO * 2;
+  nds_minimap_dims(&rx1, &ry1, &rx2, &ry2);
 
   nds_draw_hline(rx1, ry1, COLNO * 2 + 1, 0, sub_vram);
   nds_draw_hline(rx1, ry2, COLNO * 2 + 1, 0, sub_vram);
@@ -717,21 +725,21 @@ void nds_draw_minimap(nds_map_t *map)
         colour = 0xFF;
       }
 
-      sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2] = (colour << 8) | colour;
-      sub_vram[(y + MINIMAP_Y / 2) * 256 + x + MINIMAP_X / 2 + 128] = (colour << 8) | colour;
+      sub_vram[(y + (ry1 + 1) / 2) * 256 + x + (rx1 + 1) / 2] = (colour << 8) | colour;
+      sub_vram[(y + (ry1 + 1) / 2) * 256 + x + (rx1 + 1) / 2 + 128] = (colour << 8) | colour;
     }
   }
 
-  rx1 = cx * 2 - map_width + MINIMAP_X - 1;
-  rx2 = cx * 2 + map_width + MINIMAP_X;
+  bx1 = cx * 2 - map_width + rx1;
+  bx2 = cx * 2 + map_width + rx1 + 1;
 
-  ry1 = cy * 2 - map_height + MINIMAP_Y - 1;
-  ry2 = cy * 2 + map_height + MINIMAP_Y;
+  by1 = cy * 2 - map_height + ry1;
+  by2 = cy * 2 + map_height + ry1 + 1;
 
-  nds_draw_hline(rx1, ry1, map_width * 2 + 1, 253, sub_vram);
-  nds_draw_hline(rx1, ry2, map_width * 2 + 1, 253, sub_vram);
-  nds_draw_vline(rx1, ry1, map_height * 2 + 1, 253, sub_vram);
-  nds_draw_vline(rx2, ry1, map_height * 2 + 1, 253, sub_vram);
+  nds_draw_hline(bx1, by1, map_width * 2 + 1, 253, sub_vram);
+  nds_draw_hline(bx1, by2, map_width * 2 + 1, 253, sub_vram);
+  nds_draw_vline(bx1, by1, map_height * 2 + 1, 253, sub_vram);
+  nds_draw_vline(bx2, by1, map_height * 2 + 1, 253, sub_vram);
 }
 
 void nds_clear_minimap()
@@ -740,23 +748,20 @@ void nds_clear_minimap()
   int x, y;
   int rx1, rx2, ry1, ry2;
 
+  nds_minimap_dims(&rx1, &ry1, &rx2, &ry2);
+
   for (y = 0; y < ROWNO; y++) {
     for (x = 0; x < COLNO; x++) {
-      sub_vram[(y + MINIMAP_Y) * 256 + x + MINIMAP_X] = 0x0000;
-      sub_vram[(y + MINIMAP_Y) * 256 + x + MINIMAP_X + 128] = 0x0000;
+      sub_vram[(y + ry1 + 1) * 256 + x + rx1 + 1] = 0x0000;
+      sub_vram[(y + ry1 + 1) * 256 + x + rx1 + 1 + 128] = 0x0000;
     }
   }
 
-  rx1 = MINIMAP_X - 2;
-  ry1 = MINIMAP_Y - 2;
-  rx2 = MINIMAP_X + COLNO * 2 + 1;
-  ry2 = MINIMAP_Y + ROWNO * 2 + 1;
+  nds_draw_hline(rx1 - 1, ry1 - 1, COLNO * 2 + 3, 255, sub_vram);
+  nds_draw_hline(rx1 - 1, ry2 + 1, COLNO * 2 + 3, 255, sub_vram);
 
-  nds_draw_hline(rx1, ry1, COLNO * 2 + 3, 255, sub_vram);
-  nds_draw_hline(rx1, ry2, COLNO * 2 + 3, 255, sub_vram);
-
-  nds_draw_vline(rx1, ry1, ROWNO * 2 + 3, 255, sub_vram);
-  nds_draw_vline(rx2, ry1, ROWNO * 2 + 3, 255, sub_vram);
+  nds_draw_vline(rx1 - 1, ry1 - 1, ROWNO * 2 + 3, 255, sub_vram);
+  nds_draw_vline(rx2 + 2, ry1 - 1, ROWNO * 2 + 3, 255, sub_vram);
 }
 
 void nds_draw_map(nds_map_t *map, int *xp, int *yp)

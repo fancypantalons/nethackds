@@ -12,5 +12,6 @@ void nds_draw_map(nds_map_t *glyphs, int *cx, int *cy);
 void nds_map_translate_coords(int x, int y, int *tx, int *ty);
 void nds_map_get_center(int *xp, int *yp);
 void nds_map_relativize(int *x, int *y);
+void nds_minimap_dims(int *x, int *y, int *x2, int *y2);
 
 #endif

@@ -7,65 +7,40 @@
 #include "nds_win.h"
 #include "nds_gfx.h"
 #include "nds_util.h"
+#include "nds_map.h"
 #include "ppm-lite.h"
 
 #define CUTCOUNT 2
 
-#define STATUS_X 3
-#define STATUS_Y 64
-
-#define STATUS_LINE_COUNT 3
-
 struct ppm *status_img = NULL;
 
-char status_lines[STATUS_LINE_COUNT][BUFSZ];
-int cur_status_line = 0;
+nds_charbuf_t *status_lines = NULL;
+nds_charbuf_t *last_status_lines = NULL;
 
 int name_printed = 0;
 
-int _nds_status_line_dirty(char *str)
-{
-  int ret;
-
-  if (strcmp(status_lines[cur_status_line], str) == 0) {
-    ret = 0;
-  } else {
-    strcpy(status_lines[cur_status_line], str);
-
-    ret = 1;
-  }
-
-  cur_status_line++;
-
-  if (cur_status_line >= STATUS_LINE_COUNT) {
-    cur_status_line = 0;
-  }
-
-  return ret;
-}
+int status_bottom = 0;
 
 void nds_update_status(char *str)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
-  int text_h;
+  int text_h = system_font->height;
+  int status_x = 2;
+  int status_y;
+  int mx1, my1, mx2, my2;
+
+  nds_minimap_dims(&mx1, &my1, &mx2, &my2);
+
+  status_y = my2 + 2;
 
   if (status_img == NULL) {
-    int i;
-
-    status_img = alloc_ppm(256, 10);
-
-    for (i = 0; i < STATUS_LINE_COUNT; i++) {
-      *(status_lines[i]) = '\0';
-    }
+    status_img = alloc_ppm(256, system_font->height);
+    status_lines = nds_charbuf_create(1);
   }
 
-  if (cur_status_line == 0) {
+  if (status_lines->count == 0) {
     char *name;
     int i;
-
-    if (! _nds_status_line_dirty(str)) {
-      return;
-    }
 
     for (i = 0; i < strlen(str); i++) {
       if ((str[i] == ':') && (strncmp(str + i - 2, "St", 2) == 0)) {
@@ -77,55 +52,55 @@ void nds_update_status(char *str)
 
     if (! name_printed) {
       nds_draw_text(system_font, name,
-                    3, 3, 254, 255, vram);
+                    3, 0, 254, 255, vram);
 
       name_printed = 1;
     }
 
-    clear_ppm(status_img);
-
-    draw_string(system_font, str, status_img, 
-                0, 0, 1,
-                255, 0, 255);
-
-    draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y, 256, 254, 255);
+    nds_charbuf_append(status_lines, str);
   } else {
     int cnt = 0;
-    char *cutptr;
+    nds_charbuf_t *wrapped;
+    int i;
 
-    for (cutptr = str + strlen(str); cutptr != str; cutptr--) {
-      if ((*cutptr == ':') && (++cnt == CUTCOUNT)) {
-        break;
+    nds_charbuf_append(status_lines, str);
+
+    wrapped = nds_charbuf_wrap(status_lines, 256 - status_x);
+
+    for (i = 0; i < wrapped->count; i++) {
+      if ((last_status_lines != NULL) &&
+          (i < last_status_lines->count) && 
+          (strcmp(wrapped->lines[i].text, last_status_lines->lines[i].text) == 0)) {
+
+        continue;
       }
-    }
 
-    while (! ISWHITESPACE(*cutptr)) {
-      cutptr--;
-    }
-
-    *cutptr = '\0';
-    cutptr++;
-
-    text_dims(system_font, str, NULL, &text_h);
-
-    if (_nds_status_line_dirty(str)) {
       clear_ppm(status_img);
 
-      draw_string(system_font, str, status_img, 
+      draw_string(system_font, wrapped->lines[i].text, status_img, 
                   0, 0, 1,
                   255, 0, 255);
 
-      draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y + text_h, 256, 254, 255);
+      draw_ppm_bw(status_img, vram, status_x, status_y + text_h * i, 256, 254, 255);
     }
 
-    if (_nds_status_line_dirty(cutptr)) {
-      clear_ppm(status_img);
+    status_bottom = status_y + wrapped->count * text_h + 2;
 
-      draw_string(system_font, cutptr, status_img, 
-                  0, 0, 1,
-                  255, 0, 255);
+    nds_draw_hline(0, status_bottom - 2, 256, 0, vram);
+    nds_draw_hline(0, status_bottom - 1, 256, 0, vram);
 
-      draw_ppm_bw(status_img, vram, STATUS_X, STATUS_Y + text_h * 2, 256, 254, 255);
+    if (last_status_lines) {
+      nds_charbuf_destroy(last_status_lines);
     }
+
+    nds_charbuf_destroy(status_lines);
+
+    status_lines = nds_charbuf_create(1);
+    last_status_lines = wrapped;
   }
+}
+
+int nds_status_get_bottom()
+{
+  return status_bottom;
 }

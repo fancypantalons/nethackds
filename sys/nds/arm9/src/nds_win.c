@@ -687,13 +687,11 @@ int prompt_y;
 void nds_draw_prompt(char *prompt)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
-  int prompt_h;
-
-  text_dims(system_font, (char *)prompt, NULL, &prompt_h);
+  int prompt_h = system_font->height;
 
   if (prompt_img == NULL) {
     prompt_img = alloc_ppm(252, prompt_h);
-    prompt_y = 192 - prompt_h * 2 - 4;
+    prompt_y = 192 - prompt_h * 2;
   }
 
   /* Draw the prompt */

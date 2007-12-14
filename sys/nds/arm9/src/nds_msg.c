@@ -5,13 +5,9 @@
 #include "nds_win.h"
 #include "nds_msg.h"
 #include "nds_charbuf.h"
+#include "nds_status.h"
 #include "nds_util.h"
 #include "ppm-lite.h"
-
-#define NUM_LINES 7
-
-#define MSG_IMG_X 3
-#define MSG_IMG_Y 100
 
 struct ppm *msg_img = NULL;
 
@@ -19,15 +15,27 @@ int text_h;
 
 int calls = 0;
 
+void nds_get_msg_pos(int *x, int *y, int *w, int *h)
+{
+  *x = 2;
+  *y = nds_status_get_bottom();
+
+  *w = 256 - 2;
+  *h = 192 - text_h * 2 - *y;
+}
+
 void nds_msg_wait_key(int cur_y)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
+  int msg_x, msg_y, msg_w, msg_h;
+
+  nds_get_msg_pos(&msg_x, &msg_y, &msg_w, &msg_h);
 
   draw_string(system_font, "Press A...", msg_img,
               0, cur_y, 1,
               255, 0, 255);
 
-  draw_ppm_bw(msg_img, vram, MSG_IMG_X, MSG_IMG_Y, 256, 254, 255);
+  draw_ppm_bw(msg_img, vram, msg_x, msg_y, 256, 254, 255);
 
   nds_wait_key(KEY_A);
 }
@@ -39,13 +47,19 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   int curline = 0;
   int linecnt = 0;
   int cur_y = 0;
+  int msg_x, msg_y, msg_w, msg_h;
+  int num_lines;
+
+  nds_get_msg_pos(&msg_x, &msg_y, &msg_w, &msg_h);
+
+  num_lines = msg_h / system_font->height;
 
   calls++;
 
   if (msg_img == NULL) {
-    text_dims(system_font, "#", NULL, &text_h);
+    text_h = system_font->height;
 
-    msg_img = alloc_ppm(256, NUM_LINES * text_h);
+    msg_img = alloc_ppm(256, num_lines * text_h);
   }
 
   clear_ppm(msg_img);
@@ -54,7 +68,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
     return;
   }
 
-  buffer = nds_charbuf_wrap(win->buffer, 256 - MSG_IMG_X - 3);
+  buffer = nds_charbuf_wrap(win->buffer, 256 - msg_x);
 
   while (1) {
     if (curline >= buffer->count) {
@@ -66,7 +80,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
       continue;
     }
 
-    if (linecnt >= NUM_LINES - 1) {
+    if (linecnt >= num_lines) {
       int i;
 
       nds_msg_wait_key(cur_y);
@@ -97,7 +111,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
     linecnt++;
   }
 
-  draw_ppm_bw(msg_img, vram, MSG_IMG_X, MSG_IMG_Y, 256, 254, 255);
+  draw_ppm_bw(msg_img, vram, msg_x, msg_y, 256, 254, 255);
 
   if (blocking) {
     nds_msg_wait_key(cur_y);

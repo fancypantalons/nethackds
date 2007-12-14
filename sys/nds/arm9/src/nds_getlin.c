@@ -47,11 +47,11 @@ void nds_getlin(const char *prompt, char *buffer)
   int done = 0;
   int text_h;
 
-  text_dims(system_font, (char *)prompt, NULL, &text_h);
+  text_h = system_font->height;
 
   if (input_img == NULL) {
     input_img = alloc_ppm(252, text_h); /* We'll presume the height is constant */
-    input_y = 192 - text_h - 4;
+    input_y = 192 - text_h;
   }
 
   nds_draw_prompt((char *)prompt);

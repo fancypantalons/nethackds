@@ -27,6 +27,7 @@ struct font {
   int ascent;
   int descent;
   int monochrome_p;
+  int height;
   struct font_char chars[256];
 };
 

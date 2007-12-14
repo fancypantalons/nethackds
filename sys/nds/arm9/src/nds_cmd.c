@@ -218,9 +218,7 @@ void nds_init_cmd()
   }
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
-    int text_h;
-
-    text_dims(system_font, cmdlist[i].name, NULL, &text_h);
+    int text_h = system_font->height;
 
     if ((cur_y + text_h) > 192) {
       cmd_rows = cur_row + 1;
@@ -668,9 +666,7 @@ void nds_repaint_cmds()
   int i;
 
   if (img == NULL) {
-    int text_h;
-
-    text_dims(system_font, "#", NULL, &text_h);
+    int text_h = system_font->height;
 
     img = alloc_ppm(COLWIDTH + COLOFFS, text_h);
   }

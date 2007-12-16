@@ -175,12 +175,15 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
 
   wrap_buffer[0] = '\0';
 
-  while (1) {
+  while (*wrap_buffer || (curline < src->count)) {
     char *buffer;
 
-    if (! *wrap_buffer && (curline >= src->count)) {
-      break;
-    } else if (new_paragraph && ! *wrap_buffer && (curline < src->count)) {
+    if (src->lines[curline].displayed) {
+      curline++;
+      continue;
+    }
+
+    if (new_paragraph && ! *wrap_buffer && (curline < src->count)) {
       int reflow = src->lines[curline].reflow;
       char *bufline = src->lines[curline++].text;
       char *line = strip(bufline, 1, 1);

@@ -70,16 +70,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
 
   buffer = nds_charbuf_wrap(win->buffer, 256 - msg_x);
 
-  while (1) {
-    if (curline >= buffer->count) {
-      break;
-    }
-
-    if (buffer->lines[curline].displayed) {
-      curline++;
-      continue;
-    }
-
+  while (curline < buffer->count) {
     if (linecnt >= num_lines) {
       int i;
 
@@ -98,8 +89,6 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
 
       clear_ppm(msg_img);
     }
-
-    iprintf("M: %s\n", buffer->lines[curline].text);
 
     draw_string(system_font, buffer->lines[curline].text, msg_img,
                 0, cur_y, 1,

@@ -57,13 +57,13 @@ void nds_update_status(char *str)
       name_printed = 1;
     }
 
-    nds_charbuf_append(status_lines, str);
+    nds_charbuf_append(status_lines, str, 0);
   } else {
     int cnt = 0;
     nds_charbuf_t *wrapped;
     int i;
 
-    nds_charbuf_append(status_lines, str);
+    nds_charbuf_append(status_lines, str, 0);
 
     wrapped = nds_charbuf_wrap(status_lines, 256 - status_x);
 

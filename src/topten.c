@@ -91,7 +91,11 @@ const char *x;
 	if (toptenwin == WIN_ERR)
 	    raw_print(x);
 	else
+#ifdef NDS
+	    putstr(toptenwin, ATR_NONE | 0x1000, x);
+#else
 	    putstr(toptenwin, ATR_NONE, x);
+#endif
 }
 
 STATIC_OVL void
@@ -101,7 +105,11 @@ const char *x;
 	if (toptenwin == WIN_ERR)
 	    raw_print_bold(x);
 	else
+#ifdef NDS
+	    putstr(toptenwin, ATR_BOLD | 0x1000, x);
+#else
 	    putstr(toptenwin, ATR_BOLD, x);
+#endif
 }
 
 STATIC_OVL xchar

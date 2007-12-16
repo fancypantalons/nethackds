@@ -7,7 +7,7 @@
 
 #define NULLFREE(ptr) { if (ptr != NULL) { free(ptr); ptr = NULL; } }
 
-#define ISWHITESPACE(c) ((c == ' ') || (c == '\t') || (c == '\0'))
+#define ISWHITESPACE(c) ((c == ' ') || (c == '\t'))
 
 #define ABS(x) (((x) < 0) ? -(x) : (x))
 

@@ -45,7 +45,7 @@ struct ppm *cancel_button = NULL;
  * Some internal window functions.
  **********************************/
 
-void _nds_win_append_text(nds_nhwindow_t *win, const char *str)
+void _nds_win_append_text(nds_nhwindow_t *win, int attr, const char *str)
 {
   iprintf("%s\n", str);
 
@@ -53,7 +53,7 @@ void _nds_win_append_text(nds_nhwindow_t *win, const char *str)
     win->buffer = nds_charbuf_create(0);
   }
 
-  nds_charbuf_append(win->buffer, str);
+  nds_charbuf_append(win->buffer, str, (attr & 0x1000) == 0);
 }
 
 void _nds_win_destroy_text(nds_nhwindow_t *win)
@@ -632,6 +632,7 @@ void nds_putstr(winid win, int attr, const char *str)
 {
   char *c;
   nds_nhwindow_t *window = windows[win];
+  int newline = 0;
 
   /* Initialize our text buffer if it wasn't already done. */
 
@@ -644,19 +645,20 @@ void nds_putstr(winid win, int attr, const char *str)
     if (win == WIN_STATUS) {
       nds_update_status((char *)str);
     } else {
-      _nds_win_append_text(window, str);
+      _nds_win_append_text(window, attr, str);
     }
     
     *c = tmp;
 
     str = c + 1;
+    newline = 1;
   }
 
-  if (*str) {
+  if (*str || ! newline) {
     if (win == WIN_STATUS) {
       nds_update_status((char *)str);
     } else {
-      _nds_win_append_text(window, str);
+      _nds_win_append_text(window, attr, str);
     }
   }
 
@@ -1035,7 +1037,12 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
   
   int i;
 
-  for (i = 0; i < win->buffer->count; i++) {
+  nds_charbuf_t *buffer = nds_charbuf_wrap(win->buffer, 256);
+
+  nds_charbuf_destroy(win->buffer);
+  win->buffer = buffer;
+
+  for (i = 0; i < buffer->count; i++) {
     if (width < win->buffer->lines[i].width) {
       width = win->buffer->lines[i].width;
     }
@@ -1121,7 +1128,7 @@ void nds_display_file(const char *fname, int complain)
   }
 
   while (fgets(buf, BUFSZ, file)) {
-    putstr(win, ATR_NONE, buf);
+    putstr(win, ATR_NONE | 0x1000, buf);
   }
 
   display_nhwindow(win, 1);

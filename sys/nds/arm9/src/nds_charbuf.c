@@ -3,10 +3,15 @@
 
 #include "hack.h"
 
+#include "nds_charbuf.h"
 #include "nds_win.h"
 #include "nds_util.h"
 
+#include "font-bdf.h"
+
 #define BLOCK_SIZE 10
+
+char wrap_buffer[BUFSZ * 2];
 
 nds_charbuf_t *nds_charbuf_create(int initial_avail)
 {
@@ -40,7 +45,7 @@ void nds_charbuf_destroy(nds_charbuf_t *buffer)
   NULLFREE(buffer);
 }
 
-nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str)
+nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str, int reflow)
 {
   nds_line_t *ptr;
 
@@ -60,6 +65,7 @@ nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str)
 
   buffer->lines[buffer->count].text = strdup(str);
   buffer->lines[buffer->count].displayed = 0;
+  buffer->lines[buffer->count].reflow = reflow;
 
   text_dims(system_font, 
             (char *)str, 
@@ -71,113 +77,150 @@ nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str)
   return &(buffer->lines[buffer->count - 1]);
 }
 
-char *nds_eat_whitespace(char *ptr, int invert)
+/*
+ * Returns the string with the trailing whitespace stripped off, and the
+ * pointer advanced to point past the leading whitespace.
+ */
+char *strip(char *str, int front, int back)
 {
-  while (ISWHITESPACE(*ptr) ^ invert) {
-    ptr++;
+  char *end = str + strlen(str) - 1;
+
+  while (front && *str && ISWHITESPACE(*str)) {
+    str++;
   }
 
-  return ptr;
+  while (back && (end >= str) && ISWHITESPACE(*end)) {
+    *end = '\0';
+    end--;
+  }
+
+  return str;
 }
 
-void nds_charbuf_wrap_line(nds_charbuf_t *buffer, nds_line_t line, int maxwidth)
+/* Returns a pointer to the start of the next word in the given string. */
+char *get_next_word_end(char *str)
 {
-  char *text = line.text;
-  char *startptr, *endptr, *prevptr;
+  /* Advance to the next word. */
+  while (ISWHITESPACE(*str) && *str) {
+    str++;
+  }
 
-  startptr = text;
-  endptr = text;
-  prevptr = NULL;
+  /* Now advance to the end of the word. */
+  while (! ISWHITESPACE(*str) && *str) {
+    str++;
+  }
 
-  /* Fast forward past any leading spaces, we might as well preserve them. */
+  return str;
+}
+
+/*
+ * Copies a string into the destination buffer from the start of the wrap
+ * buffer, such that the string's width is less than or equal to the
+ * required width.  It then removes the characters from the wrap buffer.
+ * Returns the length of the string pulled out.
+ */
+int get_line_from_wrap_buffer(int width, char *dest)
+{
+  char *end = wrap_buffer;
+  int len;
 
   while (1) {
-    int c;
-    int width;
+    char *ptr = get_next_word_end(end);
+    char c = *ptr;
+    int str_w;
 
-    /* We're actually eating non-whitespace characters, here */
-    /* Okay, theoretically we're at the end of a word, so let's get the length */
+    *ptr = '\0';
+    text_dims(system_font, wrap_buffer, &str_w, NULL);
+    *ptr = c;
 
-    endptr = nds_eat_whitespace(endptr, 1);
+    if (str_w >= width) {
+      *end = '\0';
+      end++;
 
-    c = *endptr;
-    *endptr = '\0';
-
-    text_dims(system_font, startptr, &width, NULL);
-
-    /* 
-     * Okay, prevptr should be pointing to the previous word we found.  So, if
-     * the width is too much, and we have a previous word that we've found,
-     * we restart the current character, rewind to the previous word, put a
-     * NULL char at it's end, and append the string.  Then we start working again
-     * from the end of the previous word.
-     *
-     * Note, in all cases, once a wrapping is performed, we skip past any extra
-     * whitespace, since we don't want that appearing on the next line.
-     */
-    if ((width > maxwidth) && (prevptr != NULL)) {
-      *endptr = c;
-
-      *prevptr = '\0';
-      nds_charbuf_append(buffer, startptr);
-
-      startptr = nds_eat_whitespace(prevptr + 1, 0);
-      endptr = startptr;
-      prevptr = NULL;
-    } else if (width > maxwidth) {
-      /*
-       * Alright, the width is too long, but there's no previous word.  This 
-       * means this is just a *really* long word.  That's bad.  We'll just
-       * append it for now, but eventually, we should probably cut the string
-       * and append the pieces.
-       */
-
-      iprintf("Uhoh, this word is very big... I'm scurr\n");
-
-      nds_charbuf_append(buffer, startptr);
-      
-      startptr = nds_eat_whitespace(endptr + 1, 0);
-      endptr = startptr;
-      prevptr = NULL;
+      break;
     } else if (c == '\0') {
-      /*
-       * This, of course, is the end of the string.  So we just append what
-       * we've found and terminate.
-       */
+      end = ptr + 1;
+      *end = '\0'; /* We need this so that after the memmove there's a '\0' */
 
-      nds_charbuf_append(buffer, startptr);
       break;
     } else {
-      /*
-       * And, of course, the case where we found a word, but the buffer hasn't
-       * exceeded the max line width yet, and we aren't at the end of the string.
-       * In this case, just restore the original character (remember, we placed
-       * a NULL there in order to terminate the test string), and set up prevptr
-       * to point to this location, the end of the current word (in case the next
-       * word causes us to exceed the buffer width).
-       */
-      *endptr = c;
-
-      prevptr = endptr;
-      endptr = nds_eat_whitespace(endptr, 0);
+      end = ptr;
     }
   }
+
+  strcpy(dest, wrap_buffer);
+  len = end - wrap_buffer - 1;
+
+  /* Now let's erase any leading whitespace */
+  end = strip(end, 1, 0);
+
+  memmove(wrap_buffer, end, sizeof(wrap_buffer) - (end - wrap_buffer));
+
+  return len;
 }
 
 nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
 {
   nds_charbuf_t *dest = nds_charbuf_create(src->count);
-  int i;
 
-  /* We know we'll need at least as many lines as we have in the source */
+  char prefix[BUFSZ];
+  int prefix_len;
+  int prefix_width;
 
-  for (i = 0; i < src->count; i++) {
-    if (src->lines[i].width < maxwidth) {
-      nds_line_t *line = nds_charbuf_append(dest, src->lines[i].text);
+  char segment[BUFSZ];
+  int segment_len;
 
-      line->displayed = src->lines[i].displayed;
-    } else {
-      nds_charbuf_wrap_line(dest, src->lines[i], maxwidth);
+  int new_paragraph = 1;
+  int curline = 0;
+
+  wrap_buffer[0] = '\0';
+
+  while (1) {
+    char *buffer;
+
+    if (! *wrap_buffer && (curline >= src->count)) {
+      break;
+    } else if (new_paragraph && ! *wrap_buffer && (curline < src->count)) {
+      int reflow = src->lines[curline].reflow;
+      char *bufline = src->lines[curline++].text;
+      char *line = strip(bufline, 1, 1);
+
+      prefix_len = line - bufline;
+
+      strcpy(wrap_buffer, line);
+      strcat(wrap_buffer, " ");
+      strncpy(prefix, bufline, prefix_len); 
+      prefix[prefix_len] = '\0';
+
+      text_dims(system_font, prefix, &prefix_width, NULL);
+
+      new_paragraph = 0;
+
+      if ((curline > 0) && reflow) {
+        nds_charbuf_append(dest, "", 0);
+      }
+    } else if (! new_paragraph && (curline < src->count)) {
+      int reflow = src->lines[curline].reflow;
+      char *line = strip(src->lines[curline++].text, 1, 1); 
+
+      if (*line) {
+        strcat(wrap_buffer, line);
+        strcat(wrap_buffer, " ");
+
+        new_paragraph = (reflow == 0);
+      } else {
+        new_paragraph = 1;
+      }
+    }
+    
+    segment_len = get_line_from_wrap_buffer(maxwidth - prefix_width, segment);
+
+    if (segment_len > 0) {
+      buffer = (char *)malloc(prefix_len + segment_len + 1);
+      strcpy(buffer, prefix);
+      strcat(buffer, segment);
+
+      nds_charbuf_append(dest, buffer, 0);
     }
   }
 

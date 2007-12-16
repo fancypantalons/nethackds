@@ -92,6 +92,7 @@ static nds_cmd_t cmdlist[] = {
 	{M('l'), "Loot"},
 	{M('m'), "Monster"},
 	{M('n'), "Name"},
+	{M('o'), "Offer"},
 	{'o', "Open"},
 	{'p', "Pay"},
 	{',', "Pickup"},
@@ -102,7 +103,6 @@ static nds_cmd_t cmdlist[] = {
         {'\001', "Redo"},
 	{'R', "Remove"},
 	{M('r'), "Rub"},
-	{M('o'), "Sacrifice"},
 	{'S', "Save"},
 	{'s', "Search"},
 	{'O', "Set"},
@@ -389,6 +389,8 @@ void nds_config_key()
   nds_key_t key = { 0, NULL };
   nds_cmd_t cmd;
   char buf[BUFSZ];
+
+  nds_flush();
 
   nds_draw_prompt("Press the key to modify.");
 

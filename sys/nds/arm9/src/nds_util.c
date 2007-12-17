@@ -149,7 +149,7 @@ int touch_released_in(int x, int y, int x2, int y2)
   }
 }
 
-int get_touch_coords(touchPosition *coords)
+int get_tap_coords(touchPosition *coords)
 {
   if ((old_touch_coords.x == 0) && (old_touch_coords.y == 0)) {
     return 0;
@@ -160,4 +160,9 @@ int get_touch_coords(touchPosition *coords)
   *coords = old_touch_coords;
 
   return 1;
+}
+
+touchPosition get_touch_coords()
+{
+  return touch_coords;
 }

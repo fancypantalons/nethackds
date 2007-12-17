@@ -62,6 +62,11 @@ typedef struct {
 extern nds_nhwindow_t *windows[MAX_WINDOWS];
 extern struct font *system_font;
 
+extern struct ppm *up_arrow;
+extern struct ppm *down_arrow;
+extern struct ppm *okay_arrow;
+extern struct ppm *cancel_arrow;
+
 void nds_draw_prompt(char *prompt);
 void nds_clear_prompt();
 

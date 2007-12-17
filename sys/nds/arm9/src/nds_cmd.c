@@ -15,8 +15,7 @@
 #define M(c) (0x80 | (c))
 #define C(c) (0x1f & (c))
 
-#define COLWIDTH 60
-#define COLOFFS  4
+#define COLOFFS  2
 
 #define KEY_CONFIG_FILE "keys.cnf"
 
@@ -38,6 +37,7 @@ typedef struct {
   u16 f_char;
   char *name;
 
+  int page;
   int row;
   int col;
 
@@ -58,11 +58,10 @@ typedef struct {
 } nds_key_t;
 
 static nds_cmd_t cmdlist[] = {
-//	{C('p'), TRUE, doprev_message},
 	{M('a'), "Adjust"},
 	{'a', "Apply"},
 	{'A', "Armor"},
-	{C('x'), "Attributes"},
+	//{C('x'), "Attributes"},
 	{'C', "Call"},
 	{'Z', "Cast"},
 	{M('c'), "Chat"},
@@ -97,6 +96,7 @@ static nds_cmd_t cmdlist[] = {
 	{'p', "Pay"},
 	{',', "Pickup"},
 	{M('p'), "Pray"},
+	{C('p'), "Prev Mesg"},
 	{'P', "Put On"},
 	{'Q', "Quiver"},
 	{'r', "Read"},
@@ -111,13 +111,13 @@ static nds_cmd_t cmdlist[] = {
 	{'T', "Take Off"},
 	{C('t'), "Teleport"},
 	{'t', "Throw"},
-	{'@', "Toggle Pickup"},
-//	{M('2'), "Two Weapon"},
+	{'@', "Auto-pickup"},
+	// {M('2'), "Two Weapon"},
 	{M('t'), "Turn"},
 	{'I', "Type-Inv"},
 	{'<', "Up"},
 	{M('u'), "Untrap"},
-//	{'v', "Version"},
+	// {'v', "Version"},
 	{'.', "Wait"},
 	{'&', "What Does"},
 	{';', "What Is"},
@@ -125,7 +125,7 @@ static nds_cmd_t cmdlist[] = {
 	{'W', "Wear"},
 	{M('w'), "Wipe"},
 	{'z', "Zap"},
-//	{'/', "What Is"},
+	//{'/', "What Is"},
         /*
 	{WEAPON_SYM,  TRUE, doprwep},
 	{ARMOR_SYM,  TRUE, doprarm},
@@ -160,8 +160,21 @@ static nds_cmd_t wiz_cmdlist[] = {
         {0, NULL}
 };
 
-int cmd_rows;
-int cmd_cols;
+u16 *vram = (u16 *)BG_BMP_RAM(12);
+
+nds_cmd_t ***cmd_matrix;
+u16 **cmd_pages;
+int cmd_page_count;
+int cmd_page_size;
+
+int cmd_col_width = 0;
+int cmd_page_rows = 0;
+int cmd_page_cols = 0;
+
+int cmd_rows = 0;
+int cmd_cols = 0;
+
+int cmd_cur_page = 0;
 
 int input_buffer[INPUT_BUFFER_SIZE];
 
@@ -187,25 +200,17 @@ u16 key_map[] = {
   'l', 'h', 'k', 'j'
 };
 
-u16 *vram = (u16 *)BG_BMP_RAM(12);
-
 u16 cmd_key = KEY_L;
 u16 scroll_key = KEY_R;
 
 nds_cmd_t nds_cmd_loop();
 nds_cmd_t nds_kbd_cmd_loop();
 void nds_load_key_config();
+void nds_render_cmd_pages();
 
 void nds_init_cmd()
 {
-  int cur_x = COLOFFS;
-  int cur_y = 0;
-
-  int cur_row = 0;
-  int cur_col = 0;
-
   int i;
-  struct ppm *img = alloc_ppm(256, 192);
 
   if (flags.debug) {
     int idx = 0;
@@ -217,45 +222,9 @@ void nds_init_cmd()
     }
   }
 
-  for (i = 0; cmdlist[i].name != NULL; i++) {
-    int text_h = system_font->height;
-
-    if ((cur_y + text_h) > 192) {
-      cmd_rows = cur_row + 1;
-
-      cur_col++;
-      cur_x += COLWIDTH + COLOFFS;
-
-      cur_row = 0;
-      cur_y = 0;
-    }
-
-    draw_string(system_font, cmdlist[i].name, img,
-                cur_x, cur_y, 1,
-                255, 0, 255);
-
-    cmdlist[i].row = cur_row;
-    cmdlist[i].col = cur_col;
-
-    cmdlist[i].x1 = cur_x;
-    cmdlist[i].x2 = cur_x + COLWIDTH;
-    cmdlist[i].y1 = cur_y;
-    cmdlist[i].y2 = cur_y + text_h;
-
-    cur_row++;
-
-    if (flags.debug) {
-      cur_y += text_h;
-    } else {
-      cur_y += text_h + 2;
-    }
+  if (iflags.cmdwindow) {
+    nds_render_cmd_pages();
   }
-
-  draw_ppm_bw(img, vram, 0, 0, 256, 254, 255);
-
-  free_ppm(img);
-
-  cmd_cols = cur_col + 1;
 
   nds_load_key_config();
 
@@ -621,7 +590,7 @@ int nds_get_input(int *x, int *y, int *mod)
       *mod = CLICK_2;
 
       return 0;
-    } else if (get_touch_coords(&coords)) {
+    } else if (get_tap_coords(&coords)) {
       return nds_handle_click(coords.px, coords.py, x, y, mod);
     }
 
@@ -635,13 +604,124 @@ int nds_get_input(int *x, int *y, int *mod)
   return 0;
 }
 
+void nds_render_cmd_pages()
+{
+  int cur_page = -1;
+  int cur_row = 0;
+  int cur_col = 0;
+  int xoffs = 0;
+
+  int i;
+  struct ppm *img;
+
+  int cmd_cnt;
+  int cmd_x, cmd_y;
+  int char_w;
+
+  /* 
+   * First, let's compute some dimensions.  We'll need the column width, which
+   * amounts to the size of the largest command, along with the total number
+   * of commands in the list.
+   */
+  for (i = 0, cmd_cnt = 0; cmdlist[i].name != NULL; i++, cmd_cnt++) {
+    int str_w;
+
+    text_dims(system_font, cmdlist[i].name, &str_w, NULL);
+
+    if (str_w > cmd_col_width) {
+      cmd_col_width = str_w;
+    }
+  }
+
+  text_dims(system_font, "#", &char_w, NULL);
+
+  cmd_col_width += char_w;
+
+  /* 
+   * With the above, we can get the number of rows and columns per page, and
+   * then the total number of pages.
+   */
+  cmd_page_cols = 256 / cmd_col_width;
+  cmd_page_rows = (192 - up_arrow->height - down_arrow->height) / system_font->height;
+  cmd_page_count = cmd_cnt / (cmd_page_rows * cmd_page_cols);
+
+  if ((cmd_page_count * cmd_page_rows * cmd_page_cols) < cmd_cnt) {
+    cmd_page_count++;
+  }
+
+  cmd_pages = (u16 **)malloc(cmd_page_count * sizeof(u16 *));
+  cmd_page_size = 256 * (cmd_page_rows * system_font->height);
+
+  xoffs = 128 - (cmd_page_cols * cmd_col_width) / 2;
+
+  for (i = 0; i < cmd_page_count; i++) {
+    cmd_pages[i] = (u16 *)malloc(cmd_page_size);
+    memset(cmd_pages[i], 254, cmd_page_size);
+  }
+
+  /* Now initialize our command matrix */
+  cmd_cols = cmd_page_cols;
+  cmd_rows = cmd_cnt / cmd_cols;
+  cmd_matrix = (nds_cmd_t ***)malloc(cmd_rows * sizeof(nds_cmd_t **));
+
+  for (cur_row = 0; cur_row < cmd_rows; cur_row++) {
+    cmd_matrix[cur_row] = (nds_cmd_t **)malloc(cmd_cols * sizeof(nds_cmd_t *));
+  }
+
+  /*
+   * In this loop:
+   *   i       - the index into the command lits.
+   *   cur_row - the current page row.
+   *   cmd_y   - the current command matrix row.
+   *   cur_col - the current page column.
+   *   cmd_x   - the current command matrix column.
+   */
+  img = alloc_ppm(cmd_col_width, system_font->height);
+
+  for (i = 0, cur_page = 0; cur_page < cmd_page_count; cur_page++) {
+    for (cur_col = 0, cmd_x = 0; cur_col < cmd_page_cols; cur_col++, cmd_x++) {
+      for (cur_row = 0, cmd_y = cmd_page_rows * cur_page; (cur_row < cmd_page_rows) && (cmd_y < cmd_rows); cur_row++, cmd_y++, i++) {
+        nds_cmd_t *cur_cmd;
+
+        if (i >= cmd_cnt) {
+          goto RENDER_DONE;
+        }
+
+        cmd_matrix[cmd_y][cmd_x] = &(cmdlist[i]);
+        cur_cmd = cmd_matrix[cmd_y][cmd_x];
+
+        cur_cmd->page = cur_page;
+        cur_cmd->row = cmd_y;
+        cur_cmd->col = cmd_x;
+        cur_cmd->refresh = 0;
+
+        cur_cmd->x1 = cur_col * cmd_col_width + xoffs;
+        cur_cmd->y1 = cur_row * system_font->height + up_arrow->height;
+        cur_cmd->x2 = cur_cmd->x1 + cmd_col_width;
+        cur_cmd->y2 = cur_cmd->y1 + system_font->height;
+
+        clear_ppm(img);
+        draw_string(system_font, cur_cmd->name, img,
+                    0, 0, 1, 255, 0, 255);
+        draw_ppm_bw(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - up_arrow->height, 256, 254, 255);
+      }
+    }
+  }
+
+RENDER_DONE:
+
+  free_ppm(img);
+}
+
 nds_cmd_t *nds_find_command(int x, int y)
 {
   int i;
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
     if ((x >= cmdlist[i].x1) && (x <= cmdlist[i].x2) &&
-        (y >= cmdlist[i].y1) && (y <= cmdlist[i].y2)) {
+        (y >= cmdlist[i].y1) && (y <= cmdlist[i].y2) &&
+        (cmdlist[i].page == cmd_cur_page)) {
+
       return &(cmdlist[i]);
     }
   }
@@ -654,7 +734,9 @@ nds_cmd_t *nds_find_command_row_col(int row, int col)
   int i;
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
-    if ((row == cmdlist[i].row) && (col == cmdlist[i].col)) {
+    if ((row == cmdlist[i].row) && 
+        (col == cmdlist[i].col)) {
+
       return &(cmdlist[i]);
     }
   }
@@ -668,21 +750,19 @@ void nds_repaint_cmds()
   int i;
 
   if (img == NULL) {
-    int text_h = system_font->height;
-
-    img = alloc_ppm(COLWIDTH + COLOFFS, text_h);
+    img = alloc_ppm(cmd_col_width, system_font->height);
   }
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
-    if (cmdlist[i].refresh) {
+    if (cmdlist[i].refresh && (cmd_cur_page == cmdlist[i].page)) {
       clear_ppm(img);
 
       draw_string(system_font, cmdlist[i].name,
-                  img, COLOFFS, 0, 1,
+                  img, 0, 0, 1,
                   255, 0, 255);
 
       draw_ppm_bw(img, vram, 
-                  cmdlist[i].x1 - COLOFFS, cmdlist[i].y1,
+                  cmdlist[i].x1, cmdlist[i].y1,
                   256,
                   cmdlist[i].focused ? 252 : 254, 
                   cmdlist[i].highlighted ? 253 : 255);
@@ -697,18 +777,47 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
   int row, col;
   nds_cmd_t *newcmd;
 
-  if (! (pressed & KEY_DOWN) && ! (pressed & KEY_UP) &&
-      ! (pressed & KEY_LEFT) && ! (pressed & KEY_RIGHT)) {
-    return curcmd;
+  int up_arrow_x1 = 256 / 2 - up_arrow->width / 2;
+  int up_arrow_y1 = 0;
+  int up_arrow_x2 = 256 / 2 + up_arrow->width / 2;
+  int up_arrow_y2 = up_arrow->height;
+
+  int down_arrow_x1 = 256 / 2 - down_arrow->width / 2;
+  int down_arrow_y1 = 192 - down_arrow->height;
+  int down_arrow_x2 = 256 / 2 + down_arrow->width / 2;
+  int down_arrow_y2 = 192;
+
+  int key_pressed = (pressed & KEY_DOWN) ||
+                    (pressed & KEY_UP) ||
+                    (pressed & KEY_LEFT) ||
+                    (pressed & KEY_RIGHT);
+
+  if (touch_released_in(up_arrow_x1, up_arrow_y1, 
+                        up_arrow_x2, up_arrow_y2) && 
+      (cmd_cur_page != 0))  {
+
+    cmd_cur_page--;
+  } else if (touch_released_in(down_arrow_x1, down_arrow_y1, 
+                               down_arrow_x2, down_arrow_y2) && 
+             (cmd_cur_page < (cmd_page_count - 1)))  {
+
+    cmd_cur_page++;
   }
 
-  if (curcmd == NULL) {
-    cmdlist[0].focused = 1;
-    cmdlist[0].refresh = 1;
+  if (key_pressed && ((curcmd == NULL) || (curcmd->page != cmd_cur_page))) {
+    newcmd = nds_find_command_row_col(cmd_cur_page * cmd_page_rows, 0);
+
+    newcmd->focused = 1;
+    newcmd->refresh = 1;
 
     *refresh = 1;
 
-    return &(cmdlist[0]);
+    return newcmd;
+  } else if (! key_pressed) {
+    newcmd = (curcmd->page == cmd_cur_page) ? curcmd : NULL; 
+    refresh = (newcmd != curcmd);
+
+    return newcmd;
   }
 
   row = curcmd->row;
@@ -747,6 +856,8 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
     newcmd->refresh = 1;
 
     *refresh = 1;
+
+    cmd_cur_page = newcmd->page;
   }
 
   return newcmd;
@@ -756,6 +867,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
 {
   static int refresh = 0;
   static nds_cmd_t *curcmd = NULL;
+  static int displayed_page = -1;
 
   nds_cmd_t *picked_cmd = NULL;
   nds_cmd_t *tapped_cmd = curcmd;
@@ -763,7 +875,6 @@ nds_cmd_t nds_cmd_loop(int in_config)
   u16 old_bg_cr;
 
   touchPosition coords = { .x = 0, .y = 0 };
-  touchPosition lastCoords;
 
   int prev_held = 0;
 
@@ -788,21 +899,45 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
     swiWaitForVBlank();
 
+    /* If the page has changed, we need to render the new one. */
+
+    if (cmd_cur_page != displayed_page) {
+      dmaCopy(cmd_pages[cmd_cur_page], vram + 128 * up_arrow->height, cmd_page_size);
+
+      nds_draw_rect(0, 0, 256, up_arrow->height, 254, vram);
+      nds_draw_rect(0, 192 - up_arrow->height, 256, up_arrow->height, 254, vram);
+
+      if (cmd_cur_page != 0) {
+        draw_ppm_bw(up_arrow, vram, 
+                    256 / 2 - up_arrow->width / 2, 0,
+                    256, 254, 255);
+      }      
+
+      if (cmd_cur_page < (cmd_page_count - 1)) {
+        draw_ppm_bw(down_arrow, vram, 
+                    256 / 2 - down_arrow->width / 2, 192 - down_arrow->height,
+                    256, 254, 255);
+      }
+
+      displayed_page = cmd_cur_page;
+    }
+
+    /* If any of the items have changed, repaint */
+
     if (refresh) {
       nds_repaint_cmds();
 
       refresh = 0;
     }
 
-    lastCoords = coords;
-    coords = touchReadXY();
-
+    scan_touch_screen();
     scanKeys();
 
     prev_held = held;
 
     pressed = keysDown();
     held = keysHeld();
+    coords = get_touch_coords();
 
     if (((in_config || ! iflags.holdmode) && (pressed & KEY_B)) ||
         ((! in_config && ! (held & cmd_key) && iflags.holdmode)) ||
@@ -829,7 +964,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
       }
     }
 
-    if ((coords.x != 0) && (coords.y != 0)) {
+    if (held & KEY_TOUCH) {
       nds_cmd_t *cmd = nds_find_command(coords.px, coords.py);
 
       if (cmd != curcmd) {
@@ -847,9 +982,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
         refresh = 1;
       }
-    } else if ((coords.x == 0) && (coords.y == 0) &&
-               (lastCoords.x != 0) && (lastCoords.y != 0)) {
-      nds_cmd_t *cmd = nds_find_command(lastCoords.px, lastCoords.py);
+    } else if (get_tap_coords(&coords)) {
+      nds_cmd_t *cmd = nds_find_command(coords.px, coords.py);
 
       refresh = 1;
 

@@ -92,7 +92,7 @@ const char *x;
 	    raw_print(x);
 	else
 #ifdef NDS
-	    putstr(toptenwin, ATR_NONE | 0x1000, x);
+	    putstr(toptenwin, ATR_NONE | ATR_NOREFLOW, x);
 #else
 	    putstr(toptenwin, ATR_NONE, x);
 #endif
@@ -106,7 +106,7 @@ const char *x;
 	    raw_print_bold(x);
 	else
 #ifdef NDS
-	    putstr(toptenwin, ATR_BOLD | 0x1000, x);
+	    putstr(toptenwin, ATR_BOLD | ATR_NOREFLOW, x);
 #else
 	    putstr(toptenwin, ATR_BOLD, x);
 #endif

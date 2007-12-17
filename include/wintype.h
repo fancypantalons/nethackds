@@ -47,6 +47,10 @@ typedef struct mi {
 #define ATR_BLINK   5
 #define ATR_INVERSE 7
 
+#ifdef NDS
+#  define ATR_NOREFLOW 0x1000
+#endif
+
 /* nh_poskey() modifier types */
 #define CLICK_1     1
 #define CLICK_2     2

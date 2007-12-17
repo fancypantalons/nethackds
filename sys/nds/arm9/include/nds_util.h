@@ -22,5 +22,7 @@ void scan_touch_screen();
 int touch_down_in(int x, int y, int x2, int y2);
 int touch_was_down_in(int x, int y, int x2, int y2);
 int touch_released_in(int x, int y, int x2, int y2);
-int get_touch_coords(touchPosition *coords);
+int get_tap_coords(touchPosition *coords);
+touchPosition get_touch_coords();
+
 #endif

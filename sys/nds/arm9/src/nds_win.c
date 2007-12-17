@@ -47,13 +47,11 @@ struct ppm *cancel_button = NULL;
 
 void _nds_win_append_text(nds_nhwindow_t *win, int attr, const char *str)
 {
-  iprintf("%s\n", str);
-
   if (win->buffer == NULL) {
     win->buffer = nds_charbuf_create(0);
   }
 
-  nds_charbuf_append(win->buffer, str, (attr & 0x1000) == 0);
+  nds_charbuf_append(win->buffer, str, (attr & ATR_NOREFLOW) == 0);
 }
 
 void _nds_win_destroy_text(nds_nhwindow_t *win)
@@ -104,8 +102,6 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   keysSetRepeat(30, 2);
 
-  nds_init_cmd();
-
   for (i = 0; i < MAX_WINDOWS; i++) {
     windows[i] = NULL;
   }
@@ -145,6 +141,8 @@ void nds_init_nhwindows(int *argc, char **argv)
   _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
   _nds_copy_header_pixels(okay_data, (long *)okay_button->rgba);
   _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
+
+  nds_init_cmd();
 }
 
 void nds_player_selection()
@@ -644,6 +642,9 @@ void nds_putstr(winid win, int attr, const char *str)
 
     if (win == WIN_STATUS) {
       nds_update_status((char *)str);
+    } else if (win == WIN_MESSAGE) {
+      iprintf("HERE\n");
+      _nds_win_append_text(window, attr | ATR_NOREFLOW, str);
     } else {
       _nds_win_append_text(window, attr, str);
     }
@@ -657,6 +658,8 @@ void nds_putstr(winid win, int attr, const char *str)
   if (*str || ! newline) {
     if (win == WIN_STATUS) {
       nds_update_status((char *)str);
+    } else if (win == WIN_MESSAGE) {
+      _nds_win_append_text(window, attr | ATR_NOREFLOW, str);
     } else {
       _nds_win_append_text(window, attr, str);
     }
@@ -1128,7 +1131,7 @@ void nds_display_file(const char *fname, int complain)
   }
 
   while (fgets(buf, BUFSZ, file)) {
-    putstr(win, ATR_NONE | 0x1000, buf);
+    putstr(win, ATR_NONE | ATR_NOREFLOW, buf);
   }
 
   display_nhwindow(win, 1);

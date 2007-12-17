@@ -119,9 +119,9 @@ char *get_next_word_end(char *str)
  * required width.  It then removes the characters from the wrap buffer.
  * Returns the length of the string pulled out.
  */
-int get_line_from_wrap_buffer(int width, char *dest)
+int get_line_from_wrap_buffer(char *buffer, int buflen, char *dest, int maxwidth)
 {
-  char *end = wrap_buffer;
+  char *end = buffer;
   int len;
 
   while (1) {
@@ -130,10 +130,10 @@ int get_line_from_wrap_buffer(int width, char *dest)
     int str_w;
 
     *ptr = '\0';
-    text_dims(system_font, wrap_buffer, &str_w, NULL);
+    text_dims(system_font, buffer, &str_w, NULL);
     *ptr = c;
 
-    if (str_w >= width) {
+    if (str_w >= maxwidth) {
       *end = '\0';
       end++;
 
@@ -148,13 +148,13 @@ int get_line_from_wrap_buffer(int width, char *dest)
     }
   }
 
-  strcpy(dest, wrap_buffer);
-  len = end - wrap_buffer - 1;
+  strcpy(dest, buffer);
+  len = end - buffer - 1;
 
   /* Now let's erase any leading whitespace */
   end = strip(end, 1, 0);
 
-  memmove(wrap_buffer, end, sizeof(wrap_buffer) - (end - wrap_buffer));
+  memmove(buffer, end, buflen - (end - buffer));
 
   return len;
 }
@@ -216,7 +216,8 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
       }
     }
     
-    segment_len = get_line_from_wrap_buffer(maxwidth - prefix_width, segment);
+    segment_len = get_line_from_wrap_buffer(wrap_buffer, sizeof(wrap_buffer), 
+                                            segment, maxwidth - prefix_width);
 
     if (segment_len > 0) {
       buffer = (char *)malloc(prefix_len + segment_len + 1);

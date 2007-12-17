@@ -29,6 +29,8 @@ int _nds_display_yes_no_prompt(char *prompt);
 nds_nhwindow_t *windows[MAX_WINDOWS];
 struct font *system_font;
 
+int tag_width;
+
 /* Some variables that we'll use when drawing the screen */
 
 int map_rows;
@@ -76,6 +78,18 @@ void _nds_win_destroy_menu(nds_nhwindow_t *win)
 /*************************
  * Basic Window Functions
  *************************/
+
+void _nds_copy_header_pixels(char *src, long *buf)
+{
+  while (*src) {
+    int rgb[3];
+
+    HEADER_PIXEL(src, rgb);
+
+    *buf = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+    buf++;
+  }
+}
 
 /*
  * Initialize our window port.  Of course, there are no arguments but we
@@ -143,6 +157,10 @@ void nds_init_nhwindows(int *argc, char **argv)
   _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
 
   nds_init_cmd();
+
+  text_dims(system_font, "*", &tag_width, NULL);
+
+  tag_width *= 4;
 }
 
 void nds_player_selection()
@@ -720,24 +738,11 @@ void nds_clear_prompt()
  * display.
  */
 
-void _nds_copy_header_pixels(char *src, long *buf)
-{
-  while (*src) {
-    int rgb[3];
-
-    HEADER_PIXEL(src, rgb);
-
-    *buf = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
-    buf++;
-  }
-}
-
 void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 {
   u16 *vram = (u16 *)BG_BMP_RAM(2);
 
   int start_x, end_x, start_y, end_y;
-  int tag_w, tag_h;
 
   int maxidx;
 
@@ -745,11 +750,8 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
   end_x = 256 / 2 + (window->width / 2);
 
   if (window->buffer == NULL) {
-    text_dims(system_font, "*", &tag_w, &tag_h);
-
-    tag_w *= 4;
-    start_x -= tag_w;
-    end_x += tag_w;
+    start_x -= tag_width;
+    end_x += tag_width;
   }
 
   if (start_x < 0) {
@@ -777,12 +779,15 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     }
 
     if (! window->img) {
-      window->img = alloc_ppm(end_x - start_x, tag_h);
+      window->img = alloc_ppm(end_x - start_x, system_font->height * TITLE_MAX_LINES);
     }
 
-    for (i = window->topidx; (i < menu->count) && (cur_y < (end_y - start_y)); i++) {
+    for (i = window->topidx; (i < menu->count) && ((cur_y + menu->items[i].height) <= (end_y - start_y)); i++) {
       if (clear || menu->items[i].refresh) {
         char tag[3] = "  ";
+        int linenum = 0;
+
+        window->img->height = menu->items[i].height;
 
         clear_ppm(window->img);
 
@@ -794,35 +799,37 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
           }
         }
 
-        if (menu->items[i].id.a_int == 0) {
-          draw_string(system_font,
-                      menu->items[i].title,
-                      window->img, 0, 0, 1,
-                      255, 0, 255);
-        } else {
-          draw_string(system_font,
-                      tag,
-                      window->img, 0, 0, 1,
-                      255, 0, 255);
+        for (linenum = 0; menu->items[i].title[linenum][0]; linenum++) {
+          int yoffs = linenum * system_font->height;
 
-          draw_string(system_font,
-                      menu->items[i].title,
-                      window->img, tag_w, 0, 1,
-                      255, 0, 255);
-        }
+          if (menu->items[i].id.a_int == 0) {
+            draw_string(system_font,
+                        menu->items[i].title[linenum],
+                        window->img, 0, yoffs, 1,
+                        255, 0, 255);
+          } else {
+            if (linenum == 0) {
+              draw_string(system_font,
+                          tag,
+                          window->img, 0, yoffs, 1,
+                          255, 0, 255);
+            }
 
-        if (! clear) {
-          int width = end_x - start_x;
-
-          if (width > 256) {
-            width = 256;
+            draw_string(system_font,
+                        menu->items[i].title[linenum],
+                        window->img, tag_width, yoffs, 1,
+                        255, 0, 255);
           }
-
-          nds_draw_rect(start_x, start_y + cur_y, 
-                        width, menu->items[i].height,
-                        254, vram);
         }
 
+        /* 
+         * Yes, this is a complete frickin' hack.  Not all items take the full
+         * image height, but rather than write a new version of draw_ppm_bw that
+         * allowed cropping, I just change the height of the image to match the
+         * height of the item.  This effectively crops the images to the height
+         * of the item, while letting us use the same ppm struct during the
+         * entire rendering process, which means fewer malloc/free pairs.
+         */
         draw_ppm_bw(window->img, vram, start_x, start_y + cur_y, 
                     256, 
                     (menu->focused_item == i) ? 252 : 254, 
@@ -831,7 +838,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
         menu->items[i].refresh = 0;
       }
 
-      menu->items[i].x = start_x + tag_w;
+      menu->items[i].x = start_x + tag_width;
       menu->items[i].y = start_y + cur_y;
 
       cur_y += menu->items[i].height;
@@ -903,10 +910,6 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
   /* 
    * Get a few variables initialized 
    */
-
-  if (window->pagesize == 0) {
-    window->pagesize = window->bottomidx - window->topidx + 1;
-  }
 
   if (window->buffer) {
     count = window->buffer->count;
@@ -989,21 +992,16 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
   /* And now to handle the actual scroll commands */
 
   if (scroll_up && (window->topidx > 0)) {
-    window->topidx -= window->pagesize;
-    window->bottomidx -= window->pagesize;
+    window->cur_page--;
+    window->topidx = window->page_idxs[window->cur_page];
+
     *refresh = 1;
   } else if (scroll_down && (window->bottomidx < (count - 1))) {
-    window->topidx += window->pagesize;
-    window->bottomidx += window->pagesize;
-    *refresh = 1;
-  }
+    window->topidx = window->bottomidx + 1;
+    window->cur_page++;
+    window->page_idxs[window->cur_page] = window->topidx;
 
-  if (window->topidx < 0) {
-    window->topidx = 0;
-    window->bottomidx = window->pagesize - 1;
-  } else if (window->bottomidx >= count) {
-    window->topidx = count - window->pagesize;
-    window->bottomidx = count - 1;
+    *refresh = 1;
   }
 
   return 0;
@@ -1055,9 +1053,12 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
 
   win->width = width;
   win->height = height;
+
+  win->cur_page = 0;
+  win->page_idxs[0] = 0;
+
   win->topidx = 0;
   win->bottomidx = 0;
-  win->pagesize = 0;
 
   /* 
    * Clear VRAM in the BG2 layer and then activate it.
@@ -1175,6 +1176,9 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   nds_nhwindow_t *window = windows[win];
   nds_menuitem_t *items;
   int idx;
+  int title_cnt;
+  int title_len;
+  char title_tmp[96];
 
   if (! str) {
     return;
@@ -1192,8 +1196,16 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   window->menu->items = items;
   idx = window->menu->count++;
 
+  title_cnt = 0;
+  title_len = 0;
+  strcpy(title_tmp, str);
+
+  do {
+    title_len = get_line_from_wrap_buffer(title_tmp, sizeof(title_tmp), 
+                                          items[idx].title[title_cnt++], 256 - tag_width);
+  } while (title_len);
+
   items[idx].id = *id;
-  strncpy(items[idx].title, str, 80);
   items[idx].selected = presel;
   items[idx].highlighted = 0;
   items[idx].count = presel ? -1 : 0;
@@ -1367,19 +1379,16 @@ int _nds_do_menu(nds_nhwindow_t *window)
       }
 
       if (menu->focused_item < window->topidx) {
-        window->topidx -= window->pagesize;
-        window->bottomidx -= window->pagesize;
+        window->cur_page--;
+        window->topidx = window->page_idxs[window->cur_page];
+
         clear = 1;
       } else if (menu->focused_item > window->bottomidx) {
-        window->topidx += window->pagesize;
-        window->bottomidx += window->pagesize;
-        clear = 1;
-      }
+        window->topidx = window->bottomidx + 1;
+        window->cur_page++;
+        window->page_idxs[window->cur_page] = window->topidx;
 
-      if (window->topidx < 0) {
-        window->topidx = 0;
-      } else if (window->bottomidx >= menu->count) {
-        window->topidx = menu->count - window->pagesize;
+        clear = 1;
       }
 
       if (menu->focused_item != old_focused) {
@@ -1533,24 +1542,44 @@ int nds_select_menu(winid win, int how, menu_item **sel)
 
   for (i = 0; i < window->menu->count; i++) {
     nds_menuitem_t *item = &(window->menu->items[i]);
+    int linenum;
+    int item_width = 0;
+    int item_height = 0;
 
-    text_dims(system_font, item->title,
-              &(item->width), &(item->height));
+    for (linenum = 0; item->title[linenum][0]; linenum++) {
+      int line_width, line_height;
 
-    if (width < item->width) {
-      width = item->width;
+      text_dims(system_font, item->title[linenum],
+                &line_width, &line_height);
+
+      if (item_width < line_width) {
+        item_width = line_width;
+      }
+
+      item_height += line_height;
     }
 
-    height += item->height;
+    item->width = item_width;
+    item->height = item_height;
+
+    if (width < item_width) {
+      width = item_width;
+    }
+
+    height += item_height;
   }
 
   window->x = 1;
   window->y = 1;
   window->width = width;
   window->height = height;
+
+  window->cur_page = 0;
+  window->page_idxs[0] = 0;
+
   window->topidx = 0;
   window->bottomidx = 0;
-  window->pagesize = 0;
+
   window->menu->how = how;
 
   ret = _nds_do_menu(window);

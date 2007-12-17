@@ -17,6 +17,9 @@
 #define C_FURNITURE 24
 #define C_CORR      25
 
+#define TITLE_MAX_LINES 3
+#define MAX_PAGE        255
+
 typedef struct {
   ANY_P id;
   int count;
@@ -25,7 +28,7 @@ typedef struct {
   int refresh;
   int x, y;
   int width, height;
-  char title[96];
+  char title[TITLE_MAX_LINES][64];
 } nds_menuitem_t;
 
 typedef struct {
@@ -46,8 +49,9 @@ typedef struct {
   u8 type;
   int x, y;
   int width, height;
+  int cur_page;
+  int page_idxs[MAX_PAGE];
   int topidx, bottomidx;
-  int pagesize;
 
   // Window type-specific structures.
 

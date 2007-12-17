@@ -61,7 +61,7 @@ static nds_cmd_t cmdlist[] = {
 	{M('a'), "Adjust"},
 	{'a', "Apply"},
 	{'A', "Armor"},
-	//{C('x'), "Attributes"},
+	{C('x'), "Attributes"},
 	{'C', "Call"},
 	{'Z', "Cast"},
 	{M('c'), "Chat"},
@@ -112,20 +112,20 @@ static nds_cmd_t cmdlist[] = {
 	{C('t'), "Teleport"},
 	{'t', "Throw"},
 	{'@', "Auto-pickup"},
-	// {M('2'), "Two Weapon"},
+	{M('2'), "Two Weapon"},
 	{M('t'), "Turn"},
 	{'I', "Type-Inv"},
 	{'<', "Up"},
 	{M('u'), "Untrap"},
-	// {'v', "Version"},
+	{'v', "Version"},
 	{'.', "Wait"},
 	{'&', "What Does"},
 	{';', "What Is"},
+	{'/', "Ex-What Is"},
 	{'w', "Wield"},
 	{'W', "Wear"},
 	{M('w'), "Wipe"},
 	{'z', "Zap"},
-	//{'/', "What Is"},
         /*
 	{WEAPON_SYM,  TRUE, doprwep},
 	{ARMOR_SYM,  TRUE, doprarm},
@@ -610,6 +610,7 @@ void nds_render_cmd_pages()
   int cur_row = 0;
   int cur_col = 0;
   int xoffs = 0;
+  int yoffs = 0;
 
   int i;
   struct ppm *img;
@@ -642,7 +643,12 @@ void nds_render_cmd_pages()
    * then the total number of pages.
    */
   cmd_page_cols = 256 / cmd_col_width;
-  cmd_page_rows = (192 - up_arrow->height - down_arrow->height) / system_font->height;
+  cmd_page_rows = 192 / system_font->height;
+
+  if ((cmd_page_rows * cmd_page_cols) < cmd_cnt) {
+    cmd_page_rows = (192 - up_arrow->height - down_arrow->height) / system_font->height;
+  }
+
   cmd_page_count = cmd_cnt / (cmd_page_rows * cmd_page_cols);
 
   if ((cmd_page_count * cmd_page_rows * cmd_page_cols) < cmd_cnt) {
@@ -651,8 +657,6 @@ void nds_render_cmd_pages()
 
   cmd_pages = (u16 **)malloc(cmd_page_count * sizeof(u16 *));
   cmd_page_size = 256 * (cmd_page_rows * system_font->height);
-
-  xoffs = 128 - (cmd_page_cols * cmd_col_width) / 2;
 
   for (i = 0; i < cmd_page_count; i++) {
     cmd_pages[i] = (u16 *)malloc(cmd_page_size);
@@ -666,6 +670,14 @@ void nds_render_cmd_pages()
 
   for (cur_row = 0; cur_row < cmd_rows; cur_row++) {
     cmd_matrix[cur_row] = (nds_cmd_t **)malloc(cmd_cols * sizeof(nds_cmd_t *));
+  }
+
+  xoffs = 128 - (cmd_page_cols * cmd_col_width) / 2;
+
+  if (cmd_page_count > 1) {
+    yoffs = up_arrow->height;
+  } else {
+    yoffs = 192 / 2 - (cmd_rows * system_font->height) / 2;
   }
 
   /*
@@ -696,14 +708,14 @@ void nds_render_cmd_pages()
         cur_cmd->refresh = 0;
 
         cur_cmd->x1 = cur_col * cmd_col_width + xoffs;
-        cur_cmd->y1 = cur_row * system_font->height + up_arrow->height;
+        cur_cmd->y1 = cur_row * system_font->height + yoffs;
         cur_cmd->x2 = cur_cmd->x1 + cmd_col_width;
         cur_cmd->y2 = cur_cmd->y1 + system_font->height;
 
         clear_ppm(img);
         draw_string(system_font, cur_cmd->name, img,
                     0, 0, 1, 255, 0, 255);
-        draw_ppm_bw(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - up_arrow->height, 256, 254, 255);
+        draw_ppm_bw(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - yoffs, 256, 254, 255);
       }
     }
   }
@@ -792,12 +804,14 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
                     (pressed & KEY_LEFT) ||
                     (pressed & KEY_RIGHT);
 
-  if (touch_released_in(up_arrow_x1, up_arrow_y1, 
+  if ((cmd_page_count > 1) &&
+      touch_released_in(up_arrow_x1, up_arrow_y1, 
                         up_arrow_x2, up_arrow_y2) && 
       (cmd_cur_page != 0))  {
 
     cmd_cur_page--;
-  } else if (touch_released_in(down_arrow_x1, down_arrow_y1, 
+  } else if ((cmd_page_count > 1) &&
+             touch_released_in(down_arrow_x1, down_arrow_y1, 
                                down_arrow_x2, down_arrow_y2) && 
              (cmd_cur_page < (cmd_page_count - 1)))  {
 
@@ -814,7 +828,7 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
 
     return newcmd;
   } else if (! key_pressed) {
-    newcmd = (curcmd->page == cmd_cur_page) ? curcmd : NULL; 
+    newcmd = ((curcmd != NULL) && (curcmd->page == cmd_cur_page)) ? curcmd : NULL; 
     refresh = (newcmd != curcmd);
 
     return newcmd;
@@ -902,21 +916,23 @@ nds_cmd_t nds_cmd_loop(int in_config)
     /* If the page has changed, we need to render the new one. */
 
     if (cmd_cur_page != displayed_page) {
-      dmaCopy(cmd_pages[cmd_cur_page], vram + 128 * up_arrow->height, cmd_page_size);
+      dmaCopy(cmd_pages[cmd_cur_page], vram + 128 * cmdlist[0].y1, cmd_page_size);
 
-      nds_draw_rect(0, 0, 256, up_arrow->height, 254, vram);
-      nds_draw_rect(0, 192 - up_arrow->height, 256, up_arrow->height, 254, vram);
+      if (cmd_page_count > 1) {
+        nds_draw_rect(0, 0, 256, up_arrow->height, 254, vram);
+        nds_draw_rect(0, 192 - up_arrow->height, 256, up_arrow->height, 254, vram);
 
-      if (cmd_cur_page != 0) {
-        draw_ppm_bw(up_arrow, vram, 
-                    256 / 2 - up_arrow->width / 2, 0,
-                    256, 254, 255);
-      }      
+        if (cmd_cur_page != 0) {
+          draw_ppm_bw(up_arrow, vram, 
+                      256 / 2 - up_arrow->width / 2, 0,
+                      256, 254, 255);
+        }      
 
-      if (cmd_cur_page < (cmd_page_count - 1)) {
-        draw_ppm_bw(down_arrow, vram, 
-                    256 / 2 - down_arrow->width / 2, 192 - down_arrow->height,
-                    256, 254, 255);
+        if (cmd_cur_page < (cmd_page_count - 1)) {
+          draw_ppm_bw(down_arrow, vram, 
+                      256 / 2 - down_arrow->width / 2, 192 - down_arrow->height,
+                      256, 254, 255);
+        }
       }
 
       displayed_page = cmd_cur_page;
@@ -974,9 +990,11 @@ nds_cmd_t nds_cmd_loop(int in_config)
           curcmd->refresh = 1;
         }
 
-        cmd->highlighted = 1;
-        cmd->focused = 1;
-        cmd->refresh = 1;
+        if (cmd) {
+          cmd->highlighted = 1;
+          cmd->focused = 1;
+          cmd->refresh = 1;
+        }
 
         curcmd = cmd;
 

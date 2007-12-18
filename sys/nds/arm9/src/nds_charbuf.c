@@ -176,8 +176,6 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
   wrap_buffer[0] = '\0';
 
   while (*wrap_buffer || (curline < src->count)) {
-    char *buffer;
-
     if (src->lines[curline].displayed) {
       curline++;
       continue;
@@ -220,11 +218,11 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
                                             segment, maxwidth - prefix_width);
 
     if (segment_len > 0) {
-      buffer = (char *)malloc(prefix_len + segment_len + 1);
-      strcpy(buffer, prefix);
-      strcat(buffer, segment);
+      char tmp[BUFSZ];
+      strcpy(tmp, prefix);
+      strcat(tmp, segment);
 
-      nds_charbuf_append(dest, buffer, 0);
+      nds_charbuf_append(dest, tmp, 0);
     }
   }
 

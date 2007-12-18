@@ -17,7 +17,7 @@
 #define C_FURNITURE 24
 #define C_CORR      25
 
-#define TITLE_MAX_LINES 3
+#define TITLE_MAX_LINES 4
 #define MAX_PAGE        255
 
 typedef struct {

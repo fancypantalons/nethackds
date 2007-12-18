@@ -1200,6 +1200,8 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   title_len = 0;
   strcpy(title_tmp, str);
 
+  memset(items[idx].title, 0, sizeof(items[idx].title));
+
   do {
     title_len = get_line_from_wrap_buffer(title_tmp, sizeof(title_tmp), 
                                           items[idx].title[title_cnt++], 256 - tag_width);

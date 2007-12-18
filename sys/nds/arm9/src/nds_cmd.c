@@ -666,10 +666,19 @@ void nds_render_cmd_pages()
   /* Now initialize our command matrix */
   cmd_cols = cmd_page_cols;
   cmd_rows = cmd_cnt / cmd_cols;
+
+  if ((cmd_rows * cmd_cols) < cmd_cnt) {
+    cmd_rows++;
+  }
+
   cmd_matrix = (nds_cmd_t ***)malloc(cmd_rows * sizeof(nds_cmd_t **));
 
   for (cur_row = 0; cur_row < cmd_rows; cur_row++) {
     cmd_matrix[cur_row] = (nds_cmd_t **)malloc(cmd_cols * sizeof(nds_cmd_t *));
+
+    for (cur_col = 0; cur_col < cmd_cols; cur_col++) {
+      cmd_matrix[cur_row][cur_col] = NULL;
+    }
   }
 
   xoffs = 128 - (cmd_page_cols * cmd_col_width) / 2;
@@ -861,7 +870,9 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
 
   newcmd = nds_find_command_row_col(row, col);
 
-  if (newcmd != curcmd) {
+  if (newcmd == NULL) {
+    newcmd = curcmd;
+  } else if (newcmd != curcmd) {
     curcmd->highlighted = 0;
     curcmd->focused = 0;
     curcmd->refresh = 1;

@@ -219,6 +219,7 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
 
     if (segment_len > 0) {
       char tmp[BUFSZ];
+
       strcpy(tmp, prefix);
       strcat(tmp, segment);
 

@@ -327,6 +327,12 @@ int main()
 
   kbd_init();
 
+  if (! *plname) {
+    askname();
+  }
+
+  set_savefile_name();
+
   goodbye_msg = NULL;
 
   fd = create_levelfile(0, (char *)NULL);
@@ -347,8 +353,6 @@ int main()
   display_gamewindows();
 
   /* Now restore or start a new game */
-
-  set_savefile_name();
 
   if (((fd = restore_saved_game()) >= 0) && dorecover(fd)) {
     check_special_room(FALSE);

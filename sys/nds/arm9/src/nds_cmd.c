@@ -244,6 +244,10 @@ void nds_init_cmd()
   }
 
   memset(input_buffer, 0, sizeof(input_buffer));
+
+  for (i = 0; i < 256 * 192 / 2; i++) {
+    vram[i] = 0xFEFE;
+  };
 }
 
 int nds_map_key(u16 pressed)

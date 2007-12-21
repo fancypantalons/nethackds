@@ -157,6 +157,7 @@ void nds_init_nhwindows(int *argc, char **argv)
   _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
 
   nds_init_cmd();
+  nds_init_msg();
 
   text_dims(system_font, "*", &tag_width, NULL);
 
@@ -1895,13 +1896,6 @@ void nds_nhbell()
   iprintf("*bing*\n");
 }
 
-int nds_doprev_message()
-{
-  iprintf("prev message... srsly yo\n");
-
-  return 0;
-}
-
 void nds_delay_output()
 {
   // Do nothing for now
@@ -1965,7 +1959,7 @@ struct window_procs nds_procs = {
     nds_nhgetch,
     nds_nh_poskey,
     nds_nhbell,
-    nds_doprev_message,
+    nds_msg_history,
     nds_yn_function,
     nds_getlin,	
     nds_get_ext_cmd,

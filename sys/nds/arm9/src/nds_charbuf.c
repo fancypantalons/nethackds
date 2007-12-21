@@ -65,6 +65,7 @@ nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str, int reflo
 
   buffer->lines[buffer->count].text = strdup(str);
   buffer->lines[buffer->count].displayed = 0;
+  buffer->lines[buffer->count].historied = 0;
   buffer->lines[buffer->count].reflow = reflow;
 
   text_dims(system_font, 

@@ -6,6 +6,7 @@ typedef struct {
   int width;
   int height;
   int displayed;
+  int historied;
   int reflow;
 } nds_line_t;
 

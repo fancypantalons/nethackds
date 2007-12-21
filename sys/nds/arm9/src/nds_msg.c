@@ -9,11 +9,27 @@
 #include "nds_util.h"
 #include "ppm-lite.h"
 
+#define MSG_HISTORY_LINES 50
+
+char *message_history[MSG_HISTORY_LINES];
+
 struct ppm *msg_img = NULL;
 
 int text_h;
 
 int calls = 0;
+
+void nds_init_msg()
+{
+  int i;
+
+  memset(message_history, 0, sizeof(message_history));
+
+  for (i = 0; i < MSG_HISTORY_LINES; i++) {
+    message_history[i] = (char *)malloc(BUFSZ / 2);
+    message_history[i][0] = '\0';
+  }
+}
 
 void nds_get_msg_pos(int *x, int *y, int *w, int *h)
 {
@@ -50,6 +66,10 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   int msg_x, msg_y, msg_w, msg_h;
   int num_lines;
 
+  int i;
+  char *history_tmp[MSG_HISTORY_LINES];
+  int new_count = 0;
+
   nds_get_msg_pos(&msg_x, &msg_y, &msg_w, &msg_h);
 
   num_lines = msg_h / system_font->height;
@@ -67,6 +87,36 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   if (win->buffer == NULL) {
     return;
   }
+
+  /* First, count how many new lines we have */
+
+  for (i = 0; i < win->buffer->count; i++) {
+    if (! win->buffer->lines[i].historied) {
+      new_count++;
+    }
+  }
+
+  /* Now roll the history forward */
+
+  for (i = 0; i < MSG_HISTORY_LINES; i++) {
+    history_tmp[(i + new_count) % MSG_HISTORY_LINES] = message_history[i];
+  }
+
+  for (i = 0; i < MSG_HISTORY_LINES; i++) {
+    message_history[i] = history_tmp[i];
+  }
+
+  /* Now copy the new lines into the history */
+
+  for (i = 0; i < win->buffer->count; i++) {
+    if (win->buffer->lines[i].historied) {
+      continue;
+    }
+
+    strcpy(message_history[--new_count], win->buffer->lines[i].text);
+  }
+
+  /* Next, we wrap the buffer for display */
 
   buffer = nds_charbuf_wrap(win->buffer, 256 - msg_x);
 
@@ -90,6 +140,8 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
       clear_ppm(msg_img);
     }
 
+    buffer->lines[curline].historied = 1;
+
     draw_string(system_font, buffer->lines[curline].text, msg_img,
                 0, cur_y, 1,
                 255, 0, 255);
@@ -109,4 +161,17 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   nds_charbuf_destroy(win->buffer);
 
   win->buffer = buffer;
+}
+
+void nds_msg_history()
+{
+  winid win = create_nhwindow(NHW_TEXT);
+  int i;
+
+  for (i = 0; message_history[i][0] && (i < MSG_HISTORY_LINES); i++) {
+    putstr(win, ATR_NONE | ATR_NOREFLOW, message_history[i]);
+  }
+
+  display_nhwindow(win, 1);
+  destroy_nhwindow(win);
 }

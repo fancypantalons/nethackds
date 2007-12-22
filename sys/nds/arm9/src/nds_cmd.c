@@ -273,7 +273,6 @@ int nds_map_key(u16 pressed)
     }
 
     if (pressed & keys[i].key) {
-      printf("Found %s\n", key_map[i]);
       strcpy(input_buffer, &(key_map[i][1]));
 
       return key_map[i][0];
@@ -506,24 +505,6 @@ HAVEKEY:
   nds_save_key_config();
 
   nds_flush(0);
-}
-
-void nds_swap_handedness()
-{
-  u16 tmp = cmd_key;
-
-  cmd_key = chord_key;
-  chord_key = tmp;
-
-  nds_save_key_config();
-
-  clear_nhwindow(WIN_MESSAGE);
-
-  if (cmd_key == KEY_L) {
-    putstr(WIN_MESSAGE, ATR_NONE, "Switched to right-handed mode.");
-  } else {
-    putstr(WIN_MESSAGE, ATR_NONE, "Switched to left-handed mode.");
-  }
 }
 
 int nds_handle_click(int px, int py, int *x, int *y, int *mod)

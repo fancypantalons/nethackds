@@ -77,7 +77,7 @@ void nds_wait_key(int keys)
   }
 }
 
-void nds_flush()
+void nds_flush(int ignore)
 {
   memset(&old_touch_coords, 0, sizeof(old_touch_coords));
   memset(&touch_coords, 0, sizeof(touch_coords));
@@ -86,7 +86,7 @@ void nds_flush()
     swiWaitForVBlank();
     scanKeys();
 
-    if (keysHeld() == 0) {
+    if ((keysHeld() & ~ignore) == 0) {
       return;
     }
   }

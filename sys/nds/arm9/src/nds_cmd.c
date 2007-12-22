@@ -19,8 +19,12 @@
 
 #define KEY_CONFIG_FILE "keys.cnf"
 
-#define CMD_CONFIG     0x00FF
-#define KEY_SCROLL     0x00010000
+#define CMD_CONFIG    0xFF
+#define CMD_PAN_RIGHT 0xFE
+#define CMD_PAN_LEFT  0xFD
+#define CMD_PAN_UP    0xFC
+#define CMD_PAN_DOWN  0xFB
+#define KEY_CHORD     0x00010000
 
 #define INPUT_BUFFER_SIZE 32
 
@@ -194,24 +198,29 @@ static nds_key_t keys[NUMKEYS] = {
   { KEY_LEFT, "Left" },
   { KEY_UP, "Up" },
   { KEY_DOWN, "Down" },
-  { KEY_A | KEY_SCROLL, "A+R" },
-  { KEY_B | KEY_SCROLL, "B+R" },
-  { KEY_X | KEY_SCROLL, "X+R" },
-  { KEY_Y | KEY_SCROLL, "Y+R" },
-  { KEY_SELECT | KEY_SCROLL, "Select+R" },
-  { KEY_START | KEY_SCROLL, "Start+R" },
+  { KEY_A | KEY_CHORD, "A+R" },
+  { KEY_B | KEY_CHORD, "B+R" },
+  { KEY_X | KEY_CHORD, "X+R" },
+  { KEY_Y | KEY_CHORD, "Y+R" },
+  { KEY_SELECT | KEY_CHORD, "Select+R" },
+  { KEY_START | KEY_CHORD, "Start+R" },
+  { KEY_RIGHT | KEY_CHORD, "Right+R" },
+  { KEY_LEFT | KEY_CHORD, "Left+R" },
+  { KEY_UP | KEY_CHORD, "Up+R" },
+  { KEY_DOWN | KEY_CHORD, "Down+R" },
 };
 
 char key_map[NUMKEYS][INPUT_BUFFER_SIZE] = {
   ",", "s", "o", "\x4",
   "", "",
-  "l", "h", "k", "j"
+  "l", "h", "k", "j",
   "", "", "", "",
   "", "",
+  "\xFE", "\xFD", "\xFC", "\xFB"
 };
 
 u16 cmd_key = KEY_L;
-u16 scroll_key = KEY_R;
+u16 chord_key = KEY_R;
 
 nds_cmd_t nds_cmd_loop();
 nds_cmd_t nds_kbd_cmd_loop();
@@ -240,7 +249,7 @@ void nds_init_cmd()
 
   if (iflags.lefthanded) {
     cmd_key = KEY_R;
-    scroll_key = KEY_L;
+    chord_key = KEY_L;
   }
 
   memset(input_buffer, 0, sizeof(input_buffer));
@@ -259,11 +268,12 @@ int nds_map_key(u16 pressed)
      * If the scroll key is held, but this key mapping doesn't include a
      * scroll key, skip.
      */
-    if ((pressed & scroll_key) && ! (keys[i].key & KEY_SCROLL)) {
+    if ((pressed & chord_key) && ! (keys[i].key & KEY_CHORD)) {
       continue;
     }
 
     if (pressed & keys[i].key) {
+      printf("Found %s\n", key_map[i]);
       strcpy(input_buffer, &(key_map[i][1]));
 
       return key_map[i][0];
@@ -311,7 +321,7 @@ nds_cmd_t nds_get_config_cmd()
 {
   winid win;
   menu_item *sel;
-  ANY_P ids[10];
+  ANY_P ids[14];
   nds_cmd_t cmd;
 
   win = create_nhwindow(NHW_MENU);
@@ -327,6 +337,10 @@ nds_cmd_t nds_get_config_cmd()
   ids[7].a_int = 'j';
   ids[8].a_int = 'n';
   ids[9].a_int = 1;
+  ids[10].a_int = CMD_PAN_UP;
+  ids[11].a_int = CMD_PAN_DOWN;
+  ids[12].a_int = CMD_PAN_LEFT;
+  ids[13].a_int = CMD_PAN_RIGHT;
 
   add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Direction Keys", 0);
 
@@ -342,6 +356,10 @@ nds_cmd_t nds_get_config_cmd()
   add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Other", 0);
 
   add_menu(win, NO_GLYPH, &(ids[9]), 0, 0, 0, "Game Command", 0);
+  add_menu(win, NO_GLYPH, &(ids[10]), 0, 0, 0, "Pan Up", 0);
+  add_menu(win, NO_GLYPH, &(ids[11]), 0, 0, 0, "Pan Down", 0);
+  add_menu(win, NO_GLYPH, &(ids[12]), 0, 0, 0, "Pan Left", 0);
+  add_menu(win, NO_GLYPH, &(ids[13]), 0, 0, 0, "Pan Right", 0);
 
   end_menu(win, "What do you want to assign to this key?");
 
@@ -386,6 +404,22 @@ nds_cmd_t nds_get_config_cmd()
         cmd.name = "Move Down-Right";
         break;
 
+      case CMD_PAN_UP:
+        cmd.name = "Pan Up";
+        break;
+
+      case CMD_PAN_DOWN:
+        cmd.name = "Pan Down";
+        break;
+
+      case CMD_PAN_LEFT:
+        cmd.name = "Pan Left";
+        break;
+
+      case CMD_PAN_RIGHT:
+        cmd.name = "Pan Right";
+        break;
+
       default:
         cmd.name = NULL;
         break;
@@ -408,7 +442,7 @@ void nds_config_key()
   char buf[BUFSZ];
   char tmp[2];
 
-  nds_flush();
+  nds_flush(0);
 
   nds_draw_prompt("Press the key to modify.");
 
@@ -422,11 +456,11 @@ void nds_config_key()
     /* We don't let the user configure these */
 
     if ((held & cmd_key) ||
-        (held == scroll_key)) {
+        (held == chord_key)) {
       continue;
     } else if (held) {
       for (i = 0; i < NUMKEYS; i++) {
-        if ((held & scroll_key) && ! (keys[i].key & KEY_SCROLL)) {
+        if ((held & chord_key) && ! (keys[i].key & KEY_CHORD)) {
           continue;
         }
 
@@ -471,15 +505,15 @@ HAVEKEY:
 
   nds_save_key_config();
 
-  nds_flush();
+  nds_flush(0);
 }
 
 void nds_swap_handedness()
 {
   u16 tmp = cmd_key;
 
-  cmd_key = scroll_key;
-  scroll_key = tmp;
+  cmd_key = chord_key;
+  chord_key = tmp;
 
   nds_save_key_config();
 
@@ -550,14 +584,30 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
 
 int nds_get_input(int *x, int *y, int *mod)
 {
+  int tx, ty, old_tx, old_ty, start_tx, start_ty;
+  int cx, cy;
+
   touchPosition coords;
   int held_frames = 0;
+  int dragging = 0;
 
   /* Set one, initialize these! */
 
   *x = 0;
   *y = 0;
   *mod = 0;
+
+  /* Initialize our own tracking variables */
+  
+  tx = 0;
+  ty = 0;
+  old_tx = 0;
+  old_ty = 0;
+  start_tx = 0;
+  start_ty = 0;
+
+  cx = -1;
+  cy = -1;
 
   /* 
    * If there was characters stuffed in our input buffer, return one from
@@ -576,48 +626,35 @@ int nds_get_input(int *x, int *y, int *mod)
 
   /* Clear out any taps that happen to be occuring right now. */
 
-  nds_flush();
+  nds_flush(chord_key);
 
   while(1) {
     int key = 0;
     int pressed;
     int held;
 
-    scan_touch_screen();
     scanKeys();
 
     pressed = keysDownRepeat();
     held = keysHeld();
+    scan_touch_screen();
 
-    if (held & scroll_key) {
-      int cx, cy;
-      int changed = 0;
+    old_tx = tx;
+    old_ty = ty;
 
-      nds_map_get_center(&cx, &cy);
+    if (held & KEY_TOUCH) {
+      coords = get_touch_coords();
 
-      if (pressed & KEY_UP) {
-        cy--;
-        changed |= 1;
-      } 
-      
-      if (pressed & KEY_DOWN) {
-        cy++;
-        changed |= 1;
-      } 
-      
-      if (pressed & KEY_LEFT) {
-        cx--;
-        changed |= 1;
-      } 
-      
-      if (pressed & KEY_RIGHT) {
-        cx++;
-        changed |= 1;
+      tx = coords.px / nds_map_tile_width();
+      ty = coords.py / nds_map_tile_height();
+
+      if ((start_tx == 0) && (start_ty == 0)) {
+        start_tx = tx;
+        start_ty = ty;
       }
-
-      if (changed) {
-        nds_draw_map(windows[WIN_MAP]->map, &cx, &cy);
-      }
+    } else {
+      tx = 0;
+      ty = 0;
     }
 
     swiWaitForVBlank();
@@ -632,12 +669,34 @@ int nds_get_input(int *x, int *y, int *mod)
       }
 
       key = cmd.f_char;
-    } else if (held | pressed) {
+    } else if (pressed) {
       key = nds_map_key(held | pressed);
     }
 
     switch (key) {
       case 0:
+        break;
+
+      case CMD_PAN_UP:
+      case CMD_PAN_DOWN:
+      case CMD_PAN_LEFT:
+      case CMD_PAN_RIGHT:
+        {
+          nds_map_get_center(&cx, &cy);
+
+          if (key == CMD_PAN_UP) {
+            cy--;
+          } else if (key == CMD_PAN_DOWN) {
+            cy++;
+          } else if (key == CMD_PAN_LEFT) {
+            cx--;
+          } else if (key == CMD_PAN_RIGHT) {
+            cx++;
+          }
+
+          nds_draw_map(windows[WIN_MAP]->map, &cx, &cy);
+        }
+
         break;
 
       case CMD_CONFIG:
@@ -648,18 +707,52 @@ int nds_get_input(int *x, int *y, int *mod)
         return key;
     }
     
-    if (held_frames > CLICK_2_FRAMES) {
-      coords = touchReadXY();
+    if ((tx != 0) && (ty != 0) && (start_tx != 0) && (start_ty != 0) &&
+        ((old_tx != tx) || (old_ty != ty))) {
 
-      nds_map_translate_coords(coords.px, coords.py, x, y);
+      int diff_x = start_tx - tx;
+      int diff_y = start_ty - ty;
+
+      if ((ABS(diff_x) > 1) || (ABS(diff_y) > 1)) {
+        int new_cx, new_cy;
+
+        if ((cx < 0) && (cy < 0)) {
+          nds_map_get_center(&cx, &cy);
+        }
+
+        dragging = 1;
+
+        new_cx = cx + diff_x;
+        new_cy = cy + diff_y;
+
+        nds_draw_map(windows[WIN_MAP]->map, &new_cx, &new_cy);
+      }
+    }
+
+    if (dragging && (tx == 0) && (ty == 0) && (old_tx == 0) && (old_ty == 0)) {
+      start_tx = 0;
+      start_ty = 0;
+      cx = -1;
+      cy = -1;
+
+      dragging = 0;
+
+      continue;
+    } else if (dragging) {
+      continue;
+    }
+    
+    if (get_tap_coords(&coords)) {
+      return nds_handle_click(coords.px, coords.py, x, y, mod);
+    }
+    
+    if (held_frames > CLICK_2_FRAMES) {
+      *x = tx;
+      *y = ty;
       *mod = CLICK_2;
 
       return 0;
-    } else if (get_tap_coords(&coords)) {
-      return nds_handle_click(coords.px, coords.py, x, y, mod);
-    }
-
-    if (held & KEY_TOUCH) {
+    } else if (held & KEY_TOUCH) {
       held_frames++;
     } else {
       held_frames = 0;
@@ -1039,7 +1132,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
         ((! in_config && ! (held & cmd_key) && iflags.holdmode)) ||
         (! iflags.holdmode && (pressed & cmd_key)) ) {
 
-      nds_flush();
+      nds_flush(0);
 
       break;
     } else if (((held & KEY_A) || (held & KEY_X)) && curcmd) {
@@ -1101,7 +1194,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
           refresh = 1;
 
-          nds_flush();
+          nds_flush(0);
         }
       } else {
         held_frames++;

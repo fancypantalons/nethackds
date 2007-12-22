@@ -1067,7 +1067,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
 
   DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
 
-  nds_flush();
+  nds_flush(0);
 
   while (1) {
     if (refresh) {
@@ -1289,7 +1289,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
     nds_draw_prompt(menu->prompt);
   }
 
-  nds_flush();
+  nds_flush(0);
 
   swiWaitForVBlank();
 

@@ -16,7 +16,7 @@
 void memcpy16(void *dest, void *src, int count);
 int nds_load_file(char *fname, void *dest);
 void nds_wait_key(int keys);
-void nds_flush();
+void nds_flush(int ignore);
 
 void scan_touch_screen();
 int touch_down_in(int x, int y, int x2, int y2);

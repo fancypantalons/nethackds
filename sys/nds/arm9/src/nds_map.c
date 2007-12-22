@@ -836,6 +836,16 @@ void nds_map_translate_coords(int x, int y, int *tx, int *ty)
   *ty = sy + y / (tile_height * 8);
 }
 
+int nds_map_tile_width()
+{
+  return tile_width * 8;
+}
+
+int nds_map_tile_height()
+{
+  return tile_height * 8;
+}
+
 void nds_map_get_center(int *xp, int *yp)
 {
   *xp = cx;
@@ -852,8 +862,6 @@ void nds_map_relativize(int *px, int *py)
 
   upx = (u.ux - sx) * t_width + t_width / 2;
   upy = (u.uy - sy) * t_height + t_height / 2;
-
-  iprintf("%d %d\n", upx, upy);
 
   *px -= upx;
   *py -= upy;

@@ -221,10 +221,10 @@ void nds_load_text_tile(int glyph, int gx, int gy)
   int tile_idx = -1;
   int ch, color;
   unsigned int special;
-  unsigned char tmp[2] = { 0, 0 };
+  char tmp[2] = { 0, 0 };
   int tile_x, y, i;
   u16 *tile_ptr;
-  long *img_data;
+  unsigned char *img_data;
 
   /*
    * Allocate a tile RAM block for the given glyph.
@@ -252,9 +252,9 @@ void nds_load_text_tile(int glyph, int gx, int gy)
               text_img->width / 2 - font_char_w / 2, 
               text_img->height / 2 - font_char_h / 2, 
               1,
-              255, 0, 255);
+              255, 0);
 
-  img_data = (long *)text_img->rgba;
+  img_data = (unsigned char *)text_img->bitmap;
   tile_ptr = tile_ram + tile_idx * 64 / 2;
 
   /* Now copy the contents of the PPM to tile RAM */
@@ -375,11 +375,9 @@ int nds_init_tiled_map(u16 *palette, int *pallen)
  */
 int nds_init_text_map(u16 *palette, int *pallen)
 {
-  FILE *pfile;
-  int ret;
   int img_w, img_h;
-  u8 rgb[64];
-  int i, j;
+  int i;
+  int palcnt;
 
   if ((map_font = read_bdf(FONT_FILE_NAME)) == NULL) {
     iprintf("Unable to open '%s'\n", FONT_FILE_NAME);
@@ -387,29 +385,14 @@ int nds_init_text_map(u16 *palette, int *pallen)
     return -1;
   }
 
-  if ((pfile = fopen(FONT_PALETTE_NAME, "r")) == NULL) {
-    iprintf("Unable to open '%s'\n", FONT_PALETTE_NAME);
-
+  if ((palcnt = nds_load_palette(FONT_PALETTE_NAME, palette + 1)) < 0) {
     return -1;
   }
 
-  ret = fread(rgb, 1, sizeof(rgb), pfile);
-  fclose(pfile);
+  /* Generate our inverse palette */
 
-  if (ret < sizeof(rgb)) {
-    iprintf("Short read loading text palette (got %d, wanted %d)\n",
-            ret, sizeof(rgb));
-    return -1;
-  }
-
-  /* Translate to 16-color NDS palette */
-
-  for (i = 0, j = 1; i < sizeof(rgb); i += 4, j++) {
-    palette[j] = RGB15((rgb[i + 2] >> 3),
-                       (rgb[i + 1] >> 3),
-                       (rgb[i + 0] >> 3));
-
-    palette[j + 256] = palette[j] ^ 0x7FFF;
+  for (i = 1; i < palcnt + 1; i++) {
+    palette[i + 256] = palette[i] ^ 0x7FFF;
   }
 
   *pallen = 512;

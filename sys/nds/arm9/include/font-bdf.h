@@ -52,21 +52,9 @@ void text_dims(struct font *fnt, char *str, int *width, int *height);
    Alpha ranges from 0-255.
    Newlines are allowed; tabs are not handled specially.
  */
-extern void draw_string (struct font *font, unsigned char *string,
+extern void draw_string (struct font *font, char *string,
                          struct ppm *into, int x, int y,
                          int alignment,
-                         unsigned long fg, unsigned long bg,
-                         int alpha);
-
-/* Scale font bitmaps with scale_ppm(). */
-extern void scale_font (struct font *font, double scale);
-
-/* Add a blurry halo around the font: e.g., so that the same text will
-   be visible on light or dark backgrounds.
- */
-extern void halo_font (struct font *font, int radius);
-
-/* Write debugging info on stderr. */
-extern void dump_font (struct font *font, int which_char);
+                         unsigned long fg, unsigned long bg);
 
 #endif /* __FONT_BDF__ */

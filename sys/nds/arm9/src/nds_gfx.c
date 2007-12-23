@@ -1,4 +1,5 @@
 #include <nds.h>
+#include <stdio.h>
 #include "nds_gfx.h"
 #include "font-bdf.h"
 #include "ppm-lite.h"
@@ -72,7 +73,7 @@ void nds_draw_text(struct font *fnt,
   
   img = alloc_ppm(w, h);
 
-  draw_string(fnt, str, img, 0, 0, 1, 255, 0, 255);
+  draw_string(fnt, str, img, 0, 0, 1, 255, 0);
 
   draw_ppm_bw(img, dest, x, y, 256, black, white);
 
@@ -142,4 +143,35 @@ void nds_draw_bmp(bmp_t *bmp, u16 *vram, u16 *palette)
       }
     }
   }
+}
+
+int nds_load_palette(char *fname, nds_palette palette)
+{
+  FILE *pfile;
+  int ret;
+  u8 rgb[64];
+  int i, j;
+
+  if ((pfile = fopen(fname, "r")) == NULL) {
+    iprintf("Unable to open '%s'\n", fname);
+
+    return -1;
+  }
+
+  ret = fread(rgb, 1, sizeof(rgb), pfile);
+  fclose(pfile);
+
+  if (ret < sizeof(rgb)) {
+    iprintf("Short read loading text palette (got %d, wanted %d)\n",
+            ret, sizeof(rgb));
+    return -1;
+  }
+
+  for (i = 0, j = 0; i < sizeof(rgb); i += 4, j++) {
+    palette[j] = RGB15((rgb[i + 2] >> 3),
+                       (rgb[i + 1] >> 3),
+                       (rgb[i + 0] >> 3));
+  }
+
+  return sizeof(rgb) / 4;
 }

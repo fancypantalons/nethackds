@@ -49,7 +49,7 @@ void nds_msg_wait_key(int cur_y)
 
   draw_string(system_font, "Press A...", msg_img,
               0, cur_y, 1,
-              255, 0, 255);
+              255, 0);
 
   draw_ppm_bw(msg_img, vram, msg_x, msg_y, 256, 254, 255);
 
@@ -144,7 +144,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
 
     draw_string(system_font, buffer->lines[curline].text, msg_img,
                 0, cur_y, 1,
-                255, 0, 255);
+                255, 0);
 
     cur_y += buffer->lines[curline].height;
 
@@ -163,7 +163,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   win->buffer = buffer;
 }
 
-void nds_msg_history()
+int nds_msg_history()
 {
   winid win = create_nhwindow(NHW_TEXT);
   int i;
@@ -174,4 +174,6 @@ void nds_msg_history()
 
   display_nhwindow(win, 1);
   destroy_nhwindow(win);
+  
+  return 0;
 }

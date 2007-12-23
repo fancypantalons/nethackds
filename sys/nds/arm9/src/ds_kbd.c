@@ -27,8 +27,6 @@ const nds_kbd_key *kbdrows[] = {row0, row1, row2, row3, row4};
 static int shift = false, ctrl = false, alt = false, caps = false;
 
 void kbd_init() {
-	u16 i;
-
         nds_load_file("/NetHack/kbd.bin", (void *)BG_TILE_RAM(0));
         nds_load_file("/NetHack/kbd.pal", (void *)BG_PALETTE);
         nds_load_file("/NetHack/kbd.map", (void *)BG_MAP_RAM(4));

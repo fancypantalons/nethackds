@@ -160,9 +160,9 @@ read_bdf (const char *file)
               ppm->width = ((w + 7) / 8) * 8;
               ppm->height = h;
 
-              ppm->rgba = (unsigned char *)
-                calloc (1, (ppm->width * ppm->height * 4));
-              if (!ppm->rgba)
+              ppm->bitmap = (unsigned char *)
+                calloc (1, (ppm->width * ppm->height));
+              if (!ppm->bitmap)
                 {
                   iprintf ("%s: out of memory (%d x %d)\n",
                            ppm->width, ppm->height);
@@ -208,7 +208,7 @@ read_bdf (const char *file)
                 {
                   int yy = (y + yoff);
                   struct ppm *ppm = font->chars[current_char].ppm;
-                  unsigned char *o = (ppm->rgba + (yy * ppm->width * 4));
+                  unsigned char *o = (ppm->bitmap + (yy * ppm->width));
                   char *s;
 
                   if (yy < 0 || yy >= ppm->height) abort();
@@ -223,8 +223,8 @@ read_bdf (const char *file)
                             /* ink bits are 0 (black) and opaque (255).
                                non-ink bits are 0 (black) and clear (0).
                              */
-                            o[3] = ((h & (1<<i)) ? 255 : 0);
-                            o += 4;
+                            *o = ((h & (1<<i)) ? 255 : 0);
+                            o++;
                           }
                     }
                 }
@@ -353,8 +353,7 @@ text_dims(struct font *fnt, char *str, int *width, int *height)
 static int
 draw_char (struct font *font, const unsigned char c,
            struct ppm *into, int x, int y,
-           unsigned long fg, unsigned long bg,
-           int alpha)
+           unsigned long fg, unsigned long bg)
 {
   int w = font->chars[(int) c].width;
   struct ppm *from = font->chars[(int) c].ppm;
@@ -366,7 +365,7 @@ draw_char (struct font *font, const unsigned char c,
       y += font->ascent;
       paste_ppm (into, x, y,
                  from, 0, 0, from->width, from->height,
-                 fg, bg, alpha);
+                 fg, bg);
     }
   return w;
 }
@@ -379,15 +378,14 @@ draw_char (struct font *font, const unsigned char c,
    Newlines are allowed; tabs are not handled specially.
  */
 void
-draw_string (struct font *font, unsigned char *string,
+draw_string (struct font *font, char *string,
              struct ppm *into, int x, int y,
              int alignment,
-             unsigned long fg, unsigned long bg,
-             int alpha)
+             unsigned long fg, unsigned long bg)
 {
   int ox = x;
   int w;
-  unsigned char *s2;
+  char *s2;
 
  LINE:
   x = ox;
@@ -417,143 +415,9 @@ draw_string (struct font *font, unsigned char *string,
         }
       else
         {
-          int w = draw_char (font, *string, into, x, y, fg, bg, alpha);
+          int w = draw_char (font, *string, into, x, y, fg, bg);
           x += w;
         }
       string++;
-    }
-}
-
-
-void
-scale_font (struct font *font, double scale)
-{
-  int i;
-
-# define SCALE(x) ((x) = (scale * ((x) > 0 ? ((x) + 0.5) : ((x) - 0.5))))
-
-  SCALE (font->ascent);
-  SCALE (font->descent);
-
-  for (i = 0; i < countof(font->chars); i++)
-    {
-      SCALE (font->chars[i].lbearing);
-      SCALE (font->chars[i].width);
-      SCALE (font->chars[i].descent);
-
-      if (font->chars[i].ppm)
-        {
-          struct ppm *ppm2 = scale_ppm (font->chars[i].ppm, scale);
-          free_ppm (font->chars[i].ppm);
-          font->chars[i].ppm = ppm2;
-        }
-    }
-# undef SCALE
-}
-
-
-void
-halo_font (struct font *font, int radius)
-{
-  int i;
-  for (i = 0; i < countof(font->chars); i++)
-    if (font->chars[i].ppm)
-      {
-        struct ppm *ppm = font->chars[i].ppm;
-        struct ppm *halo = blur_ppm (ppm, radius);
-        unsigned char *p = halo->rgba;
-        unsigned char *end = p + (halo->width * halo->height * 4);
-
-        /* Set the halo pixels to be the background color (white). */
-        while (p < end)
-          {
-            *p++ = 255;
-            *p++ = 255;
-            *p++ = 255;
-            p++;
-          }
-
-        /* Overlay the character bits (black) on the halo bits (white). */
-        paste_ppm (halo, radius, radius,
-                   ppm, 0, 0, ppm->width, ppm->height,
-                   -1, -1, 255);
-
-        /* Now install the result in the font. */
-        font->chars[i].ppm = halo;
-        free_ppm (ppm);
-
-        /* The size of the PPM changed, so adjust the offsets into it. */
-        font->chars[i].lbearing += radius;
-        font->chars[i].descent  -= radius;
-      }
-
-  font->monochrome_p = 0;
-}
-
-void
-dump_font (struct font *font, int which)
-{
-  int i;
-  int alpha = 128;
-
-  for (i = 0; i < countof(font->chars); i++)
-    {
-      int x, y;
-      int x1, x2, y1, y2;
-
-      struct ppm *ppm = font->chars[i].ppm;
-      if (!ppm)
-        continue;
-
-      if (which > 0 && which != i)
-        continue;
-
-      x1 = font->chars[i].lbearing;
-      x2 = font->chars[i].width + font->chars[i].lbearing;
-      y1 = ppm->height + font->chars[i].descent - font->ascent;
-      y2 = ppm->height + font->chars[i].descent;
-
-      fprintf (stderr, "%3d: %c  ", i, i);
-      for (x = 0; x < ppm->width; x++)
-        fprintf (stderr, "%c", (x >= 10 ? (x / 10) + '0' : ' '));
-      fputs ("\n", stderr);
-
-      fprintf (stderr, "        ");
-      for (x = 0; x < ppm->width; x++)
-        fprintf (stderr, "%d", (x % 10));
-      fputs ("\n", stderr);
-
-      fputs ("       +", stderr);
-
-      for (x = 0; x < ppm->width; x++)
-        fputs ((x == x1 ? "/" : x == x2 ? "\\" : "-"), stderr);
-      fprintf (stderr, "+   %d,%d - %d,%d\n", x1, y1, x2, y2);
-
-      for (y = 0; y < ppm->height; y++)
-        {
-          fprintf (stderr, "   %2d: %c",
-                   y, (y == y1 ? '/' : y == y2 ? '\\' : '|'));
-          for (x = 0; x < ppm->width; x++)
-            {
-              unsigned char r, g, b, a;
-              get_pixel (ppm, x, y, &r, &g, &b, &a);
-              if (a >= alpha)
-                fputs ("#", stderr);
-              else if (x == x1 || x == x2 ||
-                       y == y1 || y == y2)
-                fputs (":", stderr);
-              else if (a > 0)
-                fputs ("-", stderr);
-              else
-                fputs (" ", stderr);
-            }
-          fprintf (stderr, "%c\n", (y == y1 ? '\\' : y == y2 ? '/' : '|'));
-        }
-
-      fputs ("       +", stderr);
-      for (x = 0; x < ppm->width; x++)
-        fputs ((x == x1 ? "\\" : x == x2 ? "/" : "-"), stderr);
-      fputs ("+\n", stderr);
-
     }
 }

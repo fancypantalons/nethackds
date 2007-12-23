@@ -59,7 +59,6 @@ void nds_update_status(char *str)
 
     nds_charbuf_append(status_lines, str, 0);
   } else {
-    int cnt = 0;
     nds_charbuf_t *wrapped;
     int i;
 
@@ -79,7 +78,7 @@ void nds_update_status(char *str)
 
       draw_string(system_font, wrapped->lines[i].text, status_img, 
                   0, 0, 1,
-                  255, 0, 255);
+                  255, 0);
 
       draw_ppm_bw(status_img, vram, status_x, status_y + text_h * i, 256, 254, 255);
     }

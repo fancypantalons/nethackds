@@ -79,15 +79,17 @@ void _nds_win_destroy_menu(nds_nhwindow_t *win)
  * Basic Window Functions
  *************************/
 
-void _nds_copy_header_pixels(char *src, long *buf)
+void _nds_copy_header_pixels(char *src, unsigned char *buf, unsigned char black, unsigned char white)
 {
   while (*src) {
-    int rgb[3];
+    union {
+      int rgba[4];
+      long value;
+    } pixel;
 
-    HEADER_PIXEL(src, rgb);
+    HEADER_PIXEL(src, pixel.rgba);
 
-    *buf = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
-    buf++;
+    *buf = (pixel.value != 0) ? white : black;
   }
 }
 
@@ -151,10 +153,10 @@ void nds_init_nhwindows(int *argc, char **argv)
   okay_button = alloc_ppm(16, 16);
   cancel_button = alloc_ppm(16, 16);
 
-  _nds_copy_header_pixels(up_arrow_data, (long *)up_arrow->rgba);
-  _nds_copy_header_pixels(down_arrow_data, (long *)down_arrow->rgba);
-  _nds_copy_header_pixels(okay_data, (long *)okay_button->rgba);
-  _nds_copy_header_pixels(cancel_data, (long *)cancel_button->rgba);
+  _nds_copy_header_pixels(up_arrow_data, (unsigned char *)up_arrow->bitmap, 254, 255);
+  _nds_copy_header_pixels(down_arrow_data, (unsigned char *)down_arrow->bitmap, 254, 255);
+  _nds_copy_header_pixels(okay_data, (unsigned char *)okay_button->bitmap, 254, 255);
+  _nds_copy_header_pixels(cancel_data, (unsigned char *)cancel_button->bitmap, 254, 255);
 
   nds_init_cmd();
   nds_init_msg();
@@ -721,7 +723,7 @@ void nds_draw_prompt(char *prompt)
   /* Draw the prompt */
 
   clear_ppm(prompt_img);
-  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, 1, 255, 0, 255);
+  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, 1, 255, 0);
   draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
 }
 
@@ -807,19 +809,19 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
             draw_string(system_font,
                         menu->items[i].title[linenum],
                         window->img, 0, yoffs, 1,
-                        255, 0, 255);
+                        255, 0);
           } else {
             if (linenum == 0) {
               draw_string(system_font,
                           tag,
                           window->img, 0, yoffs, 1,
-                          255, 0, 255);
+                          255, 0);
             }
 
             draw_string(system_font,
                         menu->items[i].title[linenum],
                         window->img, tag_width, yoffs, 1,
-                        255, 0, 255);
+                        255, 0);
           }
         }
 
@@ -868,7 +870,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
       draw_string(system_font,
                   charbuf->lines[i].text,
                   window->img, 0, cur_y, 1,
-                  255, 0, 255);
+                  255, 0);
 
       cur_y += charbuf->lines[i].height;
     }
@@ -1645,7 +1647,7 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
   int done = 0;
 
   if (ques) {
-    nds_draw_prompt(ques);
+    nds_draw_prompt((char *)ques);
   }
 
   DISPLAY_CR |= DISPLAY_BG0_ACTIVE;

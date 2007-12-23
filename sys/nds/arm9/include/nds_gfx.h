@@ -4,6 +4,8 @@
 #include "bmp.h"
 #include "font-bdf.h"
 
+typedef u16 nds_palette[16];
+
 /*
  * Various graphics functions.
  */
@@ -21,5 +23,6 @@ void nds_draw_text(struct font *fnt,
 
 void nds_fill(u16 *dest, u8 colour);
 void nds_draw_bmp(bmp_t *bmp, u16 *vram, u16 *palette);
+int nds_load_palette(char *fname, nds_palette palette);
 
 #endif

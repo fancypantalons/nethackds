@@ -21,7 +21,7 @@ extern const char *progname;
 struct ppm {
   int type;                     /* 1-6 */
   int width, height;
-  unsigned char *rgba;          /* 32 bpp, even for PBM and PGM data. */
+  unsigned char *bitmap;        /* Indexed bitmap */
 };
 
 /* Filenames below may be "-" for stdin/stdout. */
@@ -29,24 +29,15 @@ extern struct ppm *alloc_ppm(int width, int height);
 
 extern void clear_ppm(struct ppm *ppm);
 
-extern struct ppm *read_ppm (const char *filename);
-extern void write_ppm (struct ppm *ppm, const char *filename);
-
 extern struct ppm *copy_ppm (struct ppm *ppm);
 extern void free_ppm (struct ppm *ppm);
 
 extern void get_pixel (struct ppm *ppm,
                        int x, int y,    /* out of range is ok */
-                       unsigned char *r_ret,
-                       unsigned char *g_ret,
-                       unsigned char *b_ret,
-                       unsigned char *a_ret);
+                       unsigned char *pixel);
 extern void put_pixel (struct ppm *ppm,
                        int x, int y,    /* out of range is ok */
-                       unsigned char r,
-                       unsigned char g,
-                       unsigned char b,
-                       unsigned char a);
+                       unsigned char pixel);
 
 /* Paste part of one image into another, with all necessary clipping.
    Alpha controls the blending of the new image into the old image
@@ -58,8 +49,7 @@ extern void put_pixel (struct ppm *ppm,
  */
 extern void paste_ppm (struct ppm *into, int to_x, int to_y,
                        struct ppm *from, int from_x, int from_y, int w, int h,
-                       unsigned int override_fg, unsigned int override_bg,
-                       int alpha);
+                       unsigned char fg, unsigned char bg);
 
 /*
  * Draws a B&W version of a font to the specified memory location, assumed
@@ -70,15 +60,5 @@ extern void paste_ppm (struct ppm *into, int to_x, int to_y,
 extern void draw_ppm_bw(struct ppm *ppm, unsigned short *target, 
                         int px, int py, int width,
                         int black, int white);
-
-/* Returns a copy of the PPM, scaled larger or smaller.
-   When scaling down, it dithers; when scaling up, it does not.
- */
-extern struct ppm *scale_ppm (struct ppm *ppm, double scale);
-
-/* Returns a copy of the PPM, blurred out.
-   The PPM will be enlarged in both directions by 2*radius.
- */
-extern struct ppm *blur_ppm (struct ppm *ppm, int radius);
 
 #endif /* __PPM_LITE__ */

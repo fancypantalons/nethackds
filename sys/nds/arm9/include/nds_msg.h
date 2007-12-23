@@ -5,6 +5,6 @@
 
 void nds_init_msg();
 void nds_update_msg(nds_nhwindow_t *win, int blocking);
-void nds_msg_history();
+int nds_msg_history();
 
 #endif

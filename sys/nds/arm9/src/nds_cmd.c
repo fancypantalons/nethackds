@@ -862,7 +862,7 @@ void nds_render_cmd_pages()
 
         clear_ppm(img);
         draw_string(system_font, cur_cmd->name, img,
-                    0, 0, 1, 255, 0, 255);
+                    0, 0, 1, 255, 0);
         draw_ppm_bw(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - yoffs, 256, 254, 255);
       }
     }
@@ -919,7 +919,7 @@ void nds_repaint_cmds()
 
       draw_string(system_font, cmdlist[i].name,
                   img, 0, 0, 1,
-                  255, 0, 255);
+                  255, 0);
 
       draw_ppm_bw(img, vram, 
                   cmdlist[i].x1, cmdlist[i].y1,
@@ -977,7 +977,7 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
     return newcmd;
   } else if (! key_pressed) {
     newcmd = ((curcmd != NULL) && (curcmd->page == cmd_cur_page)) ? curcmd : NULL; 
-    refresh = (newcmd != curcmd);
+    *refresh = (newcmd != curcmd);
 
     return newcmd;
   }

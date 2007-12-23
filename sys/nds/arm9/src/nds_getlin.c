@@ -11,7 +11,7 @@
 
 #define HISTORY_SIZE 10
 
-const char input_history[HISTORY_SIZE][BUFSZ];
+char input_history[HISTORY_SIZE][BUFSZ];
 int history_count = 0;
 
 void _nds_push_history(char *str)
@@ -77,8 +77,8 @@ void nds_getlin(const char *prompt, char *buffer)
 
     text_dims(system_font, front, &front_w, NULL);
 
-    draw_string(system_font, front, input_img, 0, 0, 1, 255, 0, 255);
-    draw_string(system_font, back, input_img, front_w, 0, 1, 255, 0, 255);
+    draw_string(system_font, front, input_img, 0, 0, 1, 255, 0);
+    draw_string(system_font, back, input_img, front_w, 0, 1, 255, 0);
 
     swiWaitForVBlank();
 

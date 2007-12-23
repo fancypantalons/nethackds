@@ -793,7 +793,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
         int linenum = 0;
         int fg, bg;
 
-        fg = (menu->items[i].highlighted) ? CLR_GREEN : CLR_WHITE;
+        fg = (menu->items[i].highlighted) ? CLR_BRIGHT_GREEN : CLR_WHITE;
         bg = (menu->focused_item == i) ? CLR_BLUE : CLR_BLACK;
 
         window->img->height = menu->items[i].height;

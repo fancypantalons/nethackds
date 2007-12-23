@@ -917,7 +917,7 @@ void nds_repaint_cmds()
     if (cmdlist[i].refresh && (cmd_cur_page == cmdlist[i].page)) {
       int fg, bg;
 
-      fg = (cmdlist[i].highlighted) ? CLR_GREEN : CLR_WHITE;
+      fg = (cmdlist[i].highlighted) ? CLR_BRIGHT_GREEN : CLR_WHITE;
       bg = (cmdlist[i].focused) ? CLR_BLUE : CLR_BLACK;
 
       clear_ppm(img, MAP_COLOUR(bg));

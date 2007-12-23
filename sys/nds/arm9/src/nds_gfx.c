@@ -1,5 +1,6 @@
 #include <nds.h>
 #include <stdio.h>
+#include "hack.h"
 #include "nds_gfx.h"
 #include "font-bdf.h"
 #include "ppm-lite.h"
@@ -148,9 +149,7 @@ void nds_draw_bmp(bmp_t *bmp, u16 *vram, u16 *palette)
 int nds_load_palette(char *fname, nds_palette palette)
 {
   FILE *pfile;
-  int ret;
-  u8 rgb[64];
-  int i, j;
+  int i;
 
   if ((pfile = fopen(fname, "r")) == NULL) {
     iprintf("Unable to open '%s'\n", fname);
@@ -158,20 +157,28 @@ int nds_load_palette(char *fname, nds_palette palette)
     return -1;
   }
 
-  ret = fread(rgb, 1, sizeof(rgb), pfile);
-  fclose(pfile);
+  for (i = 0; i < 16; i++) {
+    char tmp[BUFSZ];
+    int r, g, b;
 
-  if (ret < sizeof(rgb)) {
-    iprintf("Short read loading text palette (got %d, wanted %d)\n",
-            ret, sizeof(rgb));
+    if (fgets(tmp, BUFSZ, pfile) == NULL) {
+      break;
+    }
+
+    if (sscanf(tmp, "%2x%2x%2x", &r, &g, &b) < 3) {
+      iprintf("Malformed line: %s\n", tmp);
+
+      return -1;
+    }
+
+    palette[i] = RGB15(r >> 3, g >> 3, b >> 3);
+  }
+
+  if (i < 15) {
+    iprintf("Not enough entries in palette file.\n");
+
     return -1;
   }
 
-  for (i = 0, j = 0; i < sizeof(rgb); i += 4, j++) {
-    palette[j] = RGB15((rgb[i + 2] >> 3),
-                       (rgb[i + 1] >> 3),
-                       (rgb[i + 0] >> 3));
-  }
-
-  return sizeof(rgb) / 4;
+  return 16;
 }

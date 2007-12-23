@@ -39,14 +39,14 @@ struct ppm *alloc_ppm(int width, int height)
   img->height = height;
   img->bitmap = (unsigned char *)malloc(width * height);
 
-  clear_ppm(img);
+  clear_ppm(img, 0);
 
   return img;
 }
 
-void clear_ppm(struct ppm *img)
+void clear_ppm(struct ppm *img, unsigned char bg)
 {
-  memset(img->bitmap, 0, img->width * img->height);
+  memset(img->bitmap, bg, img->width * img->height);
 }
 
 
@@ -145,9 +145,8 @@ paste_ppm (struct ppm *into, int to_x, int to_y,
 /*
  * Draws a PPM image direct to VRAM.  This produces a black-and-white image.
  */
-void draw_ppm_bw(struct ppm *ppm, unsigned short *vram, 
-                 int px, int py, int width,
-                 int black, int white)
+void draw_ppm(struct ppm *ppm, unsigned short *vram, 
+              int px, int py, int width)
 {
   int y;
 
@@ -157,17 +156,17 @@ void draw_ppm_bw(struct ppm *ppm, unsigned short *vram,
     unsigned char *bitmap = ppm->bitmap + ((y - py) * ppm->width);
     
     if (px & 1) {
-      *target = (*target & 0x00FF) | ((bitmap[0] ? white : black) << 8);
+      *target = (*target & 0x00FF) | (bitmap[0] << 8);
       target++;
       x++;
     }
 
     for (; (x < ppm->width) && ((x + px) < width); x += 2) {
       if (x == ppm->width - 1) {
-        *target = (*target & 0xFF00) | (bitmap[x] ? white : black);
+        *target = (*target & 0xFF00) | bitmap[x];
         break;
       } else {
-        *target++ = ((bitmap[x + 1] ? white : black) << 8) | (bitmap[x] ? white : black);
+        *target++ = (bitmap[x + 1] << 8) | bitmap[x];
       }
     }
   }

@@ -246,13 +246,12 @@ void nds_load_text_tile(int glyph, int gx, int gy)
 
   /* Now draw the character to a PPM image... yes, this is inefficient :) */
 
-  clear_ppm(text_img);
+  clear_ppm(text_img, 0);
 
   draw_string(map_font, tmp, text_img, 
               text_img->width / 2 - font_char_w / 2, 
               text_img->height / 2 - font_char_h / 2, 
-              1,
-              255, 0);
+              -1, -1);
 
   img_data = (unsigned char *)text_img->bitmap;
   tile_ptr = tile_ram + tile_idx * 64 / 2;
@@ -268,8 +267,8 @@ void nds_load_text_tile(int glyph, int gx, int gy)
                       tile_row * 8) / 2;
 
       for (i = 0; i < 4; i++, img_data += 2) {
-        u8 c0 = (img_data[0] ? color : 0) + 1;
-        u8 c1 = (img_data[1] ? color : 0) + 1;
+        u8 c0 = ((img_data[0] != TEXT_COLOUR_BASE) ? color : 0) + 1;
+        u8 c1 = ((img_data[1] != TEXT_COLOUR_BASE) ? color : 0) + 1;
 
         row_ptr[i] = (c1 << 8) |
                      c0;

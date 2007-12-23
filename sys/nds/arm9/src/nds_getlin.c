@@ -71,18 +71,18 @@ void nds_getlin(const char *prompt, char *buffer)
     u8 key;
     int front_w;
 
-    clear_ppm(input_img);
+    clear_ppm(input_img, MAP_COLOUR(CLR_BLACK));
 
     /* Alright, fill the prompting layer and draw out prompt. */
 
     text_dims(system_font, front, &front_w, NULL);
 
-    draw_string(system_font, front, input_img, 0, 0, 1, 255, 0);
-    draw_string(system_font, back, input_img, front_w, 0, 1, 255, 0);
+    draw_string(system_font, front, input_img, 0, 0, -1, -1);
+    draw_string(system_font, back, input_img, front_w, 0, -1, -1);
 
     swiWaitForVBlank();
 
-    draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);
+    draw_ppm(input_img, vram, 4, input_y, 256);
     nds_draw_vline(front_w + 4, input_y, text_h, 253, vram);
 
     scanKeys();
@@ -180,8 +180,8 @@ void nds_getlin(const char *prompt, char *buffer)
 
   nds_clear_prompt();
 
-  clear_ppm(input_img);
-  draw_ppm_bw(input_img, vram, 4, input_y, 256, 254, 255);
+  clear_ppm(input_img, MAP_COLOUR(CLR_BLACK));
+  draw_ppm(input_img, vram, 4, input_y, 256);
 
   DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
 

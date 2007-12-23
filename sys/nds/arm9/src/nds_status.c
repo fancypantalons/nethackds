@@ -74,13 +74,13 @@ void nds_update_status(char *str)
         continue;
       }
 
-      clear_ppm(status_img);
+      clear_ppm(status_img, MAP_COLOUR(CLR_BLACK));
 
       draw_string(system_font, wrapped->lines[i].text, status_img, 
-                  0, 0, 1,
-                  255, 0);
+                  0, 0, 
+                  -1, -1);
 
-      draw_ppm_bw(status_img, vram, status_x, status_y + text_h * i, 256, 254, 255);
+      draw_ppm(status_img, vram, status_x, status_y + text_h * i, 256);
     }
 
     status_bottom = status_y + wrapped->count * text_h + 2;

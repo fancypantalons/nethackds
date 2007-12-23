@@ -15,6 +15,9 @@
 #ifndef __FONT_BDF__
 #define __FONT_BDF__
 
+#define TEXT_COLOUR_BASE 32
+#define MAP_COLOUR(c) (TEXT_COLOUR_BASE + (c))
+
 struct font_char {
   int lbearing;  /* origin to left edge of raster */
   int width;     /* advance to next char's origin */
@@ -31,6 +34,7 @@ struct font {
   struct font_char chars[256];
 };
 
+extern int font_bdf_init();
 
 /* Filename below may be "-" for stdin. */
 extern struct font *read_bdf (const char *filename);
@@ -54,7 +58,6 @@ void text_dims(struct font *fnt, char *str, int *width, int *height);
  */
 extern void draw_string (struct font *font, char *string,
                          struct ppm *into, int x, int y,
-                         int alignment,
-                         unsigned long fg, unsigned long bg);
+                         int fg, int bg);
 
 #endif /* __FONT_BDF__ */

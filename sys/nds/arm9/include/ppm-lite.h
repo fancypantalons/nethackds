@@ -27,7 +27,7 @@ struct ppm {
 /* Filenames below may be "-" for stdin/stdout. */
 extern struct ppm *alloc_ppm(int width, int height);
 
-extern void clear_ppm(struct ppm *ppm);
+extern void clear_ppm(struct ppm *ppm, unsigned char bg);
 
 extern struct ppm *copy_ppm (struct ppm *ppm);
 extern void free_ppm (struct ppm *ppm);
@@ -57,8 +57,7 @@ extern void paste_ppm (struct ppm *into, int to_x, int to_y,
  * the palette indexes to use for the non-coloured and coloured areas,
  * respectively.
  */
-extern void draw_ppm_bw(struct ppm *ppm, unsigned short *target, 
-                        int px, int py, int width,
-                        int black, int white);
+extern void draw_ppm(struct ppm *ppm, unsigned short *target, 
+                     int px, int py, int width);
 
 #endif /* __PPM_LITE__ */

@@ -12,9 +12,13 @@
    implied warranty.
  */
 
+#include <nds.h>
+
+#include "hack.h"
 #include "config.h"
 #include "ppm-lite.h"
 #include "font-bdf.h"
+#include "nds_gfx.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,6 +27,7 @@
 #undef countof
 #define countof(x) (sizeof((x))/sizeof(*(x)))
 
+#define TEXT_PALETTE_NAME "text.pal"
 
 /* for parsing hex numbers fast */
 static const char hex[128] = {16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
@@ -33,6 +38,22 @@ static const char hex[128] = {16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
                               16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
                               16,10,11,12,13,14,15,16,16,16,16,16,16,16,16,16,
                               16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16};
+
+int
+font_bdf_init()
+{
+  int i;
+
+  if (nds_load_palette(TEXT_PALETTE_NAME, BG_PALETTE + TEXT_COLOUR_BASE) < 0) {
+    return -1;
+  }
+
+  for (i = TEXT_COLOUR_BASE; i < TEXT_COLOUR_BASE + 16; i++) {
+    BG_PALETTE_SUB[i] = BG_PALETTE[i];
+  }
+
+  return 0;
+}
 
 struct font *
 read_bdf (const char *file)
@@ -353,7 +374,7 @@ text_dims(struct font *fnt, char *str, int *width, int *height)
 static int
 draw_char (struct font *font, const unsigned char c,
            struct ppm *into, int x, int y,
-           unsigned long fg, unsigned long bg)
+           unsigned char fg, unsigned char bg)
 {
   int w = font->chars[(int) c].width;
   struct ppm *from = font->chars[(int) c].ppm;
@@ -363,9 +384,11 @@ draw_char (struct font *font, const unsigned char c,
       x += font->chars[(int) c].lbearing;
       y -= from->height + font->chars[(int) c].descent;
       y += font->ascent;
+
       paste_ppm (into, x, y,
                  from, 0, 0, from->width, from->height,
-                 fg, bg);
+                 TEXT_COLOUR_BASE + fg, 
+                 TEXT_COLOUR_BASE + bg);
     }
   return w;
 }
@@ -380,27 +403,22 @@ draw_char (struct font *font, const unsigned char c,
 void
 draw_string (struct font *font, char *string,
              struct ppm *into, int x, int y,
-             int alignment,
-             unsigned long fg, unsigned long bg)
+             int fg, int bg)
 {
   int ox = x;
   int w;
-  char *s2;
+
+  if (fg < 0) {
+    fg = CLR_WHITE;
+  }
+
+  if (bg < 0) {
+    bg = CLR_BLACK;
+  }
 
  LINE:
   x = ox;
   w = 0;
-
-  if (alignment <= 0)
-    {
-      for (s2 = string; *s2 && *s2 != '\n'; s2++)
-        w += font->chars[(int) *s2].width;
-      if (alignment < 0)
-        x -= w;
-      else if (alignment == 0)
-        x -= w/2;
-      x--;
-    }
 
   /* back up over the lbearing of the first character on the line */
   x -= 2 * font->chars[(int) *string].lbearing;

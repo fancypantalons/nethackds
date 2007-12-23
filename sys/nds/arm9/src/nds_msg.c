@@ -48,10 +48,10 @@ void nds_msg_wait_key(int cur_y)
   nds_get_msg_pos(&msg_x, &msg_y, &msg_w, &msg_h);
 
   draw_string(system_font, "Press A...", msg_img,
-              0, cur_y, 1,
-              255, 0);
+              0, cur_y,
+              -1, -1);
 
-  draw_ppm_bw(msg_img, vram, msg_x, msg_y, 256, 254, 255);
+  draw_ppm(msg_img, vram, msg_x, msg_y, 256);
 
   nds_wait_key(KEY_A);
 }
@@ -82,7 +82,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
     msg_img = alloc_ppm(256, num_lines * text_h);
   }
 
-  clear_ppm(msg_img);
+  clear_ppm(msg_img, MAP_COLOUR(CLR_BLACK));
 
   if (win->buffer == NULL) {
     return;
@@ -137,14 +137,14 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
       cur_y = 0;
       linecnt = 0;
 
-      clear_ppm(msg_img);
+      clear_ppm(msg_img, MAP_COLOUR(CLR_BLACK));
     }
 
     buffer->lines[curline].historied = 1;
 
     draw_string(system_font, buffer->lines[curline].text, msg_img,
-                0, cur_y, 1,
-                255, 0);
+                0, cur_y, 
+                -1, -1);
 
     cur_y += buffer->lines[curline].height;
 
@@ -152,7 +152,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
     linecnt++;
   }
 
-  draw_ppm_bw(msg_img, vram, msg_x, msg_y, 256, 254, 255);
+  draw_ppm(msg_img, vram, msg_x, msg_y, 256);
 
   if (blocking) {
     nds_msg_wait_key(cur_y);

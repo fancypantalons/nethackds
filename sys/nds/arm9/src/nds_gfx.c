@@ -73,9 +73,9 @@ void nds_draw_text(struct font *fnt,
   
   img = alloc_ppm(w, h);
 
-  draw_string(fnt, str, img, 0, 0, 1, 255, 0);
+  draw_string(fnt, str, img, 0, 0, -1, -1);
 
-  draw_ppm_bw(img, dest, x, y, 256, black, white);
+  draw_ppm(img, dest, x, y, 256);
 
   free_ppm(img);
 }

@@ -860,10 +860,10 @@ void nds_render_cmd_pages()
         cur_cmd->x2 = cur_cmd->x1 + cmd_col_width;
         cur_cmd->y2 = cur_cmd->y1 + system_font->height;
 
-        clear_ppm(img);
+        clear_ppm(img, MAP_COLOUR(CLR_BLACK));
         draw_string(system_font, cur_cmd->name, img,
-                    0, 0, 1, 255, 0);
-        draw_ppm_bw(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - yoffs, 256, 254, 255);
+                    0, 0, -1, -1);
+        draw_ppm(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - yoffs, 256);
       }
     }
   }
@@ -915,17 +915,20 @@ void nds_repaint_cmds()
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
     if (cmdlist[i].refresh && (cmd_cur_page == cmdlist[i].page)) {
-      clear_ppm(img);
+      int fg, bg;
+
+      fg = (cmdlist[i].highlighted) ? CLR_GREEN : CLR_WHITE;
+      bg = (cmdlist[i].focused) ? CLR_BLUE : CLR_BLACK;
+
+      clear_ppm(img, MAP_COLOUR(bg));
 
       draw_string(system_font, cmdlist[i].name,
-                  img, 0, 0, 1,
-                  255, 0);
+                  img, 0, 0,
+                  fg, bg);
 
-      draw_ppm_bw(img, vram, 
-                  cmdlist[i].x1, cmdlist[i].y1,
-                  256,
-                  cmdlist[i].focused ? 252 : 254, 
-                  cmdlist[i].highlighted ? 253 : 255);
+      draw_ppm(img, vram, 
+               cmdlist[i].x1, cmdlist[i].y1,
+               256);
     }
 
     cmdlist[i].refresh = 0;
@@ -1077,15 +1080,15 @@ nds_cmd_t nds_cmd_loop(int in_config)
         nds_draw_rect(0, 192 - up_arrow->height, 256, up_arrow->height, 254, vram);
 
         if (cmd_cur_page != 0) {
-          draw_ppm_bw(up_arrow, vram, 
-                      256 / 2 - up_arrow->width / 2, 0,
-                      256, 254, 255);
+          draw_ppm(up_arrow, vram, 
+                   256 / 2 - up_arrow->width / 2, 0,
+                   256);
         }      
 
         if (cmd_cur_page < (cmd_page_count - 1)) {
-          draw_ppm_bw(down_arrow, vram, 
-                      256 / 2 - down_arrow->width / 2, 192 - down_arrow->height,
-                      256, 254, 255);
+          draw_ppm(down_arrow, vram, 
+                   256 / 2 - down_arrow->width / 2, 192 - down_arrow->height,
+                   256);
         }
       }
 

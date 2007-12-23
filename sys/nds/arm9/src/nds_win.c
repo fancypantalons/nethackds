@@ -15,6 +15,7 @@
 
 #include "ds_kbd.h"
 #include "ppm-lite.h"
+#include "font-bdf.h"
 
 #include "nds_win_gfx.h"
 
@@ -160,6 +161,7 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   nds_init_cmd();
   nds_init_msg();
+  font_bdf_init();
 
   text_dims(system_font, "*", &tag_width, NULL);
 
@@ -722,17 +724,17 @@ void nds_draw_prompt(char *prompt)
 
   /* Draw the prompt */
 
-  clear_ppm(prompt_img);
-  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, 1, 255, 0);
-  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
+  clear_ppm(prompt_img, MAP_COLOUR(CLR_BLACK));
+  draw_string(system_font, (char *)prompt, prompt_img, 0, 0, -1, -1);
+  draw_ppm(prompt_img, vram, 4, prompt_y, 256);
 }
 
 void nds_clear_prompt()
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 
-  clear_ppm(prompt_img);
-  draw_ppm_bw(prompt_img, vram, 4, prompt_y, 256, 254, 255);
+  clear_ppm(prompt_img, MAP_COLOUR(CLR_BLACK));
+  draw_ppm(prompt_img, vram, 4, prompt_y, 256);
 }
 
 /*
@@ -789,10 +791,14 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
       if (clear || menu->items[i].refresh) {
         char tag[3] = "  ";
         int linenum = 0;
+        int fg, bg;
+
+        fg = (menu->items[i].highlighted) ? CLR_GREEN : CLR_WHITE;
+        bg = (menu->focused_item == i) ? CLR_BLUE : CLR_BLACK;
 
         window->img->height = menu->items[i].height;
 
-        clear_ppm(window->img);
+        clear_ppm(window->img, MAP_COLOUR(bg));
 
         if (menu->items[i].selected) {
           if (menu->items[i].count > 0) {
@@ -808,20 +814,20 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
           if (menu->items[i].id.a_int == 0) {
             draw_string(system_font,
                         menu->items[i].title[linenum],
-                        window->img, 0, yoffs, 1,
-                        255, 0);
+                        window->img, 0, yoffs, 
+                        fg, bg);
           } else {
             if (linenum == 0) {
               draw_string(system_font,
                           tag,
-                          window->img, 0, yoffs, 1,
-                          255, 0);
+                          window->img, 0, yoffs, 
+                          fg, bg);
             }
 
             draw_string(system_font,
                         menu->items[i].title[linenum],
-                        window->img, tag_width, yoffs, 1,
-                        255, 0);
+                        window->img, tag_width, yoffs, 
+                        fg, bg);
           }
         }
 
@@ -833,10 +839,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
          * of the item, while letting us use the same ppm struct during the
          * entire rendering process, which means fewer malloc/free pairs.
          */
-        draw_ppm_bw(window->img, vram, start_x, start_y + cur_y, 
-                    256, 
-                    (menu->focused_item == i) ? 252 : 254, 
-                    (menu->items[i].highlighted) ? 253 : 255);
+        draw_ppm(window->img, vram, start_x, start_y + cur_y, 256);
 
         menu->items[i].refresh = 0;
       }
@@ -851,9 +854,9 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     maxidx = menu->count - 1;
 
     if (menu->how == PICK_ANY) {
-      draw_ppm_bw(okay_button, vram,
-                  256 - okay_button->width * 2 - 8, 192 - okay_button->height,
-                  256, 254, 255);
+      draw_ppm(okay_button, vram,
+               256 - okay_button->width * 2 - 8, 192 - okay_button->height,
+               256);
     }
   } else {
     nds_charbuf_t *charbuf = window->buffer;
@@ -863,14 +866,14 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     if (! window->img) {
       window->img = alloc_ppm(end_x - start_x, end_y - start_y);
     } else {
-      clear_ppm(window->img);
+      clear_ppm(window->img, MAP_COLOUR(CLR_BLACK));
     }
 
     for (i = window->topidx; (i < charbuf->count) && (cur_y < (end_y - start_y)); i++) {
       draw_string(system_font,
                   charbuf->lines[i].text,
-                  window->img, 0, cur_y, 1,
-                  255, 0);
+                  window->img, 0, cur_y,
+                  -1, -1);
 
       cur_y += charbuf->lines[i].height;
     }
@@ -882,25 +885,25 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
       nds_fill(vram, 254);
     }
 
-    draw_ppm_bw(window->img, vram, start_x, start_y, 
-                256, 254, 255);
+    draw_ppm(window->img, vram, start_x, start_y, 
+             256);
   }
 
   if (window->topidx > 0) {
-    draw_ppm_bw(up_arrow, vram, 
-                256 / 2 - up_arrow->width / 2, 0, 
-                256, 254, 255);
+    draw_ppm(up_arrow, vram, 
+             256 / 2 - up_arrow->width / 2, 0, 
+             256);
   }
 
   if (window->bottomidx < maxidx) {
-    draw_ppm_bw(down_arrow, vram, 
-                256 / 2 - down_arrow->width / 2, 192 - down_arrow->height, 
-                256, 254, 255);
+    draw_ppm(down_arrow, vram, 
+             256 / 2 - down_arrow->width / 2, 192 - down_arrow->height, 
+             256);
   }
 
-  draw_ppm_bw(cancel_button, vram,
-              256 - cancel_button->width, 192 - cancel_button->height,
-              256, 254, 255);
+  draw_ppm(cancel_button, vram,
+           256 - cancel_button->width, 192 - cancel_button->height,
+           256);
 }
 
 int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys)

@@ -463,6 +463,8 @@ draw_string (struct font *font, char *string,
 
   if (bg < 0) {
     bg = CLR_BLACK;
+  } else if (bg >= BRIGHT) {
+    bg -= BRIGHT;
   }
 
   if (fg > CLR_GRAY) {

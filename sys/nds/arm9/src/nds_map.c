@@ -546,7 +546,7 @@ void nds_init_sprite(int bpp)
  * is loaded, we populate the palette provided.  This involves converting the 
  * 24-bit RGB tuplets to 15-bit NDS palette entries.
  */
-int nds_init_map(int *rows, int *cols)
+int nds_init_map()
 {
   u16 *palette;
   int i;

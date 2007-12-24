@@ -20,6 +20,12 @@
 #include "nds_win_gfx.h"
 
 #define PROMPT_LAYER_WIDTH 40
+ 
+/* Things we need for coloured menus */
+
+#ifdef MENU_COLOR
+extern struct menucoloring *menu_colorings;
+#endif
 
 /* Some prototypes. */
 
@@ -31,11 +37,6 @@ nds_nhwindow_t *windows[MAX_WINDOWS];
 struct font *system_font;
 
 int tag_width;
-
-/* Some variables that we'll use when drawing the screen */
-
-int map_rows;
-int map_cols;
 
 /* Some images for our menu code */
 
@@ -112,7 +113,7 @@ void nds_init_nhwindows(int *argc, char **argv)
     return;
   }
 
-  if (nds_init_map(&map_rows, &map_cols)) {
+  if (nds_init_map()) {
     iprintf("Error loading tiles!\n");
 
     return;
@@ -792,8 +793,8 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
         int linenum = 0;
         int fg, bg;
 
-        fg = (menu->items[i].highlighted) ? CLR_BRIGHT_GREEN : CLR_WHITE;
-        bg = (menu->focused_item == i) ? CLR_BLUE : CLR_BLACK;
+        fg = (menu->items[i].highlighted) ? CLR_BRIGHT_GREEN : -1;
+        bg = (menu->focused_item == i) ? CLR_BLUE : -1;
 
         window->img->height = menu->items[i].height;
 
@@ -1147,6 +1148,19 @@ void nds_display_file(const char *fname, int complain)
 /**********************
  * Menu handling logic
  **********************/
+#ifdef MENU_COLOR
+void get_menu_coloring(char *str, int *color, int *attr)
+{
+    struct menucoloring *tmpmc;
+
+    if (iflags.use_menu_color)
+       for (tmpmc = menu_colorings; tmpmc; tmpmc = tmpmc->next)
+           if (regexec(&tmpmc->match, str, 0, NULL, 0) == 0) {
+               *color = tmpmc->color;
+               *attr = tmpmc->attr;
+           }
+}
+#endif /* MENU_COLOR */
 
 /*
  * Prepare a window for use as a menu.  Technically we should check if the 
@@ -1184,6 +1198,9 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   int title_cnt;
   int title_len;
   char title_tmp[96];
+#ifdef MENU_COLOR
+  int mccolor = CLR_WHITE, mcattr = ATR_NONE;
+#endif
 
   if (! str) {
     return;
@@ -1205,11 +1222,38 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   title_len = 0;
   strcpy(title_tmp, str);
 
-  memset(items[idx].title, 0, sizeof(items[idx].title));
+#ifdef MENU_COLOR
+  if (iflags.use_menu_color) {
+    get_menu_coloring(title_tmp, &mccolor,&mcattr);
+  }
+#endif
 
+  memset(items[idx].title, 0, sizeof(items[idx].title));
+                                          
   do {
+    char buffer[BUFSZ];
+    char *dest = items[idx].title[title_cnt++];
+
     title_len = get_line_from_wrap_buffer(title_tmp, sizeof(title_tmp), 
-                                          items[idx].title[title_cnt++], 256 - tag_width);
+                                          buffer, 256 - tag_width);
+
+#ifdef MENU_COLOR
+    if (title_len > 0) {
+      if (mccolor > CLR_GRAY) {
+        sprintf(dest, "\e[1m\e[3%dm", mccolor - BRIGHT);
+      } else {
+        sprintf(dest, "\e[2m\e[3%dm", mccolor);
+      }
+
+      if (mcattr & ATR_ULINE) {
+        strcat(dest, "\e[21m");
+      }
+    }
+#else
+    *dest = '\0';
+#endif
+
+    strcat(dest, buffer);
   } while (title_len);
 
   items[idx].id = *id;

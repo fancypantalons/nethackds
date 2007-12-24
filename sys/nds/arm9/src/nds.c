@@ -20,8 +20,14 @@
 #include "nds_util.h"
 #include "bmp.h"
 
+#ifdef MENU_COLOR
+#  include <pcre.h>
+#endif
+
 #define SPLASH_IMAGE "nhlogo.bmp"
 #define SPLASH_PROMPT "Tap to begin, Adventurer!"
+
+const unsigned char *_pcre_default_tables;
 
 int console_enabled = 0;
 int was_console_layer_visible = 0;
@@ -221,6 +227,10 @@ void splash_screen()
   int text_w, text_h;
   int old_display_cr;
   int old_sub_display_cr;
+
+#ifdef MENU_COLOR
+  _pcre_default_tables = pcre_maketables();
+#endif
 
   bmp_read(SPLASH_IMAGE, &logo);
   nds_draw_bmp(&logo, (u16 *)BG_BMP_RAM_SUB(0), BG_PALETTE_SUB);

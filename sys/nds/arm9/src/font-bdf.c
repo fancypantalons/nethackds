@@ -407,10 +407,12 @@ text_dims(struct font *fnt, char *str, int *width, int *height)
 static int
 draw_char (struct font *font, const unsigned char c,
            struct ppm *into, int x, int y,
-           unsigned char fg, unsigned char bg)
+           unsigned char fg, unsigned char bg,
+           int uline)
 {
   int w = font->chars[(int) c].width;
   struct ppm *from = font->chars[(int) c].ppm;
+  int i;
 
   if (from && c != ' ')
     {
@@ -423,6 +425,13 @@ draw_char (struct font *font, const unsigned char c,
                  TEXT_COLOUR_BASE + fg, 
                  TEXT_COLOUR_BASE + bg);
     }
+
+  if (uline) {
+    for (i = 0; i < w; i++) {
+      put_pixel(into, x + i, y + font->height - 1, TEXT_COLOUR_BASE + fg);
+    }
+  }
+
   return w;
 }
 
@@ -440,7 +449,8 @@ draw_string (struct font *font, char *string,
 {
   int ox = x;
   int w;
-  int bold;
+  int override = ((fg >= 0) || (bg >= 0));
+  int attr = 0;
 
   ansi_state state = STATE_SEARCHING;
   int code_params[2];
@@ -456,7 +466,7 @@ draw_string (struct font *font, char *string,
   }
 
   if (fg > CLR_GRAY) {
-    bold = 1;
+    attr |= ATR_BOLD;
     fg -= 8;
   }
 
@@ -484,7 +494,7 @@ draw_string (struct font *font, char *string,
               if (*string == '\e') {
                 state = STATE_HAVE_ESCAPE;
               } else {
-                w = draw_char (font, *string, into, x, y, fg + (bold ? 8 : 0), bg);
+                w = draw_char (font, *string, into, x, y, fg + ((attr & ATR_BOLD) ? 8 : 0), bg, attr & ATR_ULINE);
                 x += w;
               }
 
@@ -501,7 +511,7 @@ draw_string (struct font *font, char *string,
               } else {
                 state = STATE_SEARCHING;
 
-                w = draw_char (font, *string, into, x, y, fg + (bold ? 8 : 0), bg);
+                w = draw_char (font, *string, into, x, y, fg + ((attr & ATR_BOLD) ? 8 : 0), bg, attr & ATR_ULINE);
                 x += w;
               }
 
@@ -522,18 +532,30 @@ draw_string (struct font *font, char *string,
               switch (*string) {
                 /* Select Graphic Rendition */
                 case 'm':
+                  state = STATE_SEARCHING;
+
+                  if (override) {
+                    break;
+                  }
+
                   if (param_count == 0) {
                     fg = CLR_GRAY;
                     bg = CLR_BLACK;
-                    bold = 0;
+                    attr = 0;
                   } else if (code_params[0] == 1) {
-                    bold = 1;
+                    attr |= ATR_BOLD;
+                  } else if (code_params[0] == 2) {
+                    attr &= ~ATR_BOLD;
+                  } else if (code_params[0] == 21) {
+                    attr |= ATR_ULINE;
+                  } else if (code_params[0] == 24) {
+                    attr &= ~ATR_ULINE;
                   } else if ((code_params[0] >= 30) && (code_params[0] <= 39)) {
                     int c = code_params[0] - 30;
 
                     if (c == '9') {
                       fg = CLR_GRAY;
-                      bold = 1;
+                      attr |= ATR_BOLD;
                     } else {
                       fg = c;
                     }
@@ -541,7 +563,6 @@ draw_string (struct font *font, char *string,
                     bg = code_params[0] - 40;
                   }
 
-                  state = STATE_SEARCHING;
                   break;
 
                 default:

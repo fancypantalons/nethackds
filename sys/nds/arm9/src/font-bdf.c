@@ -29,6 +29,12 @@
 
 #define TEXT_PALETTE_NAME "text.pal"
 
+typedef enum {
+  STATE_SEARCHING,
+  STATE_HAVE_ESCAPE,
+  STATE_HAVE_CSI
+} ansi_state;
+
 /* for parsing hex numbers fast */
 static const char hex[128] = {16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
                               16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
@@ -354,14 +360,41 @@ free_font (struct font *font)
 void 
 text_dims(struct font *fnt, char *str, int *width, int *height)
 {
+  ansi_state state = STATE_SEARCHING;
+  
   if (width != NULL) {
     *width = 0;
 
     for (; *str != '\0'; str++) {
-      struct font_char c = fnt->chars[(int) *str];
+      switch (state) {
+        case STATE_SEARCHING:
+          if (*str == '\e') {
+            state = STATE_HAVE_ESCAPE;
+          } else {
+            *width += fnt->chars[(int) *str].width;
+          }
 
-      if (width != NULL) {
-        *width += c.width;
+          break;
+
+        case STATE_HAVE_ESCAPE:
+          if (*str == '[') {
+            state = STATE_HAVE_CSI;
+          } else {
+            state = STATE_SEARCHING;
+
+            *width += fnt->chars[(int) *str].width;
+          }
+
+          break;
+
+        case STATE_HAVE_CSI:
+          if (((*str >= '0') && (*str <= '9')) || (*str == ' ') || (*str == ';')) {
+            break;
+          } else {
+            state = STATE_SEARCHING;
+          }
+
+          break;
       }
     }
   }
@@ -407,6 +440,12 @@ draw_string (struct font *font, char *string,
 {
   int ox = x;
   int w;
+  int bold;
+
+  ansi_state state = STATE_SEARCHING;
+  int code_params[2];
+  int param_count = 0;
+  char *start_ptr;
 
   if (fg < 0) {
     fg = CLR_WHITE;
@@ -414,6 +453,11 @@ draw_string (struct font *font, char *string,
 
   if (bg < 0) {
     bg = CLR_BLACK;
+  }
+
+  if (fg > CLR_GRAY) {
+    bold = 1;
+    fg -= 8;
   }
 
  LINE:
@@ -433,8 +477,80 @@ draw_string (struct font *font, char *string,
         }
       else
         {
-          int w = draw_char (font, *string, into, x, y, fg, bg);
-          x += w;
+          int w;
+
+          switch (state) {
+            case STATE_SEARCHING:
+              if (*string == '\e') {
+                state = STATE_HAVE_ESCAPE;
+              } else {
+                w = draw_char (font, *string, into, x, y, fg + (bold ? 8 : 0), bg);
+                x += w;
+              }
+
+              break;
+
+            case STATE_HAVE_ESCAPE:
+              if (*string == '[') {
+                state = STATE_HAVE_CSI;
+
+                param_count = 0;
+                memset(code_params, 0, sizeof(code_params));
+
+                start_ptr = string + 1;
+              } else {
+                state = STATE_SEARCHING;
+
+                w = draw_char (font, *string, into, x, y, fg + (bold ? 8 : 0), bg);
+                x += w;
+              }
+
+              break;
+
+            case STATE_HAVE_CSI:
+              if (((*string >= '0') && (*string <= '9')) || (*string == ' ')) {
+                break;
+              } else if (*string == ';') {
+                sscanf(start_ptr, "%d", &(code_params[param_count++]));
+                start_ptr = string + 1;
+
+                break;
+              } else if (start_ptr != string) {
+                sscanf(start_ptr, "%d", &(code_params[param_count++]));
+              }
+
+              switch (*string) {
+                /* Select Graphic Rendition */
+                case 'm':
+                  if (param_count == 0) {
+                    fg = CLR_GRAY;
+                    bg = CLR_BLACK;
+                    bold = 0;
+                  } else if (code_params[0] == 1) {
+                    bold = 1;
+                  } else if ((code_params[0] >= 30) && (code_params[0] <= 39)) {
+                    int c = code_params[0] - 30;
+
+                    if (c == '9') {
+                      fg = CLR_GRAY;
+                      bold = 1;
+                    } else {
+                      fg = c;
+                    }
+                  } else if ((code_params[0] >= 40) && (code_params[0] <= 49)) {
+                    bg = code_params[0] - 40;
+                  }
+
+                  state = STATE_SEARCHING;
+                  break;
+
+                default:
+                  state = STATE_SEARCHING;
+                  break;
+              }
+
+              break;
+          }
         }
       string++;
     }

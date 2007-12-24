@@ -126,6 +126,8 @@ void nds_init_nhwindows(int *argc, char **argv)
   }
 
   /* Set up our palettes. */
+  BG_PALETTE[255] = RGB15(31,31,31);
+
   BG_PALETTE_SUB[255] = RGB15(31,31,31);
   BG_PALETTE_SUB[253] = RGB15(31,0, 0);
   BG_PALETTE_SUB[252] = RGB15(0,31, 0);

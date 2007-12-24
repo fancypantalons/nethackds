@@ -1691,6 +1691,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
 char nds_prompt_char(const char *ques, const char *choices, int holdkey)
 {
   int key;
+  int pressed;
   int held;
   int done = 0;
 
@@ -1705,9 +1706,13 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
     scanKeys();
 
     key = kbd_vblank();
+    pressed = keysDown();
     held = keysHeld();
 
-    if (iflags.holdmode && holdkey && ! (held & holdkey)) {
+    if ((iflags.holdmode && holdkey && ! (held & holdkey)) ||
+        (! iflags.holdmode && holdkey && (pressed & holdkey))) {
+
+      nds_flush(0);
       goto DONE;
     }
 

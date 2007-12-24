@@ -91,6 +91,7 @@ void _nds_copy_header_pixels(char *src, unsigned char *buf, unsigned char black,
     HEADER_PIXEL(src, pixel.rgba);
 
     *buf = (pixel.value != 0) ? white : black;
+    buf++;
   }
 }
 
@@ -125,11 +126,6 @@ void nds_init_nhwindows(int *argc, char **argv)
 
   /* Set up our palettes. */
 
-  BG_PALETTE[252] = RGB15(0, 0, 10);
-  BG_PALETTE[253] = RGB15(0, 31, 0);
-  BG_PALETTE[254] = RGB15(0, 0, 0);
-  BG_PALETTE[255] = RGB15(31, 31, 31);
-
   BG_PALETTE_SUB[C_YOU] = RGB15(0, 31, 0);
   BG_PALETTE_SUB[C_MON] = RGB15(31, 0, 0);
   BG_PALETTE_SUB[C_PET] = RGB15(24, 0, 31);
@@ -141,10 +137,6 @@ void nds_init_nhwindows(int *argc, char **argv)
   BG_PALETTE_SUB[C_FURNITURE] = RGB15(31, 31, 31);
   BG_PALETTE_SUB[C_CORR] = RGB15(10, 10, 10);
 
-  BG_PALETTE_SUB[255] = RGB15(31,31,31);
-  BG_PALETTE_SUB[253] = RGB15(31,0, 0);
-  BG_PALETTE_SUB[252] = RGB15(0,31, 0);
-
   iflags.window_inited = true;
 
   /* Get these set up for our windowing routines */
@@ -154,10 +146,14 @@ void nds_init_nhwindows(int *argc, char **argv)
   okay_button = alloc_ppm(16, 16);
   cancel_button = alloc_ppm(16, 16);
 
-  _nds_copy_header_pixels(up_arrow_data, (unsigned char *)up_arrow->bitmap, 254, 255);
-  _nds_copy_header_pixels(down_arrow_data, (unsigned char *)down_arrow->bitmap, 254, 255);
-  _nds_copy_header_pixels(okay_data, (unsigned char *)okay_button->bitmap, 254, 255);
-  _nds_copy_header_pixels(cancel_data, (unsigned char *)cancel_button->bitmap, 254, 255);
+  _nds_copy_header_pixels(up_arrow_data, (unsigned char *)up_arrow->bitmap, 
+                          MAP_COLOUR(CLR_BLACK), MAP_COLOUR(CLR_WHITE));
+  _nds_copy_header_pixels(down_arrow_data, (unsigned char *)down_arrow->bitmap, 
+                          MAP_COLOUR(CLR_BLACK), MAP_COLOUR(CLR_WHITE));
+  _nds_copy_header_pixels(okay_data, (unsigned char *)okay_button->bitmap, 
+                          MAP_COLOUR(CLR_BLACK), MAP_COLOUR(CLR_WHITE));
+  _nds_copy_header_pixels(cancel_data, (unsigned char *)cancel_button->bitmap, 
+                          MAP_COLOUR(CLR_BLACK), MAP_COLOUR(CLR_WHITE));
 
   nds_init_cmd();
   nds_init_msg();
@@ -780,7 +776,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     int i;
 
     if (clear) {
-      nds_fill(vram, 254);
+      nds_fill(vram, MAP_COLOUR(CLR_BLACK));
     }
 
     if (! window->img) {
@@ -865,9 +861,9 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 
     if (! window->img) {
       window->img = alloc_ppm(end_x - start_x, end_y - start_y);
-    } else {
-      clear_ppm(window->img, MAP_COLOUR(CLR_BLACK));
     }
+    
+    clear_ppm(window->img, MAP_COLOUR(CLR_BLACK));
 
     for (i = window->topidx; (i < charbuf->count) && (cur_y < (end_y - start_y)); i++) {
       draw_string(system_font,

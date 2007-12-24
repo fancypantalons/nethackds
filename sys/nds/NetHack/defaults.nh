@@ -13,6 +13,13 @@ OPTIONS=color,ibmgraphics
 OPTIONS=toptenwin
 OPTIONS=autopickup,pickup_types:$
 OPTIONS=noshowexp,lit_corridor
+OPTIONS=menucolors
+
+MENUCOLOR=" blessed "=green
+MENUCOLOR=" holy "=green
+MENUCOLOR=" cursed .* \(being worn\)"=orange&underline
+MENUCOLOR=" cursed "=red
+MENUCOLOR=" unholy "=red
 
 # *** Some NetHackDS Specific options ***
 #
@@ -39,6 +46,9 @@ OPTIONS=noshowexp,lit_corridor
 # the center of the screen.  See the iRogue website for examples of how this 
 # works.
 # OPTIONS=compassmode:1
+
+# Controls whether or not we do pretty colours for the HP counter.
+# OPTIONS=!hpmon
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to

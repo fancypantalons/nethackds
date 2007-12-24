@@ -64,4 +64,5 @@ MENUCOLOR=" unholy "=red
 #OPTIONS=nolegacy,noverbose
 #OPTIONS=menustyle:traditional
 #OPTIONS=time
+#OPTIONS=number_pad:2
 #

@@ -1221,6 +1221,25 @@ nds_cmd_t nds_cmd_loop(int in_config)
     refresh = 1;
   }
 
+  /* 
+   * If an extended command was requested, we need to get it from the
+   * user.
+   */
+  if (picked_cmd.f_char == '#') {
+    int idx = get_ext_cmd();
+
+    nds_flush(0);
+
+    if (idx >= 0) {
+      /* Now stuff the command into our input buffer. */
+
+      strcpy(input_buffer, extcmdlist[idx].ef_txt);
+    } else {
+      picked_cmd.f_char = 0;
+      picked_cmd.name = NULL;
+    }
+  }
+
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
   BG2_CR = old_bg_cr;
 
@@ -1243,7 +1262,12 @@ int nds_get_ext_cmd()
   char buffer[BUFSZ];
   int i;
 
-  getlin("Extended Command", buffer);
+  if (*input_buffer) {
+    strcpy(buffer, input_buffer);
+    *input_buffer = '\0';
+  } else {
+    getlin("Extended Command", buffer);
+  }
 
   for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
     if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {

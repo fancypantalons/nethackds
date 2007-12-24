@@ -1157,6 +1157,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
         refresh = 1;
         held_frames = 0;
+      } else if (curcmd == NULL) {
+        held_frames = 0;
       } else if (held_frames > CLICK_2_FRAMES) {
         char buffer[BUFSZ];
         int len;
@@ -1180,6 +1182,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
           nds_flush(0);
         }
+
+        held_frames = 0;
       } else {
         held_frames++;
       }

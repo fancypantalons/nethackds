@@ -1718,15 +1718,6 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
 
     switch (key) {
       case 0:
-      case K_UP_LEFT:
-      case K_UP:
-      case K_UP_RIGHT:
-      case K_NOOP:
-      case K_DOWN_LEFT:
-      case K_DOWN:
-      case K_DOWN_RIGHT:
-      case K_LEFT:
-      case K_RIGHT:
       case '\n':
       case '\b':
         continue;
@@ -1879,11 +1870,6 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   destroy_nhwindow(win);
 
   return ret;
-}
-
-void nds_number_pad(int thinger)
-{
-  // We'll never do anything here
 }
 
 /****************

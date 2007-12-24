@@ -183,6 +183,19 @@ int cmd_cur_page = 0;
 
 char input_buffer[INPUT_BUFFER_SIZE];
 
+/* These are our direction keys, ordered ul,u,ur,l,c,r,dl,d,dr */
+#define DIR_UP_LEFT    0
+#define DIR_UP         1
+#define DIR_UP_RIGHT   2
+#define DIR_LEFT       3
+#define DIR_WAIT       4
+#define DIR_RIGHT      5
+#define DIR_DOWN_LEFT  6
+#define DIR_DOWN       7
+#define DIR_DOWN_RIGHT 8
+
+char direction_keys[9];
+
 /* We use this array for indexing into the key config list */
 
 #define NUMKEYS 20
@@ -241,10 +254,7 @@ void nds_init_cmd()
     }
   }
 
-  if (iflags.cmdwindow) {
-    nds_render_cmd_pages();
-  }
-
+  nds_render_cmd_pages();
   nds_load_key_config();
 
   if (iflags.lefthanded) {
@@ -257,6 +267,28 @@ void nds_init_cmd()
   for (i = 0; i < 256 * 192 / 2; i++) {
     vram[i] = 0xFEFE;
   };
+
+  if (iflags.num_pad) {
+    direction_keys[DIR_UP_LEFT] = '7';
+    direction_keys[DIR_UP] = '8';
+    direction_keys[DIR_UP_RIGHT] = '9';
+    direction_keys[DIR_LEFT] = '4';
+    direction_keys[DIR_WAIT] = '5';
+    direction_keys[DIR_RIGHT] = '6';
+    direction_keys[DIR_DOWN_LEFT] = '1';
+    direction_keys[DIR_DOWN] = '2';
+    direction_keys[DIR_DOWN_RIGHT] = '3';
+  } else {
+    direction_keys[DIR_UP_LEFT] = 'y';
+    direction_keys[DIR_UP] = 'k';
+    direction_keys[DIR_UP_RIGHT] = 'u';
+    direction_keys[DIR_LEFT] = 'h';
+    direction_keys[DIR_WAIT] = '.';
+    direction_keys[DIR_RIGHT] = 'l';
+    direction_keys[DIR_DOWN_LEFT] = 'b';
+    direction_keys[DIR_DOWN] = 'j';
+    direction_keys[DIR_DOWN_RIGHT] = 'n';
+  }
 }
 
 int nds_map_key(u16 pressed)
@@ -327,14 +359,14 @@ nds_cmd_t nds_get_config_cmd()
   start_menu(win);
 
   ids[0].a_int = 0;
-  ids[1].a_int = 'y';
-  ids[2].a_int = 'k';
-  ids[3].a_int = 'u';
-  ids[4].a_int = 'h';
-  ids[5].a_int = 'l';
-  ids[6].a_int = 'b';
-  ids[7].a_int = 'j';
-  ids[8].a_int = 'n';
+  ids[1].a_int = direction_keys[DIR_UP_LEFT];
+  ids[2].a_int = direction_keys[DIR_UP];
+  ids[3].a_int = direction_keys[DIR_UP_RIGHT];
+  ids[4].a_int = direction_keys[DIR_LEFT];
+  ids[5].a_int = direction_keys[DIR_RIGHT];
+  ids[6].a_int = direction_keys[DIR_DOWN_LEFT];
+  ids[7].a_int = direction_keys[DIR_DOWN];
+  ids[8].a_int = direction_keys[DIR_DOWN_RIGHT];
   ids[9].a_int = 1;
   ids[10].a_int = CMD_PAN_UP;
   ids[11].a_int = CMD_PAN_DOWN;
@@ -366,62 +398,37 @@ nds_cmd_t nds_get_config_cmd()
     cmd.f_char = 0;
     cmd.name = NULL;
   } else if (sel->item.a_int == 1) {
+    nds_flush(0);
     cmd = nds_cmd_loop(1);
   } else {
     cmd.f_char = sel->item.a_int;
 
-    switch (cmd.f_char) {
-      case 'y':
-        cmd.name = "Move Up-Left";
-        break;
-
-      case 'k':
-        cmd.name = "Move Up";
-        break;
-
-      case 'u':
-        cmd.name = "Move Up-Right";
-        break;
-
-      case 'h':
-        cmd.name = "Move Left";
-        break;
-
-      case 'l':
-        cmd.name = "Move Right";
-        break;
-
-      case 'b':
-        cmd.name = "Move Down-Left";
-        break;
-
-      case 'j':
-        cmd.name = "Move Down";
-        break;
-
-      case 'n':
-        cmd.name = "Move Down-Right";
-        break;
-
-      case CMD_PAN_UP:
-        cmd.name = "Pan Up";
-        break;
-
-      case CMD_PAN_DOWN:
-        cmd.name = "Pan Down";
-        break;
-
-      case CMD_PAN_LEFT:
-        cmd.name = "Pan Left";
-        break;
-
-      case CMD_PAN_RIGHT:
-        cmd.name = "Pan Right";
-        break;
-
-      default:
-        cmd.name = NULL;
-        break;
+    if (cmd.f_char == direction_keys[DIR_UP_LEFT]) {
+      cmd.name = "Move Up-Left";
+    } else if (cmd.f_char == direction_keys[DIR_UP]) {
+      cmd.name = "Move Up";
+    } else if (cmd.f_char == direction_keys[DIR_UP_RIGHT]) {
+      cmd.name = "Move Up-Right";
+    } else if (cmd.f_char == direction_keys[DIR_LEFT]) {
+      cmd.name = "Move Left";
+    } else if (cmd.f_char == direction_keys[DIR_RIGHT]) {
+      cmd.name = "Move Right";
+    } else if (cmd.f_char == direction_keys[DIR_DOWN_LEFT]) {
+      cmd.name = "Move Down-Left";
+    } else if (cmd.f_char == direction_keys[DIR_DOWN]) {
+      cmd.name = "Move Down";
+    } else if (cmd.f_char == direction_keys[DIR_RIGHT]) {
+      cmd.name = "Move Down-Right";
+    } else if (cmd.f_char == CMD_PAN_UP) {
+      cmd.name = "Pan Up";
+    } else if (cmd.f_char == CMD_PAN_DOWN) {
+      cmd.name = "Pan Down";
+    } else if (cmd.f_char == CMD_PAN_LEFT) {
+      cmd.name = "Pan Left";
+    } else if (cmd.f_char == CMD_PAN_RIGHT) {
+      cmd.name = "Pan Right";
+    } else {
+      cmd.name = NULL;
     }
   }
 
@@ -545,13 +552,13 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
      */
 
     if (ABS(tmp_x) > 2 * ABS(tmp_y)) {
-      ch = (tmp_x > 0) ? 'l' : 'h';
+      ch = (tmp_x > 0) ? direction_keys[DIR_LEFT] : direction_keys[DIR_RIGHT];
     } else if (ABS(tmp_y) > 2 * ABS(tmp_x)) {
-      ch = (tmp_y > 0) ? 'j' : 'k';
+      ch = (tmp_y > 0) ? direction_keys[DIR_UP] : direction_keys[DIR_DOWN];
     } else if (tmp_y > 0) {
-      ch = (tmp_x > 0) ? 'n' : 'b';
+      ch = (tmp_x > 0) ? direction_keys[DIR_DOWN_RIGHT] : direction_keys[DIR_DOWN_LEFT];
     } else {
-      ch = (tmp_x > 0) ? 'u' : 'y';
+      ch = (tmp_x > 0) ? direction_keys[DIR_UP_RIGHT] : direction_keys[DIR_UP_LEFT];
     }
 
     if (dist > 1024) {
@@ -1161,17 +1168,26 @@ nds_cmd_t nds_cmd_loop(int in_config)
         held_frames = 0;
       } else if (held_frames > CLICK_2_FRAMES) {
         char buffer[BUFSZ];
+        char *bufptr = buffer;
         int len;
 
-        getlin("Enter Repeat Count", buffer);
-        len = strlen(buffer);
+        getlin("Enter Repeat Count", bufptr);
 
-        if (*buffer) {
-          picked_cmd.name = curcmd->name;
-          picked_cmd.f_char = buffer[0];
-          strcpy(input_buffer, buffer + 1);
-          input_buffer[len - 1] = curcmd->f_char;
-          input_buffer[len] = '\0';
+        if (*bufptr) {
+          if (iflags.num_pad) {
+            picked_cmd.name = curcmd->name;
+            picked_cmd.f_char = 'n';
+          } else {
+            picked_cmd.name = curcmd->name;
+            picked_cmd.f_char = bufptr[0];
+            bufptr++;
+          }
+
+          len = strlen(bufptr);
+
+          strcpy(input_buffer, bufptr);
+          input_buffer[len] = curcmd->f_char;
+          input_buffer[len + 1] = '\0';
 
           break;
         } else {
@@ -1251,6 +1267,51 @@ nds_cmd_t nds_kbd_cmd_loop()
   nds_cmd_t cmd = { 0, NULL };
   int key = nds_prompt_char(NULL, NULL, cmd_key);
 
+  switch (key) {
+    case K_UP_LEFT:
+      key = (iflags.num_pad) ? '7' : 'y';
+      break;
+
+    case K_UP:
+      key = (iflags.num_pad) ? '8' : 'k';
+      break;
+
+    case K_UP_RIGHT:
+      key = (iflags.num_pad) ? '9' : 'u';
+      break;
+
+    case K_LEFT:
+      key = (iflags.num_pad) ? '4' : 'h';
+      break;
+
+    case K_NOOP:
+      key = (iflags.num_pad) ? '5' : '.';
+      break;
+
+    case K_RIGHT:
+      key = (iflags.num_pad) ? '6' : 'l';
+      break;
+
+    case K_DOWN_LEFT:
+      key = (iflags.num_pad) ? '1' : 'b';
+      break;
+
+    case K_DOWN:
+      key = (iflags.num_pad) ? '2' : 'j';
+      break;
+
+    case K_DOWN_RIGHT:
+      key = (iflags.num_pad) ? '3' : 'n';
+      break;
+
+    default:
+      if (key == 1) {
+        key = CMD_CONFIG;
+      }
+
+      break;
+  }
+
   cmd.f_char = key;
   cmd.name = "Dummy";
 
@@ -1278,3 +1339,6 @@ int nds_get_ext_cmd()
   return -1;
 } 
 
+void nds_number_pad(int thinger)
+{
+}

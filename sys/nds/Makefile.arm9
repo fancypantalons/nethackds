@@ -25,7 +25,7 @@ DATA		:=
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lfat -ldebugstub9 -ldebugtcp9 -ldswifi9 -lnds9
+LIBS	:= -lfat -ldebugstub9 -ldebugtcp9 -ldswifi9 -lnds9 -lpcre9
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

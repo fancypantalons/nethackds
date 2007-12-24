@@ -249,20 +249,45 @@ bot2()
 	register char *nb;
 	int hp, hpmax;
 	int cap = near_capacity();
+#ifdef NDS
+        int hpcolor = CLR_GRAY;
+#endif
 
 	hp = Upolyd ? u.mh : u.uhp;
 	hpmax = Upolyd ? u.mhmax : u.uhpmax;
 
+#ifdef NDS
+	if (iflags.hpmon) {
+	  if (hp == hpmax) {
+	    hpcolor = CLR_GRAY;
+	  } else if (hp > (hpmax*2/3)) {
+	    hpcolor = CLR_GREEN;
+	  } else if (hp <= (hpmax/3)) {
+	    hpcolor = CLR_RED;
+	  } else {
+	    hpcolor = CLR_BROWN;
+	  }
+	}
+#endif
+
 	if(hp < 0) hp = 0;
 	(void) describe_level(newbot2);
 	Sprintf(nb = eos(newbot2),
+#ifdef NDS
+		"%c:%-2ld HP:\e[3%dm%d(%d)\e[37m Pw:%d(%d) AC:%-2d", oc_syms[COIN_CLASS],
+#else
 		"%c:%-2ld HP:%d(%d) Pw:%d(%d) AC:%-2d", oc_syms[COIN_CLASS],
+#endif
 #ifndef GOLDOBJ
 		u.ugold,
 #else
 		money_cnt(invent),
 #endif
+#ifdef NDS
+		hpcolor, hp, hpmax, u.uen, u.uenmax, u.uac);
+#else
 		hp, hpmax, u.uen, u.uenmax, u.uac);
+#endif
 
 	if (Upolyd)
 		Sprintf(nb = eos(nb), " HD:%d", mons[u.umonnum].mlevel);

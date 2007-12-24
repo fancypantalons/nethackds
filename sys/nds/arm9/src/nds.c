@@ -315,6 +315,7 @@ int main()
     y_maze_max--;
 
   /* Now get the window system set up */
+  choose_windows(DEFAULT_WINDOW_SYS);
 
   initoptions();
 
@@ -326,7 +327,6 @@ int main()
     flags.debug = 1;
   }
 
-  choose_windows(DEFAULT_WINDOW_SYS);
   init_nhwindows(NULL, NULL);
 
   /* Show our splash screen */

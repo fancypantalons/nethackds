@@ -1052,6 +1052,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
   touchPosition coords = { .x = 0, .y = 0 };
 
   int prev_held = 0;
+  int held = 0;
 
   /* 
    * Initialize our display.
@@ -1072,7 +1073,6 @@ nds_cmd_t nds_cmd_loop(int in_config)
    * button is released.
    */
   while (1) {
-    int held;
     int pressed;
 
     swiWaitForVBlank();

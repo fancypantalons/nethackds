@@ -15,7 +15,7 @@
 #ifndef __FONT_BDF__
 #define __FONT_BDF__
 
-#define TEXT_COLOUR_BASE 32
+#define TEXT_COLOUR_BASE 64
 #define MAP_COLOUR(c) (TEXT_COLOUR_BASE + (c))
 
 struct font_char {

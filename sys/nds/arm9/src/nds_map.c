@@ -17,6 +17,8 @@
 #define FONT_FILE_NAME          "map.bdf"
 #define FONT_PALETTE_NAME       "map.pal"
 
+#define MAP_PALETTE_BASE        32
+
 #define TILE_WIDTH		iflags.wc_tile_width
 #define TILE_HEIGHT		iflags.wc_tile_height
 #define TILE_FILE		iflags.wc_tile_file
@@ -225,6 +227,7 @@ void nds_load_text_tile(int glyph, int gx, int gy)
   int tile_x, y, i;
   u16 *tile_ptr;
   unsigned char *img_data;
+  int black = MAP_COLOUR(CLR_BLACK);
 
   /*
    * Allocate a tile RAM block for the given glyph.
@@ -246,7 +249,7 @@ void nds_load_text_tile(int glyph, int gx, int gy)
 
   /* Now draw the character to a PPM image... yes, this is inefficient :) */
 
-  clear_ppm(text_img, 0);
+  clear_ppm(text_img, black);
 
   draw_string(map_font, tmp, text_img, 
               text_img->width / 2 - font_char_w / 2, 
@@ -267,8 +270,8 @@ void nds_load_text_tile(int glyph, int gx, int gy)
                       tile_row * 8) / 2;
 
       for (i = 0; i < 4; i++, img_data += 2) {
-        u8 c0 = ((img_data[0] != TEXT_COLOUR_BASE) ? color : 0) + 1;
-        u8 c1 = ((img_data[1] != TEXT_COLOUR_BASE) ? color : 0) + 1;
+        u8 c0 = ((img_data[0] != black) ? color : 0) + 1;
+        u8 c1 = ((img_data[1] != black) ? color : 0) + 1;
 
         row_ptr[i] = (c1 << 8) |
                      c0;
@@ -593,7 +596,7 @@ int nds_init_map()
 
       blend_dst = BLEND_DST_BG1;
 
-      palette = (u16 *)BG_PALETTE + 32;
+      palette = (u16 *)BG_PALETTE + MAP_PALETTE_BASE;
       break;
 
     case 8:

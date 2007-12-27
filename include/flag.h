@@ -291,6 +291,8 @@ struct instance_flags {
         boolean holdmode;
         boolean hpmon;
         int compassmode;
+        boolean triggermode;
+        int triggerkey;
 #endif
 };
 

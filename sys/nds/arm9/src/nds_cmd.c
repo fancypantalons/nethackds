@@ -26,9 +26,13 @@
 #define CMD_PAN_DOWN  0xFB
 #define KEY_CHORD     0x00010000
 
+/* The number of buffered command characters we'll support. */
 #define INPUT_BUFFER_SIZE 32
 
 #define CLICK_2_FRAMES 30
+
+/* The number of available keymapping slots */
+#define NUMKEYS 20
 
 /*
  * Missing commands:
@@ -61,6 +65,8 @@ typedef struct {
   int key;
   char *name;
 } nds_key_t;
+
+typedef char cmdset_t[NUMKEYS][INPUT_BUFFER_SIZE];
 
 static nds_cmd_t cmdlist[] = {
 	{M('a'), "Adjust"},
@@ -194,11 +200,11 @@ char input_buffer[INPUT_BUFFER_SIZE];
 #define DIR_DOWN       7
 #define DIR_DOWN_RIGHT 8
 
-char direction_keys[9];
+#define NUMDIRS        9
+
+char direction_keys[NUMDIRS];
 
 /* We use this array for indexing into the key config list */
-
-#define NUMKEYS 20
 
 static nds_key_t keys[NUMKEYS] = {
   { KEY_A, "A" },
@@ -223,7 +229,7 @@ static nds_key_t keys[NUMKEYS] = {
   { KEY_DOWN | KEY_CHORD, "Down+R" },
 };
 
-char key_map[NUMKEYS][INPUT_BUFFER_SIZE] = {
+cmdset_t key_map = {
   ",", "s", "o", "\x4",
   "", "",
   "l", "h", "k", "j",
@@ -291,9 +297,20 @@ void nds_init_cmd()
   }
 }
 
-int nds_map_key(u16 pressed)
+/*
+ * Convert the pressed keys into a set of commands, and return the number of
+ * commands we've found.
+ */
+int nds_get_key_cmds(int pressed, cmdset_t commands)
 {
   int i;
+  int numcmds = 0;
+
+  for (i = 0; i < NUMKEYS; i++) {
+    commands[i][0] = '\0';
+  }
+
+  memset(commands, 0, sizeof(commands));
 
   for (i = 0; i < NUMKEYS; i++) {
     /* 
@@ -302,16 +319,140 @@ int nds_map_key(u16 pressed)
      */
     if ((pressed & chord_key) && ! (keys[i].key & KEY_CHORD)) {
       continue;
+    } else if (! (pressed & chord_key) && (keys[i].key & KEY_CHORD)) {
+      continue;
     }
 
     if (pressed & keys[i].key) {
-      strcpy(input_buffer, &(key_map[i][1]));
+      strcpy(commands[numcmds++], key_map[i]);
+    }
+  }
 
-      return key_map[i][0];
+  return numcmds;
+}
+
+/*
+ * Here, we look at the set of commands and the pressed key to see if we
+ * should be returning a direction of some type.
+ */
+int nds_convert_trigger_key(int pressed, cmdset_t commands, int numcmds, char *outcmd)
+{
+  int dirs[NUMDIRS];
+  int i, j;
+  int found_dir = 0;
+
+  memset(dirs, 0, sizeof(dirs));
+  *outcmd = 0;
+
+  for (i = 0; i < numcmds; i++) {
+    for (j = 0; j < NUMDIRS; j++) {
+      char tmp[2];
+
+      tmp[0] = direction_keys[j];
+      tmp[1] = '\0';
+
+      /* If this mapped key matches this direction key... */
+      if (strcmp(commands[i], tmp) == 0) {
+        dirs[j] = 1;
+        found_dir = 1;
+      }
+    }
+  }
+
+  if (found_dir && ! (pressed & iflags.triggerkey)) {
+    return -1;
+  } else if (! found_dir) {
+    return 0;
+  }
+
+  /* 
+   * Alright, at this point, we know we have one or more direction keys, and 
+   * we know the trigger key has been pressed, so we need to convert to the
+   * final direction key.
+   */
+
+  if (dirs[DIR_UP] && dirs[DIR_LEFT]) {
+    *outcmd = direction_keys[DIR_UP_LEFT];
+  } else if (dirs[DIR_UP] && dirs[DIR_RIGHT]) {
+    *outcmd = direction_keys[DIR_UP_RIGHT];
+  } else if (dirs[DIR_DOWN] && dirs[DIR_LEFT]) {
+    *outcmd = direction_keys[DIR_DOWN_LEFT];
+  } else if (dirs[DIR_DOWN] && dirs[DIR_RIGHT]) {
+    *outcmd = direction_keys[DIR_DOWN_RIGHT];
+  } else {
+    for (i = 0; i < NUMDIRS; i++) {
+      if (dirs[i]) {
+        *outcmd = direction_keys[i];
+        break;
+      }
+    }
+  }
+
+  return (*outcmd != 0);
+}
+
+/*
+ * Return the individual keys which have been mapped to direction keys, so
+ * that, in trigger mode, we can ignore them when we're doing our input
+ * flush.
+ */
+int nds_get_dir_keys()
+{
+  int i, j;
+  int keymask;
+
+  for (i = 0; i < NUMKEYS; i++) {
+    for (j = 0; j < NUMDIRS; j++) {
+      char tmp[2];
+
+      tmp[0] = direction_keys[j];
+      tmp[1] = '\0';
+
+      if (strcmp(key_map[i], tmp) == 0) {
+        keymask |= keys[i].key;
+      }
     }
   }
   
-  return 0;
+  return keymask;
+}
+
+int nds_map_key(u16 pressed)
+{
+  cmdset_t commands;
+  int numcmds = nds_get_key_cmds(pressed, commands);
+
+  if (numcmds == 0) {
+    /* Of course, if no command was mapped, return nothing */
+
+    return 0;
+  } else if (iflags.triggermode) {
+    /*
+     * If we're in trigger mode, try to convert the mapped keys into
+     * a combined direction key.
+     */
+
+    char tmpcmd;
+    int res;
+
+    res = nds_convert_trigger_key(pressed, commands, numcmds, &tmpcmd);
+
+    if (res < 0) {
+      return 0;
+    } else if (res > 0) {
+      return tmpcmd;
+    }
+  }
+
+  /* 
+   * Finally, if nothing else, we take the first mapped command, get the second
+   * and remaining characters, stuff them in our input buffer, and then return
+   * the first character of the command.
+   */
+
+  strcpy(input_buffer, &(commands[0][1]));
+
+  return commands[0][0];
 }
 
 void nds_load_key_config()
@@ -611,10 +752,6 @@ int nds_get_input(int *x, int *y, int *mod)
 
     return key;
   }
-
-  /* Clear out any taps that happen to be occuring right now. */
-
-  nds_flush(chord_key);
 
   while(1) {
     int key = 0;
@@ -1244,8 +1381,6 @@ nds_cmd_t nds_cmd_loop(int in_config)
   if (picked_cmd.f_char == '#') {
     int idx = get_ext_cmd();
 
-    nds_flush(0);
-
     if (idx >= 0) {
       /* Now stuff the command into our input buffer. */
 
@@ -1258,6 +1393,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
   BG2_CR = old_bg_cr;
+
+  nds_flush(0);
 
   return picked_cmd;
 }
@@ -1314,6 +1451,8 @@ nds_cmd_t nds_kbd_cmd_loop()
 
   cmd.f_char = key;
   cmd.name = "Dummy";
+
+  nds_flush(0);
 
   return cmd;
 }

@@ -1090,6 +1090,8 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     }
   }
 
+  nds_flush(0);
+
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 }
 
@@ -1569,6 +1571,8 @@ DONE:
     nds_clear_prompt();
   }
 
+  nds_flush(0);
+
   return ret;
 }
 
@@ -1745,6 +1749,8 @@ DONE:
   }
 
   DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+
+  nds_flush(0);
 
   return key;
 }

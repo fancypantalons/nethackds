@@ -23,6 +23,10 @@ NEARDATA struct instance_flags iflags;	/* provide linkage */
 #define PREFER_TILED FALSE
 #endif
 
+#ifdef NDS
+#  include <nds.h>
+#endif
+
 /*
  *  NOTE:  If you add (or delete) an option, please update the short
  *  options help (option_help()), the long options help (dat/opthelp),
@@ -213,6 +217,9 @@ static struct Bool_Opt
 	{"tombstone",&flags.tombstone, TRUE, SET_IN_GAME},
 	{"toptenwin",&flags.toptenwin, FALSE, SET_IN_GAME},
 	{"travel", &iflags.travelcmd, TRUE, SET_IN_GAME},
+#ifdef NDS
+        {"triggermode", &iflags.triggermode, FALSE, SET_IN_GAME},
+#endif
 #ifdef WIN32CON
 	{"use_inverse",   &iflags.wc_inverse, TRUE, SET_IN_GAME},		/*WC*/
 #else
@@ -344,7 +351,10 @@ static struct Comp_Opt
 	{ "tile_height", "height of tiles", 20, DISP_IN_GAME},	/*WC*/
 	{ "tile_file", "name of tile file", 70, DISP_IN_GAME},	/*WC*/
 	{ "traps",    "the symbols to use in drawing traps",
-						MAXTCHARS+1, SET_IN_FILE },
+	  					MAXTCHARS+1, SET_IN_FILE },
+#ifdef NDS
+        { "triggerkey", "trigger mode key", 2, DISP_IN_GAME },
+#endif
 	{ "vary_msgcount", "show more old messages at a time", 20, DISP_IN_GAME }, /*WC*/
 #ifdef MSDOS
 	{ "video",    "method of video updating", 20, SET_IN_FILE },
@@ -558,6 +568,7 @@ initoptions()
 	iflags.bouldersym = 0;
 #ifdef NDS
         iflags.compassmode = 0;
+        iflags.triggerkey = 0;
 #endif
 	iflags.travelcc.x = iflags.travelcc.y = -1;
 	flags.warnlevel = 1;
@@ -1655,11 +1666,48 @@ goodfruit:
 #ifdef NDS
         /* compassmode:int */
 	fullname = "compassmode";
-	if (match_optname(opts, fullname, sizeof("compassmode") - 1, TRUE)) {
+	if (match_optname(opts, fullname, sizeof("compassmode") - 1, true)) {
 		op = string_for_opt(opts, negated);
 		if ((negated && !op) || (!negated && op)) {
 			iflags.compassmode = negated ? 0 : atoi(op);
-		} else if (negated) bad_negation(fullname, TRUE);
+		} else if (negated) bad_negation(fullname, true);
+		return;
+	}
+
+        /* triggerkey:string */
+	fullname = "triggerkey";
+	if (match_optname(opts, fullname, sizeof("triggerkey") - 1, true)) {
+		if (negated) {
+		    bad_negation(fullname, FALSE);
+		    return;
+		}
+
+		op = string_for_opt(opts, FALSE);
+
+                if (!op) {
+                  return;
+                } else if (strcasecmp(op, "a") == 0) {
+                  iflags.triggerkey = KEY_A;
+                } else if (strcasecmp(op, "b") == 0) {
+                  iflags.triggerkey = KEY_B;
+                } else if (strcasecmp(op, "x") == 0) {
+                  iflags.triggerkey = KEY_X;
+                } else if (strcasecmp(op, "y") == 0) {
+                  iflags.triggerkey = KEY_Y;
+                } else if (strcasecmp(op, "up") == 0) {
+                  iflags.triggerkey = KEY_UP;
+                } else if (strcasecmp(op, "down") == 0) {
+                  iflags.triggerkey = KEY_DOWN;
+                } else if (strcasecmp(op, "left") == 0) {
+                  iflags.triggerkey = KEY_LEFT;
+                } else if (strcasecmp(op, "right") == 0) {
+                  iflags.triggerkey = KEY_RIGHT;
+                } else if (strcasecmp(op, "start") == 0) {
+                  iflags.triggerkey = KEY_START;
+                } else if (strcasecmp(op, "select") == 0) {
+                  iflags.triggerkey = KEY_SELECT;
+                }
+
 		return;
 	}
 #endif

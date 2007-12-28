@@ -1983,8 +1983,6 @@ void nds_askname()
 
     destroy_nhwindow(win);
 
-    /* Blow away the menu strings */
-
     for (i = 0; i < cnt; i++) {
       free(entries[i]);
     }

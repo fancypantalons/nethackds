@@ -46,7 +46,14 @@ MENUCOLOR=" unholy "=red
 # the center of the screen.  See the iRogue website for examples of how this 
 # works.
 # OPTIONS=compassmode:1
-
+#
+# Enable trigger mode.  In this mode, movement with the joypad can only be 
+# performed if the trigger key is pressed, as well.  Note, the trigger key can 
+# be one of the following strings:  a, b, x, y, start, select, up, down, left, 
+# right.
+#
+# OPTIONS=triggermode,triggerkey:b
+#
 # Controls whether or not we do pretty colours for the HP counter.
 # OPTIONS=!hpmon
 

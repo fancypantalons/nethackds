@@ -51,7 +51,6 @@ MENUCOLOR=" unholy "=red
 # performed if the trigger key is pressed, as well.  Note, the trigger key can 
 # be one of the following strings:  a, b, x, y, start, select, up, down, left, 
 # right.
-#
 # OPTIONS=triggermode,triggerkey:b
 #
 # Controls whether or not we do pretty colours for the HP counter.

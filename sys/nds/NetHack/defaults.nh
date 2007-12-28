@@ -55,6 +55,9 @@ MENUCOLOR=" unholy "=red
 #
 # Controls whether or not we do pretty colours for the HP counter.
 # OPTIONS=!hpmon
+#
+# Enables some additional map colouring for special areas.
+# OPTIONS=mapcolors
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to

@@ -145,6 +145,9 @@ static struct Bool_Opt
 #else
 	{"mail", (boolean *)0, TRUE, SET_IN_FILE},
 #endif
+#ifdef NDS
+        {"mapcolors", &iflags.mapcolors, FALSE, SET_IN_FILE},
+#endif
 #ifdef MENU_COLOR
 # ifdef MICRO
 	{"menucolors", &iflags.use_menu_color, TRUE,  SET_IN_GAME},

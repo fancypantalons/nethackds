@@ -440,6 +440,20 @@ REGION:(37,13,39,17),lit,"ordinary"
 REGION:(36,14,40,17),lit,"ordinary"
 REGION:(59,02,72,10),lit,"ordinary"
 
+# mapglyph.c needs the gnome's homes defined
+# "delphi" is a kludge to ensure that these rooms are not disposed of by mkmap()
+REGION:(02,13,03,14),lit,"delphi"
+REGION:(01,18,03,19),lit,"delphi"
+REGION:(21,12,25,13),lit,"delphi"
+REGION:(19,17,21,18),lit,"delphi"
+REGION:(38,05,39,07),lit,"delphi"
+REGION:(43,08,44,10),lit,"delphi"
+REGION:(58,04,59,05),lit,"delphi"
+REGION:(61,04,63,04),lit,"delphi"
+REGION:(70,04,71,05),lit,"delphi"
+REGION:(66,14,68,15),lit,"delphi"
+REGION:(70,17,73,19),lit,"delphi"
+
 MONSTER: '@', "watchman", random, peaceful
 MONSTER: '@', "watchman", random, peaceful
 MONSTER: '@', "watchman", random, peaceful
@@ -505,6 +519,8 @@ ALTAR:(31,03),align[0],shrine
 MAZE: "minetn-6",' '
 INIT_MAP:'.','-',true,true,lit,true
 GEOMETRY:center,top
+#         1         2         3         4         5         6         7
+#123456789012345678901234567890123456789012345678901234567890123456789012345
 MAP
 .-----................----------------.-
 .|...|................|...|..|...|...|..
@@ -536,6 +552,20 @@ REGION:(23,1,25,3),lit,"shop"
 REGION:(22,12,24,13),lit,"food shop"
 REGION:(31,12,36,14),lit,"temple"
 ALTAR:(35,13),align[0],shrine
+
+# mapglyph.c needs the gnome's homes defined
+# "delphi" is a kludge to ensure that these rooms are not disposed of by mkmap()
+REGION:(2,1,4,3),lit,"delphi"
+REGION:(2,8,3,9),lit,"delphi"
+REGION:(9,3,11,5),lit,"delphi"
+REGION:(13,5,14,6),lit,"delphi"
+REGION:(13,10,14,11),lit,"delphi"
+REGION:(19,11,20,13),lit,"delphi"
+REGION:(21,9,31,9),lit,"delphi"
+REGION:(27,1,28,3),lit,"delphi"
+REGION:(27,7,28,8),lit,"delphi"
+REGION:(30,1,36,2),lit,"delphi"
+REGION:(34,6,36,8),lit,"delphi"
 
 DOOR:closed,(5,2)
 DOOR:locked,(4,8)

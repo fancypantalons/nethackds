@@ -293,6 +293,7 @@ struct instance_flags {
         int compassmode;
         boolean triggermode;
         int triggerkey;
+        boolean mapcolors;
 #endif
 };
 

@@ -1976,7 +1976,6 @@ void nds_askname()
     if (select_menu(win, PICK_ONE, &sel) > 0) {
       if (sel->item.a_int != 1) {
         strcpy(plname, (char *)sel->item.a_void);
-        iprintf("HERE %s\n", plname);
       }
     }
 

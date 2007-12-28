@@ -1,5 +1,7 @@
 #include <nds.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <sys/dir.h>
 
 #include "hack.h"
 
@@ -1892,9 +1894,109 @@ void nds_raw_print_bold(const char *str)
   iprintf("Raw bold: %s", str);
 }
 
+char **_nds_read_saves(int *cnt)
+{
+  DIR_ITER *dp = diropen("save/");
+  char filename[BUFSZ];
+  char **entries;
+  int i = 0;
+
+  *cnt = 0;
+
+  if (dp == NULL) {
+    return NULL;
+  }
+
+  while (dirnext(dp, filename, NULL) == 0) {
+    if ((strcmp(filename, ".") == 0) ||
+        (strcmp(filename, "..") == 0)) {
+      continue;
+    }
+
+    (*cnt)++;
+  }
+
+  dirreset(dp);
+  entries = (char **)malloc(sizeof(char *) * *cnt);
+
+  while (dirnext(dp, filename, NULL) == 0) {
+    char *nameptr;
+    int j;
+
+    if ((strcmp(filename, ".") == 0) ||
+        (strcmp(filename, "..") == 0)) {
+      continue;
+    }
+
+    strtol(filename, &nameptr, 10);
+
+    for (j = 0; j < strlen(nameptr); j++) {
+      nameptr[j] = tolower(nameptr[j]);
+    }
+
+    nameptr[0] = toupper(nameptr[0]);
+
+    entries[i++] = strdup(nameptr);
+  }
+
+  dirclose(dp);
+
+  return entries;
+}
+
 void nds_askname()
 {
-  getlin("Enter You Name:", plname);
+  int cnt;
+  char **entries = _nds_read_saves(&cnt);
+
+  plname[0] = '\0';
+
+  if (cnt != 0) {
+    ANY_P *ids = (ANY_P *)malloc(sizeof(ANY_P) * (cnt + 2));
+    winid win = create_nhwindow(NHW_MENU);
+    menu_item *sel;
+    int i;
+
+    start_menu(win);
+
+    for (i = 0; i < cnt; i++) {
+      ids[i].a_void = entries[i];
+
+      add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, entries[i], 0);
+    }
+
+    ids[cnt].a_int = 0;
+    add_menu(win, NO_GLYPH, &(ids[cnt]), 0, 0, 0, " ", 0);
+
+    ids[cnt + 1].a_int = 1;
+    add_menu(win, NO_GLYPH, &(ids[cnt + 1]), 0, 0, 0, "New Game", 0);
+
+    end_menu(win, "Select a Saved Game");
+
+    if (select_menu(win, PICK_ONE, &sel) > 0) {
+      if (sel->item.a_int != 1) {
+        strcpy(plname, (char *)sel->item.a_void);
+        iprintf("HERE %s\n", plname);
+      }
+    }
+
+    NULLFREE(sel);
+
+    destroy_nhwindow(win);
+
+    /* Blow away the menu strings */
+
+    for (i = 0; i < cnt; i++) {
+      free(entries[i]);
+    }
+
+    free(entries);
+    free(ids);
+  }
+
+  while (! *plname) {
+    getlin("Enter You Name:", plname);
+  }
 }
 
 void nds_get_nh_event()

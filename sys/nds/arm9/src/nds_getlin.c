@@ -176,6 +176,8 @@ void nds_getlin(const char *prompt, char *buffer)
     }
   }
 
+  nds_flush(0);
+
   /* Yeah, it's cheesy... I could use draw_rect... but this works, too :) */
 
   nds_clear_prompt();

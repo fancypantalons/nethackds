@@ -295,10 +295,10 @@ int nds_load_tile(int glyph, int gx, int gy)
 {
   int cache_slot;
 
-  if ((cache_slot = nds_find_cache_slot(glyph, x, y)) < 0) {
-    cache_slot = nds_allocate_cache_slot(glyph, x, y);
+  if ((cache_slot = nds_find_cache_slot(glyph, gx, gy)) < 0) {
+    cache_slot = nds_allocate_cache_slot(glyph, gx, gy);
 
-    NDS_LOAD_TILE((cache_slot + 1) * (tile_width * tile_height), glyph, x, y);
+    NDS_LOAD_TILE((cache_slot + 1) * (tile_width * tile_height), glyph, gx, gy);
   }
 
   tile_cache[cache_slot].last_used = moves;

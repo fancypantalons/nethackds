@@ -184,7 +184,7 @@ void init_screen()
   irqEnable(IRQ_VBLANK | IRQ_KEYS | IRQ_IPC_SYNC);
 
   irqSet(IRQ_KEYS, keysInterruptHandler);
-  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_L | KEY_R;
+  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_SELECT | KEY_START;
 
   irqSet(IRQ_VBLANK, vsyncHandler);
 

@@ -753,6 +753,8 @@ int nds_get_input(int *x, int *y, int *mod)
     return key;
   }
 
+  nds_flush(~KEY_TOUCH);
+
   while(1) {
     int key = 0;
     int pressed;
@@ -861,8 +863,6 @@ int nds_get_input(int *x, int *y, int *mod)
       cy = -1;
 
       dragging = 0;
-
-      continue;
     } else if (dragging) {
       continue;
     }
@@ -872,8 +872,8 @@ int nds_get_input(int *x, int *y, int *mod)
     }
     
     if (held_frames > CLICK_2_FRAMES) {
-      *x = tx;
-      *y = ty;
+      nds_map_translate_coords(coords.px, coords.py, x, y);
+
       *mod = CLICK_2;
 
       return 0;
@@ -885,6 +885,130 @@ int nds_get_input(int *x, int *y, int *mod)
   }
 
   return 0;
+}
+
+char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
+{
+  winid win;
+  menu_item *sel;
+  ANY_P ids[3];
+  int ret;
+  int yn = 0;
+  int ynaq = 0;
+  int allow_none = 0;
+
+  if (choices != NULL) {
+    iprintf("yn_function choices '%s'\n", choices);
+  }
+
+  /* We're being asked for a direction... this is special. */
+  if (strstr(ques, "Adjust letter to what") != NULL) {
+    return nds_prompt_char(ques, choices, 0);
+  } else if ((strstr(ques, "In what direction") != NULL) ||
+      (strstr(ques, "in what direction") != NULL)) {
+    /*
+     * We're going to use nh_poskey to get a command from the user.  However,
+     * we must handle clicks specially.  Unlike normal movement, you can't
+     * just click anywhere to pick a direction.  Instead, the user will be
+     * expected to click in one of the adjacent squares around the player,
+     * and the click will then be translated into a movement character.
+     */
+    while (1) {
+      int x, y, mod;
+      int sym;
+
+      nds_draw_prompt("Tap an adjacent square or press a direction key.");
+      sym = nds_get_input(&x, &y, &mod);
+      nds_clear_prompt();
+
+      if (mod == CLICK_1) {
+        if ((x == u.ux - 1) && (y == u.uy - 1)) {
+          return direction_keys[DIR_UP_LEFT];
+        } else if ((x == u.ux) && (y == u.uy - 1)) {
+          return direction_keys[DIR_UP];
+        } else if ((x == u.ux + 1) && (y == u.uy - 1)) {
+          return direction_keys[DIR_UP_RIGHT];
+        } else if ((x == u.ux - 1) && (y == u.uy)) {
+          return direction_keys[DIR_LEFT];
+        } else if ((x == u.ux) && (y == u.uy)) {
+          return direction_keys[DIR_WAIT];
+        } else if ((x == u.ux + 1) && (y == u.uy)) {
+          return direction_keys[DIR_RIGHT];
+        } else if ((x == u.ux - 1) && (y == u.uy + 1)) {
+          return direction_keys[DIR_DOWN_LEFT];
+        } else if ((x == u.ux) && (y == u.uy + 1)) {
+          return direction_keys[DIR_DOWN];
+        } else if ((x == u.ux + 1) && (y == u.uy + 1)) {
+          return direction_keys[DIR_DOWN_RIGHT];
+        }
+      } else if (mod == CLICK_2) {
+        iprintf("HERE %d %d %d %d\n", x, y, u.ux, u.uy);
+        if ((x == u.ux) && (y == u.uy)) {
+          return '>';
+        }
+      } else {
+        return sym;
+      }
+    }
+  }
+
+  allow_none = (strstr(ques, "[- ") != NULL);
+
+  if ((choices == NULL) && ! allow_none) {
+    return '*';
+  }
+
+  win = create_nhwindow(NHW_MENU);
+
+  start_menu(win);
+  
+  if (allow_none) {
+    ids[0].a_int = '*';
+    ids[1].a_int = '-';
+
+    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Something from your inventory", 0);
+    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Your finger", 0);
+  } else if ((strcasecmp(choices, ynchars) == 0) ||
+             (strcasecmp(choices, ynqchars) == 0) ||
+             ((ynaq = strcasecmp(choices, ynaqchars)) == 0)) {
+
+    yn = 1;
+
+    ids[0].a_int = 'y';
+    ids[1].a_int = 'n';
+
+    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Yes", 0);
+    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "No", 0);
+
+    if (ynaq) {
+      ids[2].a_int = 'a';
+
+      add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "All", 0);
+    }
+  } else if (strcasecmp(choices, "rl") == 0) {
+
+    ids[0].a_int = 'r';
+    ids[1].a_int = 'l';
+
+    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Right Hand", 0);
+    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Left Hand", 0);
+  } else {
+    iprintf("I have no idea how to handle this.", choices);
+    return -1;
+  }
+
+  end_menu(win, ques);
+
+  if (select_menu(win, PICK_ONE, &sel) <= 0) {
+    ret = yn ? 'n' : '\033';
+  } else {
+    ret = sel->item.a_int;
+    free(sel);
+  }
+
+  destroy_nhwindow(win);
+
+  return ret;
 }
 
 void nds_render_cmd_pages()

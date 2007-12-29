@@ -942,7 +942,6 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
           return direction_keys[DIR_DOWN_RIGHT];
         }
       } else if (mod == CLICK_2) {
-        iprintf("HERE %d %d %d %d\n", x, y, u.ux, u.uy);
         if ((x == u.ux) && (y == u.uy)) {
           return '>';
         }

@@ -65,6 +65,10 @@ void nds_getlin(const char *prompt, char *buffer)
 
   DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
 
+  /* Handle lingering taps. */
+
+  nds_flush(~KEY_TOUCH);
+
   /* Now, enter the key loop */
 
   while (! done) {

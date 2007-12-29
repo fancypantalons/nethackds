@@ -722,22 +722,56 @@ d_level *lev;
 {
 	const char *fq_bones, *tempname;
 	int ret;
+#ifdef NDS
+        FILE *src;
+        FILE *dest;
+#endif
 
 	(void) set_bonesfile_name(bones, lev);
 	fq_bones = fqname(bones, BONESPREFIX, 0);
 	tempname = set_bonestemp_name();
 	tempname = fqname(tempname, BONESPREFIX, 1);
 
-#if (defined(SYSV) && !defined(SVR4)) || defined(GENIX)
+#ifdef NDS
+        src = fopen(tempname, "r");
+
+        if (src != NULL) {
+          dest = fopen(fq_bones, "w");
+
+          if (dest == NULL) {
+            fclose(src);
+            ret = -1;
+          } else {
+            unsigned char buf[512];
+            int count;
+
+            while ((count = fread(buf, 1, sizeof(buf), src)) > 0) {
+              fwrite(buf, 1, count, dest);
+            }
+
+            if (count < 0) {
+              ret = count;
+            } else {
+              fclose(dest);
+              ret = unlink(tempname);
+            }
+          }
+        } else {
+          ret = -1;
+        }
+#else
+#  if (defined(SYSV) && !defined(SVR4)) || defined(GENIX)
 	/* old SYSVs don't have rename.  Some SVR3's may, but since they
 	 * also have link/unlink, it doesn't matter. :-)
 	 */
 	(void) unlink(fq_bones);
 	ret = link(tempname, fq_bones);
 	ret += unlink(tempname);
-#else
+#  else
 	ret = rename(tempname, fq_bones);
+#  endif
 #endif
+
 #ifdef WIZARD
 	if (wizard && ret != 0)
 		pline("couldn't rename %s to %s.", tempname, fq_bones);

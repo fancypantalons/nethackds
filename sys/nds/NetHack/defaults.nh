@@ -31,7 +31,7 @@ MENUCOLOR=" unholy "=red
 #
 # Change command window to L/R toggle visibility, rather than require they
 # be held.
-# OPTIONS=!holdmode
+# OPTIONS=holdmode
 #
 # Enable doubletap mode.  Changes menus and windows to require double-taps for
 # selecting items.

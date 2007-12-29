@@ -115,7 +115,7 @@ static struct Bool_Opt
 	{"help", &flags.help, TRUE, SET_IN_GAME},
 	{"hilite_pet",    &iflags.wc_hilite_pet, FALSE, SET_IN_GAME},	/*WC*/
 #ifdef NDS
-        {"holdmode", &iflags.holdmode, TRUE, SET_IN_GAME},
+        {"holdmode", &iflags.holdmode, FALSE, SET_IN_GAME},
         {"hpmon", &iflags.hpmon, TRUE, SET_IN_GAME},
 #endif
 #ifdef ASCIIGRAPH

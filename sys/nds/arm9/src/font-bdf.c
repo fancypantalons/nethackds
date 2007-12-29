@@ -416,7 +416,7 @@ draw_char (struct font *font, const unsigned char c,
 {
   int w = font->chars[(int) c].width;
   struct ppm *from = font->chars[(int) c].ppm;
-  int i, j;
+  int i;
 
   if (from)
     {

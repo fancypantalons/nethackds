@@ -1251,8 +1251,11 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
         sprintf(dest, "\e[2m\e[3%dm", mccolor);
       }
 
-      if (mcattr & ATR_ULINE) {
-        strcat(dest, "\e[21m");
+      if (mcattr) {
+        char buf[BUFSZ];
+
+        sprintf(buf, "\e[%dm", mcattr);
+        strcat(dest, buf);
       }
     }
 #else

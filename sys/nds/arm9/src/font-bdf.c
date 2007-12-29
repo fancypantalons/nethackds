@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#define TEXT_ATTR_BOLD    1
+#define TEXT_ATTR_ULINE   2
+#define TEXT_ATTR_INVERSE 4
+
 #undef countof
 #define countof(x) (sizeof((x))/sizeof(*(x)))
 
@@ -412,9 +416,9 @@ draw_char (struct font *font, const unsigned char c,
 {
   int w = font->chars[(int) c].width;
   struct ppm *from = font->chars[(int) c].ppm;
-  int i;
+  int i, j;
 
-  if (from && c != ' ')
+  if (from)
     {
       x += font->chars[(int) c].lbearing;
       y -= from->height + font->chars[(int) c].descent;
@@ -468,7 +472,7 @@ draw_string (struct font *font, char *string,
   }
 
   if (fg > CLR_GRAY) {
-    attr |= ATR_BOLD;
+    attr |= TEXT_ATTR_BOLD;
     fg -= 8;
   }
 
@@ -496,7 +500,13 @@ draw_string (struct font *font, char *string,
               if (*string == '\e') {
                 state = STATE_HAVE_ESCAPE;
               } else {
-                w = draw_char (font, *string, into, x, y, fg + ((attr & ATR_BOLD) ? 8 : 0), bg, attr & ATR_ULINE);
+                int tfg = fg + ((attr & TEXT_ATTR_BOLD) ? 8 : 0);
+                int rfg, rbg;
+
+                rfg = (attr & TEXT_ATTR_INVERSE) ? bg : tfg;
+                rbg = (attr & TEXT_ATTR_INVERSE) ? tfg : bg;
+
+                w = draw_char (font, *string, into, x, y, rfg, rbg, attr & TEXT_ATTR_ULINE);
                 x += w;
               }
 
@@ -511,9 +521,15 @@ draw_string (struct font *font, char *string,
 
                 start_ptr = string + 1;
               } else {
+                int tfg = fg + ((attr & TEXT_ATTR_BOLD) ? 8 : 0);
+                int rfg, rbg;
+
+                rfg = (attr & TEXT_ATTR_INVERSE) ? bg : tfg;
+                rbg = (attr & TEXT_ATTR_INVERSE) ? tfg : bg;
+
                 state = STATE_SEARCHING;
 
-                w = draw_char (font, *string, into, x, y, fg + ((attr & ATR_BOLD) ? 8 : 0), bg, attr & ATR_ULINE);
+                w = draw_char (font, *string, into, x, y, rfg, rbg, attr & TEXT_ATTR_ULINE);
                 x += w;
               }
 
@@ -545,19 +561,23 @@ draw_string (struct font *font, char *string,
                     bg = CLR_BLACK;
                     attr = 0;
                   } else if (code_params[0] == 1) {
-                    attr |= ATR_BOLD;
+                    attr |= TEXT_ATTR_BOLD;
                   } else if (code_params[0] == 2) {
-                    attr &= ~ATR_BOLD;
-                  } else if (code_params[0] == 21) {
-                    attr |= ATR_ULINE;
+                    attr &= ~TEXT_ATTR_BOLD;
+                  } else if (code_params[0] == 4) {
+                    attr |= TEXT_ATTR_ULINE;
+                  } else if (code_params[0] == 7) {
+                    attr |= TEXT_ATTR_INVERSE;
                   } else if (code_params[0] == 24) {
-                    attr &= ~ATR_ULINE;
+                    attr &= ~TEXT_ATTR_ULINE;
+                  } else if (code_params[0] == 27) {
+                    attr &= ~TEXT_ATTR_INVERSE;
                   } else if ((code_params[0] >= 30) && (code_params[0] <= 39)) {
                     int c = code_params[0] - 30;
 
                     if (c == '9') {
                       fg = CLR_GRAY;
-                      attr |= ATR_BOLD;
+                      attr |= TEXT_ATTR_BOLD;
                     } else {
                       fg = c;
                     }

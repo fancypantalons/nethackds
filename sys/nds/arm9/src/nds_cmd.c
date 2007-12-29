@@ -43,7 +43,7 @@
  */
 
 typedef struct {
-  u16 f_char;
+  s16 f_char;
   char *name;
 
   int page;
@@ -493,7 +493,7 @@ nds_cmd_t nds_get_config_cmd()
 {
   winid win;
   menu_item *sel;
-  ANY_P ids[14];
+  ANY_P ids[15];
   nds_cmd_t cmd;
 
   win = create_nhwindow(NHW_MENU);
@@ -513,6 +513,7 @@ nds_cmd_t nds_get_config_cmd()
   ids[11].a_int = CMD_PAN_DOWN;
   ids[12].a_int = CMD_PAN_LEFT;
   ids[13].a_int = CMD_PAN_RIGHT;
+  ids[14].a_int = 2;
 
   add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Direction Keys", 0);
 
@@ -532,15 +533,22 @@ nds_cmd_t nds_get_config_cmd()
   add_menu(win, NO_GLYPH, &(ids[11]), 0, 0, 0, "Pan Down", 0);
   add_menu(win, NO_GLYPH, &(ids[12]), 0, 0, 0, "Pan Left", 0);
   add_menu(win, NO_GLYPH, &(ids[13]), 0, 0, 0, "Pan Right", 0);
+  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, " ", 0);
+  add_menu(win, NO_GLYPH, &(ids[14]), 0, 0, 0, "No Command", 0);
 
   end_menu(win, "What do you want to assign to this key?");
 
   if (select_menu(win, PICK_ONE, &sel) <= 0) {
-    cmd.f_char = 0;
+    cmd.f_char = -1;
     cmd.name = NULL;
   } else if (sel->item.a_int == 1) {
     nds_flush(0);
     cmd = nds_cmd_loop(1);
+  } else if (sel->item.a_int == 2) {
+    nds_flush(0);
+
+    cmd.f_char = 0;
+    cmd.name = NULL;
   } else {
     cmd.f_char = sel->item.a_int;
 
@@ -625,7 +633,7 @@ HAVEKEY:
 
   cmd = nds_get_config_cmd();
 
-  if (cmd.f_char == 0) {
+  if (cmd.f_char < 0) {
     return;
   }
 

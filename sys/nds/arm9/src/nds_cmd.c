@@ -1266,15 +1266,15 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
   }
 
   if (row < 0) {
-    row = 0;
-  } else if (row >= cmd_rows) {
     row = cmd_rows - 1;
+  } else if (row >= cmd_rows) {
+    row = 0;
   }
 
   if (col < 0) {
-    col = 0;
-  } else if (col >= cmd_cols) {
     col = cmd_cols - 1;
+  } else if (col >= cmd_cols) {
+    col = 0;
   }
 
   newcmd = nds_find_command_row_col(row, col);
@@ -1375,7 +1375,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
 
     prev_held = held;
 
-    pressed = keysDown();
+    pressed = keysDownRepeat();
     held = keysHeld();
     coords = get_touch_coords();
 

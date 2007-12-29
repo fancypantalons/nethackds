@@ -185,19 +185,8 @@ u8 kbd_vblank() {
         } else if (keysDown() & KEY_RIGHT) {
           return K_RIGHT;
         }
-        
-	// if the stylus was released
-	if (keysUp() & KEY_TOUCH) {
-		// if last_code is set and it wasn't a modifier
-		if (last_code && !(last_code & K_MODIFIER)) {
-			kbd_set_color_from_code(last_code,0);	// clear the hiliting on this key
-  			kbd_togglemod(K_MODIFIER,0);		// and also clear all modifiers (except caps)
-		}
-		last_code = 0;
-	}
 	
-	// if the screen has been touched for 3 frames...
-	if (keysDown() & KEY_TOUCH) {
+	if (keysDownRepeat() & KEY_TOUCH) {
                 u16 the_x = IPC->touchXpx;
                 u16 the_y = IPC->touchYpx;
 		
@@ -214,7 +203,14 @@ u8 kbd_vblank() {
 		else if ((keycode & 0x7F) != 0) {	// it's an actual keystroke, return it
   			return (keycode & 0xFF);
 		}
-	}
+	} else {
+		// if last_code is set and it wasn't a modifier
+		if (last_code && !(last_code & K_MODIFIER)) {
+			kbd_set_color_from_code(last_code,0);	// clear the hiliting on this key
+  			kbd_togglemod(K_MODIFIER,0);		// and also clear all modifiers (except caps)
+		}
+		last_code = 0;
+        }
 	
 	return 0;
 }

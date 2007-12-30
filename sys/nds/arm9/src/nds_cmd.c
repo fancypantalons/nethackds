@@ -674,7 +674,7 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
    * If the click is somewhere around the user, or we're not in compass
    * mode, pass the click back to the game engine directly.
    */
-  if ( ( ((ABS(mx - u.ux) <= 1) && (ABS(my - u.uy) <= 1)) && (iflags.compassmode != 2) ) ||
+  if ( ((ABS(mx - u.ux) <= 1) && (ABS(my - u.uy) <= 1)) ||
        (iflags.compassmode == 0) ) {
     *x = mx;
     *y = my;

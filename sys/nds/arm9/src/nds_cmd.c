@@ -701,9 +701,9 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
      */
 
     if (ABS(tmp_x) > 2 * ABS(tmp_y)) {
-      ch = (tmp_x > 0) ? direction_keys[DIR_LEFT] : direction_keys[DIR_RIGHT];
+      ch = (tmp_x > 0) ? direction_keys[DIR_RIGHT] : direction_keys[DIR_LEFT];
     } else if (ABS(tmp_y) > 2 * ABS(tmp_x)) {
-      ch = (tmp_y > 0) ? direction_keys[DIR_UP] : direction_keys[DIR_DOWN];
+      ch = (tmp_y > 0) ? direction_keys[DIR_DOWN] : direction_keys[DIR_UP];
     } else if (tmp_y > 0) {
       ch = (tmp_x > 0) ? direction_keys[DIR_DOWN_RIGHT] : direction_keys[DIR_DOWN_LEFT];
     } else {

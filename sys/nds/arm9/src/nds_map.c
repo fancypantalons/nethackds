@@ -240,7 +240,7 @@ void nds_load_text_tile(int tile_idx, int glyph, int gx, int gy)
 {
   int ch, color;
   unsigned int special;
-  char tmp[2] = { 0, 0 };
+  char tmp[BUFSZ];
   int tile_x, y, i;
   u16 *tile_ptr;
   unsigned char *img_data;
@@ -256,7 +256,12 @@ void nds_load_text_tile(int tile_idx, int glyph, int gx, int gy)
     color = CLR_BLUE;
   }
 
-  tmp[0] = ch; // Build a string.
+  if (((special & MG_PET) && iflags.hilite_pet) ||
+      ((special & MG_DETECT) && iflags.use_inverse)) {
+    sprintf(tmp, "\e[7m%c", ch);
+  } else {
+    sprintf(tmp, "%c", ch);
+  }
 
   /* Now draw the character to a PPM image... yes, this is inefficient :) */
 

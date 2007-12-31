@@ -27,6 +27,7 @@
 #define CMD_PAN_UP     0xFC
 #define CMD_PAN_DOWN   0xFB
 #define CMD_OPT_TOGGLE 0xFA
+#define CMD_SHOW_KEYS  0xF9
 
 /* The number of buffered command characters we'll support. */
 
@@ -118,6 +119,7 @@ static nds_cmd_t cmdlist[] = {
 	{'S', "Save"},
 	{'s', "Search"},
 	{'O', "Set"},
+        {CMD_SHOW_KEYS, "Show Keys"},
 	{M('s'), "Sit"},
 	{'x', "Swap"},
 	{'T', "Take Off"},
@@ -128,7 +130,7 @@ static nds_cmd_t cmdlist[] = {
 	{'I', "Type-Inv"},
 	{'<', "Up"},
 	{M('u'), "Untrap"},
-	{'v', "Version"},
+	//{'v', "Version"},
 	{'.', "Wait"},
 	{'&', "What Does"},
 	{';', "What Is"},
@@ -439,6 +441,9 @@ char *nds_command_to_string(char *command)
 
     case CMD_PAN_DOWN:
       return "Pan D";
+
+    case CMD_SHOW_KEYS:
+      return "Show Keys";
   }
 
   for (i = 0; i < NUMDIRS; i++) {
@@ -997,6 +1002,23 @@ void nds_config_key()
   nds_flush(0);
 }
 
+void nds_show_keys()
+{
+  winid win;
+  int i;
+  char buffer[BUFSZ];
+
+  win = create_nhwindow(NHW_TEXT);
+
+  for (i = 0; i < numkeys; i++) {
+    sprintf(buffer, "%s = %s", nds_key_to_string(keymap[i].key), nds_command_to_string(keymap[i].command));
+    putstr(win, ATR_NONE, buffer);
+  }
+
+  display_nhwindow(win, FALSE);
+  destroy_nhwindow(win);
+}
+
 int nds_handle_click(int px, int py, int *x, int *y, int *mod)
 {
   int mx, my;
@@ -1185,6 +1207,10 @@ int nds_get_input(int *x, int *y, int *mod)
         nds_toggle_bool_option(input_buffer);
         *input_buffer = '\0';
 
+        break;
+
+      case CMD_SHOW_KEYS:
+        nds_show_keys();
         break;
 
       default:
@@ -1927,6 +1953,8 @@ nds_cmd_t nds_kbd_cmd_loop()
     default:
       if (key == 1) {
         key = CMD_CONFIG;
+      } else if (key == 2) {
+        key = CMD_SHOW_KEYS;
       }
 
       break;

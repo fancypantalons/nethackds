@@ -195,7 +195,7 @@ void init_screen()
 #ifdef _DEBUG_
   scanKeys();
   
-  int pressed = keysDown();
+  int pressed = nds_keysDown();
 
   if (pressed & KEY_START) {
     debug_mode = 1;

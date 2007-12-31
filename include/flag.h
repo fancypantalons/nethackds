@@ -294,9 +294,8 @@ struct instance_flags {
         boolean holdmode;
         boolean hpmon;
         int compassmode;
-        boolean triggermode;
-        int triggerkey;
         boolean mapcolors;
+        char *chordkeys;
 #endif
 };
 

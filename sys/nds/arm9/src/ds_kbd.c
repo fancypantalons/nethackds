@@ -176,17 +176,17 @@ u8 kbd_vblank() {
 	
 	static u16 last_code;		// the keycode of the last key pressed, so it can be un-hilited
 
-        if (keysDown() & KEY_UP) {
+        if (nds_keysDown() & KEY_UP) {
           return K_UP;
-        } else if (keysDown() & KEY_DOWN) {
+        } else if (nds_keysDown() & KEY_DOWN) {
           return K_DOWN;
-        } else if (keysDown() & KEY_LEFT) {
+        } else if (nds_keysDown() & KEY_LEFT) {
           return K_LEFT;
-        } else if (keysDown() & KEY_RIGHT) {
+        } else if (nds_keysDown() & KEY_RIGHT) {
           return K_RIGHT;
         }
 	
-	if (keysDownRepeat() & KEY_TOUCH) {
+	if (nds_keysDownRepeat() & KEY_TOUCH) {
                 u16 the_x = IPC->touchXpx;
                 u16 the_y = IPC->touchYpx;
 		

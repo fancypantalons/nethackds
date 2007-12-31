@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "hack.h"
+#include "nds_util.h"
+
 touchPosition touch_coords = { .x = 0, .y = 0 };
 touchPosition old_touch_coords;
 
@@ -69,7 +72,7 @@ void nds_wait_key(int keys)
     swiWaitForVBlank();
     scanKeys();
 
-    pressed = keysDown();
+    pressed = nds_keysDown();
 
     if (pressed & keys) {
       break;
@@ -86,10 +89,45 @@ void nds_flush(int ignore)
     swiWaitForVBlank();
     scanKeys();
 
-    if ((keysHeld() & ~ignore) == 0) {
+    if ((nds_keysHeld() & ~ignore) == 0) {
       return;
     }
   }
+}
+
+u16 _nds_handedness_swap(u16 keys)
+{
+  if (iflags.lefthanded) {
+    int l = keys & KEY_L;
+    int r = keys & KEY_R;
+
+    keys &= ~(KEY_L | KEY_R);
+
+    keys |= l ? KEY_R : 0;
+    keys |= r ? KEY_L : 0;
+  }
+
+  return keys;
+}
+
+u16 nds_keysDown()
+{
+  return _nds_handedness_swap(keysDown());
+}
+
+u16 nds_keysDownRepeat()
+{
+  return _nds_handedness_swap(keysDownRepeat());
+}
+
+u16 nds_keysHeld()
+{
+  return _nds_handedness_swap(keysHeld());
+}
+
+u16 nds_keysUp()
+{
+  return _nds_handedness_swap(keysUp());
 }
 
 /*
@@ -165,4 +203,24 @@ int get_tap_coords(touchPosition *coords)
 touchPosition get_touch_coords()
 {
   return touch_coords;
+}
+
+/*
+ * Returns the string with the trailing whitespace stripped off, and the
+ * pointer advanced to point past the leading whitespace.
+ */
+char *nds_strip(char *str, int front, int back)
+{
+  char *end = str + strlen(str) - 1;
+
+  while (front && *str && ISWHITESPACE(*str)) {
+    str++;
+  }
+
+  while (back && (end >= str) && ISWHITESPACE(*end)) {
+    *end = '\0';
+    end--;
+  }
+
+  return str;
 }

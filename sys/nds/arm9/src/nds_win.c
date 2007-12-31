@@ -935,7 +935,7 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
 
   scanKeys();
   scan_touch_screen();
-  pressed = keysDownRepeat();
+  pressed = nds_keysDownRepeat();
 
   if (keys) {
     *keys = pressed;
@@ -1369,7 +1369,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
     prev_pressed = pressed;
     tmp = _nds_handle_scroller_buttons(window, &refresh, &pressed);
 
-    held = keysHeld();
+    held = nds_keysHeld();
 
     if (tmp > 0) {
       goto DONE;
@@ -1715,8 +1715,8 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
     scanKeys();
 
     key = kbd_vblank();
-    pressed = keysDown();
-    held = keysHeld();
+    pressed = nds_keysDown();
+    held = nds_keysHeld();
 
     if ((iflags.holdmode && holdkey && ! (held & holdkey)) ||
         (! iflags.holdmode && holdkey && (pressed & holdkey))) {
@@ -1742,7 +1742,7 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
     scanKeys();
     kbd_vblank();
 
-    if (keysUp() & KEY_TOUCH) {
+    if (nds_keysUp() & KEY_TOUCH) {
       break;
     }
   };

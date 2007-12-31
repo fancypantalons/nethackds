@@ -78,26 +78,6 @@ nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str, int reflo
   return &(buffer->lines[buffer->count - 1]);
 }
 
-/*
- * Returns the string with the trailing whitespace stripped off, and the
- * pointer advanced to point past the leading whitespace.
- */
-char *strip(char *str, int front, int back)
-{
-  char *end = str + strlen(str) - 1;
-
-  while (front && *str && ISWHITESPACE(*str)) {
-    str++;
-  }
-
-  while (back && (end >= str) && ISWHITESPACE(*end)) {
-    *end = '\0';
-    end--;
-  }
-
-  return str;
-}
-
 /* Returns a pointer to the start of the next word in the given string. */
 char *get_next_word_end(char *str)
 {
@@ -153,7 +133,7 @@ int get_line_from_wrap_buffer(char *buffer, int buflen, char *dest, int maxwidth
   len = end - buffer - 1;
 
   /* Now let's erase any leading whitespace */
-  end = strip(end, 1, 0);
+  end = nds_strip(end, 1, 0);
 
   memmove(buffer, end, buflen - (end - buffer));
 
@@ -185,7 +165,7 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
     if (new_paragraph && ! *wrap_buffer && (curline < src->count)) {
       int reflow = src->lines[curline].reflow;
       char *bufline = src->lines[curline++].text;
-      char *line = strip(bufline, 1, 1);
+      char *line = nds_strip(bufline, 1, 1);
 
       prefix_len = line - bufline;
 
@@ -203,7 +183,7 @@ nds_charbuf_t *nds_charbuf_wrap(nds_charbuf_t *src, int maxwidth)
       }
     } else if (! new_paragraph && (curline < src->count)) {
       int reflow = src->lines[curline].reflow;
-      char *line = strip(src->lines[curline++].text, 1, 1); 
+      char *line = nds_strip(src->lines[curline++].text, 1, 1); 
 
       if (*line) {
         strcat(wrap_buffer, line);

@@ -220,9 +220,6 @@ static struct Bool_Opt
 	{"tombstone",&flags.tombstone, TRUE, SET_IN_GAME},
 	{"toptenwin",&flags.toptenwin, FALSE, SET_IN_GAME},
 	{"travel", &iflags.travelcmd, TRUE, SET_IN_GAME},
-#ifdef NDS
-        {"triggermode", &iflags.triggermode, FALSE, SET_IN_GAME},
-#endif
 #ifdef WIN32CON
 	{"use_inverse",   &iflags.wc_inverse, TRUE, SET_IN_GAME},		/*WC*/
 #else
@@ -255,6 +252,7 @@ static struct Comp_Opt
 	{ "catname",  "the name of your (first) cat (e.g., catname:Tabby)",
 						PL_PSIZ, DISP_IN_GAME },
 #ifdef NDS
+        { "chordkeys", "the keys which can be used to make chorded commands", 4, DISP_IN_GAME },
         { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
 #endif
 	{ "disclose", "the kinds of information to disclose at end of game",
@@ -358,9 +356,6 @@ static struct Comp_Opt
 	{ "tile_file", "name of tile file", 70, DISP_IN_GAME},	/*WC*/
 	{ "traps",    "the symbols to use in drawing traps",
 	  					MAXTCHARS+1, SET_IN_FILE },
-#ifdef NDS
-        { "triggerkey", "trigger mode key", 2, DISP_IN_GAME },
-#endif
 	{ "vary_msgcount", "show more old messages at a time", 20, DISP_IN_GAME }, /*WC*/
 #ifdef MSDOS
 	{ "video",    "method of video updating", 20, SET_IN_FILE },
@@ -574,7 +569,7 @@ initoptions()
 	iflags.bouldersym = 0;
 #ifdef NDS
         iflags.compassmode = 0;
-        iflags.triggerkey = 0;
+        iflags.chordkeys = "r";
 #endif
 	iflags.travelcc.x = iflags.travelcc.y = -1;
 	flags.warnlevel = 1;
@@ -1681,43 +1676,6 @@ goodfruit:
 		if ((negated && !op) || (!negated && op)) {
 			iflags.compassmode = negated ? 0 : atoi(op);
 		} else if (negated) bad_negation(fullname, true);
-		return;
-	}
-
-        /* triggerkey:string */
-	fullname = "triggerkey";
-	if (match_optname(opts, fullname, sizeof("triggerkey") - 1, true)) {
-		if (negated) {
-		    bad_negation(fullname, FALSE);
-		    return;
-		}
-
-		op = string_for_opt(opts, FALSE);
-
-                if (!op) {
-                  return;
-                } else if (strcasecmp(op, "a") == 0) {
-                  iflags.triggerkey = KEY_A;
-                } else if (strcasecmp(op, "b") == 0) {
-                  iflags.triggerkey = KEY_B;
-                } else if (strcasecmp(op, "x") == 0) {
-                  iflags.triggerkey = KEY_X;
-                } else if (strcasecmp(op, "y") == 0) {
-                  iflags.triggerkey = KEY_Y;
-                } else if (strcasecmp(op, "up") == 0) {
-                  iflags.triggerkey = KEY_UP;
-                } else if (strcasecmp(op, "down") == 0) {
-                  iflags.triggerkey = KEY_DOWN;
-                } else if (strcasecmp(op, "left") == 0) {
-                  iflags.triggerkey = KEY_LEFT;
-                } else if (strcasecmp(op, "right") == 0) {
-                  iflags.triggerkey = KEY_RIGHT;
-                } else if (strcasecmp(op, "start") == 0) {
-                  iflags.triggerkey = KEY_START;
-                } else if (strcasecmp(op, "select") == 0) {
-                  iflags.triggerkey = KEY_SELECT;
-                }
-
 		return;
 	}
 #endif

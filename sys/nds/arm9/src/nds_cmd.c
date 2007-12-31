@@ -1757,6 +1757,9 @@ nds_cmd_t nds_cmd_loop(int in_config)
     refresh = 1;
   }
 
+  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  BG2_CR = old_bg_cr;
+
   /* 
    * If an extended command was requested, we need to get it from the
    * user.
@@ -1773,9 +1776,6 @@ nds_cmd_t nds_cmd_loop(int in_config)
       picked_cmd.name = NULL;
     }
   }
-
-  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
-  BG2_CR = old_bg_cr;
 
   nds_flush(0);
 
@@ -1842,24 +1842,56 @@ nds_cmd_t nds_kbd_cmd_loop()
 
 int nds_get_ext_cmd()
 {
-  char buffer[BUFSZ];
+  int cmdcnt;
   int i;
 
+  winid win;
+  ANY_P *ids = NULL;
+  menu_item *sel = NULL;
+  int selected;
+
   if (*input_buffer) {
+    char buffer[INPUT_BUFFER_SIZE];
+
     strcpy(buffer, input_buffer);
     *input_buffer = '\0';
-  } else {
-    getlin("Extended Command", buffer);
-  }
 
-  for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
-    if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {
-      return i;
+    for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
+      if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {
+        return i;
+      }
     }
   }
 
-  return -1;
-} 
+  for (i = 0, cmdcnt = 0; extcmdlist[i].ef_txt != NULL; i++) {
+    cmdcnt++;
+  }
+
+  ids = (ANY_P *)malloc(sizeof(ANY_P) * cmdcnt);
+
+  win = create_nhwindow(NHW_MENU);
+
+  start_menu(win);
+
+  for (i = 0; i < cmdcnt; i++) {
+    ids[i].a_int = i + 1;
+    add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, extcmdlist[i].ef_txt, 0);
+  }
+
+  end_menu(win, "Which Extended Command?");
+
+  if (select_menu(win, PICK_ONE, &sel) > 0) {
+    selected = sel->item.a_int - 1;
+  } else {
+    selected = -1;
+  }
+
+  destroy_nhwindow(win);
+  NULLFREE(ids);
+  NULLFREE(sel);
+
+  return selected;
+}
 
 void nds_number_pad(int thinger)
 {

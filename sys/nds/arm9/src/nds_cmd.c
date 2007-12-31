@@ -21,11 +21,12 @@
 
 #define KEY_CONFIG_FILE "keys.cnf"
 
-#define CMD_CONFIG    0xFF
-#define CMD_PAN_RIGHT 0xFE
-#define CMD_PAN_LEFT  0xFD
-#define CMD_PAN_UP    0xFC
-#define CMD_PAN_DOWN  0xFB
+#define CMD_CONFIG     0xFF
+#define CMD_PAN_RIGHT  0xFE
+#define CMD_PAN_LEFT   0xFD
+#define CMD_PAN_UP     0xFC
+#define CMD_PAN_DOWN   0xFB
+#define CMD_OPT_TOGGLE 0xFA
 
 /* The number of buffered command characters we'll support. */
 
@@ -168,6 +169,15 @@ static nds_cmd_t wiz_cmdlist[] = {
 #endif
         {0, NULL}
 };
+
+/* Since this isn't exported anywhere, we duplicate the definition here. */
+
+extern struct Bool_Opt
+{
+        const char *name;
+        boolean *addr, initvalue;
+        int optflags;
+} boolopt[];
 
 u16 *vram = (u16 *)BG_BMP_RAM(12);
 
@@ -737,6 +747,84 @@ void nds_save_key_config()
   fclose(fp);
 }
 
+const char *nds_get_bool_option()
+{
+  int i, j;
+  int optcnt;
+
+  winid win;
+  menu_item *sel;
+  ANY_P *ids;
+  const char *res;
+
+  for (i = 0, optcnt = 0; boolopt[i].name; i++) {
+    if (boolopt[i].addr != NULL) {
+      optcnt++;
+    }
+  }
+
+  ids = (ANY_P *)malloc(sizeof(ANY_P) * optcnt);
+
+  win = create_nhwindow(NHW_MENU);
+
+  start_menu(win);
+
+  for (i = 0, j = 0; boolopt[i].name; i++) {
+    if ((boolopt[i].addr == NULL) || (boolopt[i].optflags != SET_IN_GAME)) {
+      continue;
+    }
+
+    ids[j].a_int = i + 1;
+    add_menu(win, NO_GLYPH, &(ids[j]), 0, 0, 0, boolopt[i].name, 0);
+
+    j++;
+  }
+
+  end_menu(win, "Which Option Should Be Toggled?");
+
+  if (select_menu(win, PICK_ONE, &sel) > 0) {
+    res = boolopt[sel->item.a_int - 1].name;
+  } else {
+    res = NULL;
+  }
+
+  destroy_nhwindow(win);
+  NULLFREE(sel);
+  NULLFREE(ids);
+
+  iprintf("Picked %s\n", res);
+
+  return res;
+}
+
+void nds_toggle_bool_option(char *name)
+{
+  int i;
+  int optidx = -1;
+  char buffer[BUFSZ];
+  boolean *val;
+
+  for (i = 0; boolopt[i].name; i++) {
+    if (strcmp(boolopt[i].name, name) == 0) {
+      optidx = i;
+      break;
+    }
+  }
+
+  if (optidx < 0) {
+    return;
+  }
+
+  val = boolopt[optidx].addr;
+  *val = *val ? 0 : 1;
+
+  sprintf(buffer, "Set %s %s",
+          boolopt[optidx].name,
+          *val ? "ON" : "OFF");
+
+  putstr(WIN_MESSAGE, ATR_NONE, buffer);
+}
+
 nds_cmd_t nds_get_config_cmd(u16 key)
 {
   winid win;
@@ -744,6 +832,7 @@ nds_cmd_t nds_get_config_cmd(u16 key)
   ANY_P ids[15];
   nds_cmd_t cmd;
   char tmp[BUFSZ];
+  int res;
 
   win = create_nhwindow(NHW_MENU);
   start_menu(win);
@@ -758,11 +847,12 @@ nds_cmd_t nds_get_config_cmd(u16 key)
   ids[7].a_int = direction_keys[DIR_DOWN];
   ids[8].a_int = direction_keys[DIR_DOWN_RIGHT];
   ids[9].a_int = 1;
-  ids[10].a_int = CMD_PAN_UP;
-  ids[11].a_int = CMD_PAN_DOWN;
-  ids[12].a_int = CMD_PAN_LEFT;
-  ids[13].a_int = CMD_PAN_RIGHT;
-  ids[14].a_int = 2;
+  ids[10].a_int = CMD_OPT_TOGGLE;
+  ids[11].a_int = CMD_PAN_UP;
+  ids[12].a_int = CMD_PAN_DOWN;
+  ids[13].a_int = CMD_PAN_LEFT;
+  ids[14].a_int = CMD_PAN_RIGHT;
+  ids[15].a_int = 2;
 
   add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Direction Keys", 0);
 
@@ -778,17 +868,20 @@ nds_cmd_t nds_get_config_cmd(u16 key)
   add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Other", 0);
 
   add_menu(win, NO_GLYPH, &(ids[9]), 0, 0, 0, "Game Command", 0);
-  add_menu(win, NO_GLYPH, &(ids[10]), 0, 0, 0, "Pan Up", 0);
-  add_menu(win, NO_GLYPH, &(ids[11]), 0, 0, 0, "Pan Down", 0);
-  add_menu(win, NO_GLYPH, &(ids[12]), 0, 0, 0, "Pan Left", 0);
-  add_menu(win, NO_GLYPH, &(ids[13]), 0, 0, 0, "Pan Right", 0);
+  add_menu(win, NO_GLYPH, &(ids[10]), 0, 0, 0, "Toggle Option", 0);
+  add_menu(win, NO_GLYPH, &(ids[11]), 0, 0, 0, "Pan Up", 0);
+  add_menu(win, NO_GLYPH, &(ids[12]), 0, 0, 0, "Pan Down", 0);
+  add_menu(win, NO_GLYPH, &(ids[13]), 0, 0, 0, "Pan Left", 0);
+  add_menu(win, NO_GLYPH, &(ids[14]), 0, 0, 0, "Pan Right", 0);
   add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, " ", 0);
-  add_menu(win, NO_GLYPH, &(ids[14]), 0, 0, 0, "No Command", 0);
+  add_menu(win, NO_GLYPH, &(ids[15]), 0, 0, 0, "No Command", 0);
 
   sprintf(tmp, "What do you want to assign to %s?", nds_key_to_string(key));
   end_menu(win, tmp);
+  res = select_menu(win, PICK_ONE, &sel);
+  destroy_nhwindow(win);
 
-  if (select_menu(win, PICK_ONE, &sel) <= 0) {
+  if (res <= 0) {
     cmd.f_char = -1;
     cmd.name = NULL;
   } else if (sel->item.a_int == 1) {
@@ -826,14 +919,15 @@ nds_cmd_t nds_get_config_cmd(u16 key)
       cmd.name = "Pan Left";
     } else if (cmd.f_char == CMD_PAN_RIGHT) {
       cmd.name = "Pan Right";
+    } else if (cmd.f_char == CMD_OPT_TOGGLE) {
+      cmd.name = "Toggle Option";
+      strcpy(input_buffer, nds_get_bool_option());
     } else {
       cmd.name = NULL;
     }
   }
 
   NULLFREE(sel);
-
-  destroy_nhwindow(win);
 
   return cmd;
 }
@@ -1085,6 +1179,12 @@ int nds_get_input(int *x, int *y, int *mod)
 
       case CMD_CONFIG:
         nds_config_key();
+        break;
+
+      case CMD_OPT_TOGGLE:
+        nds_toggle_bool_option(input_buffer);
+        *input_buffer = '\0';
+
         break;
 
       default:

@@ -37,7 +37,11 @@ NEARDATA struct instance_flags iflags;	/* provide linkage */
  *  option (e.g. time and timed_delay) the shorter one must come first.
  */
 
+#ifdef NDS
+struct Bool_Opt
+#else
 static struct Bool_Opt
+#endif
 {
 	const char *name;
 	boolean	*addr, initvalue;
@@ -75,6 +79,8 @@ static struct Bool_Opt
 	{"cmdassist", &iflags.cmdassist, TRUE, SET_IN_GAME},
 #ifdef NDS
         {"cmdwindow", &iflags.cmdwindow, TRUE, SET_IN_FILE},
+#else 
+        {"cmdwindow", (boolean *)0, TRUE, SET_IN_FILE},
 #endif
 # if defined(MICRO) || defined(WIN32)
 	{"color",         &iflags.wc_color,TRUE, SET_IN_GAME},		/*WC*/
@@ -84,6 +90,8 @@ static struct Bool_Opt
 	{"confirm",&flags.confirm, TRUE, SET_IN_GAME},
 #ifdef NDS
         {"cursor", &iflags.cursor, TRUE, SET_IN_GAME},
+#else
+        {"cursor", (boolean *)0, TRUE, SET_IN_GAME},
 #endif
 #if defined(TERMLIB) && !defined(MAC_GRAPHICS_ENV)
 	{"DECgraphics", &iflags.DECgraphics, FALSE, SET_IN_GAME},
@@ -92,6 +100,8 @@ static struct Bool_Opt
 #endif
 #ifdef NDS
         {"doubletap", &iflags.doubletap, FALSE, SET_IN_GAME},
+#else
+        {"doubletap", (boolean *)0, FALSE, SET_IN_GAME},
 #endif
 	{"eight_bit_tty", &iflags.wc_eight_bit_input, FALSE, SET_IN_GAME},	/*WC*/
 #ifdef TTY_GRAPHICS
@@ -117,6 +127,9 @@ static struct Bool_Opt
 #ifdef NDS
         {"holdmode", &iflags.holdmode, FALSE, SET_IN_GAME},
         {"hpmon", &iflags.hpmon, TRUE, SET_IN_GAME},
+#else
+        {"holdmode", (boolean *)0, FALSE, SET_IN_GAME},
+        {"hpmon", (boolean *)0, TRUE, SET_IN_GAME},
 #endif
 #ifdef ASCIIGRAPH
 	{"IBMgraphics", &iflags.IBMgraphics, FALSE, SET_IN_GAME},
@@ -131,6 +144,8 @@ static struct Bool_Opt
 	{"large_font", &iflags.obsolete, FALSE, SET_IN_FILE},	/* OBSOLETE */
 #ifdef NDS
         {"lefthanded", &iflags.lefthanded, FALSE, SET_IN_FILE},
+#else
+        {"lefthanded", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 	{"legacy", &flags.legacy, TRUE, DISP_IN_GAME},
 	{"lit_corridor", &flags.lit_corridor, FALSE, SET_IN_GAME},
@@ -147,6 +162,8 @@ static struct Bool_Opt
 #endif
 #ifdef NDS
         {"mapcolors", &iflags.mapcolors, FALSE, SET_IN_FILE},
+#else
+        {"mapcolors", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 #ifdef MENU_COLOR
 # ifdef MICRO

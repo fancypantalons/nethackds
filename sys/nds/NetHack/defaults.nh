@@ -47,17 +47,17 @@ MENUCOLOR=" unholy "=red
 # works.
 # OPTIONS=compassmode:1
 #
-# Enable trigger mode.  In this mode, movement with the joypad can only be 
-# performed if the trigger key is pressed, as well.  Note, the trigger key can 
-# be one of the following strings:  a, b, x, y, start, select, up, down, left, 
-# right.
-# OPTIONS=triggermode,triggerkey:b
-#
 # Controls whether or not we do pretty colours for the HP counter.
-# OPTIONS=!hpmon
+# OPTIONS=hpmon
 #
 # Enables some additional map colouring for special areas.
 # OPTIONS=mapcolors
+#
+# Defines which keys are chord keys, which can be combined with regular keys for
+# keybinding purposes.  The example below allows one to create a setup identical
+# to triggermode, in that the user may then bind the various directions plus
+# B to the various directions.
+# CHORDKEYS=up,down,left,right,r
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to

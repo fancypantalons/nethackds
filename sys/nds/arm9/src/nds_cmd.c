@@ -1175,7 +1175,6 @@ int nds_get_input(int *x, int *y, int *mod)
       case 0:
         if (prev_held != held) {
           nds_draw_prompt(nds_find_key_options(held));
-          held = prev_held;
         }
 
         break;

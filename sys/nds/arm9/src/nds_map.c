@@ -74,6 +74,7 @@ int map_width;
 int map_height;
 
 int cx, cy;
+int pet_count;
 
 /* Sprite-specific variables (for tile mode) */
 
@@ -177,10 +178,6 @@ void nds_load_graphics_tile(int tile_idx, int glyph, int gx, int gy)
   int bmp_tile_x, bmp_tile_y;
   u8 *bmp_row_start;
   u16 *tile_row_start;
-
-  /*
-   * Alright, now load the tile into memory.
-   */
 
   /* Next, get a few fields from the BMP headers that we'll need. */
 
@@ -363,6 +360,23 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
       }
     }
   }
+
+  /* 
+   * Yeah, this is a weird place for this, BUT... here we put in a sprite
+   * cursor if this is a pet and we're in tile mode.
+   */
+  if (TILE_FILE != NULL) {
+    int ch, color;
+    unsigned int special;
+
+    mapglyph(glyph, &ch, &color, &special, gx, gy);
+
+    if ((special & MG_PET) && iflags.hilite_pet) {
+      oam_shadow.spriteBuffer[++pet_count].posX = x * TILE_WIDTH;
+      oam_shadow.spriteBuffer[pet_count].posY = y * TILE_HEIGHT;
+      oam_shadow.spriteBuffer[pet_count].isHidden = 0;
+    }
+  }
 }
 
 /*
@@ -450,6 +464,15 @@ int nds_init_text_map(u16 *palette, int *pallen)
   return 8;
 }
 
+void nds_clear_sprites()
+{
+  int i;
+
+  for (i = 0; i < 128; i++) {
+    oam_shadow.spriteBuffer[i].isHidden = 1;
+  }
+}
+
 /*
  * Get the user sprite set up and drawn.
  */
@@ -457,7 +480,6 @@ void nds_draw_graphics_cursor(int x, int y)
 {
   if ((x < 0) || (y < 0) || (x > map_width) || (y > map_height) ||
       (! iflags.cursor)) {
-    oam_shadow.spriteBuffer[0].isHidden = 1;
 
     return;
   } 
@@ -478,60 +500,59 @@ void nds_init_sprite(int bpp)
   /* First thing's f'ing last, let's disable all sprites */
 
   for (i = 0; i < 128; i++) {
+    switch (dim) {
+      case 8:
+        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_8;
+        spr_size = 1;
+        break;
+
+      case 16:
+        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_16;
+        spr_size = 2;
+        break;
+
+      case 24:
+      case 32:
+        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_32;
+        spr_size = 4;
+        break;
+
+      case 48:
+      case 64:
+        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_64;
+        spr_size = 8;
+        break;
+
+      default:
+        break;
+    }
+
+    switch (bpp) {
+      case 4:
+        oam_shadow.spriteBuffer[i].colMode = OBJCOLOR_16;
+        break;
+
+      case 8:
+        oam_shadow.spriteBuffer[i].colMode = OBJCOLOR_256;
+        break;
+
+      default:
+        break;
+    }
+
     oam_shadow.spriteBuffer[i].isHidden = 1;
+    oam_shadow.spriteBuffer[i].isRotoscale = 0;
+    oam_shadow.spriteBuffer[i].rsDouble = 0;
+    oam_shadow.spriteBuffer[i].objMode = OBJMODE_BLENDED;
+    oam_shadow.spriteBuffer[i].isMosaic = 0;
+    oam_shadow.spriteBuffer[i].objShape = OBJSHAPE_SQUARE;
+
+    oam_shadow.spriteBuffer[i].posX = 0;
+    oam_shadow.spriteBuffer[i].posY = 0;
+    oam_shadow.spriteBuffer[i].tileIdx = spr_size * spr_size * (bpp / 4);
+    oam_shadow.spriteBuffer[i].objPriority = OBJPRIORITY_3;
+    oam_shadow.spriteBuffer[i].objPal = 0;
   }
-
-  switch (dim) {
-    case 8:
-      oam_shadow.spriteBuffer[0].objSize = OBJSIZE_8;
-      spr_size = 1;
-      break;
-
-    case 16:
-      oam_shadow.spriteBuffer[0].objSize = OBJSIZE_16;
-      spr_size = 2;
-      break;
-
-    case 24:
-    case 32:
-      oam_shadow.spriteBuffer[0].objSize = OBJSIZE_32;
-      spr_size = 4;
-      break;
-
-    case 48:
-    case 64:
-      oam_shadow.spriteBuffer[0].objSize = OBJSIZE_64;
-      spr_size = 8;
-      break;
-
-    default:
-      break;
-  }
-  
-  switch (bpp) {
-    case 4:
-      oam_shadow.spriteBuffer[0].colMode = OBJCOLOR_16;
-      break;
-
-    case 8:
-      oam_shadow.spriteBuffer[0].colMode = OBJCOLOR_256;
-      break;
-
-    default:
-      break;
-  }
-
-  oam_shadow.spriteBuffer[0].isRotoscale = 0;
-  oam_shadow.spriteBuffer[0].rsDouble = 0;
-  oam_shadow.spriteBuffer[0].objMode = OBJMODE_BLENDED;
-  oam_shadow.spriteBuffer[0].isMosaic = 0;
-  oam_shadow.spriteBuffer[0].objShape = OBJSHAPE_SQUARE;
-
-  oam_shadow.spriteBuffer[0].posX = 0;
-  oam_shadow.spriteBuffer[0].posY = 0;
-  oam_shadow.spriteBuffer[0].tileIdx = spr_size * spr_size * (bpp / 4);
-  oam_shadow.spriteBuffer[0].objPriority = OBJPRIORITY_3;
-  oam_shadow.spriteBuffer[0].objPal = 0;
   
   /* Let's draw our highlight thinger */
 
@@ -549,6 +570,16 @@ void nds_init_sprite(int bpp)
 
       if ((x != 0) && (x != (TILE_WIDTH - 1)) && 
           (y != 0) && (y != (TILE_HEIGHT - 1))) {
+        continue;
+      }
+
+      if ( ((x == 0) || (x == (TILE_WIDTH - 1))) &&
+           ((y > 3) && (y < (TILE_HEIGHT - 3))) ) {
+        continue;
+      }
+
+      if ( ((y == 0) || (y == (TILE_HEIGHT - 1))) &&
+           ((x > 3) && (x < (TILE_WIDTH - 3))) ) {
         continue;
       }
 
@@ -806,8 +837,14 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
   sx = cx - map_width / 2;
   sy = cy - map_height / 2;
 
+  pet_count = 0;
+
   if (map != NULL) {
     int x, y;
+
+    if (TILE_FILE != NULL) {
+      nds_clear_sprites();
+    } 
 
     for (y = 0; y < map_height; y++) {
       for (x = 0; x < map_width; x++) {

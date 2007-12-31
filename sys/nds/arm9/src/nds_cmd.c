@@ -821,7 +821,10 @@ void nds_toggle_bool_option(char *name)
   }
 
   val = boolopt[optidx].addr;
-  *val = *val ? 0 : 1;
+  sprintf(buffer, "%s%s", *val ? "!" : "", boolopt[optidx].name);
+
+  iprintf("Parse %s\n", buffer);
+  parseoptions(buffer, FALSE, FALSE);
 
   sprintf(buffer, "Set %s %s",
           boolopt[optidx].name,
@@ -1206,6 +1209,8 @@ int nds_get_input(int *x, int *y, int *mod)
       case CMD_OPT_TOGGLE:
         nds_toggle_bool_option(input_buffer);
         *input_buffer = '\0';
+
+        display_nhwindow(WIN_MAP, FALSE);
 
         break;
 

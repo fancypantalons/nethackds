@@ -39,7 +39,9 @@
 
 typedef struct {
   int glyph;
+  int ch;
   int colour;
+  int special;
   long last_used;     /* This is in game time (moves)          */
 } tile_cache_entry_t;
 
@@ -106,7 +108,8 @@ int nds_find_cache_slot(int glyph, int gx, int gy)
   mapglyph(glyph, &ch, &colour, &special, gx, gy);
 
   for (i = 0; i < num_cache_entries; i++) {
-    if ((tile_cache[i].glyph == glyph) && (tile_cache[i].colour == colour)) {
+    if ((tile_cache[i].glyph == glyph) && (tile_cache[i].colour == colour) && 
+        (tile_cache[i].special == special) && (tile_cache[i].ch == ch)) {
       return i;
     }
   }
@@ -156,6 +159,8 @@ int nds_allocate_cache_slot(int glyph, int gx, int gy)
 
   tile_cache[cache_slot].glyph = glyph;
   tile_cache[cache_slot].colour = colour;
+  tile_cache[cache_slot].special = special;
+  tile_cache[cache_slot].ch = ch;
 
   return cache_slot;
 }

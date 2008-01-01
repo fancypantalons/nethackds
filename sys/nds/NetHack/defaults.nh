@@ -58,6 +58,10 @@ MENUCOLOR=" unholy "=red
 # to triggermode, in that the user may then bind the various directions plus
 # B to the various directions.
 # CHORDKEYS=up,down,left,right,r
+#
+# Disables key repeating within the game itself (still works in menus, the
+# command window, etc).
+# OPTIONS=!keyrepeat
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to
@@ -74,4 +78,5 @@ MENUCOLOR=" unholy "=red
 #OPTIONS=menustyle:traditional
 #OPTIONS=time
 #OPTIONS=number_pad:1
+#OPTIONS=hilite_pet
 #

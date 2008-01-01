@@ -141,6 +141,11 @@ static struct Bool_Opt
 #else
 	{"ignintr", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
+#ifdef  NDS
+        {"keyrepeat", &iflags.keyrepeat, TRUE, SET_IN_GAME},
+#else
+        {"keyrepeat", NULL, TRUE, SET_IN_GAME},
+#endif
 	{"large_font", &iflags.obsolete, FALSE, SET_IN_FILE},	/* OBSOLETE */
 #ifdef NDS
         {"lefthanded", &iflags.lefthanded, FALSE, SET_IN_FILE},

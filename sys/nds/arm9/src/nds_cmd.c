@@ -1130,7 +1130,11 @@ int nds_get_input(int *x, int *y, int *mod)
 
     scanKeys();
 
-    pressed = nds_keysDownRepeat();
+    if (iflags.keyrepeat) {
+      pressed = nds_keysDownRepeat();
+    } else {
+      pressed = nds_keysDown();
+    }
 
     prev_held = held;
     held = nds_keysHeld();
@@ -1159,6 +1163,10 @@ int nds_get_input(int *x, int *y, int *mod)
 
     if (pressed & cmd_key) {
       nds_cmd_t cmd;
+
+      if (! iflags.holdmode) {
+        nds_flush(0);
+      }
       
       if (iflags.cmdwindow) {
         cmd = nds_cmd_loop(0);

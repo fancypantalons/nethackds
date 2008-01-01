@@ -365,13 +365,13 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
    * Yeah, this is a weird place for this, BUT... here we put in a sprite
    * cursor if this is a pet and we're in tile mode.
    */
-  if (TILE_FILE != NULL) {
+  if ((TILE_FILE != NULL) && iflags.hilite_pet) {
     int ch, color;
     unsigned int special;
 
     mapglyph(glyph, &ch, &color, &special, gx, gy);
 
-    if ((special & MG_PET) && iflags.hilite_pet) {
+    if (special & MG_PET) {
       oam_shadow.spriteBuffer[++pet_count].posX = x * TILE_WIDTH;
       oam_shadow.spriteBuffer[pet_count].posY = y * TILE_HEIGHT;
       oam_shadow.spriteBuffer[pet_count].isHidden = 0;
@@ -489,12 +489,62 @@ void nds_draw_graphics_cursor(int x, int y)
   oam_shadow.spriteBuffer[0].isHidden = 0;
 }
 
+void nds_render_sprite(int bpp, int spr_size, int spr_num, int colour)
+{
+  u16 *spr_gfx_ram = SPRITE_GFX;
+  int x, y;
+
+  spr_gfx_ram += (spr_size * spr_size * bpp * 8 / 2) * spr_num;
+
+  for (y = 0; y < TILE_HEIGHT; y++) {
+    for (x = 0; x < TILE_WIDTH; x++) {
+      int tidx;
+      u16 *tptr;
+
+      int tx = x & 0x07;
+      int ty = y & 0x07;
+
+      if ((x != 0) && (x != (TILE_WIDTH - 1)) && 
+          (y != 0) && (y != (TILE_HEIGHT - 1))) {
+        continue;
+      }
+
+      if ( ((x == 0) || (x == (TILE_WIDTH - 1))) &&
+           ((y > 2) && (y < (TILE_HEIGHT - 3))) ) {
+        continue;
+      }
+
+      if ( ((y == 0) || (y == (TILE_HEIGHT - 1))) &&
+           ((x > 2) && (x < (TILE_WIDTH - 3))) ) {
+        continue;
+      }
+
+      tidx = (y / 8) * spr_size + x / 8;
+      tptr = spr_gfx_ram + (tidx * bpp * 8) / 2 + ((ty * 8 + tx) / (8 / bpp)) / 2;
+
+      switch (bpp) {
+        case 4:
+          *tptr |= colour << ((x & 3) << 2);
+
+          break;
+
+        case 8:
+          *tptr |= colour << ((x & 1) << 3);
+
+          break;
+
+        default:
+          break;
+      }
+    }
+  }
+}
+
 void nds_init_sprite(int bpp)
 {
   int dim = (TILE_WIDTH > TILE_HEIGHT) ? TILE_WIDTH : TILE_HEIGHT;
   u16 *spr_palette = SPRITE_PALETTE;
-  u16 *spr_gfx_ram = SPRITE_GFX;
-  int i, x, y;
+  int i;
   int spr_size;
 
   /* First thing's f'ing last, let's disable all sprites */
@@ -549,59 +599,23 @@ void nds_init_sprite(int bpp)
 
     oam_shadow.spriteBuffer[i].posX = 0;
     oam_shadow.spriteBuffer[i].posY = 0;
-    oam_shadow.spriteBuffer[i].tileIdx = spr_size * spr_size * (bpp / 4);
     oam_shadow.spriteBuffer[i].objPriority = OBJPRIORITY_3;
     oam_shadow.spriteBuffer[i].objPal = 0;
+
+    if (i == 0) {
+      oam_shadow.spriteBuffer[i].tileIdx = spr_size * spr_size * (bpp / 4);
+    } else {
+      oam_shadow.spriteBuffer[i].tileIdx = (spr_size * spr_size * (bpp / 4)) * 2;
+    }
   }
   
   /* Let's draw our highlight thinger */
 
   spr_palette[1] = RGB15(31, 31, 31);
+  spr_palette[2] = RGB15(0, 31, 0);
 
-  spr_gfx_ram += spr_size * spr_size * bpp * 8 / 2;
-
-  for (y = 0; y < TILE_HEIGHT; y++) {
-    for (x = 0; x < TILE_WIDTH; x++) {
-      int tidx;
-      u16 *tptr;
-
-      int tx = x & 0x07;
-      int ty = y & 0x07;
-
-      if ((x != 0) && (x != (TILE_WIDTH - 1)) && 
-          (y != 0) && (y != (TILE_HEIGHT - 1))) {
-        continue;
-      }
-
-      if ( ((x == 0) || (x == (TILE_WIDTH - 1))) &&
-           ((y > 3) && (y < (TILE_HEIGHT - 3))) ) {
-        continue;
-      }
-
-      if ( ((y == 0) || (y == (TILE_HEIGHT - 1))) &&
-           ((x > 3) && (x < (TILE_WIDTH - 3))) ) {
-        continue;
-      }
-
-      tidx = (y / 8) * spr_size + x / 8;
-      tptr = spr_gfx_ram + (tidx * bpp * 8) / 2 + ((ty * 8 + tx) / (8 / bpp)) / 2;
-
-      switch (bpp) {
-        case 4:
-          *tptr |= 0x01 << ((x & 3) << 2);
-
-          break;
-
-        case 8:
-          *tptr |= 0x01 << ((x & 1) << 3);
-
-          break;
-
-        default:
-          break;
-      }
-    }
-  }
+  nds_render_sprite(bpp, spr_size, 1, 1);
+  nds_render_sprite(bpp, spr_size, 2, 2);
 }
 
 /*

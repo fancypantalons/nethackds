@@ -296,6 +296,7 @@ struct instance_flags {
         int compassmode;
         boolean mapcolors;
         char *chordkeys;
+        boolean keyrepeat;
 #endif
 };
 

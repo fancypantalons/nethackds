@@ -39,6 +39,7 @@
 
 typedef struct {
   int glyph;
+  int tile;
   int ch;
   int colour;
   int special;
@@ -105,12 +106,14 @@ int nds_find_cache_slot(int glyph, int gx, int gy)
   int i;
   int ch, colour;
   unsigned int special;
+  int tile = glyph2tile[glyph];
 
   mapglyph(glyph, &ch, &colour, &special, gx, gy);
 
   for (i = 0; i < num_cache_entries; i++) {
     if ((tile_cache[i].glyph == glyph) && (tile_cache[i].colour == colour) && 
-        (tile_cache[i].special == special) && (tile_cache[i].ch == ch)) {
+        (tile_cache[i].special == special) && (tile_cache[i].ch == ch) &&
+        (tile_cache[i].tile == tile)) {
       return i;
     }
   }
@@ -162,6 +165,7 @@ int nds_allocate_cache_slot(int glyph, int gx, int gy)
   tile_cache[cache_slot].colour = colour;
   tile_cache[cache_slot].special = special;
   tile_cache[cache_slot].ch = ch;
+  tile_cache[cache_slot].tile = glyph2tile[glyph];
 
   return cache_slot;
 }

@@ -204,11 +204,11 @@ char input_buffer[INPUT_BUFFER_SIZE];
 #define DIR_UP         1
 #define DIR_UP_RIGHT   2
 #define DIR_LEFT       3
-#define DIR_WAIT       4
-#define DIR_RIGHT      5
-#define DIR_DOWN_LEFT  6
-#define DIR_DOWN       7
-#define DIR_DOWN_RIGHT 8
+#define DIR_RIGHT      4
+#define DIR_DOWN_LEFT  5
+#define DIR_DOWN       6
+#define DIR_DOWN_RIGHT 7
+#define DIR_WAIT       8
 
 #define NUMDIRS        9
 
@@ -833,6 +833,126 @@ void nds_toggle_bool_option(char *name)
   putstr(WIN_MESSAGE, ATR_NONE, buffer);
 }
 
+nds_cmd_t nds_get_direction()
+{
+  winid win;
+  menu_item *sel;
+  ANY_P ids[25];
+  nds_cmd_t cmd;
+  int i, j, k;
+  int res;
+
+  char tmp[2];
+
+  win = create_nhwindow(NHW_MENU);
+  start_menu(win);
+
+  ids[0].a_int = 0;
+
+  for (i = 0, j = 1; i < 3; i++) {
+    switch (i) {
+      case 0:
+        add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Walk", 0);
+        break;
+
+      case 1:
+        add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Run", 0);
+        break;
+
+      case 2:
+        add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Fight", 0);
+        break;
+    }
+
+    for (k = 0; k < 8; j++, k++) {
+      tmp[0] = direction_keys[k];
+      tmp[1] = '\0';
+
+      ids[j].a_int = j;
+
+      add_menu(win, NO_GLYPH, &(ids[j]), 0, 0, 0, nds_command_to_string(tmp), 0);
+    }
+  }
+
+  end_menu(win, "What Type of Movement?");
+  res = select_menu(win, PICK_ONE, &sel);
+  destroy_nhwindow(win);
+
+  if (res <= 0) {
+    cmd.f_char = -1;
+    cmd.name = NULL;
+  } else if (sel->item.a_int < 9) {
+    tmp[0] = direction_keys[sel->item.a_int - 1];
+    tmp[1] = '\0';
+
+    cmd.f_char = direction_keys[sel->item.a_int - 1];
+    cmd.name = nds_command_to_string(tmp);
+  } else if (sel->item.a_int < 17) {
+    input_buffer[0] = direction_keys[sel->item.a_int - 9];
+    input_buffer[1] = '\0';
+
+    cmd.f_char = 'g';
+    cmd.name = nds_command_to_string(input_buffer);
+  } else {
+    input_buffer[0] = direction_keys[sel->item.a_int - 17];
+    input_buffer[1] = '\0';
+
+    cmd.f_char = 'F';
+    cmd.name = nds_command_to_string(input_buffer);
+  }
+
+  NULLFREE(sel);
+
+  return cmd;
+}
+
+nds_cmd_t nds_get_pan_direction()
+{
+  winid win;
+  menu_item *sel;
+  ANY_P ids[4];
+  nds_cmd_t cmd;
+  int res;
+
+  win = create_nhwindow(NHW_MENU);
+  start_menu(win);
+
+  ids[0].a_int = CMD_PAN_UP;
+  ids[1].a_int = CMD_PAN_DOWN;
+  ids[2].a_int = CMD_PAN_LEFT;
+  ids[3].a_int = CMD_PAN_RIGHT;
+
+  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Pan Up", 0);
+  add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Pan Down", 0);
+  add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Pan Left", 0);
+  add_menu(win, NO_GLYPH, &(ids[3]), 0, 0, 0, "Pan Right", 0);
+
+  end_menu(win, "What Direction?");
+  res = select_menu(win, PICK_ONE, &sel);
+  destroy_nhwindow(win);
+
+  if (res <= 0) {
+    cmd.f_char = -1;
+    cmd.name = NULL;
+  } else {
+    cmd.f_char = sel->item.a_int;
+
+    if (cmd.f_char == CMD_PAN_UP) {
+      cmd.name = "Pan Up";
+    } else if (cmd.f_char == CMD_PAN_DOWN) {
+      cmd.name = "Pan Down";
+    } else if (cmd.f_char == CMD_PAN_LEFT) {
+      cmd.name = "Pan Left";
+    } else if (cmd.f_char == CMD_PAN_RIGHT) {
+      cmd.name = "Pan Right";
+    }
+  }
+
+  NULLFREE(sel);
+
+  return cmd;
+}
+
 nds_cmd_t nds_get_config_cmd(u16 key)
 {
   winid win;
@@ -845,44 +965,17 @@ nds_cmd_t nds_get_config_cmd(u16 key)
   win = create_nhwindow(NHW_MENU);
   start_menu(win);
 
-  ids[0].a_int = 0;
-  ids[1].a_int = direction_keys[DIR_UP_LEFT];
-  ids[2].a_int = direction_keys[DIR_UP];
-  ids[3].a_int = direction_keys[DIR_UP_RIGHT];
-  ids[4].a_int = direction_keys[DIR_LEFT];
-  ids[5].a_int = direction_keys[DIR_RIGHT];
-  ids[6].a_int = direction_keys[DIR_DOWN_LEFT];
-  ids[7].a_int = direction_keys[DIR_DOWN];
-  ids[8].a_int = direction_keys[DIR_DOWN_RIGHT];
-  ids[9].a_int = 1;
-  ids[10].a_int = CMD_OPT_TOGGLE;
-  ids[11].a_int = CMD_PAN_UP;
-  ids[12].a_int = CMD_PAN_DOWN;
-  ids[13].a_int = CMD_PAN_LEFT;
-  ids[14].a_int = CMD_PAN_RIGHT;
-  ids[15].a_int = 2;
+  ids[0].a_int = 1;
+  ids[1].a_int = 2;
+  ids[2].a_int = 3;
+  ids[3].a_int = 4;
+  ids[4].a_int = 5;
 
-  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Direction Keys", 0);
-
-  add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Up-Left", 0);
-  add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Up", 0);
-  add_menu(win, NO_GLYPH, &(ids[3]), 0, 0, 0, "Up-Right", 0);
-  add_menu(win, NO_GLYPH, &(ids[4]), 0, 0, 0, "Left", 0);
-  add_menu(win, NO_GLYPH, &(ids[5]), 0, 0, 0, "Right", 0);
-  add_menu(win, NO_GLYPH, &(ids[6]), 0, 0, 0, "Down-Left", 0);
-  add_menu(win, NO_GLYPH, &(ids[7]), 0, 0, 0, "Down", 0);
-  add_menu(win, NO_GLYPH, &(ids[8]), 0, 0, 0, "Down-Right", 0);
-
-  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Other", 0);
-
-  add_menu(win, NO_GLYPH, &(ids[9]), 0, 0, 0, "Game Command", 0);
-  add_menu(win, NO_GLYPH, &(ids[10]), 0, 0, 0, "Toggle Option", 0);
-  add_menu(win, NO_GLYPH, &(ids[11]), 0, 0, 0, "Pan Up", 0);
-  add_menu(win, NO_GLYPH, &(ids[12]), 0, 0, 0, "Pan Down", 0);
-  add_menu(win, NO_GLYPH, &(ids[13]), 0, 0, 0, "Pan Left", 0);
-  add_menu(win, NO_GLYPH, &(ids[14]), 0, 0, 0, "Pan Right", 0);
-  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, " ", 0);
-  add_menu(win, NO_GLYPH, &(ids[15]), 0, 0, 0, "No Command", 0);
+  add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Movement", 0);
+  add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Game Command", 0);
+  add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Toggle Option", 0);
+  add_menu(win, NO_GLYPH, &(ids[3]), 0, 0, 0, "Map Panning", 0);
+  add_menu(win, NO_GLYPH, &(ids[4]), 0, 0, 0, "No Command", 0);
 
   sprintf(tmp, "What do you want to assign to %s?", nds_key_to_string(key));
   end_menu(win, tmp);
@@ -892,46 +985,32 @@ nds_cmd_t nds_get_config_cmd(u16 key)
   if (res <= 0) {
     cmd.f_char = -1;
     cmd.name = NULL;
-  } else if (sel->item.a_int == 1) {
-    nds_flush(0);
-    cmd = nds_cmd_loop(1);
-  } else if (sel->item.a_int == 2) {
-    nds_flush(0);
-
-    cmd.f_char = 0;
-    cmd.name = NULL;
   } else {
-    cmd.f_char = sel->item.a_int;
+    switch (sel->item.a_int) {
+      case 1:
+        cmd = nds_get_direction();
+        break;
 
-    if (cmd.f_char == direction_keys[DIR_UP_LEFT]) {
-      cmd.name = "Move Up-Left";
-    } else if (cmd.f_char == direction_keys[DIR_UP]) {
-      cmd.name = "Move Up";
-    } else if (cmd.f_char == direction_keys[DIR_UP_RIGHT]) {
-      cmd.name = "Move Up-Right";
-    } else if (cmd.f_char == direction_keys[DIR_LEFT]) {
-      cmd.name = "Move Left";
-    } else if (cmd.f_char == direction_keys[DIR_RIGHT]) {
-      cmd.name = "Move Right";
-    } else if (cmd.f_char == direction_keys[DIR_DOWN_LEFT]) {
-      cmd.name = "Move Down-Left";
-    } else if (cmd.f_char == direction_keys[DIR_DOWN]) {
-      cmd.name = "Move Down";
-    } else if (cmd.f_char == direction_keys[DIR_RIGHT]) {
-      cmd.name = "Move Down-Right";
-    } else if (cmd.f_char == CMD_PAN_UP) {
-      cmd.name = "Pan Up";
-    } else if (cmd.f_char == CMD_PAN_DOWN) {
-      cmd.name = "Pan Down";
-    } else if (cmd.f_char == CMD_PAN_LEFT) {
-      cmd.name = "Pan Left";
-    } else if (cmd.f_char == CMD_PAN_RIGHT) {
-      cmd.name = "Pan Right";
-    } else if (cmd.f_char == CMD_OPT_TOGGLE) {
-      cmd.name = "Toggle Option";
-      strcpy(input_buffer, nds_get_bool_option());
-    } else {
-      cmd.name = NULL;
+      case 2:
+        nds_flush(0);
+        cmd = nds_cmd_loop(1);
+        break;
+
+      case 3:
+        cmd.name = "Toggle Option";
+        strcpy(input_buffer, nds_get_bool_option());
+        break;
+
+      case 4:
+        cmd = nds_get_pan_direction();
+        break;
+
+      case 5:
+        nds_flush(0);
+
+        cmd.f_char = 0;
+        cmd.name = NULL;
+        break;
     }
   }
 

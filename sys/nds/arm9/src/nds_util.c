@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "hack.h"
+#include "nds_main.h"
 #include "nds_util.h"
 
 touchPosition touch_coords = { .x = 0, .y = 0 };
@@ -112,21 +113,37 @@ u16 _nds_handedness_swap(u16 keys)
 
 u16 nds_keysDown()
 {
+  while (nds_power_state() == POWER_STATE_ASLEEP) {
+    swiWaitForVBlank();
+  }
+
   return _nds_handedness_swap(keysDown());
 }
 
 u16 nds_keysDownRepeat()
 {
+  while (nds_power_state() == POWER_STATE_ASLEEP) {
+    swiWaitForVBlank();
+  }
+
   return _nds_handedness_swap(keysDownRepeat());
 }
 
 u16 nds_keysHeld()
 {
+  while (nds_power_state() == POWER_STATE_ASLEEP) {
+    swiWaitForVBlank();
+  }
+
   return _nds_handedness_swap(keysHeld());
 }
 
 u16 nds_keysUp()
 {
+  while (nds_power_state() == POWER_STATE_ASLEEP) {
+    swiWaitForVBlank();
+  }
+
   return _nds_handedness_swap(keysUp());
 }
 

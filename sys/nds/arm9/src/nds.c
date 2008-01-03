@@ -15,6 +15,7 @@
 #include "hack.h"
 #include "dlb.h"
 #include "ds_kbd.h"
+#include "nds_main.h"
 #include "nds_win.h"
 #include "nds_gfx.h"
 #include "nds_util.h"
@@ -64,6 +65,14 @@ void keysInterruptHandler()
 }
 
 /*
+ * Get the power state of the DS.
+ */
+int nds_power_state()
+{
+  return power_state;
+}
+
+/*
  * Right now, the main thing we do here is check for the lid state, so we
  * can power on/off as appropriate.
  */
@@ -72,32 +81,32 @@ void vsyncHandler()
   int lid_closed = (((~IPC->buttons)<<6) & KEY_LID ) ^ KEY_LID;
 
   switch (power_state) {
-    case 0:
+    case POWER_STATE_ON:
       if (lid_closed) {
         powerOFF(POWER_ALL_2D);
         REG_IPC_FIFO_TX = SET_LEDBLINK_ON;
-        power_state = 1;
+        power_state = POWER_STATE_TRANSITIONING;
       }
       
       break;
 
-    case 1:
+    case POWER_STATE_TRANSITIONING:
       REG_IPC_FIFO_TX = SET_LEDBLINK_SLOW;
-      power_state = 2;
+      power_state = POWER_STATE_ASLEEP;
 
       break;
 
-    case 2:
+    case POWER_STATE_ASLEEP:
       if (! lid_closed) {
         powerON(POWER_ALL_2D);
         REG_IPC_FIFO_TX = SET_LEDBLINK_OFF;
-        power_state = 0;
+        power_state = POWER_STATE_ON;
       }
 
       break;
 
     default:
-      power_state = 0;
+      power_state = POWER_STATE_ON;
       break;
   }
 }

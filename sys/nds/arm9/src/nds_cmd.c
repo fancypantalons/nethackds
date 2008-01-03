@@ -942,7 +942,8 @@ nds_cmd_t nds_get_config_cmd(u16 key)
 
 void nds_config_key()
 {
-  int held;
+  int prev_held = 0;
+  int held = 0;
   nds_cmd_t cmd;
   char buf[BUFSZ];
 
@@ -958,12 +959,16 @@ void nds_config_key()
 
     scanKeys();
 
+    prev_held = held;
     held = nds_keysHeld();
 
     /* We don't let the user configure these */
 
-    if ((held & cmd_key) ||
-        ((held & ~chord_keys) == 0)) {
+    if ((prev_held & chord_keys) && (held == 0) && (nds_count_bits(prev_held) == 1)) {
+      key = prev_held;
+      break;
+    } else if ((held & cmd_key) ||
+               ((held & ~chord_keys) == 0)) {
       continue;
     } else if (held) {
       key = held;
@@ -1080,6 +1085,8 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
 
 int nds_get_input(int *x, int *y, int *mod)
 {
+  static int chord_pressed = 0;
+
   int tx, ty, old_tx, old_ty, start_tx, start_ty;
   int cx, cy;
 
@@ -1175,16 +1182,23 @@ int nds_get_input(int *x, int *y, int *mod)
       }
 
       key = cmd.f_char;
-    } else if (pressed) {
+    } else if ((prev_held & chord_keys) && (held == 0)) {
+      if (! chord_pressed) {
+        key = nds_map_key(prev_held);
+      } else {
+        chord_pressed = 0;
+      }
+    } else if (pressed & ~chord_keys) {
       key = nds_map_key(held | pressed);
+      chord_pressed = 1;
+    }
+
+    if (prev_held != held) {
+      nds_draw_prompt(nds_find_key_options(held));
     }
 
     switch (key) {
       case 0:
-        if (prev_held != held) {
-          nds_draw_prompt(nds_find_key_options(held));
-        }
-
         break;
 
       case CMD_PAN_UP:

@@ -224,3 +224,21 @@ char *nds_strip(char *str, int front, int back)
 
   return str;
 }
+
+/*
+ * Count the number of bits in the given value.
+ */
+int nds_count_bits(int val)
+{
+  int cnt = 0;
+
+  while (val) {
+    if (val & 1) {
+      cnt++;
+    }
+
+    val >>= 1;
+  }
+
+  return cnt;
+}

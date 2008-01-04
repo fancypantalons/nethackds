@@ -821,7 +821,7 @@ const char *nds_get_bool_option()
 
   end_menu(win, "Which Option Should Be Toggled?");
 
-  if (select_menu(win, PICK_ONE, &sel) > 0) {
+  if (select_menu(win, PICK_ONE, &sel) >= 0) {
     res = boolopt[sel->item.a_int - 1].name;
   } else {
     res = NULL;
@@ -1028,8 +1028,18 @@ nds_cmd_t nds_get_config_cmd(u16 key)
         break;
 
       case 3:
-        cmd.name = "Toggle Option";
-        strcpy(input_buffer, nds_get_bool_option());
+        {
+          const char *tmp = nds_get_bool_option();
+
+          if (tmp != NULL) {
+            cmd.name = "Toggle Option";
+            strcpy(input_buffer, tmp);
+          } else {
+            cmd.f_char = -1;
+            cmd.name = NULL;
+          }
+        }
+
         break;
 
       case 4:

@@ -54,6 +54,7 @@ void nds_msg_wait_key(int cur_y)
   draw_ppm(msg_img, vram, msg_x, msg_y, 256);
 
   nds_wait_key(KEY_A);
+  nds_flush(0);
 }
 
 void nds_update_msg(nds_nhwindow_t *win, int blocking)

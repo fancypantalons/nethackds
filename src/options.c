@@ -142,6 +142,7 @@ static struct Bool_Opt
 	{"ignintr", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 #ifdef  NDS
+        {"keyhelp", &iflags.keyhelp, FALSE, SET_IN_GAME},
         {"keyrepeat", &iflags.keyrepeat, TRUE, SET_IN_GAME},
 #else
         {"keyrepeat", NULL, TRUE, SET_IN_GAME},
@@ -589,6 +590,8 @@ initoptions()
         iflags.compassmode = 0;
         iflags.chordkeys = "r";
         iflags.cmdkey = "l";
+        iflags.helpline1 = "up,down,left,right,l,r";
+        iflags.helpline2 = "a,b,x,y,start,select";
 #endif
 	iflags.travelcc.x = iflags.travelcc.y = -1;
 	flags.warnlevel = 1;

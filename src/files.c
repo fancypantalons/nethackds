@@ -1845,6 +1845,10 @@ char		*tmp_levels;
 #ifdef NDS
         } else if (match_varname(buf, "CHORDKEYS", 9)) {
           iflags.chordkeys = strdup(bufp);
+        } else if (match_varname(buf, "HELPLINE1", 9)) {
+          iflags.helpline1 = strdup(bufp);
+        } else if (match_varname(buf, "HELPLINE2", 9)) {
+          iflags.helpline2 = strdup(bufp);
 #endif
 	} else if (match_varname(buf, "GRAPHICS", 4)) {
 	    len = get_uchars(fp, buf, bufp, translate, FALSE,

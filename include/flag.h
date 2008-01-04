@@ -297,6 +297,9 @@ struct instance_flags {
         char *chordkeys;
         char *cmdkey;
         boolean keyrepeat;
+        boolean keyhelp;
+        char *helpline1;
+        char *helpline2;
 #endif
 };
 

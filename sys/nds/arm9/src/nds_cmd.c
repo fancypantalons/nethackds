@@ -222,11 +222,15 @@ int numkeys = 0;
 u16 chord_keys;
 u16 cmd_key;
 
+u16 helpline1[13];
+u16 helpline2[13];
+
 nds_cmd_t nds_cmd_loop();
 nds_cmd_t nds_kbd_cmd_loop();
 int nds_load_key_config();
 void nds_render_cmd_pages();
-u16 nds_convert_key_string();
+u16 nds_key_string_to_mask();
+u16 *nds_parse_key_string(char *keystr);
 void nds_add_keymap_entry(u16 key, char command[INPUT_BUFFER_SIZE]);
 
 int nds_init_cmd()
@@ -309,19 +313,22 @@ int nds_init_cmd()
    * set as the default, then we use the new chordkey, and blank the key
    * config... the user has to rebind.
    */
-  if ((chord_keys_config = nds_convert_key_string(iflags.chordkeys)) != chord_keys) {
+  if ((chord_keys_config = nds_key_string_to_mask(iflags.chordkeys)) != chord_keys) {
     NULLFREE(keymap);
     numkeys = 0;
     chord_keys = chord_keys_config;
   } 
 
-  if (nds_count_bits(cmd_key_config = nds_convert_key_string(iflags.cmdkey)) == 1) {
+  if (nds_count_bits(cmd_key_config = nds_key_string_to_mask(iflags.cmdkey)) == 1) {
     cmd_key = cmd_key_config;
   } else {
     iprintf("Invalid command key: %s\n", iflags.cmdkey);
 
     return -1;
   }
+
+  memcpy(helpline1, nds_parse_key_string(iflags.helpline1), sizeof(helpline1));
+  memcpy(helpline2, nds_parse_key_string(iflags.helpline2), sizeof(helpline2));
 
   memset(input_buffer, 0, sizeof(input_buffer));
 
@@ -503,20 +510,37 @@ char *nds_command_to_string(char *command)
 /*
  * Translate the chordkey string into a keymask.
  */
-u16 nds_convert_key_string(char *keystr)
+u16 *nds_parse_key_string(char *keystr)
 {
-  u16 keys = 0;
+  static u16 keyarr[13];
+
   char *end;
+  int i = 0;
+
+  memset(keyarr, 0, sizeof(keyarr));
 
   while ((end = index(keystr, ',')) != NULL) {
     *end = '\0';
 
-    keys |= nds_string_to_key(nds_strip(keystr, 1, 1));
+    keyarr[i++] = nds_string_to_key(nds_strip(keystr, 1, 1));
 
     keystr = end + 1;
   }
 
-  keys |= nds_string_to_key(nds_strip(keystr, 1, 1));
+  keyarr[i++] = nds_string_to_key(nds_strip(keystr, 1, 1));
+
+  return keyarr;
+}
+
+u16 nds_key_string_to_mask(char *keystr)
+{
+  u16 *keyarr = nds_parse_key_string(keystr);
+  u16 keys = 0;
+  int i;
+
+  for (i = 0; keyarr[i]; i++) {
+    keys |= keyarr[i];
+  }
 
   return keys;
 }
@@ -549,10 +573,10 @@ void nds_add_keymap_entry(u16 key, char command[INPUT_BUFFER_SIZE])
  * This finds all the keys which have the chord keys currently pressed as
  * part of their definition, and returns a string representation.
  */
-char *nds_find_key_options(u16 key)
+char *nds_find_key_options(u16 *helpline, u16 key)
 {
   static char buffer[BUFSZ];
-  int i;
+  int i, j;
   u16 chords_pressed = (key & chord_keys);
 
   buffer[0] = '\0';
@@ -561,30 +585,34 @@ char *nds_find_key_options(u16 key)
     return buffer;
   }
 
-  for (i = 0; i < numkeys; i++) {
-    u16 non_chord_keys = (keymap[i].key & ~chords_pressed);
+  for (i = 0; helpline[i]; i++) {
+    for (j = 0; j < numkeys; j++) {
+      u16 non_chord_keys = (keymap[j].key & ~chords_pressed);
 
-    /* 
-     * If there are chord keys in this key definition that *aren't* pressed,
-     * continue.
-     */
-    if ((non_chord_keys & chord_keys) != 0) {
-      continue;
-    } 
+      if (*(keymap[j].command) == 0) {
+        continue;
+      }
 
-    if ((keymap[i].key & chord_keys) != chords_pressed) {
-      continue;
+      if ((keymap[j].key & ~chord_keys) != helpline[i]) {
+        continue;
+      }
+
+      if ((non_chord_keys & chord_keys) != 0) {
+        continue;
+      } 
+
+      if ((keymap[j].key & chord_keys) != chords_pressed) {
+        continue;
+      }
+
+      if (*buffer) {
+        strcat(buffer, ", ");
+      }
+
+      strcat(buffer, nds_key_to_string(non_chord_keys));
+      strcat(buffer, "=");
+      strcat(buffer, nds_command_to_string(keymap[j].command));
     }
-    
-    /* Otherwise, add this command to the candidates string */
-
-    if (*buffer) {
-      strcat(buffer, ",");
-    }
-
-    strcat(buffer, nds_key_to_string(non_chord_keys));
-    strcat(buffer, "=");
-    strcat(buffer, nds_command_to_string(keymap[i].command));
   }
 
   return buffer;
@@ -1165,6 +1193,27 @@ int nds_handle_click(int px, int py, int *x, int *y, int *mod)
   return ch;
 }
 
+struct ppm *help_img = NULL;
+
+void nds_render_key_help_string(u16 keys)
+{
+  u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
+
+  if (help_img == NULL) {
+    help_img = alloc_ppm(252, system_font->height * 2);
+  }
+
+  clear_ppm(help_img, MAP_COLOUR(CLR_BLACK));
+
+  draw_string(system_font, nds_find_key_options(helpline1, keys), 
+              help_img, 0, 0, -1, -1);
+
+  draw_string(system_font, nds_find_key_options(helpline2, keys), 
+              help_img, 0, system_font->height, -1, -1);
+
+  draw_ppm(help_img, vram, 4, 192 - system_font->height * 2, 256);
+}
+
 int nds_get_input(int *x, int *y, int *mod)
 {
   static int chord_pressed = 0;
@@ -1275,12 +1324,12 @@ int nds_get_input(int *x, int *y, int *mod)
       chord_pressed = 1;
     }
 
-    if (prev_held != held) {
-      nds_draw_prompt(nds_find_key_options(held));
-    }
-
     switch (key) {
       case 0:
+        if (iflags.keyhelp && (held != prev_held)) {
+          nds_render_key_help_string(held);
+        }
+
         break;
 
       case CMD_PAN_UP:

@@ -725,7 +725,7 @@ void nds_draw_prompt(char *prompt)
   int prompt_h = system_font->height;
 
   if (prompt_img == NULL) {
-    prompt_img = alloc_ppm(252, prompt_h);
+    prompt_img = alloc_ppm(252, prompt_h * 2);
     prompt_y = 192 - prompt_h * 2;
   }
 

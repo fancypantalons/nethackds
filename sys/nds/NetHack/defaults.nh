@@ -23,9 +23,6 @@ MENUCOLOR=" unholy "=red
 
 # *** Some NetHackDS Specific options ***
 #
-# Enable left-handed mode
-# OPTIONS=lefthanded
-#
 # You prefer a keyboard for commands?  If you insist...
 # OPTIONS=!cmdwindow
 #
@@ -59,9 +56,20 @@ MENUCOLOR=" unholy "=red
 # B to the various directions.
 # CHORDKEYS=up,down,left,right,r
 #
+# Defines the key which will be used to pop up the command window.
+# OPTIONS=cmdkey:l
+#
 # Disables key repeating within the game itself (still works in menus, the
 # command window, etc).
 # OPTIONS=!keyrepeat
+#
+# Display the key help lines.
+# OPTIONS=!keyhelp
+#
+# These options define which keys are displayed in the help lines, and in
+# what order they are shown.
+# HELPLINE1=up,down,left,right,r,l
+# HELPLINE2=a,b,x,y,start,select
 
 # *** Personal Preferences ***
 # Some options to set personal preferences.  Uncomment and change these to

@@ -287,7 +287,7 @@ int nds_init_cmd()
 
     nds_add_keymap_entry(KEY_A, ",");
     nds_add_keymap_entry(KEY_B, "s");
-    nds_add_keymap_entry(KEY_X, "o,");
+    nds_add_keymap_entry(KEY_X, "o");
     nds_add_keymap_entry(KEY_Y, "\x4");
 
     tmp[0] = direction_keys[DIR_UP];

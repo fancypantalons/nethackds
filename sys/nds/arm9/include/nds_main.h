@@ -6,5 +6,8 @@
 #define POWER_STATE_ASLEEP        2
 
 int nds_power_state();
+void nds_show_console();
+void nds_hide_console();
+void nds_error();
 
 #endif

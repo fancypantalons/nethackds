@@ -86,8 +86,6 @@ read_bdf (const char *file)
     {
       in = fopen (file, "r");
 
-      iprintf("Font file handle is %x\n");
-
       if (!in)
         {
           iprintf("Unable to open %s\n", file);

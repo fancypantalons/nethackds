@@ -289,13 +289,13 @@ struct instance_flags {
 #ifdef NDS
         boolean cmdwindow;
         boolean cursor;
-        boolean lefthanded;
         boolean doubletap;
         boolean holdmode;
         boolean hpmon;
         int compassmode;
         boolean mapcolors;
         char *chordkeys;
+        char *cmdkey;
         boolean keyrepeat;
 #endif
 };

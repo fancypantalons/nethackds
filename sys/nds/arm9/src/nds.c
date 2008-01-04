@@ -36,6 +36,8 @@ int debug_mode = 0;
 int power_state = 0;
 char *goodbye_msg = NULL;
 
+int have_error = 0;
+
 void mallinfo_dump();
 
 /*
@@ -44,32 +46,11 @@ void mallinfo_dump();
  */
 void keysInterruptHandler()
 {
-  if (console_enabled) {
-    BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
-
-    if (! was_console_layer_visible) {
-      DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
-    }
-
-    console_enabled = 0;
+  if (! console_enabled) {
+    nds_show_console();
   } else {
-    was_console_layer_visible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
-
-    BG0_CR = BG_MAP_BASE(12) | BG_TILE_BASE(10) | BG_16_COLOR;
-    DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
-
-    console_enabled = 1;
-
-    mallinfo_dump();
+    nds_hide_console();
   }
-}
-
-/*
- * Get the power state of the DS.
- */
-int nds_power_state()
-{
-  return power_state;
 }
 
 /*
@@ -109,6 +90,40 @@ void vsyncHandler()
       power_state = POWER_STATE_ON;
       break;
   }
+}
+
+void nds_show_console()
+{
+  was_console_layer_visible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
+
+  BG0_CR = BG_MAP_BASE(12) | BG_TILE_BASE(10) | BG_16_COLOR;
+  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+
+  console_enabled = 1;
+}
+
+void nds_hide_console()
+{
+  BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
+
+  if (! was_console_layer_visible) {
+    DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+  }
+
+  console_enabled = 0;
+}
+
+/*
+ * Get the power state of the DS.
+ */
+int nds_power_state()
+{
+  return power_state;
+}
+
+void nds_error()
+{
+  have_error = 1;
 }
 
 /*
@@ -286,8 +301,6 @@ void mallinfo_dump()
 {
   struct mallinfo info = mallinfo();
 
-  iprintf("Done\n");
-
   iprintf("Arena: %d\n", info.arena);
   iprintf("Ordblks: %d\n", info.ordblks);
   iprintf("Uordblks: %d\n", info.uordblks);
@@ -305,6 +318,7 @@ int main()
   if (! fatInitDefault())
   {
     iprintf("Unable to initialize FAT driver!\n");
+    nds_show_console();
 
     return 0;
   }
@@ -337,6 +351,12 @@ int main()
   }
 
   init_nhwindows(NULL, NULL);
+
+  if (have_error) {
+    nds_show_console();
+
+    return 255;
+  }
 
   /* Show our splash screen */
 

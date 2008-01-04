@@ -147,11 +147,6 @@ static struct Bool_Opt
         {"keyrepeat", NULL, TRUE, SET_IN_GAME},
 #endif
 	{"large_font", &iflags.obsolete, FALSE, SET_IN_FILE},	/* OBSOLETE */
-#ifdef NDS
-        {"lefthanded", &iflags.lefthanded, FALSE, SET_IN_FILE},
-#else
-        {"lefthanded", (boolean *)0, FALSE, SET_IN_FILE},
-#endif
 	{"legacy", &flags.legacy, TRUE, DISP_IN_GAME},
 	{"lit_corridor", &flags.lit_corridor, FALSE, SET_IN_GAME},
 	{"lootabc", &iflags.lootabc, FALSE, SET_IN_GAME},
@@ -276,6 +271,7 @@ static struct Comp_Opt
 #ifdef NDS
         { "chordkeys", "the keys which can be used to make chorded commands", 4, DISP_IN_GAME },
         { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
+        { "cmdkey", "the command key", 4, DISP_IN_GAME },
 #endif
 	{ "disclose", "the kinds of information to disclose at end of game",
 						sizeof(flags.end_disclose) * 2,
@@ -592,6 +588,7 @@ initoptions()
 #ifdef NDS
         iflags.compassmode = 0;
         iflags.chordkeys = "r";
+        iflags.cmdkey = "l";
 #endif
 	iflags.travelcc.x = iflags.travelcc.y = -1;
 	flags.warnlevel = 1;
@@ -1691,6 +1688,17 @@ goodfruit:
 	}
 
 #ifdef NDS
+        /* cmdkey:string */
+	fullname = "cmdkey";
+	if (match_optname(opts, fullname, sizeof("cmdkey") - 1, true)) {
+                if (negated) 
+                    bad_negation(fullname, true);
+
+		iflags.cmdkey = strdup(string_for_opt(opts, negated));
+
+		return;
+	}
+
         /* compassmode:int */
 	fullname = "compassmode";
 	if (match_optname(opts, fullname, sizeof("compassmode") - 1, true)) {

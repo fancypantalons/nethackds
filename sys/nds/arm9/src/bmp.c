@@ -166,8 +166,6 @@ int bmp_read(const char *name, bmp_t *bmp) {
   FILE *file = fopen(name, "rb");
   int ret;
 
-  iprintf("Attempting to read BMP '%s'\n", name);
-
   if (! file) {
     return -1;
   }

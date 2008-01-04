@@ -220,19 +220,19 @@ nds_keymap_entry_t *keymap = NULL;
 int numkeys = 0;
 
 u16 chord_keys;
-u16 cmd_key = KEY_L;
+u16 cmd_key;
 
 nds_cmd_t nds_cmd_loop();
 nds_cmd_t nds_kbd_cmd_loop();
 int nds_load_key_config();
 void nds_render_cmd_pages();
-u16 nds_convert_chord_keys();
+u16 nds_convert_key_string();
 void nds_add_keymap_entry(u16 key, char command[INPUT_BUFFER_SIZE]);
 
-void nds_init_cmd()
+int nds_init_cmd()
 {
   int i;
-  int chord_keys_config;
+  u16 chord_keys_config, cmd_key_config;
 
   if (flags.debug) {
     int idx = 0;
@@ -309,13 +309,23 @@ void nds_init_cmd()
    * set as the default, then we use the new chordkey, and blank the key
    * config... the user has to rebind.
    */
-  if ((chord_keys_config = nds_convert_chord_keys()) != chord_keys) {
+  if ((chord_keys_config = nds_convert_key_string(iflags.chordkeys)) != chord_keys) {
     NULLFREE(keymap);
     numkeys = 0;
     chord_keys = chord_keys_config;
   } 
 
+  if (nds_count_bits(cmd_key_config = nds_convert_key_string(iflags.cmdkey)) == 1) {
+    cmd_key = cmd_key_config;
+  } else {
+    iprintf("Invalid command key: %s\n", iflags.cmdkey);
+
+    return -1;
+  }
+
   memset(input_buffer, 0, sizeof(input_buffer));
+
+  return 0;
 }
 
 /*
@@ -374,6 +384,8 @@ u16 nds_string_to_key(char *str)
     return KEY_X;
   } else if (strcasecmp(str, "y") == 0) {
     return KEY_Y;
+  } else if (strcasecmp(str, "l") == 0) {
+    return KEY_L;
   } else if (strcasecmp(str, "r") == 0) {
     return KEY_R;
   } else if (strcasecmp(str, "up") == 0) {
@@ -491,11 +503,9 @@ char *nds_command_to_string(char *command)
 /*
  * Translate the chordkey string into a keymask.
  */
-u16 nds_convert_chord_keys()
+u16 nds_convert_key_string(char *keystr)
 {
   u16 keys = 0;
-
-  char *keystr = iflags.chordkeys;
   char *end;
 
   while ((end = index(keystr, ',')) != NULL) {
@@ -529,11 +539,7 @@ void nds_add_keymap_entry(u16 key, char command[INPUT_BUFFER_SIZE])
   if (entry_index < 0) {
     keymap = (nds_keymap_entry_t *)realloc(keymap, sizeof(nds_keymap_entry_t) * (numkeys + 1));
     entry_index = numkeys++;
-  } else {
-    iprintf("Found it!\n");
   }
-
-  iprintf("Adding %s = %s\n", nds_key_to_string(key), command);
 
   keymap[entry_index].key = key;
   strcpy(keymap[entry_index].command, command);
@@ -797,8 +803,6 @@ const char *nds_get_bool_option()
   NULLFREE(sel);
   NULLFREE(ids);
 
-  iprintf("Picked %s\n", res);
-
   return res;
 }
 
@@ -823,7 +827,6 @@ void nds_toggle_bool_option(char *name)
   val = boolopt[optidx].addr;
   sprintf(buffer, "%s%s", *val ? "!" : "", boolopt[optidx].name);
 
-  iprintf("Parse %s\n", buffer);
   parseoptions(buffer, FALSE, FALSE);
 
   sprintf(buffer, "Set %s %s",
@@ -1387,12 +1390,9 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   int ynaq = 0;
   int allow_none = 0;
 
-  if (choices != NULL) {
-    iprintf("yn_function choices '%s'\n", choices);
-  }
-
-  /* We're being asked for a direction... this is special. */
-  if (strstr(ques, "Adjust letter to what") != NULL) {
+  if (! iflags.cmdwindow) {
+    return nds_prompt_char(ques, choices, 0);
+  } else if (strstr(ques, "Adjust letter to what") != NULL) {
     return nds_prompt_char(ques, choices, 0);
   } else if ((strstr(ques, "In what direction") != NULL) ||
       (strstr(ques, "in what direction") != NULL)) {

@@ -5,6 +5,7 @@
 
 #include "hack.h"
 
+#include "nds_main.h"
 #include "nds_win.h"
 #include "nds_charbuf.h"
 #include "nds_gfx.h"
@@ -163,7 +164,10 @@ void nds_init_nhwindows(int *argc, char **argv)
   _nds_copy_header_pixels(cancel_data, (unsigned char *)cancel_button->bitmap, 
                           MAP_COLOUR(CLR_BLACK), MAP_COLOUR(CLR_WHITE));
 
-  nds_init_cmd();
+  if (nds_init_cmd() < 0) {
+    nds_error();
+  }
+
   nds_init_msg();
   font_bdf_init();
 
@@ -670,7 +674,6 @@ void nds_putstr(winid win, int attr, const char *str)
     if (win == WIN_STATUS) {
       nds_update_status((char *)str);
     } else if (win == WIN_MESSAGE) {
-      iprintf("HERE\n");
       _nds_win_append_text(window, attr | ATR_NOREFLOW, str);
     } else {
       _nds_win_append_text(window, attr, str);

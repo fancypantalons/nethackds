@@ -1494,6 +1494,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   allow_none = (strstr(ques, "[- ") != NULL);
 
   if ((choices == NULL) && ! allow_none) {
+    nds_draw_prompt(ques);
     return '*';
   }
 

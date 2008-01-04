@@ -1575,9 +1575,7 @@ DONE:
 
   DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
 
-  if (menu->prompt) {
-    nds_clear_prompt();
-  }
+  nds_clear_prompt();
 
   nds_flush(0);
 

@@ -1,0 +1,38 @@
+# 
+# Minimap colours
+#
+# The Hero
+00ff00
+
+# Monsters
+ff0000
+
+# Pets
+c000ff
+
+# Walls
+ffffff
+
+# Doors
+c0c000
+
+# Room floors
+000000
+
+# Stairs
+007ffF
+
+# Altars
+ff7F00
+
+# Other furniture
+ffffff
+
+# Corridors
+505050
+
+# The minimap border
+ffffff
+
+# The minimap visible area border
+ff0000

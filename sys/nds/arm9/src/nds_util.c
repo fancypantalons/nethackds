@@ -96,13 +96,28 @@ void nds_flush(int ignore)
   }
 }
 
+u16 _nds_handedness_swap(u16 keys)
+{
+  if (iflags.lefthanded) {
+    int l = keys & KEY_L;
+    int r = keys & KEY_R;
+
+    keys &= ~(KEY_L | KEY_R);
+
+    keys |= l ? KEY_R : 0;
+    keys |= r ? KEY_L : 0;
+  }
+
+  return keys;
+}
+
 u16 nds_keysDown()
 {
   while (nds_power_state() == POWER_STATE_ASLEEP) {
     swiWaitForVBlank();
   }
 
-  return keysDown();
+  return _nds_handedness_swap(keysDown());
 }
 
 u16 nds_keysDownRepeat()
@@ -111,7 +126,7 @@ u16 nds_keysDownRepeat()
     swiWaitForVBlank();
   }
 
-  return keysDownRepeat();
+  return _nds_handedness_swap(keysDownRepeat());
 }
 
 u16 nds_keysHeld()
@@ -120,7 +135,7 @@ u16 nds_keysHeld()
     swiWaitForVBlank();
   }
 
-  return keysHeld();
+  return _nds_handedness_swap(keysHeld());
 }
 
 u16 nds_keysUp()
@@ -129,7 +144,7 @@ u16 nds_keysUp()
     swiWaitForVBlank();
   }
 
-  return keysUp();
+  return _nds_handedness_swap(keysUp());
 }
 
 /*

@@ -87,7 +87,7 @@ void nds_getlin(const char *prompt, char *buffer)
     swiWaitForVBlank();
 
     draw_ppm(input_img, vram, 4, input_y, 256);
-    nds_draw_vline(front_w + 4, input_y, text_h, 253, vram);
+    nds_draw_vline(front_w + 4, input_y, text_h, C_CURSOR, vram);
 
     scanKeys();
 

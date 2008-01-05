@@ -52,7 +52,7 @@ void nds_update_status(char *str)
 
     if (! name_printed) {
       nds_draw_text(system_font, name,
-                    3, 0, 254, 255, vram);
+                    3, 0, vram);
 
       name_printed = 1;
     }

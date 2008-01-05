@@ -780,7 +780,7 @@ void nds_draw_minimap(nds_map_t *map)
       } else if (IS_ROOM(typ)) {
         colour = C_ROOM;
       } else {
-        colour = 0xFF;
+        colour = C_WALL;
       }
 
       sub_vram[(y + (ry1 + 1) / 2) * 256 + x + (rx1 + 1) / 2] = (colour << 8) | colour;
@@ -794,10 +794,10 @@ void nds_draw_minimap(nds_map_t *map)
   by1 = cy * 2 - map_height + ry1;
   by2 = cy * 2 + map_height + ry1 + 1;
 
-  nds_draw_hline(bx1, by1, map_width * 2 + 1, 253, sub_vram);
-  nds_draw_hline(bx1, by2, map_width * 2 + 1, 253, sub_vram);
-  nds_draw_vline(bx1, by1, map_height * 2 + 1, 253, sub_vram);
-  nds_draw_vline(bx2, by1, map_height * 2 + 1, 253, sub_vram);
+  nds_draw_hline(bx1, by1, map_width * 2 + 1, C_VISBORDER, sub_vram);
+  nds_draw_hline(bx1, by2, map_width * 2 + 1, C_VISBORDER, sub_vram);
+  nds_draw_vline(bx1, by1, map_height * 2 + 1, C_VISBORDER, sub_vram);
+  nds_draw_vline(bx2, by1, map_height * 2 + 1, C_VISBORDER, sub_vram);
 }
 
 void nds_clear_minimap()
@@ -815,11 +815,11 @@ void nds_clear_minimap()
     }
   }
 
-  nds_draw_hline(rx1 - 1, ry1 - 1, COLNO * 2 + 3, 255, sub_vram);
-  nds_draw_hline(rx1 - 1, ry2 + 1, COLNO * 2 + 3, 255, sub_vram);
+  nds_draw_hline(rx1 - 1, ry1 - 1, COLNO * 2 + 3, C_MAPBORDER, sub_vram);
+  nds_draw_hline(rx1 - 1, ry2 + 1, COLNO * 2 + 3, C_MAPBORDER, sub_vram);
 
-  nds_draw_vline(rx1 - 1, ry1 - 1, ROWNO * 2 + 3, 255, sub_vram);
-  nds_draw_vline(rx2 + 2, ry1 - 1, ROWNO * 2 + 3, 255, sub_vram);
+  nds_draw_vline(rx1 - 1, ry1 - 1, ROWNO * 2 + 3, C_MAPBORDER, sub_vram);
+  nds_draw_vline(rx2 + 2, ry1 - 1, ROWNO * 2 + 3, C_MAPBORDER, sub_vram);
 }
 
 void nds_draw_map(nds_map_t *map, int *xp, int *yp)

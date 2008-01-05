@@ -261,16 +261,12 @@ void splash_screen()
 
   bmp_free(&logo);
 
-  BG_PALETTE[0] = RGB15(0, 0, 0);
-  BG_PALETTE[1] = RGB15(31, 31, 31);
-
   nds_fill((u16 *)BG_BMP_RAM(2), 0);
 
   text_dims(system_font, SPLASH_PROMPT, &text_w, &text_h);
   nds_draw_text(system_font, SPLASH_PROMPT,
                 256 / 2 - text_w / 2,
                 192 / 2 - text_h / 2,
-                0, 1,
                 (u16 *)BG_BMP_RAM(2));
 
   old_display_cr = DISPLAY_CR;

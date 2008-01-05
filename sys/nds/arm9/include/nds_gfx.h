@@ -18,7 +18,6 @@ void nds_draw_rect_outline(int x, int y, int width, int height, u8 fill_colour, 
 void nds_draw_text(struct font *fnt, 
                    char *str,
                    int x, int y,
-                   u16 black, u16 white,
                    u16 *dest);
 
 void nds_fill(u16 *dest, u8 colour);

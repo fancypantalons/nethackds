@@ -292,6 +292,7 @@ struct instance_flags {
         boolean doubletap;
         boolean holdmode;
         boolean hpmon;
+        boolean lefthanded;
         int compassmode;
         boolean mapcolors;
         char *chordkeys;

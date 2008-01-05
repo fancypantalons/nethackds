@@ -16,6 +16,9 @@
 #define C_ALTAR     23
 #define C_FURNITURE 24
 #define C_CORR      25
+#define C_MAPBORDER 26
+#define C_VISBORDER 27
+#define C_CURSOR    31
 
 #define TITLE_MAX_LINES 4
 #define MAX_PAGE        255

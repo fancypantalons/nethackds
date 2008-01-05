@@ -131,20 +131,9 @@ void nds_init_nhwindows(int *argc, char **argv)
   /* Set up our palettes. */
   BG_PALETTE[255] = RGB15(31,31,31);
 
-  BG_PALETTE_SUB[255] = RGB15(31,31,31);
-  BG_PALETTE_SUB[253] = RGB15(31,0, 0);
-  BG_PALETTE_SUB[252] = RGB15(0,31, 0);
+  nds_load_palette("minimap.pal", BG_PALETTE_SUB + 16);
 
-  BG_PALETTE_SUB[C_YOU] = RGB15(0, 31, 0);
-  BG_PALETTE_SUB[C_MON] = RGB15(31, 0, 0);
-  BG_PALETTE_SUB[C_PET] = RGB15(24, 0, 31);
-  BG_PALETTE_SUB[C_WALL] = RGB15(31, 31, 31);
-  BG_PALETTE_SUB[C_DOOR] = RGB15(24, 24, 0);
-  BG_PALETTE_SUB[C_ROOM] = RGB15(0, 0, 0);
-  BG_PALETTE_SUB[C_STAIRS] = RGB15(0, 15, 31);
-  BG_PALETTE_SUB[C_ALTAR] = RGB15(31, 15, 0);
-  BG_PALETTE_SUB[C_FURNITURE] = RGB15(31, 31, 31);
-  BG_PALETTE_SUB[C_CORR] = RGB15(10, 10, 10);
+  BG_PALETTE_SUB[C_CURSOR] = RGB15(31,0, 0);
 
   iflags.window_inited = true;
 

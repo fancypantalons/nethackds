@@ -30,6 +30,9 @@ MENUCOLOR=" unholy "=red
 # be held.
 # OPTIONS=holdmode
 #
+# Swaps the R and L buttons.
+# OPTIONS=lefthanded
+#
 # Enable doubletap mode.  Changes menus and windows to require double-taps for
 # selecting items.
 # OPTIONS=doubletap

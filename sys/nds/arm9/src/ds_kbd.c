@@ -2,6 +2,7 @@
 
 #include "ds_kbd.h"
 #include "nds_util.h"
+#include "nds_gfx.h"
 
 const nds_kbd_key row0[] = {
 	{16,(u16)'`'}, {16,(u16)'1'}, {16,(u16)'2'}, {16,(u16)'3'}, {16,(u16)'4'}, 
@@ -27,9 +28,20 @@ const nds_kbd_key *kbdrows[] = {row0, row1, row2, row3, row4};
 static int shift = false, ctrl = false, alt = false, caps = false;
 
 void kbd_init() {
+        u16 palette[4];
+
         nds_load_file("/NetHack/kbd.bin", (void *)BG_TILE_RAM(0));
-        nds_load_file("/NetHack/kbd.pal", (void *)BG_PALETTE);
         nds_load_file("/NetHack/kbd.map", (void *)BG_MAP_RAM(4));
+        nds_load_palette("/NetHack/kbd.pal", palette);
+
+        BG_PALETTE[0] = RGB15(0, 0, 0);   /* Regular background */
+        BG_PALETTE[16] = RGB15(0, 0, 0);
+
+        BG_PALETTE[1] = palette[0];       /* Key background, normal   */
+        BG_PALETTE[17] = palette[1];      /* Key background, selected */
+
+        BG_PALETTE[2] = palette[2];       /* Key text, normal */
+        BG_PALETTE[18] = palette[3];      /* Key text, selected */
 }
 
 u16 kbd_mod_code(u16 ret) {
@@ -175,6 +187,7 @@ u8 process_special_keystrokes = 1;
 u8 kbd_vblank() {
 	
 	static u16 last_code;		// the keycode of the last key pressed, so it can be un-hilited
+        static u16 held_code;
 
         if (nds_keysDown() & KEY_UP) {
           return K_UP;
@@ -186,7 +199,9 @@ u8 kbd_vblank() {
           return K_RIGHT;
         }
 	
-	if (nds_keysDownRepeat() & KEY_TOUCH) {
+        last_code = held_code;
+
+        if (nds_keysHeld() & KEY_TOUCH) {
                 u16 the_x = IPC->touchXpx;
                 u16 the_y = IPC->touchYpx;
 		
@@ -194,23 +209,36 @@ u8 kbd_vblank() {
 		u16 keycode = kbd_xy2key(the_x,the_y);
 		
 		// if it's not a modifier, hilite it
-		if (keycode && !(keycode & K_MODIFIER)) kbd_set_color_from_code(keycode,1);
+		if (keycode && !(keycode & K_MODIFIER)) 
+                        kbd_set_color_from_code(keycode,1);
+
 		// set last_code so it can be un-hilited later
-		last_code = keycode;
+                held_code = keycode;
+        } else {
+                held_code = 0;
+        }
+
+        if ((last_code != 0) && (held_code != last_code) && ! (last_code & K_MODIFIER)) {
+		kbd_set_color_from_code(last_code,0);	// clear the hiliting on this key
+  		kbd_togglemod(K_MODIFIER,0);		// and also clear all modifiers (except caps)
+
+		last_code = 0;
+        }
+
+	if (nds_keysDownRepeat() & KEY_TOUCH) {
+                u16 the_x = IPC->touchXpx;
+                u16 the_y = IPC->touchYpx;
+		
+		// get the keycode that corresponds to this key
+		u16 keycode = kbd_xy2key(the_x,the_y);
 		
 		// if it's a modifier, toggle it
-		if (keycode & K_MODIFIER) kbd_togglemod(keycode,-1);
+		if (keycode & K_MODIFIER) 
+                        kbd_togglemod(keycode,-1);
 		else if ((keycode & 0x7F) != 0) {	// it's an actual keystroke, return it
   			return (keycode & 0xFF);
 		}
-	} else {
-		// if last_code is set and it wasn't a modifier
-		if (last_code && !(last_code & K_MODIFIER)) {
-			kbd_set_color_from_code(last_code,0);	// clear the hiliting on this key
-  			kbd_togglemod(K_MODIFIER,0);		// and also clear all modifiers (except caps)
-		}
-		last_code = 0;
-        }
+	}
 	
 	return 0;
 }

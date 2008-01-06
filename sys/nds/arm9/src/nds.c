@@ -48,6 +48,7 @@ void keysInterruptHandler()
 {
   if (! console_enabled) {
     nds_show_console();
+    mallinfo_dump();
   } else {
     nds_hide_console();
   }

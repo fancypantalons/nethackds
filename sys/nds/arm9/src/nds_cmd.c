@@ -1449,11 +1449,7 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
   int ynaq = 0;
   int allow_none = 0;
 
-  if (! iflags.cmdwindow) {
-    return nds_prompt_char(ques, choices, 0);
-  } else if (strstr(ques, "Adjust letter to what") != NULL) {
-    return nds_prompt_char(ques, choices, 0);
-  } else if ((strstr(ques, "In what direction") != NULL) ||
+  if ((strstr(ques, "In what direction") != NULL) ||
       (strstr(ques, "in what direction") != NULL)) {
     /*
      * We're going to use nh_poskey to get a command from the user.  However,
@@ -1499,7 +1495,11 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
         return sym;
       }
     }
-  }
+  } else if (! iflags.cmdwindow) {
+    return nds_prompt_char(ques, choices, 0);
+  } else if (strstr(ques, "Adjust letter to what") != NULL) {
+    return nds_prompt_char(ques, choices, 0);
+  } else 
 
   allow_none = (strstr(ques, "[- ") != NULL);
 

@@ -826,6 +826,12 @@ void nds_draw_map(nds_map_t *map, int *xp, int *yp)
 {
   int sx, sy;
 
+  if (map && ! map->dirty) {
+    return;
+  } else if (map) {
+    map->dirty = 0;
+  }
+
   swiWaitForVBlank();
 
   if (xp == NULL) {

@@ -1016,14 +1016,34 @@ int _nds_display_yes_no_prompt(char *prompt)
   return (c == 'y');
 }
 
+void _nds_wait_for_key()
+{
+  int x, y, mod;
+
+  putstr(WIN_MESSAGE, 0, "Press a key...");
+  display_nhwindow(WIN_MESSAGE, FALSE);
+
+  nh_poskey(&x, &y, &mod);
+
+  nds_flush(0);
+}
+
 void _nds_display_map(nds_nhwindow_t *win, int blocking)
 {
   nds_draw_map(win->map, NULL, NULL);
+
+  if (blocking) {
+    _nds_wait_for_key();
+  }
 }
 
 void _nds_display_message(nds_nhwindow_t *win, int blocking)
 {
   nds_update_msg(win, blocking);
+
+  if (blocking) {
+    _nds_wait_for_key();
+  }
 }
 
 void _nds_display_status(nds_nhwindow_t *win, int blocking)
@@ -1235,8 +1255,10 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
     title_len = get_line_from_wrap_buffer(title_tmp, sizeof(title_tmp), 
                                           buffer, 256 - tag_width);
 
-#ifdef MENU_COLOR
+    *dest = '\0';
+
     if (title_len > 0) {
+#ifdef MENU_COLOR
       if (mccolor > CLR_GRAY) {
         sprintf(dest, "\e[1m\e[3%dm", mccolor - BRIGHT);
       } else {
@@ -1249,10 +1271,15 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
         sprintf(buf, "\e[%dm", mcattr);
         strcat(dest, buf);
       }
-    }
-#else
-    *dest = '\0';
 #endif
+
+      if (! iflags.cmdwindow) {
+        char tmp[3];
+
+        sprintf(tmp, "%c - ", accel);
+        strcat(dest, tmp);
+      }
+    }
 
     strcat(dest, buffer);
   } while (title_len);
@@ -1905,6 +1932,7 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   window->map->glyphs[y][x] = glyph;
   window->map->cx = x;
   window->map->cy = y;
+  window->map->dirty = 1;
 }
 
 void nds_nhbell()

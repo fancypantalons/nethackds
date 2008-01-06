@@ -44,16 +44,18 @@ void nds_msg_wait_key(int cur_y)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
   int msg_x, msg_y, msg_w, msg_h;
+  int x, y, mod;
 
   nds_get_msg_pos(&msg_x, &msg_y, &msg_w, &msg_h);
 
-  draw_string(system_font, "Press A...", msg_img,
+  draw_string(system_font, "Press a key...", msg_img,
               0, cur_y,
               -1, -1);
 
   draw_ppm(msg_img, vram, msg_x, msg_y, 256);
 
-  nds_wait_key(KEY_A);
+  nh_poskey(&x, &y, &mod);
+
   nds_flush(0);
 }
 
@@ -66,6 +68,7 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   int cur_y = 0;
   int msg_x, msg_y, msg_w, msg_h;
   int num_lines;
+  int do_more = 0;
 
   int i;
   char *history_tmp[MSG_HISTORY_LINES];

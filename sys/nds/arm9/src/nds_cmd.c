@@ -1032,12 +1032,16 @@ nds_cmd_t nds_get_config_cmd(u16 key)
           const char *tmp = nds_get_bool_option();
 
           if (tmp != NULL) {
+            cmd.f_char = CMD_OPT_TOGGLE;
             cmd.name = "Toggle Option";
+
             strcpy(input_buffer, tmp);
           } else {
             cmd.f_char = -1;
             cmd.name = NULL;
           }
+
+          iprintf("cmd: %c %s\n", cmd.f_char, tmp);
         }
 
         break;

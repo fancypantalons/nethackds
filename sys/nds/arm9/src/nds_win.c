@@ -109,6 +109,7 @@ void nds_init_nhwindows(int *argc, char **argv)
   int i;
 
   system_font = read_bdf("font.bdf");
+  iprintf("cursor: %d\n", iflags.cursor);
 
   if (system_font == NULL) {
     iprintf("Error loading font!\n");
@@ -699,6 +700,7 @@ void nds_curs(winid win, int x, int y)
 
   window->map->cx = x;
   window->map->cy = y;
+  window->map->dirty = 1;
 }
 
 /***************************
@@ -1030,7 +1032,13 @@ void _nds_wait_for_key()
 
 void _nds_display_map(nds_nhwindow_t *win, int blocking)
 {
-  nds_draw_map(win->map, NULL, NULL);
+  if ((win->map == NULL) || (win->map->dirty)) {
+    nds_draw_map(win->map, NULL, NULL);
+  }
+
+  if (win->map != NULL) {
+    win->map->dirty = 0;
+  }
 
   if (blocking) {
     _nds_wait_for_key();

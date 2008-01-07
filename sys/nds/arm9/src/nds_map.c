@@ -348,7 +348,22 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
    */
 
   if (TILE_FILE == NULL) {
-    palette = (iflags.cursor && (gx == map->cx) && (gy == map->cy)) ? 3 : 2;
+    switch (iflags.cursor) {
+      case 0:
+        palette = ((gx == map->cx) && (gy == map->cy)) ? 3 : 2;
+        break;
+
+      case 1:
+        palette = (((gx != u.ux) || (gy != u.uy)) && (gx == map->cx) && (gy == map->cy)) ? 3 : 2;
+        break;
+
+      case 2:
+        palette = 2;
+        break;
+
+      default:
+        break;
+    }
   } else {
     palette = 2;
   }
@@ -825,12 +840,6 @@ void nds_clear_minimap()
 void nds_draw_map(nds_map_t *map, int *xp, int *yp)
 {
   int sx, sy;
-
-  if (map && ! map->dirty) {
-    return;
-  } else if (map) {
-    map->dirty = 0;
-  }
 
   swiWaitForVBlank();
 

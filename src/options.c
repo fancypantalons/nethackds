@@ -88,11 +88,6 @@ static struct Bool_Opt
 	{"color",         &iflags.wc_color, FALSE, SET_IN_GAME},	/*WC*/
 # endif
 	{"confirm",&flags.confirm, TRUE, SET_IN_GAME},
-#ifdef NDS
-        {"cursor", &iflags.cursor, TRUE, SET_IN_GAME},
-#else
-        {"cursor", (boolean *)0, TRUE, SET_IN_GAME},
-#endif
 #if defined(TERMLIB) && !defined(MAC_GRAPHICS_ENV)
 	{"DECgraphics", &iflags.DECgraphics, FALSE, SET_IN_GAME},
 #else
@@ -278,6 +273,7 @@ static struct Comp_Opt
         { "chordkeys", "the keys which can be used to make chorded commands", 4, DISP_IN_GAME },
         { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
         { "cmdkey", "the command key", 4, DISP_IN_GAME },
+        { "cursor", "cursor display mode", 4, DISP_IN_GAME },
 #endif
 	{ "disclose", "the kinds of information to disclose at end of game",
 						sizeof(flags.end_disclose) * 2,
@@ -595,6 +591,7 @@ initoptions()
         iflags.compassmode = 0;
         iflags.chordkeys = "r";
         iflags.cmdkey = "l";
+        iflags.cursor = 0;
         iflags.helpline1 = "up,down,left,right,l,r";
         iflags.helpline2 = "a,b,x,y,start,select";
 #endif
@@ -1713,6 +1710,16 @@ goodfruit:
 		op = string_for_opt(opts, negated);
 		if ((negated && !op) || (!negated && op)) {
 			iflags.compassmode = negated ? 0 : atoi(op);
+		} else if (negated) bad_negation(fullname, true);
+		return;
+	}
+
+        /* cursor:int */
+	fullname = "cursor";
+	if (match_optname(opts, fullname, sizeof("cursor") - 1, true)) {
+		op = string_for_opt(opts, negated);
+		if ((negated && !op) || (!negated && op)) {
+			iflags.cursor = negated ? 2 : atoi(op);
 		} else if (negated) bad_negation(fullname, true);
 		return;
 	}

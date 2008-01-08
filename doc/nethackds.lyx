@@ -632,20 +632,31 @@ Select/Deselect All Items
 \end_layout
 
 \begin_layout Standard
-Additionally, there are a few on-screen icons which can be tapped with the
- stylus, including:
+Additionally, menu and text windows can be interacted with using the stylus.
+ In particular:
 \end_layout
 
 \begin_layout Enumerate
-Arrows at the top and bottom of the screen, used for scrolling.
+Tapping an item in a menu will select it or increment it's counter.
 \end_layout
 
 \begin_layout Enumerate
-A checkmark icon used to dismiss the menu (equivalent to pressing A).
+Tapping an item while holding L or R will deselect it or decrement it's
+ counter.
 \end_layout
 
 \begin_layout Enumerate
-An X icon, used to cancel the menu (equivalent to pressing B).
+Tapping the arrows at the top/bottom of the screen will page the display
+ up/down.
+\end_layout
+
+\begin_layout Enumerate
+Tapping the checkmark icon will dismiss the menu (equivalent to pressing
+ A).
+\end_layout
+
+\begin_layout Enumerate
+Tapping the X icon will cancel the menu (equivalent to pressing B).
 \end_layout
 
 \begin_layout Subsection

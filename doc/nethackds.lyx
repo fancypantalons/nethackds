@@ -408,7 +408,7 @@ White
 \begin_inset Text
 
 \begin_layout Standard
-Walls, Furniture,
+Walls, Furniture, etc.
 \end_layout
 
 \end_inset
@@ -636,26 +636,26 @@ Additionally, menu and text windows can be interacted with using the stylus.
  In particular:
 \end_layout
 
-\begin_layout Enumerate
+\begin_layout Itemize
 Tapping an item in a menu will select it or increment it's counter.
 \end_layout
 
-\begin_layout Enumerate
+\begin_layout Itemize
 Tapping an item while holding L or R will deselect it or decrement it's
  counter.
 \end_layout
 
-\begin_layout Enumerate
+\begin_layout Itemize
 Tapping the arrows at the top/bottom of the screen will page the display
  up/down.
 \end_layout
 
-\begin_layout Enumerate
+\begin_layout Itemize
 Tapping the checkmark icon will dismiss the menu (equivalent to pressing
  A).
 \end_layout
 
-\begin_layout Enumerate
+\begin_layout Itemize
 Tapping the X icon will cancel the menu (equivalent to pressing B).
 \end_layout
 
@@ -1257,9 +1257,9 @@ Map Display Settings
 
 \begin_layout Standard
 Traditionally, NetHack was played on Unix terminals, and as such, the entire
- game is rendered in simple ASCII graphics.
- However, as the game progressed, tile-based graphics have been added, which
- are typically used in Windows, X11, and other graphical ports.
+ game was rendered in simple ASCII graphics.
+ However, as the game progressed, optional tile-based graphics were added,
+ which are typically used in Windows, X11, and other graphical ports.
  That said, purests such as myself still prefer the ASCII graphics version,
  and as such, NetHackDS supports both ASCII and tile-based graphics modes,
  the latter being the default setting.
@@ -1274,7 +1274,7 @@ The following options affect how the map is rendered:
 <lyxtabular version="3" rows="6" columns="2">
 <features>
 <column alignment="center" valignment="top" leftline="true" width="0">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="4in">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="4.5in">
 <row topline="true" bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
@@ -1309,7 +1309,7 @@ tile_width:<width>
 \begin_inset Text
 
 \begin_layout Standard
-The width of each tile.
+The width of each tile (must be a multiple of 8).
 \end_layout
 
 \end_inset
@@ -1329,7 +1329,7 @@ tile_height:<height>
 \begin_inset Text
 
 \begin_layout Standard
-The height of each tile.
+The height of each tile (must be a multiple of 8).
 \end_layout
 
 \end_inset
@@ -1389,7 +1389,7 @@ cursor:<cursor_mode>
 \begin_inset Text
 
 \begin_layout Standard
-How to display the cursor.
+In text mode, how to display the cursor.
  0=always, 1=not on hero, 2=never.
 \end_layout
 
@@ -1404,8 +1404,8 @@ How to display the cursor.
 \end_layout
 
 \begin_layout Standard
-Note, the absence of a tile_file option indicates that text mode should
- be used.
+Note, text mode is enabled simply by omitting the tile_file option from
+ the configuration.
 \end_layout
 
 \begin_layout Subsubsection
@@ -1419,11 +1419,50 @@ There are a number of settings available which can be used to fine-tune
 
 \begin_layout Standard
 \begin_inset Tabular
-<lyxtabular version="3" rows="6" columns="2">
+<lyxtabular version="3" rows="7" columns="3">
 <features>
 <column alignment="left" valignment="top" leftline="true" width="0">
 <column alignment="left" valignment="top" leftline="true" rightline="true" width="4in">
+<column alignment="center" valignment="top" rightline="true" width="0.75in">
 <row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+
+\series bold
+\size small
+Option Name
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+
+\series bold
+\size small
+Description
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+
+\series bold
+\size small
+Default
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
@@ -1433,12 +1472,21 @@ cmdwindow
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Standard
 Determines whether or not the command window or a virtual keyboard should
  be used for command input.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+on
 \end_layout
 
 \end_inset
@@ -1464,6 +1512,15 @@ Determines whether or not the command key toggles, or simply displays, the
 
 \end_inset
 </cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+on
+\end_layout
+
+\end_inset
+</cell>
 </row>
 <row bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1484,6 +1541,15 @@ If enabled, item selection with the stylus requires two taps.
 
 \end_inset
 </cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+off
+\end_layout
+
+\end_inset
+</cell>
 </row>
 <row bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1499,7 +1565,16 @@ hpmon
 \begin_inset Text
 
 \begin_layout Standard
-If enabled, colours the hitpoint monitor based on level of damage
+If enabled, colours the hitpoint monitor based on level of damage.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+on
 \end_layout
 
 \end_inset
@@ -1524,6 +1599,15 @@ If enabled, allows user-customizable colouring of menu items.
 
 \end_inset
 </cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+on
+\end_layout
+
+\end_inset
+</cell>
 </row>
 <row bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1541,6 +1625,15 @@ mapcolors
 \begin_layout Standard
 If enabled, certain dungeon features are coloured different (eg, walls in
  the gnomish mines, etc).
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+off
 \end_layout
 
 \end_inset
@@ -1578,7 +1671,7 @@ Compass Mode is controlled using the 'compassmode' option, which takes one
 <lyxtabular version="3" rows="3" columns="2">
 <features>
 <column alignment="center" valignment="top" leftline="true" width="0">
-<column alignment="center" valignment="top" leftline="true" rightline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0">
 <row topline="true" bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
@@ -1651,10 +1744,9 @@ The Key Binding System
 \end_layout
 
 \begin_layout Standard
-In addition, the various settings available above, NetHackDS sports an extremely
- flexible keybinding system, which is controlled through a combination of
- settings in the configuration file, as well as an in-game key configuration
- system.
+As has been alluded to previously, NetHackDS sports an extremely flexible
+ keybinding system, which is controlled through a combination of settings
+ in the configuration file, as well as an in-game key configuration system.
 \end_layout
 
 \begin_layout Subsubsection
@@ -1742,7 +1834,7 @@ CHORDKEYS=up,down,left,right
 would define the various directions on the D-Pad as chord keys (and is essential
 ly identical to the DSCrawl key arrangement).
  Valid key names include: up, down, left, right, a, b, x, y, select, start,
- r, l.
+ r, and l.
 \end_layout
 
 \begin_layout Standard
@@ -1784,7 +1876,7 @@ Key Config
 
  action, the user is asked to press a key or key combination for binding
  purposes.
- This can be any key or a combination of chord key and regular key.
+ This can be any key or a combination of chord key(s) and a regular key.
  After the key or key combination to be bound is pressed, a menu is presented
  offering a number of command subgroups, including:
 \end_layout
@@ -1793,8 +1885,8 @@ Key Config
 \begin_inset Tabular
 <lyxtabular version="3" rows="5" columns="2">
 <features>
-<column alignment="center" valignment="top" leftline="true" width="0">
-<column alignment="center" valignment="top" leftline="true" rightline="true" width="4in">
+<column alignment="left" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="5in">
 <row topline="true" bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
@@ -1852,7 +1944,9 @@ Toggle Option
 \begin_inset Text
 
 \begin_layout Standard
-Toggles the boolean option selected.
+Boolean game options.
+ Binding a key to one of these causes the option to be toggled when the
+ key is pressed.
 \end_layout
 
 \end_inset
@@ -1932,8 +2026,8 @@ There are a number of data files which NetHackDS makes use of.
 \begin_inset Tabular
 <lyxtabular version="3" rows="6" columns="2">
 <features>
-<column alignment="center" valignment="top" leftline="true" width="0">
-<column alignment="center" valignment="top" leftline="true" rightline="true" width="4in">
+<column alignment="left" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="5in">
 <row topline="true" bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
@@ -2101,7 +2195,7 @@ Wosret
 \end_layout
 
 \begin_layout Itemize
-Of course, there's the Nethack DevTeam, without which this port wouldn't
+Of course, there's the NetHack DevTeam, without which this port wouldn't
  exist (and I would've spent many hours doing far more productive things
  with my time).
 \end_layout

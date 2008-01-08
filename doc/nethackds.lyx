@@ -1,0 +1,2140 @@
+#LyX 1.5.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 276
+\begin_document
+\begin_header
+\textclass article
+\language english
+\inputencoding auto
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\paperfontsize 12
+\spacing single
+\papersize default
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\cite_engine basic
+\use_bibtopic false
+\paperorientation portrait
+\leftmargin 1in
+\topmargin 1in
+\rightmargin 1in
+\bottommargin 1in
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation skip
+\defskip bigskip
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\author "" 
+\author "" 
+\end_header
+
+\begin_body
+
+\begin_layout Title
+NethackDS Manual
+\end_layout
+
+\begin_layout Author
+Brett Kosinski
+\end_layout
+
+\begin_layout Standard
+\begin_inset LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+The Introduction
+\end_layout
+
+\begin_layout Standard
+NetHackDS is a port of the game NetHack to the Nintendo DS
+\begin_inset ERT
+status open
+
+\begin_layout Standard
+
+
+\backslash
+texttrademark
+\end_layout
+
+\end_inset
+
+ video game system.
+ For those unfamiliar with the game NetHack, it might be best to first familiari
+ze yourself with the basic game itself.
+ You can find detailed information on NetHack, the game, at the project
+ home page: 
+\begin_inset LatexCommand url
+target "http://www.nethack.org"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+NetHack is typically referred to as a roguelike game.
+ In this sense, it features a hero wandering around in a virtual world,
+ acquiring equipment, items, and money, in the hopes of completing some
+ goal or quest.
+ In the case of NetHack, the goal is to retrieve the Amulet of Yendor from
+ the depths of the dungeon, whereupon you must return and sacrifice the
+ amulet to your god.
+ It sounds simple on the surface, but the path to ascension is a long and
+ arduous one, frought with many perils.
+ Not the least of which is the destructive nature the game often has on
+ grades, job performance, and so forth.
+\end_layout
+
+\begin_layout Standard
+Traditionally, NetHack is played on a computer, and as such, makes extensive
+ use of the keyboard as a vehicle for user interaction.
+ This makes translating the game to a portable device particularly challenging
+ as compared to other game porting efforts.
+ However, I hope I have succeeding in creating something that is both easy
+ and enjoyable to play, both for experienced NetHack players, as well as
+ neophytes.
+\end_layout
+
+\begin_layout Section
+\noindent
+The User Interface
+\end_layout
+
+\begin_layout Subsection
+Overview
+\end_layout
+
+\begin_layout Standard
+The game display in NetHackDS is divided between the two screens of the
+ Nintendo DS
+\begin_inset ERT
+status open
+
+\begin_layout Standard
+
+
+\backslash
+texttrademark
+\end_layout
+
+\end_inset
+
+ as follows:
+\end_layout
+
+\begin_layout Enumerate
+On the bottom screen is rendered the game map, where a viewport into the
+ world is rendered.
+ It is here that the dungeon is displayed, along with the hero, monsters,
+ items, etc.
+\end_layout
+
+\begin_layout Enumerate
+On the top screen is rendered the status display, where information about
+ the hero is shown, as well as a miniature rendering of the current level.
+\end_layout
+
+\begin_layout Standard
+Of course, the bottom screen is also used to interact with the user in a
+ number of other ways.
+ Most importantly, it is on the bottom screen that the command window is
+ rendered, through which the user may direct their actions in the game.
+ Additionally, menus and text windows are displayed there.
+\end_layout
+
+\begin_layout Subsection
+Game Map
+\end_layout
+
+\begin_layout Standard
+The game map displays a subset of the current visible level.
+ Among the notable features are:
+\end_layout
+
+\begin_layout Enumerate
+The hero, who is highlighted by either a graphical or textual cursor (depending
+ on configuration).
+\end_layout
+
+\begin_layout Enumerate
+Dungeon features, such as walls, floors, doors, hallways, furniture, etc.
+\end_layout
+
+\begin_layout Enumerate
+Monsters, both friendly and unfriendly.
+\end_layout
+
+\begin_layout Enumerate
+Items, such as gold, scrolls, potions, wands, armor, weapons, and so on
+ and so forth.
+\end_layout
+
+\begin_layout Standard
+Note, the visible portion of the current level may be panned by either dragging
+ with the stylus, or using keys bound to the various map panning functions,
+ as described in section 
+\begin_inset LatexCommand ref
+reference "sub:The-Joypad"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Additionally, the user may directly control the game in a number of ways
+ using the touchscreen.
+ For more details, see section 
+\begin_inset LatexCommand ref
+reference "sub:The-Touchscreen"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Status Display
+\end_layout
+
+\begin_layout Standard
+The status display, present on the top screen, provides various information
+ about the player and the game.
+ Among the key features visible, there is:
+\end_layout
+
+\begin_layout Enumerate
+The minimap, which shows a scaled down view of the current level map.
+\end_layout
+
+\begin_layout Enumerate
+The player status lines, which provide information about various player
+ attributes, as well as the current dungeon level, and so forth.
+\end_layout
+
+\begin_layout Enumerate
+The game message window.
+ This presents various information about events occuring within the game.
+\end_layout
+
+\begin_layout Subsubsection
+The Minimap
+\end_layout
+
+\begin_layout Standard
+The minimap shows a wealth of information in a compact display.
+ On it you will see rendered a red box, which represents the current viewport
+ visible on the bottom screen, as well as any dungeon features visible or
+ discovered, presented as coloured regions.
+ The various colours correspond to different features on the map, and include:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="center" valignment="top" leftline="true" rightline="true" width="0">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Green
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The Hero
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Red
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Monsters
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Purple
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Pets
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Dark Yellow
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Doors
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Black
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Floors
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Blue
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Stairs
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Light Yellow
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Altars
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+White
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Walls, Furniture,
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Menus and Text
+\end_layout
+
+\begin_layout Standard
+There are a few basic user interface elements present in NetHackDS.
+ Among the most important are the menu and text window displays.
+ As you would expect, these are used to present modal, scrollable lists
+ of textual information or items that the user may select.
+ Typically, these displays are activated in response to actions taken by
+ the user (for example, displaying the item inventory).
+\end_layout
+
+\begin_layout Standard
+Controls in menu and text windows are fairly simple:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="9" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Right
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Page Down
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Left
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Page Up
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Up
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Move Item Selector Up
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Down
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Move Item Selector Down
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+X
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Select Item or Increment Counter
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Y
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Deselect Item or Decrement Counter
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+A
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Dismiss Menu/Text Display
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+B
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Cancel Menu/Text Display
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Select
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Select/Deselect All Items
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Additionally, there are a few on-screen icons which can be tapped with the
+ stylus, including:
+\end_layout
+
+\begin_layout Enumerate
+Arrows at the top and bottom of the screen, used for scrolling.
+\end_layout
+
+\begin_layout Enumerate
+A checkmark icon used to dismiss the menu (equivalent to pressing A).
+\end_layout
+
+\begin_layout Enumerate
+An X icon, used to cancel the menu (equivalent to pressing B).
+\end_layout
+
+\begin_layout Subsection
+The Command Window
+\end_layout
+
+\begin_layout Standard
+Like all roguelikes, NetHack's gameplay is centered around a vocabulary
+ of verbs.
+ These verbs define all actions which can be taken in the game, and in NetHack,
+ this vocabulary is large.
+ Very large.
+ Of course, NetHack's traditionally keyboard-based control scheme makes
+ such a game possible, as verbs can be mapped to various keys on the keyboard.
+ However, on a portable device, things are not so easy, and so the command
+ window provides an interface to the set of verbs available in the game.
+\end_layout
+
+\begin_layout Standard
+In the default configuration, the command window is activated by pressing
+ and holding the left trigger button.
+ This brings up a display of verbs organized in columns, which may then
+ be selected by using the joypad or the touchscreen.
+ When the joypad is used, the direction keys can be used to highlight verbs,
+ and selection is done by pressing the X or A buttons.
+\end_layout
+
+\begin_layout Standard
+Additionally, actions may be repeated some number of times based on a count
+ provided by the user.
+ To indicate a repeated action is desired, tap-and-hold the action using
+ the stylus until a keyboard appears.
+ Then type in the repeat count desired, and press the Enter button on the
+ keyboard.
+\end_layout
+
+\begin_layout Section
+The Control Scheme
+\end_layout
+
+\begin_layout Subsection
+The Joypad
+\begin_inset LatexCommand label
+name "sub:The-Joypad"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The default NetHackDS control scheme is set up as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="13" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Up
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Move Up
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Down
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Move Down
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Left
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Move Left
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Right
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Move Right
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+R+Up
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Pan Map Up
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+R+Down
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Pan Map Down
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+R+Left
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Pan Map Left
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+R+Right
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Pan Map Right
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+A
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Pick Up
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+B
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Search
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+X
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Open
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Y
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Kick
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+L
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Display Command Window
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+The Touchscreen
+\begin_inset LatexCommand label
+name "sub:The-Touchscreen"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In addition to using the joypad, the user may also interact with the game
+ map using the touchscreen.
+ For example:
+\end_layout
+
+\begin_layout Itemize
+Tapping on an adjacent, empty square will cause the hero to move into that
+ square.
+\end_layout
+
+\begin_layout Itemize
+Tapping on a non-adjacent square will cause the hero to move to that location
+ (or as close as possible to it).
+\end_layout
+
+\begin_layout Itemize
+Tapping on an adjacent, non-empty square will cause the hero to interact
+ with the item in that square.
+\end_layout
+
+\begin_layout Itemize
+Tapping on the hero while they are standing over something will cause the
+ hero to interact with the item in question.
+\end_layout
+
+\begin_layout Standard
+In the last two cases, the type of interaction will depend upon the item
+ in question.
+ For example:
+\end_layout
+
+\begin_layout Itemize
+Tapping an adjacent monster will cause the hero to attack it.
+\end_layout
+
+\begin_layout Itemize
+Tapping an adjacent door will cause the hero to attempt to open it.
+\end_layout
+
+\begin_layout Itemize
+Tapping the hero while standing over stairs will cause the hero to climb
+ them.
+\end_layout
+
+\begin_layout Itemize
+Tapping the hero while standing over a container (box, bag, etc), will cause
+ them to try and loot it.
+\end_layout
+
+\begin_layout Itemize
+Tapping the hero while standing over a sink or fountain will cause them
+ to attempt to drink from it.
+\end_layout
+
+\begin_layout Standard
+And so forth.
+ Lastly, in some instances, the game may prompt the user for directional
+ input in order to complete a command (eg, zapping a wand, throwing a weapon,
+ etc).
+ In this case, the map can be tapped in order to indicate the direction.
+ Specifically:
+\end_layout
+
+\begin_layout Itemize
+Tapping an adjacent square will input the corresponding direction (ie, tapping
+ the upper-right square will indicate a direction of up-right).
+\end_layout
+
+\begin_layout Itemize
+Tapping the hero will indicate the hero (equivalent to '.').
+\end_layout
+
+\begin_layout Itemize
+Tapping-and-holding on the hero (press and hold the stylus on the hero)
+ will indicate the floor (equivalent to '>').
+\end_layout
+
+\begin_layout Section
+The Configuration System
+\end_layout
+
+\begin_layout Standard
+Because tastes among users strongly vary regarding control schemes, display
+ features, and so forth, NetHackDS is, above all, designed to be highly
+ customizable.
+ As such, the game provides a deeply flexible keybinding system, as well
+ as a wide array of features which may be enabled to disabled as the user
+ desires, in addition to the standard configurable features available in
+ NetHack.
+\end_layout
+
+\begin_layout Subsection
+The Configuration File
+\end_layout
+
+\begin_layout Standard
+Much of the configuration in NetHackDS is managed through a file called
+ 
+\begin_inset Quotes eld
+\end_inset
+
+defaults.nh
+\begin_inset Quotes erd
+\end_inset
+
+, present in the NetHackDS directory.
+ This text file, which can be modified with a simple text editor, exposes
+ a wide array of configurable settings.
+ Here I will limit the discussion to major NetHack options relevant to NetHackDS
+, and NetHackDS-specific settings.
+ The remaining options are documented on the NetHack website.
+\end_layout
+
+\begin_layout Standard
+The general format of the configuration file is a set of directives and
+ values, separated by an equals sign ('=').
+ The directives may be one of:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+OPTIONS
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Game option directive, used to turn on or off various features.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+MENUCOLOR
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Used to define colors for menucolor mode.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+CHORDKEYS
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Defines the set of chord keys (for key binding, see below).
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+HELPLINE1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Controls the key help displayed in the status window.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+HELPLINE2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note, multiple copies of each directive may be present in the file, and
+ are all honoured.
+\end_layout
+
+\begin_layout Standard
+In the case of OPTIONS lines, multiple game options may be specified.
+ Options are separated by commas, may be preceeded by an exclamation point
+ ('!') to indicate negation, and for compound options (options which take
+ an operand), the option name and value are separated by a colon (':') character.
+ For example:
+\end_layout
+
+\begin_layout Quotation
+OPTIONS=autopickup,pickup_types:$,!menucolors
+\end_layout
+
+\begin_layout Standard
+In this case, we have three options defined.
+ The first is a simple boolean option, the second is an option taking a
+ value, in this case the string '$', and the third is a negated boolean
+ option.
+\end_layout
+
+\begin_layout Subsubsection
+Map Display Settings
+\end_layout
+
+\begin_layout Standard
+Traditionally, NetHack was played on Unix terminals, and as such, the entire
+ game is rendered in simple ASCII graphics.
+ However, as the game progressed, tile-based graphics have been added, which
+ are typically used in Windows, X11, and other graphical ports.
+ That said, purests such as myself still prefer the ASCII graphics version,
+ and as such, NetHackDS supports both ASCII and tile-based graphics modes,
+ the latter being the default setting.
+\end_layout
+
+\begin_layout Standard
+The following options affect how the map is rendered:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="4in">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+tile_file:<file_name>
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+A 16- or 256-color BMP file containing the graphics tiles to use.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+tile_width:<width>
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The width of each tile.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+tile_height:<height>
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The height of each tile.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+color
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+In text mode, specifies that color should be used.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+ibmgraphics
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+In text mode, specifies that IBM graphics characters should be used.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+cursor:<cursor_mode>
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+How to display the cursor.
+ 0=always, 1=not on hero, 2=never.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note, the absence of a tile_file option indicates that text mode should
+ be used.
+\end_layout
+
+\begin_layout Subsubsection
+User Interface Settings
+\end_layout
+
+\begin_layout Standard
+There are a number of settings available which can be used to fine-tune
+ the user interface.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="2">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="4in">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+cmdwindow
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Determines whether or not the command window or a virtual keyboard should
+ be used for command input.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+holdmode
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Determines whether or not the command key toggles, or simply displays, the
+ command window.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+doubletap
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+If enabled, item selection with the stylus requires two taps.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+hpmon
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+If enabled, colours the hitpoint monitor based on level of damage
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+menucolors
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+If enabled, allows user-customizable colouring of menu items.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+mapcolors
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+If enabled, certain dungeon features are coloured different (eg, walls in
+ the gnomish mines, etc).
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Compass Mode
+\end_layout
+
+\begin_layout Standard
+Compass Mode is an alternative stylus control scheme, inspired by (and code
+ swiped from) the iRogue project.
+ In this mode, one can consider the screen as being divided into a set of
+ eight wedges, centered around the hero or the center of the screen, depending
+ on the configuration settings.
+ Tapping within a given wedge indicates the hero should move in that direction.
+ Tapping near the compass center results in a single step.
+ Tapping further away results in running.
+\end_layout
+
+\begin_layout Standard
+Compass Mode is controlled using the 'compassmode' option, which takes one
+ of the following values:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="center" valignment="top" leftline="true" rightline="true" width="0">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Disabled
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Relative Mode (compass is centered on the hero)
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Absolute Mode (compass is centered on the middle of the screen)
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+The Key Binding System
+\end_layout
+
+\begin_layout Standard
+In addition, the various settings available above, NetHackDS sports an extremely
+ flexible keybinding system, which is controlled through a combination of
+ settings in the configuration file, as well as an in-game key configuration
+ system.
+\end_layout
+
+\begin_layout Subsubsection
+Key (har har) Concepts
+\end_layout
+
+\begin_layout Standard
+On the standard PC keyboard, keys such as Alt and Shift are unusual.
+ These keys, when pressed, trigger no action on their own
+\begin_inset Foot
+status open
+
+\begin_layout Standard
+Okay, that's not strictly true.
+ For example, in the Windows operating system, Alt, when pressed then released,
+ focuses the menu in the current window.
+ Similarly, in NetHackDS, chord keys may have actions bound to them if they
+ are pressed then released.
+\end_layout
+
+\end_inset
+
+.
+ Instead, they alter the behaviour of other keys.
+ Similarly, the NetHackDS key binding system differentiates keys based on
+ whether or not they are 
+\begin_inset Quotes eld
+\end_inset
+
+chord keys
+\begin_inset Quotes erd
+\end_inset
+
+ (to Unix users, these are more familiarly known as 
+\begin_inset Quotes eld
+\end_inset
+
+meta
+\begin_inset Quotes erd
+\end_inset
+
+ keys), keys which can be combined with other keys for binding purposes,
+ or regular keys.
+\end_layout
+
+\begin_layout Standard
+But, unlike a PC, which has a strict set of chord keys, NetHackDS allows
+ the flexibility to control which keys are chord keys, in addition to controllin
+g which commands are bound to which keys/key combinations, which allows
+ for incredibly flexible key binding.
+\end_layout
+
+\begin_layout Standard
+Lastly, there is one 
+\begin_inset Quotes eld
+\end_inset
+
+special
+\begin_inset Quotes erd
+\end_inset
+
+ key in NetHackDS, the command key.
+ It is this key which brings up the command window.
+ And, again, there is an option for controlling which key is mapped to this
+ functin.
+\end_layout
+
+\begin_layout Subsubsection
+Key Configuration Settings
+\end_layout
+
+\begin_layout Standard
+Key configuration in NetHackDS is controlled by one configuration directive,
+ CHORDKEYS, and one configuration option, cmdkey.
+ CHORDKEYS specifies the list of chord keys, and is defined as a comma-separated
+ list of key names.
+ For example:
+\end_layout
+
+\begin_layout Quote
+CHORDKEYS=up,down,left,right
+\end_layout
+
+\begin_layout Standard
+would define the various directions on the D-Pad as chord keys (and is essential
+ly identical to the DSCrawl key arrangement).
+ Valid key names include: up, down, left, right, a, b, x, y, select, start,
+ r, l.
+\end_layout
+
+\begin_layout Standard
+Additionally, the cmdkey option takes, as a value, a key name, and defines
+ which key is used to open the command window.
+ For example:
+\end_layout
+
+\begin_layout Quote
+OPTIONS=cmdkey:start
+\end_layout
+
+\begin_layout Standard
+would define the Start button as the key which brings up the command window.
+\end_layout
+
+\begin_layout Subsubsection
+Key Binding
+\end_layout
+
+\begin_layout Standard
+The actual process of binding keys (mapping keys or key combinations to
+ actions) is done in-game using the 
+\begin_inset Quotes eld
+\end_inset
+
+Key Config
+\begin_inset Quotes erd
+\end_inset
+
+ action in the command menu (or F1, if the command window has been disabled).
+ Upon selecting the 
+\begin_inset Quotes eld
+\end_inset
+
+Key Config
+\begin_inset Quotes erd
+\end_inset
+
+ action, the user is asked to press a key or key combination for binding
+ purposes.
+ This can be any key or a combination of chord key and regular key.
+ After the key or key combination to be bound is pressed, a menu is presented
+ offering a number of command subgroups, including:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="center" valignment="top" leftline="true" rightline="true" width="4in">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Movement
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Various Hero movement operations, including regular movement, running, and
+ fight operations
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Game Command
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Standard game commands.
+ Brings up the command window (or virtual keyboard, if the command window
+ is disabled).
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Toggle Option
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Toggles the boolean option selected.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Map Panning
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Commands for moving the map viewport around.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+No Command
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Effectively 
+\begin_inset Quotes eld
+\end_inset
+
+unbinds
+\begin_inset Quotes erd
+\end_inset
+
+ the key in question.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note, when binding game commands, repeat and extended commands are perfectly
+ valid selections.
+\end_layout
+
+\begin_layout Subsection
+Other Data Files
+\end_layout
+
+\begin_layout Standard
+There are a number of data files which NetHackDS makes use of.
+ The following is a list of those files along with a simple description
+ of their function and format.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="2">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0">
+<column alignment="center" valignment="top" leftline="true" rightline="true" width="4in">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+font.bdf
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+BDF-format font file used for menus, text, status display, etc.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+map.bdf
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+BDF-format font file used for the text-based map graphics.
+ Note, the font characters in this file are padded out to a multiple of
+ 8 when used in-game.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+kbd.pal
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The palette file for the virtual keyboard graphics.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+map.pal
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The palette file for the text-based map graphics.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+minimap.pal
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The palette file for the minimap.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+text.pal
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+The palette file used for menus, text, status display, etc.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Palette File Format
+\end_layout
+
+\begin_layout Standard
+The palette files used in NetHackDS are simple text files.
+ Any blank lines, or lines prefixed with a pound ('#') are ignored.
+ All other lines must be bare six-digit hexadecimal values (lower-case character
+s only) representing RGB triplets.
+\end_layout
+
+\begin_layout Section
+The Credits and Acknowledgements
+\end_layout
+
+\begin_layout Standard
+NetHackDS wouldn't exist without the invaluable contributions from many
+ others.
+ Below are just a few without whom this port would not exist:
+\end_layout
+
+\begin_layout Itemize
+This code has it's roots in the first NetHackDS port, created by Stuart
+ Pernsteiner (aka 
+\begin_inset Quotes eld
+\end_inset
+
+Wosret
+\begin_inset Quotes erd
+\end_inset
+
+).
+ While the actual implementation is essentially a rewrite, I borrowed much
+ (such as the keyboard handling code), and benefitted greatly from his initial
+ porting effort.
+\end_layout
+
+\begin_layout Itemize
+Of course, there's the Nethack DevTeam, without which this port wouldn't
+ exist (and I would've spent many hours doing far more productive things
+ with my time).
+\end_layout
+
+\begin_layout Itemize
+The Devkitpro folks, and all those who've contributed to the project.
+ In particular, libnds has been unsurprisingly invaluable.
+\end_layout
+
+\begin_layout Itemize
+Chism for his work on libfat.
+\end_layout
+
+\begin_layout Itemize
+Masscat for his GDB stub.
+ I probably would've given up without it.
+\end_layout
+
+\begin_layout Itemize
+The dswifi developers, without whom Masscat's stub would've been useless.
+\end_layout
+
+\begin_layout Itemize
+Oddly, the Foobillard developers.
+ I snagged their BDF font rendering and PPM handling code.
+ :)
+\end_layout
+
+\begin_layout Itemize
+Stumpy, for his superb ANSI fontsets, from which I scavenged.
+\end_layout
+
+\begin_layout Itemize
+Tobias Jung, for making ProFont available.
+\end_layout
+
+\begin_layout Itemize
+The authors of the surprisingly portable PCRE, without which menucolors
+ support would've been a non-starter.
+\end_layout
+
+\begin_layout Itemize
+Many users for providing valuable feedback and feature suggestions.
+\end_layout
+
+\end_body
+\end_document

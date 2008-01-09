@@ -713,11 +713,10 @@ int prompt_y;
 void nds_draw_prompt(char *prompt)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
-  int prompt_h = system_font->height;
 
   if (prompt_img == NULL) {
-    prompt_img = alloc_ppm(252, prompt_h * 2);
-    prompt_y = 192 - prompt_h * 2;
+    prompt_img = alloc_ppm(252, system_font->height * 2);
+    prompt_y = 192 - system_font->height * 2;
   }
 
   /* Draw the prompt */
@@ -730,6 +729,10 @@ void nds_draw_prompt(char *prompt)
 void nds_clear_prompt()
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
+  
+  if (prompt_img == NULL) {
+    return;
+  }
 
   clear_ppm(prompt_img, MAP_COLOUR(CLR_BLACK));
   draw_ppm(prompt_img, vram, 4, prompt_y, 256);

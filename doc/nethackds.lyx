@@ -632,6 +632,11 @@ Select/Deselect All Items
 \end_layout
 
 \begin_layout Standard
+Note, menus are often divided into subsections by section titles.
+ Selecting/deselecting these titles will affect all items within that subsection.
+\end_layout
+
+\begin_layout Standard
 Additionally, menu and text windows can be interacted with using the stylus.
  In particular:
 \end_layout

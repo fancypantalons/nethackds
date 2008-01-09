@@ -1317,7 +1317,7 @@ void nds_end_menu(winid win, const char *prompt)
  * Actually menu display and select code.
  *****************************************/
 
-void _nds_menu_select_item(nds_menuitem_t *item, int decrement)
+void _nds_menu_do_select(nds_menuitem_t *item, int decrement)
 {
   int cnt = item->count;
 
@@ -1350,6 +1350,23 @@ void _nds_menu_select_item(nds_menuitem_t *item, int decrement)
       item->count = cnt + 1;
     }
   }
+
+  item->refresh = 1;
+}
+
+void _nds_menu_select_item(nds_menu_t *menu, int index, int decrement)
+{
+  if (menu->items[index].id.a_int != 0) {
+    _nds_menu_do_select(&(menu->items[index]), decrement);
+  } else {
+    int i = 0;
+
+    for (i = index + 1; (i < menu->count) && (menu->items[i].id.a_int != 0); i++) {
+      _nds_menu_do_select(&(menu->items[i]), decrement);
+    }
+  }
+
+  menu->items[index].highlighted = 1;
 }
 
 /*
@@ -1442,30 +1459,18 @@ int _nds_do_menu(nds_nhwindow_t *window)
         } else {
           menu->focused_item--;
         }
-
-        while ((menu->focused_item >= 0) && (menu->items[menu->focused_item].id.a_int == 0)) {
-          menu->focused_item--;
-        }
       } else if (pressed & KEY_DOWN) {
         if (menu->focused_item < window->topidx) {
           menu->focused_item = window->topidx;
         } else {
           menu->focused_item++;
         }
-
-        while ((menu->focused_item < menu->count) && (menu->items[menu->focused_item].id.a_int == 0)) {
-          menu->focused_item++;
-        }
       } 
 
       if (menu->focused_item < 0) {
-        do {
-          menu->focused_item++;
-        } while ((menu->focused_item < menu->count) && (menu->items[menu->focused_item].id.a_int == 0));
+        menu->focused_item++;
       } else if (menu->focused_item >= menu->count) {
-        do {
-          menu->focused_item--;
-        } while ((menu->focused_item >= 0) && (menu->items[menu->focused_item].id.a_int == 0));
+        menu->focused_item--;
       }
 
       if (menu->focused_item < window->topidx) {
@@ -1496,27 +1501,21 @@ int _nds_do_menu(nds_nhwindow_t *window)
     if ((pressed & KEY_X) && (menu->focused_item >= 0) &&
         (! menu->items[menu->focused_item].highlighted)) {
 
-      _nds_menu_select_item(&(menu->items[menu->focused_item]), 0);
+      _nds_menu_select_item(menu, menu->focused_item, 0);
 
       if (menu->how == PICK_ONE) {
         goto DONE;
       } 
-
-      menu->items[menu->focused_item].highlighted = 1;
-      menu->items[menu->focused_item].refresh = 1;
 
       refresh = 1;
     } else if ((pressed & KEY_Y) && (menu->focused_item >= 0) &&
                ! menu->items[menu->focused_item].highlighted) {
 
-      _nds_menu_select_item(&(menu->items[menu->focused_item]), 1);
+      _nds_menu_select_item(menu, menu->focused_item, 1);
 
       if (menu->how == PICK_ONE) {
         goto DONE;
       } 
-
-      menu->items[menu->focused_item].highlighted = 1;
-      menu->items[menu->focused_item].refresh = 1;
 
       refresh = 1;
     } else if (((! (pressed & KEY_X) && (prev_pressed == KEY_X)) ||
@@ -1553,8 +1552,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
       item_y2 = item_y + menu->items[i].height;
 
       if (touch_down_in(item_x, item_y, item_x2, item_y2) &&
-          ! menu->items[i].highlighted &&
-          (menu->items[i].id.a_int != 0)) {
+          ! menu->items[i].highlighted) {
 
         if (menu->focused_item >= 0) {
           menu->items[menu->focused_item].refresh = 1;
@@ -1566,8 +1564,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
         refresh = 1;
       } else if (touch_was_down_in(item_x, item_y, item_x2, item_y2) &&
-                 menu->items[i].highlighted &&
-                 (menu->items[i].id.a_int != 0)) {
+                 menu->items[i].highlighted) {
 
         menu->items[i].highlighted = 0;
         menu->items[i].refresh = 1;
@@ -1577,21 +1574,20 @@ int _nds_do_menu(nds_nhwindow_t *window)
         }
 
         refresh = 1;
-      } else if (touch_released_in(item_x, item_y, item_x2, item_y2) &&
-                 (menu->items[i].id.a_int != 0)) {
-
-        menu->items[i].highlighted = 0;
-        menu->items[i].refresh = 1;
+      } else if (touch_released_in(item_x, item_y, item_x2, item_y2)) {
 
         refresh = 1;
 
         if ((! iflags.doubletap) || (menu->tapped_item == i)) {
-          _nds_menu_select_item(&(menu->items[i]), (held & KEY_L) || (held & KEY_R));
+          _nds_menu_select_item(menu, i, (held & KEY_L) || (held & KEY_R));
 
           if (menu->how == PICK_ONE) {
             goto DONE;
           } 
         }
+
+        menu->items[i].highlighted = 0;
+        menu->items[i].refresh = 1;
 
         menu->tapped_item = i;
       }

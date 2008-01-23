@@ -1040,8 +1040,6 @@ nds_cmd_t nds_get_config_cmd(u16 key)
             cmd.f_char = -1;
             cmd.name = NULL;
           }
-
-          iprintf("cmd: %c %s\n", cmd.f_char, tmp);
         }
 
         break;
@@ -1443,15 +1441,151 @@ int nds_get_input(int *x, int *y, int *mod)
   return 0;
 }
 
-char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
+struct obj *obj_for_let(char invlet)
 {
+  struct obj *otmp;
+
+  for (otmp = invent; otmp; otmp = otmp->nobj) {
+    if (otmp->invlet == invlet) {
+      return otmp;
+    }
+  }
+
+  return NULL;
+}
+
+int class_slot_for_obj(struct obj *o)
+{
+  int i;
+
+  for (i = 0; i < MAXOCLASSES; i++) {
+    if (flags.inv_order[i] == o->oclass) {
+      return i;
+    }
+  }
+
+  return 0;
+}
+
+void _nds_insert_choice(char *choices, char let)
+{
+  iprintf("Inserting '%c' into '%s'\n", let, choices);
+#ifdef SORTLOOT
+  if (iflags.sortloot == 'f') {
+    struct obj *otmp = obj_for_let(let);
+    int len = strlen(choices);
+    int i;
+
+    for (i = 0; choices[i]; i++) {
+      struct obj *ochoice = obj_for_let(choices[i]);
+
+      if (strcmpi(cxname2(otmp), cxname2(ochoice)) < 0) {
+        break;
+      }
+    }
+
+    if (i == len) {
+      choices[i] = let;
+      choices[i + 1] = '\0';
+    } else {
+      memmove(&(choices[i + 1]), &(choices[i]), len - i + 1);
+      choices[i] = let;
+    }
+  } else {
+#else
+    char tmp[2];
+
+    tmp[0] = let;
+    tmp[1] = '\0';
+
+    strcat(choices, tmp);
+#endif
+  }
+}
+
+char *_nds_parse_choices(const char *ques)
+{
+  static char choices[BUFSZ];
+
+  char choices_by_class[MAXOCLASSES][BUFSZ / MAXOCLASSES];
+  char special_choices[BUFSZ / MAXOCLASSES];
+
+  int i;
+
+  char *ptr = index(ques, '[');
+  char last_choice = -1;
+  int have_hyphen = 0;
+  
+  if (ptr == NULL) {
+    return NULL;
+  } else {
+    ptr++;
+  }
+
+  for (i = 0; i < MAXOCLASSES; i++) {
+    choices_by_class[i][0] = '\0';
+  }
+
+  special_choices[0] = '\0';
+
+  for (i = 0; ptr[i] && (ptr[i] != ']'); i++) {
+
+    struct obj *otmp;
+
+    if (strncmp(ptr + i, " or ", 4) == 0) {
+      i += 3;
+    } else if (ISWHITESPACE(ptr[i])) {
+      continue;
+    } else if ((ptr[i] == '-') && ! ISWHITESPACE(ptr[i + 1])) {
+      have_hyphen = 1;
+    } else if (have_hyphen) {
+      int j;
+
+      for (j = last_choice + 1; j <= ptr[i]; j++) {
+        _nds_insert_choice(choices_by_class[class_slot_for_obj(obj_for_let(j))], j);
+      }
+
+      have_hyphen = 0;
+    } else {
+      if ((otmp = obj_for_let(ptr[i])) != NULL) {
+        _nds_insert_choice(choices_by_class[class_slot_for_obj(otmp)], ptr[i]);
+      } else {
+        char tmp[2];
+
+        tmp[0] = ptr[i];
+        tmp[1] = '\0';
+
+        strcat(special_choices, tmp);
+      }
+
+      last_choice = ptr[i];
+    }
+  }
+
+  choices[0] = '\0';
+
+  for (i = 0; i < MAXOCLASSES; i++) {
+    strcat(choices, choices_by_class[i]);
+  }
+
+  strcat(choices, " ");
+  strcat(choices, special_choices);
+
+  iprintf("Choices: %s\n", choices);
+
+  return choices;
+}
+
+char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
+{
+  char *choices;
+  ANY_P header_id;
+  ANY_P *ids;
   winid win;
   menu_item *sel;
-  ANY_P ids[3];
   int ret;
   int yn = 0;
   int ynaq = 0;
-  int allow_none = 0;
 
   if ((strstr(ques, "In what direction") != NULL) ||
       (strstr(ques, "in what direction") != NULL)) {
@@ -1500,14 +1634,12 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
       }
     }
   } else if (! iflags.cmdwindow) {
-    return nds_prompt_char(ques, choices, 0);
+    return nds_prompt_char(ques, cstr, 0);
   } else if (strstr(ques, "Adjust letter to what") != NULL) {
-    return nds_prompt_char(ques, choices, 0);
-  } else 
+    return nds_prompt_char(ques, cstr, 0);
+  } 
 
-  allow_none = (strstr(ques, "[- ") != NULL);
-
-  if ((choices == NULL) && ! allow_none) {
+  if ((index(ques, '[') == NULL) && (cstr == NULL)) {
     nds_draw_prompt(ques);
     return '*';
   }
@@ -1516,15 +1648,11 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
 
   start_menu(win);
   
-  if (allow_none) {
-    ids[0].a_int = '*';
-    ids[1].a_int = '-';
+  if ((strcasecmp(cstr, ynchars) == 0) ||
+      (strcasecmp(cstr, ynqchars) == 0) ||
+      ((ynaq = strcasecmp(cstr, ynaqchars)) == 0)) {
 
-    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Something from your inventory", 0);
-    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Your finger", 0);
-  } else if ((strcasecmp(choices, ynchars) == 0) ||
-             (strcasecmp(choices, ynqchars) == 0) ||
-             ((ynaq = strcasecmp(choices, ynaqchars)) == 0)) {
+    ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
 
     yn = 1;
 
@@ -1539,7 +1667,9 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
 
       add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "All", 0);
     }
-  } else if (strcasecmp(choices, "rl") == 0) {
+  } else if (strcasecmp(cstr, "rl") == 0) {
+
+    ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
 
     ids[0].a_int = 'r';
     ids[1].a_int = 'l';
@@ -1547,8 +1677,38 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
     add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Right Hand", 0);
     add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Left Hand", 0);
   } else {
-    iprintf("I have no idea how to handle this.", choices);
-    return -1;
+    int i;
+    char curclass = -1;
+
+    choices = _nds_parse_choices(ques);
+
+    ids = (ANY_P *)malloc(sizeof(ANY_P) * strlen(choices));
+    header_id.a_int = 0;
+
+    for (i = 0; i < strlen(choices); i++) {
+
+      ids[i].a_int = choices[i];
+
+      if (choices[i] == ' ') {
+        add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, "Other", 0);
+      } else if (choices[i] == '*') {
+        add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, "Something from your inventory", 0);
+      } else if ((choices[i] == '-') || (choices[i] == '.')) {
+        add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, "Nothing/your finger", 0);
+      } else if (choices[i] == '?') {
+        continue;
+      } else {
+        struct obj *otmp = obj_for_let(choices[i]);
+
+        if (otmp->oclass != curclass) {
+          add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, let_to_name(otmp->oclass, FALSE), 0);
+
+          curclass = otmp->oclass;
+        } 
+
+        add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, doname(otmp), 0);
+      }
+    }
   }
 
   end_menu(win, ques);
@@ -1559,6 +1719,8 @@ char nds_yn_function(const char *ques, const char *choices, CHAR_P def)
     ret = sel->item.a_int;
     free(sel);
   }
+
+  free(ids);
 
   destroy_nhwindow(win);
 

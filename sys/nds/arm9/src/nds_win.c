@@ -130,7 +130,7 @@ void nds_init_nhwindows(int *argc, char **argv)
   }
 
   /* Set up our palettes. */
-  BG_PALETTE[255] = RGB15(31,31,31);
+  BG_PALETTE_SUB[255] = RGB15(31,31,31);
 
   nds_load_palette("minimap.pal", BG_PALETTE_SUB + 16);
 

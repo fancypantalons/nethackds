@@ -68,11 +68,14 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   int cur_y = 0;
   int msg_x, msg_y, msg_w, msg_h;
   int num_lines;
-  int do_more = 0;
 
   int i;
   char *history_tmp[MSG_HISTORY_LINES];
   int new_count = 0;
+
+  if (msg_img == NULL) {
+    text_h = system_font->height;
+  }
 
   nds_get_msg_pos(&msg_x, &msg_y, &msg_w, &msg_h);
 
@@ -81,8 +84,6 @@ void nds_update_msg(nds_nhwindow_t *win, int blocking)
   calls++;
 
   if (msg_img == NULL) {
-    text_h = system_font->height;
-
     msg_img = alloc_ppm(256, num_lines * text_h);
   }
 

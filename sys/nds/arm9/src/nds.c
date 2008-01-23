@@ -97,18 +97,15 @@ void nds_show_console()
 {
   was_console_layer_visible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
 
-  BG0_CR = BG_MAP_BASE(12) | BG_TILE_BASE(10) | BG_16_COLOR;
-  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+  SUB_DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
 
   console_enabled = 1;
 }
 
 void nds_hide_console()
 {
-  BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR;
-
   if (! was_console_layer_visible) {
-    DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+    SUB_DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
   }
 
   console_enabled = 0;
@@ -171,23 +168,24 @@ void init_screen()
 
   /* Main screen setup. */
 
-  /* Prompt and Status/Message layers */
-  SUB_BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(0) | BG_PRIORITY_1;
+  /* Console and Status/Message layers */
+  SUB_BG0_CR = BG_MAP_BASE(0) | BG_TILE_BASE(1) | BG_16_COLOR | BG_PRIORITY_0;
   SUB_BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(4) | BG_PRIORITY_2;
-
-  SUB_BG2_XDX = 1 << 8;
-  SUB_BG2_XDY = 0;
-  SUB_BG2_YDX = 0;
-  SUB_BG2_YDY = 1 << 8;
 
   SUB_BG3_XDX = 1 << 8;
   SUB_BG3_XDY = 0;
   SUB_BG3_YDX = 0;
   SUB_BG3_YDY = 1 << 8;
 
+  /* Init the console */
+
+  consoleInitDefault((u16 *)BG_MAP_RAM_SUB(0),
+                     (u16 *)BG_TILE_RAM_SUB(1),
+                     16);
+
   /* Sub screen setup. */
 
-  /* Keyboard / Console Layer */
+  /* Keyboard */
   BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR | BG_PRIORITY_0;
 
   /* Menu/Text/Command Layer */
@@ -197,13 +195,6 @@ void init_screen()
   BG2_XDY = 0;
   BG2_YDX = 0;
   BG2_YDY = 1 << 8;
-
-  /* Now init our console. */
-  /* Set up the palette entries for our text, while we're here. */
-
-  consoleInitDefault((u16 *)BG_MAP_RAM(12),
-                     (u16 *)BG_TILE_RAM(10),
-                     16);
 
   irqInit();
   irqEnable(IRQ_VBLANK | IRQ_KEYS | IRQ_IPC_SYNC);
@@ -253,12 +244,8 @@ void splash_screen()
   int old_display_cr;
   int old_sub_display_cr;
 
-#ifdef MENU_COLOR
-  _pcre_default_tables = pcre_maketables();
-#endif
-
   bmp_read(SPLASH_IMAGE, &logo);
-  nds_draw_bmp(&logo, (u16 *)BG_BMP_RAM_SUB(0), BG_PALETTE_SUB);
+  nds_draw_bmp(&logo, (u16 *)BG_BMP_RAM_SUB(4), BG_PALETTE_SUB);
 
   bmp_free(&logo);
 
@@ -277,9 +264,11 @@ void splash_screen()
                DISPLAY_BG_EXT_PALETTE | 
                DISPLAY_BG2_ACTIVE);
 
-  videoSetModeSub(MODE_5_2D | DISPLAY_BG2_ACTIVE);
+  videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
 
   nds_wait_key(KEY_TOUCH);
+
+  nds_fill((u16 *)BG_BMP_RAM_SUB(4), 0);
 
   SUB_DISPLAY_CR = old_sub_display_cr;
   DISPLAY_CR = old_display_cr;
@@ -354,6 +343,12 @@ int main()
 
     return 255;
   }
+
+  /* Get PCRE set up. */
+
+#ifdef MENU_COLOR
+  _pcre_default_tables = pcre_maketables();
+#endif
 
   /* Show our splash screen */
 

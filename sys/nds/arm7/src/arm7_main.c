@@ -44,9 +44,13 @@ s32 getFreeSoundChannel() {
 	return -1;
 }
 
-#define SAMPLE_COUNT 16
+#define SAMPLE_COUNT 8
+#define OUTLIER_TEST_MAX 16
 
-void sortTouchSamples(touchPosition *samples, int *indices, int sort_x)
+typedef touchPosition sample_set_t[SAMPLE_COUNT];
+typedef int index_set_t[SAMPLE_COUNT];
+
+void sortTouchSamples(sample_set_t samples, index_set_t indices, int sort_x)
 {
   int i;
   int done = 0;
@@ -74,16 +78,18 @@ void sortTouchSamples(touchPosition *samples, int *indices, int sort_x)
 }
 
 touchPosition readSampledPosition() {
-  touchPosition posData[SAMPLE_COUNT];
-  int indices_by_x[SAMPLE_COUNT];
-  int indices_by_y[SAMPLE_COUNT];
   int i;
+  sample_set_t posData;
+  index_set_t indices_by_x;
+  index_set_t indices_by_y;
   touchPosition ret;
 
   /* First, take our samples */
 
   for (i = 0; i < SAMPLE_COUNT; i++) {
-    while (1) {
+    int j;
+
+    for (j = 0; j < OUTLIER_TEST_MAX; j++) {
       posData[i] = touchReadXY();
 
       /* 
@@ -117,6 +123,8 @@ touchPosition readSampledPosition() {
 //---------------------------------------------------------------------------------
 void VblankHandler(void) {
 //---------------------------------------------------------------------------------
+        static int lastbut = -1;
+
 	uint16 but=0, x=0, y=0, xpx=0, ypx=0, z1=0, z2=0, batt=0, aux=0;
 	int t1=0, t2=0;
 	uint32 temp=0;
@@ -125,20 +133,28 @@ void VblankHandler(void) {
 
 	// Read the touch screen
 
-	but = REG_KEYXY;
+        but = REG_KEYXY;
 
-	if (!(but & (1<<6))) {
+        if (!( (but ^ lastbut) & (1<<6))) {
+ 
                 touchPosition tempPos = readSampledPosition();
 
-		x = tempPos.x;
-		y = tempPos.y;
-		xpx = tempPos.px;
-		ypx = tempPos.py;
-	}
-
-	z1 = touchRead(TSC_MEASURE_Z1);
-	z2 = touchRead(TSC_MEASURE_Z2);
-
+                if ( tempPos.x == 0 || tempPos.y == 0 ) {
+                        but |= (1 << 6);
+                        lastbut = but;
+                } else {
+                        x = tempPos.x;
+                        y = tempPos.y;
+                        xpx = tempPos.px;
+                        ypx = tempPos.py;
+                        z1 = tempPos.z1;
+                        z2 = tempPos.z2;
+                }
+                
+        } else {
+                lastbut = but;
+                but |= (1 << 6);
+        }
 	
 	batt = touchRead(TSC_MEASURE_BATTERY);
 	aux  = touchRead(TSC_MEASURE_AUX);

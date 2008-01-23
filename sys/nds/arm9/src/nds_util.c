@@ -87,10 +87,14 @@ void nds_flush(int ignore)
   memset(&touch_coords, 0, sizeof(touch_coords));
 
   while (1) {
+    int held;
+
     swiWaitForVBlank();
     scanKeys();
 
-    if ((nds_keysHeld() & ~ignore) == 0) {
+    held = nds_keysHeld();
+
+    if ((held & ~ignore) == 0) {
       return;
     }
   }

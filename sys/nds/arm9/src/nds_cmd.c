@@ -1454,12 +1454,12 @@ struct obj *obj_for_let(char invlet)
   return NULL;
 }
 
-int class_slot_for_obj(struct obj *o)
+int class_slot_for_class(char oclass)
 {
   int i;
 
   for (i = 0; i < MAXOCLASSES; i++) {
-    if (flags.inv_order[i] == o->oclass) {
+    if (flags.inv_order[i] == oclass) {
       return i;
     }
   }
@@ -1469,7 +1469,6 @@ int class_slot_for_obj(struct obj *o)
 
 void _nds_insert_choice(char *choices, char let)
 {
-  iprintf("Inserting '%c' into '%s'\n", let, choices);
 #ifdef SORTLOOT
   if (iflags.sortloot == 'f') {
     struct obj *otmp = obj_for_let(let);
@@ -1538,17 +1537,26 @@ char *_nds_parse_choices(const char *ques)
       continue;
     } else if ((ptr[i] == '-') && ! ISWHITESPACE(ptr[i + 1])) {
       have_hyphen = 1;
+    } else if (ptr[i] == '$') {
+        _nds_insert_choice(choices_by_class[class_slot_for_class(COIN_CLASS)], ptr[i]);
     } else if (have_hyphen) {
       int j;
 
       for (j = last_choice + 1; j <= ptr[i]; j++) {
-        _nds_insert_choice(choices_by_class[class_slot_for_obj(obj_for_let(j))], j);
+        int idx;
+
+        otmp = obj_for_let(j);
+        idx = class_slot_for_class(otmp->oclass);
+
+        _nds_insert_choice(choices_by_class[idx], j);
       }
 
       have_hyphen = 0;
     } else {
       if ((otmp = obj_for_let(ptr[i])) != NULL) {
-        _nds_insert_choice(choices_by_class[class_slot_for_obj(otmp)], ptr[i]);
+        int idx = class_slot_for_class(otmp->oclass);
+
+        _nds_insert_choice(choices_by_class[idx], ptr[i]);
       } else {
         char tmp[2];
 
@@ -1568,10 +1576,10 @@ char *_nds_parse_choices(const char *ques)
     strcat(choices, choices_by_class[i]);
   }
 
-  strcat(choices, " ");
-  strcat(choices, special_choices);
-
-  iprintf("Choices: %s\n", choices);
+  if (*special_choices) {
+    strcat(choices, " ");
+    strcat(choices, special_choices);
+  }
 
   return choices;
 }
@@ -1648,9 +1656,10 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
 
   start_menu(win);
   
-  if ((strcasecmp(cstr, ynchars) == 0) ||
-      (strcasecmp(cstr, ynqchars) == 0) ||
-      ((ynaq = strcasecmp(cstr, ynaqchars)) == 0)) {
+  if ((cstr != NULL) && 
+      ((strcasecmp(cstr, ynchars) == 0) ||
+       (strcasecmp(cstr, ynqchars) == 0) ||
+       ((ynaq = strcasecmp(cstr, ynaqchars)) == 0))) {
 
     ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
 
@@ -1667,7 +1676,7 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
 
       add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "All", 0);
     }
-  } else if (strcasecmp(cstr, "rl") == 0) {
+  } else if ((cstr != NULL) && (strcasecmp(cstr, "rl") == 0)) {
 
     ids = (ANY_P *)malloc(sizeof(ANY_P) * 2);
 
@@ -1698,15 +1707,26 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
       } else if (choices[i] == '?') {
         continue;
       } else {
-        struct obj *otmp = obj_for_let(choices[i]);
+        int oclass;
+        char oname[BUFSZ];
 
-        if (otmp->oclass != curclass) {
-          add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, let_to_name(otmp->oclass, FALSE), 0);
+        if (choices[i] == '$') {
+          oclass = COIN_CLASS;
+          sprintf(oname, "%ld gold piece%s", u.ugold, plur(u.ugold));
+        } else {
+          struct obj *otmp = obj_for_let(choices[i]);
 
-          curclass = otmp->oclass;
+          oclass = otmp->oclass;
+          strcpy(oname, doname(otmp));
+        }
+
+        if (oclass != curclass) {
+          add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, let_to_name(oclass, FALSE), 0);
+
+          curclass = oclass;
         } 
 
-        add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, doname(otmp), 0);
+        add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, oname, 0);
       }
     }
   }

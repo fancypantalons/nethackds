@@ -440,7 +440,7 @@ Controls in menu and text windows are fairly simple:
 
 \begin_layout Standard
 \begin_inset Tabular
-<lyxtabular version="3" rows="9" columns="2">
+<lyxtabular version="3" rows="10" columns="2">
 <features>
 <column alignment="center" valignment="top" leftline="true" width="0">
 <column alignment="left" valignment="top" leftline="true" rightline="true" width="0">
@@ -618,7 +618,27 @@ Select
 \begin_inset Text
 
 \begin_layout Standard
-Select/Deselect All Items
+Select All Items
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Select+R or Select+L
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Standard
+Deselect All Items
 \end_layout
 
 \end_inset
@@ -648,6 +668,26 @@ Tapping an item in a menu will select it or increment it's counter.
 \begin_layout Itemize
 Tapping an item while holding L or R will deselect it or decrement it's
  counter.
+\end_layout
+
+\begin_layout Itemize
+Tapping section headers (eg, 
+\begin_inset Quotes eld
+\end_inset
+
+Armor
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\begin_inset Quotes eld
+\end_inset
+
+Weapons
+\begin_inset Quotes erd
+\end_inset
+
+, etc) will act on all items in that section.
 \end_layout
 
 \begin_layout Itemize

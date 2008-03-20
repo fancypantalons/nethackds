@@ -416,7 +416,7 @@ do_rumors()
  * explicitly mask it out during version checks.
  * This should go away in the next version update.
  */
-#define IGNORED_FEATURES	( 0L \
+#define IGNORED_FEATURES	( 0xF0000000L \
 				| (1L << 23)	/* TIMED_DELAY */ \
 				)
 
@@ -439,7 +439,7 @@ make_version()
 	 * The actual values have no special meaning, and the category
 	 * groupings are just for convenience.
 	 */
-	version.feature_set = (unsigned long)(0L
+	version.feature_set = (unsigned long)(0xF0000000L
 		/* levels and/or topology (0..4) */
 #ifdef REINCARNATION
 			| (1L <<  1)

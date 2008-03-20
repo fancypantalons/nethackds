@@ -163,6 +163,8 @@ can_make_bones()
 {
 	register struct trap *ttmp;
 
+        if (wizard)
+            return TRUE;
 	if (ledger_no(&u.uz) <= 0 || ledger_no(&u.uz) > maxledgerno())
 	    return FALSE;
 	if (no_bones_level(&u.uz))

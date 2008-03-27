@@ -7,10 +7,8 @@
 
 #include "ndsx_ledblink.h"
 
-#ifdef _DEBUG_
-#  include <debug_stub.h>
-#  include <debug_tcp.h>
-#endif
+#include <debug_stub.h>
+#include <debug_tcp.h>
 
 #include "hack.h"
 #include "dlb.h"
@@ -20,6 +18,8 @@
 #include "nds_gfx.h"
 #include "nds_util.h"
 #include "bmp.h"
+#include "wifi.h"
+#include "nds_hearse.h"
 
 #ifdef MENU_COLOR
 #  include <pcre.h>
@@ -208,7 +208,6 @@ void init_screen()
 
   NDSX_SetLedBlink_Off();
 
-#ifdef _DEBUG_
   scanKeys();
   
   int pressed = nds_keysDown();
@@ -229,20 +228,22 @@ void init_screen()
     } else {
       debugHalt();
     }
+  } else {
+    wifi_setup();
   }
-#endif
 }
 
 /* 
  * The splash screen code... just display BMP on the screen and wait for a 
  * tap event.
  */
+int game_display_cr;
+int game_sub_display_cr;
+
 void splash_screen()
 {
   bmp_t logo;
   int text_w, text_h;
-  int old_display_cr;
-  int old_sub_display_cr;
 
   bmp_read(SPLASH_IMAGE, &logo);
   nds_draw_bmp(&logo, (u16 *)BG_BMP_RAM_SUB(4), BG_PALETTE_SUB);
@@ -257,9 +258,6 @@ void splash_screen()
                 192 / 2 - text_h / 2,
                 (u16 *)BG_BMP_RAM(2));
 
-  old_display_cr = DISPLAY_CR;
-  old_sub_display_cr = SUB_DISPLAY_CR;
-
   videoSetMode(MODE_5_2D | 
                DISPLAY_BG_EXT_PALETTE | 
                DISPLAY_BG2_ACTIVE);
@@ -267,11 +265,6 @@ void splash_screen()
   videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
 
   nds_wait_key(KEY_TOUCH);
-
-  nds_fill((u16 *)BG_BMP_RAM_SUB(4), 0);
-
-  SUB_DISPLAY_CR = old_sub_display_cr;
-  DISPLAY_CR = old_display_cr;
 }
 
 /*
@@ -293,70 +286,14 @@ void mallinfo_dump()
   iprintf("Fordblks: %d\n", info.fordblks);
 }
 
-int main()
+void start_game()
 {
   int fd;
 
-  srand(IPC->time.rtc.hours * 60 * 60 + IPC->time.rtc.minutes * 60 + IPC->time.rtc.seconds);
+  DISPLAY_CR = game_display_cr;
+  SUB_DISPLAY_CR = game_sub_display_cr;
 
-  init_screen();
-
-  if (! fatInitDefault())
-  {
-    iprintf("Unable to initialize FAT driver!\n");
-    nds_show_console();
-
-    return 0;
-  }
-
-  chdir("/NetHack");
-
-  /* Initialize some nethack constants */
-
-  x_maze_max = COLNO-1;
-
-  if (x_maze_max % 2)
-    x_maze_max--;
-
-  y_maze_max = ROWNO-1;
-
-  if (y_maze_max % 2)
-    y_maze_max--;
-
-  /* Now get the window system set up */
-  choose_windows(DEFAULT_WINDOW_SYS);
-
-  initoptions();
-
-  /* Gotta initialize this before the command list is generated */
-
-  if (debug_mode) {
-    iprintf("Enabling debug mode.\n");
-
-    flags.debug = 1;
-  }
-
-  init_nhwindows(NULL, NULL);
-
-  if (have_error) {
-    nds_show_console();
-
-    return 255;
-  }
-
-  /* Get PCRE set up. */
-
-#ifdef MENU_COLOR
-  _pcre_default_tables = pcre_maketables();
-#endif
-
-  /* Show our splash screen */
-
-  splash_screen();
-
-  /* Gotta init the keyboard here, so we have the right palette in place */
-
-  kbd_init();
+  nds_fill((u16 *)BG_BMP_RAM_SUB(4), 0);
 
   if (! *plname) {
     askname();
@@ -398,6 +335,124 @@ int main()
   flags.move = 0;
 
   moveloop();
+}
+
+void main_menu()
+{
+  while (1) {
+    winid win = create_nhwindow(NHW_MENU);
+    ANY_P ids[3];
+    menu_item *sel;
+    int ret;
+
+    start_menu(win);
+
+    ids[0].a_int = 1;
+    ids[1].a_int = 2;
+    ids[2].a_int = 3;
+
+    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Play", 0);
+    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Leaderboard", 0);
+    add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Hearse", 0);
+
+    end_menu(win, NULL);
+    
+    ret = select_menu(win, PICK_ONE, &sel);
+
+    destroy_nhwindow(win);
+
+    if (ret <= 0) {
+      continue;
+    }
+
+    switch (sel->item.a_int)
+    {
+      case 1:
+        start_game();
+        return;
+
+      case 2:
+        break;
+
+      case 3:
+        nds_hearse();
+        break;
+
+      default:
+        break;
+    }
+
+    NULLFREE(sel);
+  }
+}
+
+int main()
+{
+  srand(IPC->time.rtc.hours * 60 * 60 + IPC->time.rtc.minutes * 60 + IPC->time.rtc.seconds);
+
+  init_screen();
+
+  if (! fatInitDefault())
+  {
+    iprintf("Unable to initialize FAT driver!\n");
+    nds_show_console();
+
+    return 0;
+  }
+
+  chdir("/NetHack");
+
+  /* Initialize some nethack constants */
+
+  x_maze_max = COLNO-1;
+
+  if (x_maze_max % 2)
+    x_maze_max--;
+
+  y_maze_max = ROWNO-1;
+
+  if (y_maze_max % 2)
+    y_maze_max--;
+
+  /* Now get the window system set up */
+  choose_windows(DEFAULT_WINDOW_SYS);
+
+  initoptions();
+
+  /* Gotta initialize this before the command list is generated */
+
+  if (debug_mode) {
+    iprintf("Enabling debug mode.\n");
+
+    flags.debug = 1;
+  }
+
+  init_nhwindows(NULL, NULL);
+
+  game_display_cr = DISPLAY_CR;
+  game_sub_display_cr = SUB_DISPLAY_CR;
+
+  if (have_error) {
+    nds_show_console();
+
+    return 255;
+  }
+
+  /* Get PCRE set up. */
+
+#ifdef MENU_COLOR
+  _pcre_default_tables = pcre_maketables();
+#endif
+
+  /* Show our splash screen */
+
+  splash_screen();
+
+  /* Gotta init the keyboard here, so we have the right palette in place */
+
+  kbd_init();
+
+  main_menu();
 
   return 0;
 }

@@ -245,7 +245,6 @@ int main(int argc, char ** argv) {
   irqEnable(IRQ_VBLANK | IRQ_WIFI);
 
   { // sync with arm9 and init wifi
-#ifdef _DEBUG_
     u32 fifo_temp;   
 
     while (1) { // wait for magic number
@@ -263,16 +262,13 @@ int main(int argc, char ** argv) {
     
     fifo_temp=REG_IPC_FIFO_RX; // give next value to wifi_init
     Wifi_Init(fifo_temp);
-#endif
 
     irqSet(IRQ_FIFO_NOT_EMPTY,arm7_fifo); // set up fifo irq
     irqEnable(IRQ_FIFO_NOT_EMPTY);
     
     REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_RECV_IRQ;
 
-#ifdef _DEBUG_
     Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
-#endif
   } // arm7 wifi init complete
 
   // Keep the ARM7 out of main RAM

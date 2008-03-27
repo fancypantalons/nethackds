@@ -89,7 +89,6 @@ ARCH	:=	-mthumb -mthumb-interwork
 CFLAGS	:=	-g -Wall \
  			-mcpu=arm9tdmi -mtune=arm9tdmi -fomit-frame-pointer\
 			-ffast-math \
-			-D_DEBUG_ \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM9

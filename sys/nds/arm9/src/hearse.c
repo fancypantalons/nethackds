@@ -255,11 +255,20 @@ int _hearse_download_bones(int force)
   return ret;
 }
 
+int hearse_register()
+{
+  if ((functable.get_token() == NULL) && (_hearse_new_user() < 0)) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int hearse_run()
 {
   int uploaded;
 
-  if ((functable.get_token() == NULL) && (_hearse_new_user() < 0)) {
+  if (hearse_register() < 0) {
     return -1;
   }
 

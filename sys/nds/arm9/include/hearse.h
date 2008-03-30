@@ -60,6 +60,7 @@ typedef struct {
 
 void hearse_init(hearse_functable_t tbl);
 int hearse_run();
+int hearse_register();
 
 hearse_bonesfile_t *hearse_bonesfile_new(char *name, char *nickname, int timestamp, int length, char *bytes);
 void hearse_bonesfile_destroy(hearse_bonesfile_t *bonesfile);

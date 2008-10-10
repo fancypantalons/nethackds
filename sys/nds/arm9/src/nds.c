@@ -19,7 +19,6 @@
 #include "nds_util.h"
 #include "bmp.h"
 #include "wifi.h"
-#include "nds_hearse.h"
 
 #ifdef MENU_COLOR
 #  include <pcre.h>
@@ -337,55 +336,6 @@ void start_game()
   moveloop();
 }
 
-void main_menu()
-{
-  while (1) {
-    winid win = create_nhwindow(NHW_MENU);
-    ANY_P ids[3];
-    menu_item *sel;
-    int ret;
-
-    start_menu(win);
-
-    ids[0].a_int = 1;
-    ids[1].a_int = 2;
-    ids[2].a_int = 3;
-
-    add_menu(win, NO_GLYPH, &(ids[0]), 0, 0, 0, "Play", 0);
-    add_menu(win, NO_GLYPH, &(ids[1]), 0, 0, 0, "Leaderboard", 0);
-    add_menu(win, NO_GLYPH, &(ids[2]), 0, 0, 0, "Hearse", 0);
-
-    end_menu(win, NULL);
-    
-    ret = select_menu(win, PICK_ONE, &sel);
-
-    destroy_nhwindow(win);
-
-    if (ret <= 0) {
-      continue;
-    }
-
-    switch (sel->item.a_int)
-    {
-      case 1:
-        start_game();
-        return;
-
-      case 2:
-        break;
-
-      case 3:
-        nds_hearse();
-        break;
-
-      default:
-        break;
-    }
-
-    NULLFREE(sel);
-  }
-}
-
 int main()
 {
   srand(IPC->time.rtc.hours * 60 * 60 + IPC->time.rtc.minutes * 60 + IPC->time.rtc.seconds);
@@ -452,7 +402,7 @@ int main()
 
   kbd_init();
 
-  main_menu();
+  start_game();
 
   return 0;
 }

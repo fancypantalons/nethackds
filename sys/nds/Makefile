@@ -41,6 +41,10 @@ binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@echo 'dat/dlb.lst to binary/NetHack.  Try: cd dat; cp `cat dlb.lst` ../binary/NetHack'
 	@echo 
 
+install: binary/$(TARGET).ds.gba
+	cp binary/$(TARGET).nds /media/flash/default.nds
+	umount /media/flash
+
 #all: build/$(TARGET).ds.gba
 #	@echo Copying files...
 #	@rm -rf binary/*

@@ -77,11 +77,6 @@ static struct Bool_Opt
 	{"checkspace", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 	{"cmdassist", &iflags.cmdassist, TRUE, SET_IN_GAME},
-#ifdef NDS
-        {"cmdwindow", &iflags.cmdwindow, TRUE, SET_IN_FILE},
-#else 
-        {"cmdwindow", (boolean *)0, TRUE, SET_IN_FILE},
-#endif
 # if defined(MICRO) || defined(WIN32)
 	{"color",         &iflags.wc_color,TRUE, SET_IN_GAME},		/*WC*/
 # else	/* systems that support multiple terminals, many monochrome */
@@ -92,11 +87,6 @@ static struct Bool_Opt
 	{"DECgraphics", &iflags.DECgraphics, FALSE, SET_IN_GAME},
 #else
 	{"DECgraphics", (boolean *)0, FALSE, SET_IN_FILE},
-#endif
-#ifdef NDS
-        {"doubletap", &iflags.doubletap, FALSE, SET_IN_GAME},
-#else
-        {"doubletap", (boolean *)0, FALSE, SET_IN_GAME},
 #endif
 	{"eight_bit_tty", &iflags.wc_eight_bit_input, FALSE, SET_IN_GAME},	/*WC*/
 #ifdef TTY_GRAPHICS
@@ -119,12 +109,6 @@ static struct Bool_Opt
 	{"fullscreen", &iflags.wc2_fullscreen, FALSE, SET_IN_FILE},
 	{"help", &flags.help, TRUE, SET_IN_GAME},
 	{"hilite_pet",    &iflags.wc_hilite_pet, FALSE, SET_IN_GAME},	/*WC*/
-#ifdef NDS
-        {"holdmode", &iflags.holdmode, FALSE, SET_IN_GAME},
-#else
-        {"holdmode", (boolean *)0, FALSE, SET_IN_GAME},
-        {"hpmon", (boolean *)0, TRUE, SET_IN_GAME},
-#endif
 #ifdef ASCIIGRAPH
 	{"IBMgraphics", &iflags.IBMgraphics, FALSE, SET_IN_GAME},
 #else
@@ -135,18 +119,7 @@ static struct Bool_Opt
 #else
 	{"ignintr", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
-#ifdef  NDS
-        {"keyhelp", &iflags.keyhelp, FALSE, SET_IN_GAME},
-        {"keyrepeat", &iflags.keyrepeat, TRUE, SET_IN_GAME},
-#else
-        {"keyrepeat", NULL, TRUE, SET_IN_GAME},
-#endif
 	{"large_font", &iflags.obsolete, FALSE, SET_IN_FILE},	/* OBSOLETE */
-#ifdef NDS
-        {"lefthanded", &iflags.lefthanded, FALSE, SET_IN_GAME},
-#else
-        {"lefthanded", (boolean *)0, FALSE, SET_IN_GAME},
-#endif
 	{"legacy", &flags.legacy, TRUE, DISP_IN_GAME},
 	{"lit_corridor", &flags.lit_corridor, FALSE, SET_IN_GAME},
 	{"lootabc", &iflags.lootabc, FALSE, SET_IN_GAME},
@@ -230,6 +203,21 @@ static struct Bool_Opt
 #endif
 	{"verbose", &flags.verbose, TRUE, SET_IN_GAME},
 	{"wraptext", &iflags.wc2_wraptext, FALSE, SET_IN_GAME},
+#ifdef NDS
+        {"holdmode", &iflags.holdmode, FALSE, SET_IN_GAME},
+        {"doubletap", &iflags.doubletap, FALSE, SET_IN_GAME},
+        {"cmdwindow", &iflags.cmdwindow, TRUE, SET_IN_FILE},
+        {"keyhelp", &iflags.keyhelp, FALSE, SET_IN_GAME},
+        {"keyrepeat", &iflags.keyrepeat, TRUE, SET_IN_GAME},
+        {"lefthanded", &iflags.lefthanded, FALSE, SET_IN_GAME},
+#else
+        {"doubletap", (boolean *)0, FALSE, SET_IN_GAME},
+        {"cmdwindow", (boolean *)0, TRUE, SET_IN_FILE},
+        {"holdmode", (boolean *)0, FALSE, SET_IN_GAME},
+        {"hpmon", (boolean *)0, TRUE, SET_IN_GAME},
+        {"keyrepeat", NULL, TRUE, SET_IN_GAME},
+        {"lefthanded", (boolean *)0, FALSE, SET_IN_GAME},
+#endif
 	{(char *)0, (boolean *)0, FALSE, 0}
 };
 
@@ -254,12 +242,6 @@ static struct Comp_Opt
 						1, SET_IN_GAME },
 	{ "catname",  "the name of your (first) cat (e.g., catname:Tabby)",
 						PL_PSIZ, DISP_IN_GAME },
-#ifdef NDS
-        { "chordkeys", "the keys which can be used to make chorded commands", 4, DISP_IN_GAME },
-        { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
-        { "cmdkey", "the command key", 4, DISP_IN_GAME },
-        { "cursor", "cursor display mode", 4, DISP_IN_GAME },
-#endif
 	{ "disclose", "the kinds of information to disclose at end of game",
 						sizeof(flags.end_disclose) * 2,
 						SET_IN_GAME },
@@ -373,6 +355,12 @@ static struct Comp_Opt
 	{ "windowcolors",  "the foreground/background colors of windows",	/*WC*/
 						80, DISP_IN_GAME },
 	{ "windowtype", "windowing system to use", WINTYPELEN, DISP_IN_GAME },
+#ifdef NDS
+        { "chordkeys", "the keys which can be used to make chorded commands", 4, DISP_IN_GAME },
+        { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
+        { "cmdkey", "the command key", 4, DISP_IN_GAME },
+        { "cursor", "cursor display mode", 4, DISP_IN_GAME },
+#endif
 	{ (char *)0, (char *)0, 0, 0 }
 };
 
@@ -568,6 +556,10 @@ initoptions()
 	for (i = 0; i < WARNCOUNT; i++)
 		warnsyms[i] = def_warnsyms[i].sym;
 	iflags.bouldersym = 0;
+	iflags.travelcc.x = iflags.travelcc.y = -1;
+	flags.warnlevel = 1;
+	flags.warntype = 0L;
+
 #ifdef NDS
         iflags.compassmode = 0;
         iflags.chordkeys = "r";
@@ -576,9 +568,6 @@ initoptions()
         iflags.helpline1 = "up,down,left,right,l,r";
         iflags.helpline2 = "a,b,x,y,start,select";
 #endif
-	iflags.travelcc.x = iflags.travelcc.y = -1;
-	flags.warnlevel = 1;
-	flags.warntype = 0L;
 
      /* assert( sizeof flags.inv_order == sizeof def_inv_order ); */
 	(void)memcpy((genericptr_t)flags.inv_order,
@@ -1530,39 +1519,6 @@ goodfruit:
 		return;
 	}
 
-#ifdef NDS
-        /* cmdkey:string */
-	fullname = "cmdkey";
-	if (match_optname(opts, fullname, sizeof("cmdkey") - 1, true)) {
-                if (negated) 
-                    bad_negation(fullname, true);
-
-		iflags.cmdkey = strdup(string_for_opt(opts, negated));
-
-		return;
-	}
-
-        /* compassmode:int */
-	fullname = "compassmode";
-	if (match_optname(opts, fullname, sizeof("compassmode") - 1, true)) {
-		op = string_for_opt(opts, negated);
-		if ((negated && !op) || (!negated && op)) {
-			iflags.compassmode = negated ? 0 : atoi(op);
-		} else if (negated) bad_negation(fullname, true);
-		return;
-	}
-
-        /* cursor:int */
-	fullname = "cursor";
-	if (match_optname(opts, fullname, sizeof("cursor") - 1, true)) {
-		op = string_for_opt(opts, negated);
-		if ((negated && !op) || (!negated && op)) {
-			iflags.cursor = negated ? 2 : atoi(op);
-		} else if (negated) bad_negation(fullname, true);
-		return;
-	}
-#endif
-
 	/* name:string */
 	fullname = "name";
 	if (match_optname(opts, fullname, 4, TRUE)) {
@@ -2207,6 +2163,39 @@ goodfruit:
 		return;
 	    }
 	}
+
+#ifdef NDS
+        /* cmdkey:string */
+	fullname = "cmdkey";
+	if (match_optname(opts, fullname, sizeof("cmdkey") - 1, true)) {
+                if (negated) 
+                    bad_negation(fullname, true);
+
+		iflags.cmdkey = strdup(string_for_opt(opts, negated));
+
+		return;
+	}
+
+        /* compassmode:int */
+	fullname = "compassmode";
+	if (match_optname(opts, fullname, sizeof("compassmode") - 1, true)) {
+		op = string_for_opt(opts, negated);
+		if ((negated && !op) || (!negated && op)) {
+			iflags.compassmode = negated ? 0 : atoi(op);
+		} else if (negated) bad_negation(fullname, true);
+		return;
+	}
+
+        /* cursor:int */
+	fullname = "cursor";
+	if (match_optname(opts, fullname, sizeof("cursor") - 1, true)) {
+		op = string_for_opt(opts, negated);
+		if ((negated && !op) || (!negated && op)) {
+			iflags.cursor = negated ? 2 : atoi(op);
+		} else if (negated) bad_negation(fullname, true);
+		return;
+	}
+#endif
 
 	/* OK, if we still haven't recognized the option, check the boolean
 	 * options list
@@ -3001,10 +2990,6 @@ char *buf;
 			iflags.bouldersym : oc_syms[(int)objects[BOULDER].oc_class]);
 	else if (!strcmp(optname, "catname")) 
 		Sprintf(buf, "%s", catname[0] ? catname : none );
-#ifdef NDS
-        else if (!strcmp(optname, "compassmode"))
-                Sprintf(buf, "%d", iflags.compassmode);
-#endif
 	else if (!strcmp(optname, "disclose")) {
 		for (i = 0; i < NUM_DISCLOSURE_OPTIONS; i++) {
 			char topt[2];
@@ -3217,6 +3202,10 @@ char *buf;
 			iflags.wc_backgrnd_status  ? iflags.wc_backgrnd_status : defbrief,
 			iflags.wc_foregrnd_text    ? iflags.wc_foregrnd_text : defbrief,
 			iflags.wc_backgrnd_text    ? iflags.wc_backgrnd_text : defbrief);
+#ifdef NDS
+        else if (!strcmp(optname, "compassmode"))
+                Sprintf(buf, "%d", iflags.compassmode);
+#endif
 #ifdef PREFIXES_IN_USE
 	else {
 	    for (i = 0; i < PREFIX_COUNT; ++i)

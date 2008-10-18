@@ -1838,14 +1838,6 @@ char		*tmp_levels;
 	} else if (match_varname(buf, "BOULDER", 3)) {
 	    (void) get_uchars(fp, buf, bufp, &iflags.bouldersym, TRUE,
 			      1, "BOULDER");
-#ifdef NDS
-        } else if (match_varname(buf, "CHORDKEYS", 9)) {
-          iflags.chordkeys = strdup(bufp);
-        } else if (match_varname(buf, "HELPLINE1", 9)) {
-          iflags.helpline1 = strdup(bufp);
-        } else if (match_varname(buf, "HELPLINE2", 9)) {
-          iflags.helpline2 = strdup(bufp);
-#endif
 	} else if (match_varname(buf, "GRAPHICS", 4)) {
 	    len = get_uchars(fp, buf, bufp, translate, FALSE,
 			     MAXPCHARS, "GRAPHICS");
@@ -2012,6 +2004,14 @@ char		*tmp_levels;
 	} else if (match_varname(buf, "QT_COMPACT", 10)) {
 		extern int qt_compact_mode;
 		qt_compact_mode = atoi(bufp);
+#endif
+#ifdef NDS
+        } else if (match_varname(buf, "CHORDKEYS", 9)) {
+          iflags.chordkeys = strdup(bufp);
+        } else if (match_varname(buf, "HELPLINE1", 9)) {
+          iflags.helpline1 = strdup(bufp);
+        } else if (match_varname(buf, "HELPLINE2", 9)) {
+          iflags.helpline2 = strdup(bufp);
 #endif
 	} else
 		return 0;

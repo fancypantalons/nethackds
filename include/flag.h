@@ -287,7 +287,6 @@ struct instance_flags {
         boolean hpmon;
         boolean lefthanded;
         int compassmode;
-        boolean mapcolors;
         char *chordkeys;
         char *cmdkey;
         int cursor;

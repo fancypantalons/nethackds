@@ -50,9 +50,6 @@ MENUCOLOR=" unholy "=red
 # Controls whether or not we do pretty colours for the HP counter.
 # OPTIONS=hpmon
 #
-# Enables some additional map colouring for special areas.
-# OPTIONS=mapcolors
-#
 # Defines which keys are chord keys, which can be combined with regular keys for
 # keybinding purposes.  The example below allows one to create a setup identical
 # to triggermode, in that the user may then bind the various directions plus

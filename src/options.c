@@ -161,11 +161,6 @@ static struct Bool_Opt
 #else
 	{"mail", (boolean *)0, TRUE, SET_IN_FILE},
 #endif
-#ifdef NDS
-        {"mapcolors", &iflags.mapcolors, FALSE, SET_IN_FILE},
-#else
-        {"mapcolors", (boolean *)0, FALSE, SET_IN_FILE},
-#endif
 #ifdef WIZARD
 	/* for menu debugging only*/
 	{"menu_tab_sep", &iflags.menu_tab_sep, FALSE, SET_IN_GAME},

@@ -130,37 +130,7 @@ unsigned *ospecial;
 		color = CLR_WHITE;
 	    else
 #endif
-	    /* Special colours for special dungeon areas */
-            if (iflags.mapcolors) {
-              if (iflags.use_color && offset >= S_vwall && offset <= S_hcdoor) {
-                if (*in_rooms(x,y,BEEHIVE))
-                  color = CLR_YELLOW;
-                else if (In_W_tower(x, y, &u.uz))
-                  color = CLR_MAGENTA;
-                else if (In_mines(&u.uz) && !*in_rooms(x,y,0))
-                  color = CLR_BROWN;
-                else if (In_hell(&u.uz) && !Is_valley(&u.uz))
-                  color =  CLR_RED;
-                else if (Is_astralevel(&u.uz))
-                  color = CLR_WHITE;
-              } else if (iflags.use_color && offset == S_room) {
-                if (*in_rooms(x,y,BEEHIVE))
-                  color = CLR_YELLOW;
-                else if (In_hell(&u.uz) && !In_W_tower(x, y, &u.uz))
-                  color = (Is_juiblex_level(&u.uz)) ? CLR_GREEN : CLR_ORANGE;
-              } else if (iflags.use_color && offset == S_altar) {
-                if (Is_astralevel(&u.uz)) color = CLR_BRIGHT_MAGENTA;
-                else switch((aligntyp)Amask2align(levl[x][y].altarmask & AM_MASK)) { 
-                  case A_LAWFUL: color = CLR_WHITE; break; 
-                  case A_NEUTRAL: color = CLR_GRAY; break; 
-                  case A_CHAOTIC: color = CLR_BLACK; break; 
-                  default: color = CLR_RED; break;
-                }
-              }
-              if (color == NO_COLOR) cmap_color(offset);
-            } else {
-              cmap_color(offset);
-            }
+	    cmap_color(offset);
     } else if ((offset = (glyph - GLYPH_OBJ_OFF)) >= 0) {	/* object */
 	if (offset == BOULDER && iflags.bouldersym) ch = iflags.bouldersym;
 	else ch = oc_syms[(int)objects[offset].oc_class];
@@ -246,9 +216,6 @@ unsigned *ospecial;
 	}
     }
 
-    if (iflags.use_color && iflags.mapcolors && Is_valley(&u.uz) && color != CLR_BLACK) {
-	color = (color < NO_COLOR) ? CLR_GRAY : CLR_WHITE;
-    }
 #ifdef TEXTCOLOR
     /* Turn off color if no color defined, or rogue level w/o PC graphics. */
 # ifdef REINCARNATION

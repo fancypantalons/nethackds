@@ -1738,7 +1738,6 @@ register boolean newlev;
 
 	    /* Did we just enter some other special room? */
 	    /* vault.c insists that a vault remain a VAULT,
-	     * BEEHIVEs have special colouration,
 	     * and temples should remain TEMPLEs,
 	     * but everything else gives a message only the first time */
 	    switch (rt) {
@@ -1764,11 +1763,7 @@ register boolean newlev;
 			You("have an uncanny feeling...");
 		    break;
 		case BEEHIVE:
-                    if (iflags.mapcolors) {
-                      if (monstinroom(&mons[PM_QUEEN_BEE], roomno))
-                        You("enter a giant beehive!");
-                      rt = 0;
-                    }
+		    You("enter a giant beehive!");
 		    break;
 		case COCKNEST:
 		    You("enter a disgusting nest!");

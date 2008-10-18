@@ -363,18 +363,6 @@ typedef unsigned char	uchar;
  * Enable any of these at your own risk -- there are almost certainly
  * bugs left here.
  */
-  
-#if defined(TTY_GRAPHICS) || defined(MSWIN_GRAPHICS) || defined(NDS_GRAPHICS)
-# define MENU_COLOR
-# define MENU_COLOR_REGEX
-# define MENU_COLOR_REGEX_POSIX 
-/* if MENU_COLOR_REGEX is defined, use regular expressions (regex.h,
- * GNU specific functions by default, POSIX functions with
- * MENU_COLOR_REGEX_POSIX).
- * otherwise use pmatch() to match menu color lines.
- * pmatch() provides basic globbing: '*' and '?' wildcards.
- */
-#endif
 
 #define SORTLOOT
 

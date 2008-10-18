@@ -1838,10 +1838,6 @@ char		*tmp_levels;
 	} else if (match_varname(buf, "BOULDER", 3)) {
 	    (void) get_uchars(fp, buf, bufp, &iflags.bouldersym, TRUE,
 			      1, "BOULDER");
-	} else if (match_varname(buf, "MENUCOLOR", 9)) {
-#ifdef MENU_COLOR
-	    (void) add_menu_coloring(bufp);
-#endif
 #ifdef NDS
         } else if (match_varname(buf, "CHORDKEYS", 9)) {
           iflags.chordkeys = strdup(bufp);

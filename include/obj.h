@@ -99,6 +99,8 @@ struct obj {
 #define fromsink  corpsenm	/* a potion from a sink */
 	unsigned oeaten;	/* nutrition left in food, if partly eaten */
 	long age;		/* creation date */
+	long capacity;	  /* how much can this container hold? */
+#define MAX_CAPACITY 0xFFFFFF	  /* "lots" */
 
 	uchar onamelth;		/* length of name (following oxlth) */
 	short oxlth;		/* length of following data */
@@ -138,8 +140,7 @@ struct obj {
 			 objects[otmp->otyp].oc_skill <= P_SABER)
 #define is_pole(otmp)	((otmp->oclass == WEAPON_CLASS || \
 			otmp->oclass == TOOL_CLASS) && \
-			 (objects[otmp->otyp].oc_skill == P_POLEARMS || \
-			 objects[otmp->otyp].oc_skill == P_LANCE))
+			 (objects[otmp->otyp].oc_skill == P_POLEARMS))
 #define is_spear(otmp)	(otmp->oclass == WEAPON_CLASS && \
 			 objects[otmp->otyp].oc_skill >= P_SPEAR && \
 			 objects[otmp->otyp].oc_skill <= P_JAVELIN)
@@ -157,6 +158,13 @@ struct obj {
 			 otmp->oclass == TOOL_CLASS) && \
 			 objects[otmp->otyp].oc_skill >= -P_BOOMERANG && \
 			 objects[otmp->otyp].oc_skill <= -P_DART)
+#define is_thrown(otmp)	  ((otmp->oclass == WEAPON_CLASS) && \
+		  ((objects[otmp->otyp].oc_skill >= P_DART && \
+			 objects[otmp->otyp].oc_skill <= P_BOOMERANG) || \
+			 objects[otmp->otyp].oc_skill == P_DAGGER || \
+			 objects[otmp->otyp].oc_skill == P_KNIFE || \
+			(objects[otmp->otyp].oc_skill >= P_SPEAR && \
+			 objects[otmp->otyp].oc_skill <= P_TRIDENT)))
 #define is_weptool(o)	((o)->oclass == TOOL_CLASS && \
 			 objects[(o)->otyp].oc_skill != P_NONE)
 #define bimanual(otmp)	((otmp->oclass == WEAPON_CLASS || \
@@ -217,8 +225,9 @@ struct obj {
 #define mcarried(o)	((o)->where == OBJ_MINVENT)
 #define Has_contents(o) (/* (Is_container(o) || (o)->otyp == STATUE) && */ \
 			 (o)->cobj != (struct obj *)0)
-#define Is_container(o) ((o)->otyp >= LARGE_BOX && (o)->otyp <= BAG_OF_TRICKS)
-#define Is_box(otmp)	(otmp->otyp == LARGE_BOX || otmp->otyp == CHEST)
+#define Is_container(o) ((o)->otyp >= LARGE_BOX && (o)->otyp <= BAG_OF_POO)
+#define Is_box(otmp)	(otmp->otyp == LARGE_BOX || otmp->otyp == CHEST || \
+								otmp->otyp == IRON_SAFE)
 #define Is_mbag(otmp)	(otmp->otyp == BAG_OF_HOLDING || \
 			 otmp->otyp == BAG_OF_TRICKS)
 
@@ -272,20 +281,21 @@ struct obj {
 				|| (otmp)->otyp == CANDELABRUM_OF_INVOCATION\
 				|| (otmp)->otyp == TALLOW_CANDLE\
 				|| (otmp)->otyp == WAX_CANDLE\
-				|| (otmp)->otyp == POT_OIL)
+				|| (otmp)->otyp == POT_OIL\
+				|| (otmp)->otyp == BAG_OF_POO)
 /* object can be ignited */
 #define ignitable(otmp)	((otmp)->otyp == BRASS_LANTERN\
 				|| (otmp)->otyp == OIL_LAMP\
 				|| (otmp)->otyp == CANDELABRUM_OF_INVOCATION\
 				|| (otmp)->otyp == TALLOW_CANDLE\
 				|| (otmp)->otyp == WAX_CANDLE\
-				|| (otmp)->otyp == POT_OIL)
+				|| (otmp)->otyp == POT_OIL\
+				|| (otmp)->otyp == BAG_OF_POO)
 
 /* special stones */
 #define is_graystone(obj)	((obj)->otyp == LUCKSTONE || \
-				 (obj)->otyp == LOADSTONE || \
-				 (obj)->otyp == FLINT     || \
-				 (obj)->otyp == TOUCHSTONE)
+				 (obj)->otyp == LOADSTONE || (obj)->otyp == FLINT     || \
+				 (obj)->otyp == TOUCHSTONE || (obj)->otyp == SALT_CHUNK)
 
 /* misc */
 #ifdef KOPS

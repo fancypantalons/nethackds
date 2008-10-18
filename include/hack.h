@@ -18,7 +18,7 @@
 #define NOTELL		0
 #define ON		1
 #define OFF		0
-#define BOLT_LIM	8 /* from this distance ranged attacks will be made */
+#define BOLT_LIM	16 /* from this distance ranged attacks may be made */
 #define MAX_CARR_CAP	1000	/* so that boulders can be heavier */
 #define DUMMY { 0 }
 
@@ -99,9 +99,10 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define KICKED_WEAPON	2
 #define FLASHED_LIGHT	3
 #define INVIS_BEAM	4
-
 #define MATCH_WARN_OF_MON(mon)	 (Warn_of_mon && flags.warntype && \
-		   		 (flags.warntype & (mon)->data->mflags2))
+		   		 ((flags.warntype == (unsigned long)(mon)->data->mlet) || \
+						(flags.warntype == S_WERE && (mon)->data->mflags2 & M2_WERE) || \
+					   (flags.warntype == S_UNDEAD && (mon)->data->mflags2 & M2_UNDEAD)))
 
 #include "trap.h"
 #include "flag.h"
@@ -141,6 +142,7 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define MM_NOCOUNTBIRTH	  0x40  /* don't increment born counter (for revival) */
 #define MM_IGNOREWATER	  0x80	/* ignore water when positioning */
 #define MM_ADJACENTOK	  0x100 /* it is acceptable to use adjacent coordinates */
+#define MM_UNSAFEOK		  0x200 /* potentially dangerous locations (lava) are OK */
 
 /* special mhpmax value when loading bones monster to flag as extinct or genocided */
 #define DEFUNCT_MONSTER	(-100)

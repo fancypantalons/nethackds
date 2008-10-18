@@ -492,7 +492,7 @@ struct monst *shkp;
 	You("stole %ld %s worth of merchandise.",
 	    total, currency(total));
 	if (!Role_if(PM_ROGUE))	/* stealing is unlawful */
-	    adjalign(-sgn(u.ualign.type));
+		minor_sin();
 
 	hot_pursuit(shkp);
 	return TRUE;
@@ -1917,6 +1917,46 @@ register struct monst *shkp;	/* if angry, impose a surcharge */
 	else if (obj->oartifact) tmp *= 4L;
 	/* anger surcharge should match rile_shk's */
 	if (shkp && ESHK(shkp)->surcharge) tmp += (tmp + 2L) / 3L;
+
+	/* possible additional surcharges based on shk race, if one was passed in */
+	if (shkp) {
+		switch (shkp->mnum) {
+			default:
+			case PM_HUMAN:
+				/* nasty, brutish, and short */
+				if (Race_if(PM_ORC) || Race_if(PM_GNOME)) { tmp += tmp / 3L; }	  
+				break;
+			case PM_GREEN_ELF:
+				if (Race_if(PM_ORC)) { tmp *= 2L; }
+				if (Race_if(PM_DWARF)) { tmp += tmp / 3L; }	/* "lawn ornament." */
+				break;
+			case PM_DWARF:
+				if (Race_if(PM_ORC)) { tmp *= 2L; }
+				if (Race_if(PM_ELF)) { tmp += tmp / 3L; }  /* "pointy-eared tree hugger." */
+				break;
+			case PM_ORC:
+				if (Race_if(PM_ELF)) { tmp *= 3L; }
+				if (Race_if(PM_DWARF)) { tmp += (tmp * 2L) / 3L; }
+				if (Race_if(PM_HUMAN)) { tmp += tmp / 3L; }
+				if (Race_if(PM_ORC)) { tmp -= tmp / 3L; }	  
+				/* big discount on top of professional courtesy */
+				break;
+			case PM_GNOME:
+				/* Gnomes are crafty.  They don't really have racial animosities, but
+				* it's going to be a lot harder to get a good deal out of a gnome unless
+				* you're remarkably shrewd yourself. */
+				if (ACURR(A_INT) < 15) { tmp += tmp / 2L; }
+				else if (ACURR(A_INT) < 18) { tmp += tmp / 3L; }
+				break;
+		}
+	}
+
+	/* professional courtesy if nonhuman */
+	if (shkp && shkp->mnum != PM_HUMAN && match_shkrace(shkp)) { tmp -= tmp / 2L; }
+
+	/* and just make sure we haven't dealt ourselves out of money */
+	if (tmp < 1) { tmp = 3; }
+
 	return tmp;
 }
 #endif /*OVL3*/
@@ -2048,6 +2088,45 @@ register struct monst *shkp;
 		} else if (tmp > 1L && !rn2(4))
 			tmp -= tmp / 4L;
 	}
+
+	/* possible additional adjustments based on shk race.. */
+	switch (shkp->mnum) {
+		default:
+		case PM_HUMAN:
+			if (Race_if(PM_ORC) || Race_if(PM_GNOME)) { tmp -= tmp / 3L; }	  /* nasty, brutish, and short */
+			break;
+		case PM_GREEN_ELF:
+			if (Race_if(PM_ORC)) { tmp /= 2L; }
+			if (Race_if(PM_DWARF)) { tmp -= tmp / 3L; }	/* "lawn ornament." */
+			break;
+		case PM_DWARF:
+			if (Race_if(PM_ORC)) { tmp /= 2L; }
+			if (Race_if(PM_ELF)) { tmp -= tmp / 3L; }  /* "pointy-eared tree hugger." */
+			break;
+		case PM_ORC:
+			if (Race_if(PM_ELF)) { tmp /= 3L; }
+			if (Race_if(PM_DWARF)) { tmp -= (tmp * 2L) / 3L; }
+			if (Race_if(PM_HUMAN)) { tmp -= tmp / 3L; }
+			if (Race_if(PM_ORC)) { tmp += tmp / 3L; }	 /* on top of prof. courtesy */
+			break;
+		case PM_GNOME:
+			/* Gnomes are crafty.  They don't really have racial animosities, but
+			 * it's going to be a lot harder to get a good deal out of a gnome unless
+			 * you're remarkably shrewd yourself. */
+			if (ACURR(A_INT) < 15) { tmp -= tmp / 2L; }
+			else if (ACURR(A_INT) < 18) { tmp -= tmp / 3L; }
+			break;
+	}
+
+	/* professional courtesy if nonhuman, but not _that_ much */
+	if (shkp->mnum != PM_HUMAN && match_shkrace(shkp)) { tmp += tmp / 3L; }
+
+	/* Final quick check; if we're about to buy this for more than we'd sell
+	 * it for in the first place, let's arrange to, er, not do that.  */
+	if (tmp > get_cost(obj,shkp) * obj->quan) { 
+		tmp = (get_cost(obj,shkp) * 4L / 5L) * obj->quan; 
+	}
+
 	return tmp;
 }
 
@@ -3204,13 +3283,18 @@ register struct monst *shkp;
 	omx = shkp->mx;
 	omy = shkp->my;
 
+	/* Random advertising to passersby */
+	if (!ANGRY(shkp) && inhishop(shkp) && !*u.ushops && !rn2(10)) {
+		shk_holler(shkp);
+	}
+
 	if (inhishop(shkp))
 	    remove_damage(shkp, FALSE);
 
 	if((udist = distu(omx,omy)) < 3 &&
 	   (shkp->data != &mons[PM_GRID_BUG] || (omx==u.ux || omy==u.uy))) {
 		if(ANGRY(shkp) ||
-		   (Conflict && !resist(shkp, RING_CLASS, 0, 0))) {
+		   (Conflict && !resist_conflict(shkp))) {
 			if(Displaced)
 			  Your("displaced image doesn't fool %s!",
 				mon_nam(shkp));
@@ -3348,7 +3432,7 @@ register int fall;
     if(!inhishop(shkp)) {
 	if (Role_if(PM_KNIGHT)) {
 	    You_feel("like a common thief.");
-	    adjalign(-sgn(u.ualign.type));
+		 major_sin();
 	}
 	return;
     }
@@ -3365,7 +3449,7 @@ register int fall;
 	}
 	if (Role_if(PM_KNIGHT)) {
 	    You_feel("like a common thief.");
-	    adjalign(-sgn(u.ualign.type));
+		 major_sin();
 	}
     } else if(!um_dist(shkp->mx, shkp->my, 5) &&
 		!shkp->msleeping && shkp->mcanmove &&
@@ -3594,7 +3678,7 @@ getcad:
 	} else {
 		verbalize("Oh, yes!  You'll pay!");
 		hot_pursuit(shkp);
-		adjalign(-sgn(u.ualign.type));
+		minor_sin();
 	}
 }
 #endif /*OVLB*/
@@ -3656,7 +3740,7 @@ register struct obj *first_obj;
     for (otmp = first_obj; otmp; otmp = otmp->nexthere) {
 	if (otmp->oclass == COIN_CLASS) continue;
 	cost = (otmp->no_charge || otmp == uball || otmp == uchain) ? 0L :
-		get_cost(otmp, (struct monst *)0);
+		get_cost(otmp, shkp ? shkp : (struct monst*)0);
 	if (Has_contents(otmp))
 	    cost += contained_cost(otmp, shkp, 0L, FALSE, FALSE);
 	if (!cost) {
@@ -3675,7 +3759,7 @@ register struct obj *first_obj;
 	    pline("%s!", buf);	/* buf still contains the string */
 	} else {
 	    /* print cost in slightly different format, so can't reuse buf */
-	    cost = get_cost(first_obj, (struct monst *)0);
+	    cost = get_cost(first_obj, shkp ? shkp : (struct monst *)0);
 	    if (Has_contents(first_obj))
 		cost += contained_cost(first_obj, shkp, 0L, FALSE, FALSE);
 	    pline("%s, price %ld %s%s%s", doname(first_obj),
@@ -3799,6 +3883,122 @@ struct monst *shkp;
 		pline("%s talks about the problem of shoplifters.",shkname(shkp));
 }
 
+#define CRYNUMBER 5
+
+const char* armor_wares[] = {
+	"Any %s would love these!  Finest quality!",
+	"Fit for a Knight, but they'll last for weeks!",
+	"It's dangerous 'round here these days... better wear something safe!",
+	"Hey, %s, I've got something here that'll fit you perfectly!",
+	"Guaranteed safety or double your money back!"
+};
+const char* scroll_wares[] = {
+	"Large print available!",
+	"'ere now, this isn't a library; get lost, you freeloader!",
+	"Waterproof ink upon request!  ... for a small surcharge.",
+	"Curses removed, gold detected, and weapons enchanted, at your whim!",
+	"If you can read, %s, you'll want some of these!"
+};
+const char* potion_wares[] = {
+	"Bugger off, you filthy little %s. Don't come begging around here!",
+	"Booze on ice!  Getcher booze on ice!",
+	"Come on, %s.  You know you're thirsty.",
+	"Ahhh, it'll put hair on yer chest!",
+	"Lowest percentage of cursed items around!"
+};
+const char* weapon_wares[] = {
+	"Sharpest weapons around! On sale, today only!",
+	"We sell 'em, you stab 'em!",
+	"Guaranteed to not dull for ten fights or your money back!",
+	"Look, %s, with a face like that you'll be in a lot of fights.  Better buy something now.",
+	"You'll never slash the same again after one of ours!"
+};
+const char* food_wares[] = {
+	"Gitchore luvverly orinjes!",
+	"Fresh fish! So fresh it'll grab yer naughty bits!",
+	"Sausage inna bun!  Hot sausage!",
+	"Bugger off, you filthy little %s. Don't come begging around here!",
+	"Genuine pig parts, these. So good most pigs don't even know they got 'em."
+};
+const char* ring_wares[] = {
+	"Well, you seem like a fine, discerning young %s; come look at this.",
+	"Special sparklies for a special %s, perhaps?",
+	"Once you put one of ours on, you'll never want to take it off!",
+	"Our bands never break or melt!",
+	"Shiny, isn't it?"
+};
+const char* wand_wares[] = {
+	"Credit available for valued customers!",
+	"Bugger off, you filthy little %s. Don't come begging around here!",
+	"Straightest zaps anywhere!  100%% money back guarantee (less usage)!",
+	"Our wands explode less than all others!",
+	"New EZ-BREAK feature on these in case of emergency!"
+};
+const char* tool_wares[] = {
+	"Bugger off, you filthy little %s. Don't come begging around here!",
+	"Tins opened, faces wiped, gazes reflected; your one-stop shop!",
+	"How you gonna carry all your stuff without a bag, %s?",
+	"Must be hard kickin' all those doors down, I bet a key would help...",
+	"Only tools wouldn't buy our tools!"
+};
+const char* book_wares[] = {
+	"Large print available!",
+	"'ere now, this isn't a library; get lost, you freeloader!",
+	"Mental magnificence for the scholarly IN-clined!",
+	"Credit available for valued customers!",
+	"'Banned' section now open! (I.D. required)"
+};
+const char* candle_wares[] = {
+	"Hey, %s! Best candles in Minetown! You'll need 'em later, count on it!",
+	"You've got a long way down yet, %s.  Be sure you're ready.",
+	"Let us be the light in your darkness!",
+	"You know, I hear some of these old lamps might be... magic.",
+	"Be a shame if you missed anything because you didn't see it!"
+};
+
+void
+shk_holler(shkp)
+struct monst* shkp;
+{
+
+	/* Don't yell from too far away... */
+	if (distu(shkp->mx,shkp->my)<=13) {
+		switch (ESHK(shkp)->shoptype) {
+			default:
+			case ARMORSHOP:
+				verbalize(armor_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case SCROLLSHOP:
+				verbalize(scroll_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case POTIONSHOP:
+				verbalize(potion_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case WEAPONSHOP:
+				verbalize(weapon_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case FOODSHOP:
+				verbalize(food_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case RINGSHOP:
+				verbalize(ring_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case WANDSHOP:
+				verbalize(wand_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case TOOLSHOP:
+				verbalize(tool_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case BOOKSHOP:
+				verbalize(book_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+			case CANDLESHOP:
+				verbalize(candle_wares[rn2(CRYNUMBER)],urace.noun);
+				break;
+		}
+	}
+}
+
 #ifdef KOPS
 STATIC_OVL void
 kops_gone(silent)
@@ -3857,6 +4057,7 @@ boolean altusage; /* some items have an "alternate" use with different cost */
 	} else if(otmp->otyp == CRYSTAL_BALL ||		 /* 1 - 5 */
 		  otmp->otyp == OIL_LAMP ||		 /* 1 - 10 */
 		  otmp->otyp == BRASS_LANTERN ||
+		  otmp->otyp == BAG_OF_POO ||
 		 (otmp->otyp >= MAGIC_FLUTE &&
 		  otmp->otyp <= DRUM_OF_EARTHQUAKE) ||	 /* 5 - 9 */
 		  otmp->oclass == WAND_CLASS) {		 /* 3 - 11 */

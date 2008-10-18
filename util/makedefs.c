@@ -535,7 +535,7 @@ const char *build_date;
     Strcat(subbuf, " Beta");
 #endif
 
-    Sprintf(outbuf, "%s NetHack%s Version %s - last build %s.",
+    Sprintf(outbuf, "%s SporkHack%s Version %s - last build %s.",
 	    PORT_ID, subbuf, version_string(versbuf), build_date);
     return outbuf;
 }
@@ -678,6 +678,13 @@ static const char *build_opts[] = {
 #endif
 #ifdef MAIL
 		"mail daemon",
+#endif
+#ifdef MENU_COLOR
+# ifdef MENU_COLOR_REGEX
+		"menu colors via regular expressions",
+# else
+		"menu colors via pmatch",
+# endif
 #endif
 #ifdef GNUDOS
 		"MSDOS protected mode",

@@ -152,13 +152,21 @@
 #define M3_WANTSALL	0x001f		/* wants any major artifact */
 #define M3_WAITFORU	0x0040		/* waits to see you or get attacked */
 #define M3_CLOSE	0x0080		/* lets you close unless attacked */
+/* Infravision is currently implemented for players only */
+#define M3_INFRAVISION	0x0100		/* has infravision */
+#define M3_INFRAVISIBLE 0x0200		/* visible by infravision */
+#define M3_SKITTISH  0x0400	   /* tends to stay a few squares away from you */
+#define M3_EAGLEEYE  0x0800		/* gets an accuracy bonus to hit */
+#define M3_BERSERK   0x1000	   /* extremely indiscriminate in its attacks */
+#define M3_SHOPGUARD	0x2000	   /* Guardian for a shop */
 
 #define M3_COVETOUS	0x001f		/* wants something */
 #define M3_WAITMASK	0x00c0		/* waiting... */
 
-/* Infravision is currently implemented for players only */
-#define M3_INFRAVISION	0x0100		/* has infravision */
-#define M3_INFRAVISIBLE 0x0200		/* visible by infravision */
+#define M4_VULNERABLE_FIRE		0x0001	 /* inherent elemental vulnerabilities */
+#define M4_VULNERABLE_COLD		0x0002
+#define M4_VULNERABLE_ELEC		0x0004
+#define M4_VULNERABLE_ACID		0x0008
 
 #define MZ_TINY		0		/* < 2' */
 #define MZ_SMALL	1		/* 2-4' */

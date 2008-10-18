@@ -365,7 +365,7 @@ is_worn_by_type(otmp)
 register struct obj *otmp;
 {
 	return((boolean)(!!(otmp->owornmask &
-			(W_ARMOR | W_RING | W_AMUL | W_TOOL | W_WEP | W_SWAPWEP | W_QUIVER)))
+			(W_ARMOR | W_RING | W_AMUL | W_TOOL | W_WEP | W_SWAPWEP | W_QUIVER | W_LAUNCHER)))
 	        && (index(valid_menu_classes, otmp->oclass) != (char *)0));
 }
 
@@ -690,9 +690,15 @@ menu_item **pick_list;		/* return list of items picked */
 int how;			/* type of query */
 boolean FDECL((*allow), (OBJ_P));/* allow function */
 {
+#ifdef SORTLOOT
+	int i, j;
+#endif
 	int n;
 	winid win;
 	struct obj *curr, *last;
+#ifdef SORTLOOT
+	struct obj **oarray;
+#endif
 	char *pack;
 	anything any;
 	boolean printed_type_name;
@@ -717,6 +723,33 @@ boolean FDECL((*allow), (OBJ_P));/* allow function */
 	    return 1;
 	}
 
+#ifdef SORTLOOT
+	/* Make a temporary array to store the objects sorted */
+	oarray = (struct obj **)alloc(n*sizeof(struct obj*));
+
+	/* Add objects to the array */
+	i = 0;
+	for (curr = olist; curr; curr = FOLLOW(curr, qflags)) {
+	  if ((*allow)(curr)) {
+	    if (iflags.sortloot == 'f' ||
+		(iflags.sortloot == 'l' && !(qflags & USE_INVLET)))
+	      {
+		/* Insert object at correct index */
+		for (j = i; j; j--)
+		  {
+		    if (strcmpi(cxname2(curr), cxname2(oarray[j-1]))>0) break;
+		    oarray[j] = oarray[j-1];
+		  }
+		oarray[j] = curr;
+		i++;
+	      } else {
+		/* Just add it to the array */
+		oarray[i++] = curr;
+	      }
+	  }
+	}
+#endif /* SORTLOOT */
+
 	win = create_nhwindow(NHW_MENU);
 	start_menu(win);
 	any.a_obj = (struct obj *) 0;
@@ -730,7 +763,12 @@ boolean FDECL((*allow), (OBJ_P));/* allow function */
 	pack = flags.inv_order;
 	do {
 	    printed_type_name = FALSE;
+#ifdef SORTLOOT
+	    for (i = 0; i < n; i++) {
+		curr = oarray[i];
+#else /* SORTLOOT */
 	    for (curr = olist; curr; curr = FOLLOW(curr, qflags)) {
+#endif /* SORTLOOT */
 		if ((qflags & FEEL_COCKATRICE) && curr->otyp == CORPSE &&
 		     will_feel_cockatrice(curr, FALSE)) {
 			destroy_nhwindow(win);	/* stop the menu and revert */
@@ -758,6 +796,9 @@ boolean FDECL((*allow), (OBJ_P));/* allow function */
 	    pack++;
 	} while (qflags & INVORDER_SORT && *pack);
 
+#ifdef SORTLOOT
+	free(oarray);
+#endif
 	end_menu(win, qstr);
 	n = select_menu(win, how, pick_list);
 	destroy_nhwindow(win);
@@ -826,7 +867,7 @@ int how;			/* type of query */
 	if (ccount == 1 && !do_unpaid && num_buc_types <= 1 && !(qflags & BILLED_TYPES)) {
 	    for (curr = olist; curr; curr = FOLLOW(curr, qflags)) {
 		if ((qflags & WORN_TYPES) &&
-		    !(curr->owornmask & (W_ARMOR|W_RING|W_AMUL|W_TOOL|W_WEP|W_SWAPWEP|W_QUIVER)))
+		    !(curr->owornmask & (W_ARMOR|W_RING|W_AMUL|W_TOOL|W_WEP|W_SWAPWEP|W_QUIVER|W_LAUNCHER)))
 		    continue;
 		break;
 	    }
@@ -861,7 +902,7 @@ int how;			/* type of query */
 		if (curr->oclass == *pack) {
 		   if ((qflags & WORN_TYPES) &&
 		   		!(curr->owornmask & (W_ARMOR | W_RING | W_AMUL | W_TOOL |
-		    	W_WEP | W_SWAPWEP | W_QUIVER)))
+		    	W_WEP | W_SWAPWEP | W_QUIVER | W_LAUNCHER)))
 			 continue;
 		   if (!collected_type_name) {
 			any.a_void = 0;
@@ -960,7 +1001,7 @@ int qflags;
 		if (curr->oclass == *pack) {
 		   if ((qflags & WORN_TYPES) &&
 		    	!(curr->owornmask & (W_ARMOR | W_RING | W_AMUL | W_TOOL |
-		    	W_WEP | W_SWAPWEP | W_QUIVER)))
+		    	W_WEP | W_SWAPWEP | W_QUIVER | W_LAUNCHER)))
 			 continue;
 		   if (!counted_category) {
 			ccount++;
@@ -1561,6 +1602,14 @@ lootcont:
 		    continue;
 		}
 
+		if (cobj->otyp == BAG_OF_POO) {
+			You("carefully open the bag...");
+			pline("This bag is full of %s poo and gives off a horrific stench.",rndmonnam());
+			makeknown(BAG_OF_POO);
+			timepassed = 1;
+			continue;
+		}
+
 		You("carefully open %s...", the(xname(cobj)));
 		timepassed |= use_container(cobj, 0);
 		if (multi < 0) return 1;		/* chest trap */
@@ -1590,7 +1639,7 @@ lootcont:
 		/* find the original coffers chest, or any chest */
 		for (pass = 2; pass > -1; pass -= 2)
 		    for (coffers = fobj; coffers; coffers = coffers->nobj)
-			if (coffers->otyp == CHEST && coffers->spe == pass)
+			if ((coffers->otyp == CHEST || coffers->otyp == IRON_SAFE) && coffers->spe == pass)
 			    goto gotit;	/* two level break */
 gotit:
 		if (coffers) {
@@ -1772,6 +1821,7 @@ register struct obj *obj;
 	boolean floor_container = !carried(current_container);
 	boolean was_unpaid = FALSE;
 	char buf[BUFSZ];
+	long one_item_weight = obj->quan < 2 ? obj->owt : (obj->owt / obj->quan);
 
 	if (!current_container) {
 		impossible("<in> no current_container?");
@@ -1791,6 +1841,7 @@ register struct obj *obj;
 	      pline_The("stone%s won't leave your person.", plur(obj->quan));
 		return 0;
 	} else if (obj->otyp == AMULET_OF_YENDOR ||
+			obj->otyp == FAKE_AMULET_OF_YENDOR ||
 		   obj->otyp == CANDELABRUM_OF_INVOCATION ||
 		   obj->otyp == BELL_OF_OPENING ||
 		   obj->otyp == SPE_BOOK_OF_THE_DEAD) {
@@ -1803,6 +1854,13 @@ register struct obj *obj;
 	} else if (obj->otyp == LEASH && obj->leashmon != 0) {
 		pline("%s attached to your pet.", Tobjnam(obj, "are"));
 		return 0;
+	} else if (obj->owt + get_container_weight(current_container) > current_container->capacity) {
+		pline("You can't seem to fit %s into %s; it's too full.",
+				doname(obj),doname(current_container));
+		return -1;
+	} else if (current_container->otyp == SMALL_SACK && (one_item_weight > 30 || is_spear(obj))) {
+		pline("You aren't going to be able to wedge %s in there.",doname(obj));
+		return -1;
 	} else if (obj == uwep) {
 		if (welded(obj)) {
 			weldmsg(obj);
@@ -1816,6 +1874,12 @@ register struct obj *obj;
 	} else if (obj == uquiver) {
 		setuqwep((struct obj *) 0);
 		if (uquiver) return 0;     /* unwielded, died, rewielded */
+	}
+	/* it's possible for this to also be uwep since ulauncher
+	 * is a virtual, not a physical location on the player */
+	if (obj == ulauncher) {
+		setulauncher((struct obj *) 0);
+		if (ulauncher) return 0;  
 	}
 
 	if (obj->otyp == CORPSE) {

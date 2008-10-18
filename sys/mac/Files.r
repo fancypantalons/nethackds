@@ -146,3 +146,4 @@ read 'File' (1161,"Wiz-filb.lev") ":lib:Wiz-filb.lev";
 read 'File' (1162,"Wiz-goal.lev") ":lib:Wiz-goal.lev";
 read 'File' (1163,"Wiz-loca.lev") ":lib:Wiz-loca.lev";
 read 'File' (1164,"Wiz-strt.lev") ":lib:Wiz-strt.lev";
+read 'File' (1165,"hellfill.lev") ":lib:hellfill.lev";

@@ -296,7 +296,8 @@ do_pit:		    chasm = maketrap(x,y,PIT);
 		       falls in a chasm... */
 
 		    if (mtmp) {
-			if(!is_flyer(mtmp->data) && !is_clinger(mtmp->data)) {
+			if(!is_flyer(mtmp->data) && !is_clinger(mtmp->data) &&
+					!is_flying(mtmp)) {
 			    mtmp->mtrapped = 1;
 			    if(cansee(x,y))
 				pline("%s falls into a chasm!", Monnam(mtmp));
@@ -304,7 +305,7 @@ do_pit:		    chasm = maketrap(x,y,PIT);
 				You_hear("a scream!");
 			    mselftouch(mtmp, "Falling, ", TRUE);
 			    if (mtmp->mhp > 0)
-				if ((mtmp->mhp -= rnd(6)) <= 0) {
+				if (damage_mon(mtmp,rnd(6),AD_PHYS)) {
 				    if(!cansee(x,y))
 					pline("It is destroyed!");
 				    else {
@@ -550,7 +551,7 @@ struct obj *instr;
 				close_drawbridge(x,y);
 			    else
 				open_drawbridge(x,y);
-			    return 0;
+			    return 1;
 			}
 	    } else if(flags.soundok) {
 		if (u.uevent.uheard_tune < 1) u.uevent.uheard_tune = 1;

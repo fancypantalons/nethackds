@@ -159,16 +159,18 @@
 
 #ifndef WIZARD		/* allow for compile-time or Makefile changes */
 # ifndef KR1ED
-#  define WIZARD  "wizard" /* the person allowed to use the -D option */
+#  define WIZARD  "derek" /* the person allowed to use the -D option */
 # else
 #  define WIZARD
-#  define WIZARD_NAME "wizard"
+#  define WIZARD_NAME "derek"
 # endif
 #endif
 
 #define LOGFILE "logfile"	/* larger file for debugging purposes */
 #define NEWS "news"		/* the file containing the latest hack news */
 #define PANICLOG "paniclog"	/* log of panic and impossible events */
+#define DUMP_LOG				 /* turn on dumping */
+#define DUMP_FN "dumps/%n.lastlog"	 /* dump goes here */
 
 /*
  *	If COMPRESS is defined, it should contain the full path name of your
@@ -185,10 +187,10 @@
 
 #ifdef UNIX
 /* path and file name extension for compression program */
-//#define COMPRESS "/usr/bin/compress"	/* Lempel-Ziv compression */
-//#define COMPRESS_EXTENSION ".Z"		/* compress's extension */
+/* #define COMPRESS "/usr/bin/compress"	   Lempel-Ziv compression */
+/* #define COMPRESS_EXTENSION ".Z"		   compress's extension */
 /* An example of one alternative you might want to use: */
-#define COMPRESS "/usr/local/bin/gzip"	/* FSF gzip compression */
+#define COMPRESS "/usr/bin/gzip"	/* FSF gzip compression */
 #define COMPRESS_EXTENSION ".gz"		/* normal gzip extension */
 #endif
 
@@ -201,7 +203,7 @@
  *	a tar-like file, thus making a neater installation.  See *conf.h
  *	for detailed configuration.
  */
- #define DLB 	/* not supported on all platforms */
+#define DLB 	/* not supported on all platforms */
 
 /*
  *	Defining INSURANCE slows down level changes, but allows games that
@@ -343,6 +345,7 @@ typedef unsigned char	uchar;
 #define TOURIST		/* Tourist players with cameras and Hawaiian shirts */
 /* difficulty */
 #define ELBERETH	/* Engraving the E-word repels monsters */
+#define SORTLOOT
 /* I/O */
 #define REDO		/* support for redoing last command - DGK */
 #if !defined(MAC)
@@ -363,6 +366,19 @@ typedef unsigned char	uchar;
  * Enable any of these at your own risk -- there are almost certainly
  * bugs left here.
  */
+  
+#if defined(TTY_GRAPHICS) || defined(MSWIN_GRAPHICS) || defined(NDS_GRAPHICS)
+# define MENU_COLOR
+# define MENU_COLOR_REGEX
+# define MENU_COLOR_REGEX_POSIX 
+/* if MENU_COLOR_REGEX is defined, use regular expressions (regex.h,
+ * GNU specific functions by default, POSIX functions with
+ * MENU_COLOR_REGEX_POSIX).
+ * otherwise use pmatch() to match menu color lines.
+ * pmatch() provides basic globbing: '*' and '?' wildcards.
+ */
+#endif
+   
 
 /*#define GOLDOBJ */	/* Gold is kept on obj chains - Helge Hafting */
 /*#define AUTOPICKUP_EXCEPTIONS */ /* exceptions to autopickup */

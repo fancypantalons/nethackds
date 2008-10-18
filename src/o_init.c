@@ -213,10 +213,10 @@ shuffle_all()
 	}
 
 	/* shuffle the helmets */
-	shuffle(HELMET, HELM_OF_TELEPATHY, FALSE);
+	shuffle(HELMET, HELM_OF_CLARITY, FALSE);
 
 	/* shuffle the gloves */
-	shuffle(LEATHER_GLOVES, GAUNTLETS_OF_DEXTERITY, FALSE);
+	shuffle(LEATHER_GLOVES, GAUNTLETS_OF_FORTUNE, FALSE);
 
 	/* shuffle the cloaks */
 	shuffle(CLOAK_OF_PROTECTION, CLOAK_OF_DISPLACEMENT, FALSE);

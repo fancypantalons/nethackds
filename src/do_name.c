@@ -462,7 +462,9 @@ ddocall()
 #endif
 		allowall[0] = ALL_CLASSES; allowall[1] = '\0';
 		obj = getobj(allowall, "name");
-		if(obj) do_oname(obj);
+		if (obj && obj->otyp == SKULL) {
+			pline("That already has its own name.");
+		} else if (obj) do_oname(obj);
 		break;
 	default :
 #ifdef REDO
@@ -898,6 +900,7 @@ static const char * const bogusmons[] = {
 	"brogmoid", "dornbeast",		/* Quendor (Zork, &c.) */
 	"Ancient Multi-Hued Dragon", "Evil Iggy",
 						/* Moria */
+	"Evil Otto", /* Berzerk */
 	"emu", "kestrel", "xeroc", "venus flytrap",
 						/* Rogue */
 	"creeping coins",			/* Wizardry */
@@ -908,7 +911,7 @@ static const char * const bogusmons[] = {
 	"Luggage",				/* Discworld */
 	"Ent",					/* Lord of the Rings */
 	"tangle tree", "nickelpede", "wiggle",	/* Xanth */
-	"white rabbit", "snark",		/* Lewis Carroll */
+	"white rabbit",		/* Lewis Carroll */
 	"pushmi-pullyu",			/* Dr. Doolittle */
 	"smurf",				/* The Smurfs */
 	"tribble", "Klingon", "Borg",		/* Star Trek */
@@ -936,7 +939,59 @@ static const char * const bogusmons[] = {
 	"Vorlon",				/* Babylon 5 */
 	"questing beast",		/* King Arthur */
 	"Predator",				/* Movie */
-	"mother-in-law"				/* common pest */
+	"mother-in-law",				/* common pest */
+
+	"one-winged dewinged stab-bat",  /* KoL */
+	"praying mantis",
+	"arch-pedant",
+	"beluga whale",
+	"bluebird of happiness",
+	"bouncing eye", "floating nose",
+	"buffer overflow", "dangling pointer", "walking disk drive",
+	"cacodemon", "scrag",
+	"cardboard golem", "duct tape golem",
+	"chess pawn",
+	"chicken",
+	"chocolate pudding",
+	"coelacanth",
+	"corpulent porpoise",
+	"Crow T. Robot",
+	"diagonally moving grid bug",
+	"dropbear",
+	"Dudley",
+	"El Pollo Diablo",
+	"evil overlord",
+	"existential angst",
+	"figment of your imagination", "flash of insight",
+	"flying pig",
+	"gazebo",
+	"gonzo journalist",
+	"gray goo", "magnetic monopole",
+	"heisenbug",
+	"lag monster",
+	"loan shark",
+	"Lord British",
+	"newsgroup troll",
+	"ninja pirate zombie robot",
+	"octarine dragon",
+	"particle man",
+	"possessed waffle iron",
+	"poultrygeist",
+	"raging nerd",
+	"roomba",
+	"sea cucumber",
+	"spelling bee",
+	"Strong Bad",
+	"stuffed raccoon puppet",
+	"tapeworm",
+	"liger",
+	"velociraptor",
+	"vermicious knid",
+	"viking",
+	"voluptuous ampersand",
+	"wee green blobbie",
+	"wereplatypus",
+	"zergling"
 };
 
 

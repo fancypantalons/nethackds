@@ -16,6 +16,9 @@ STATIC_DCL struct artifact artilist[];
  *	  the contents, just the total size.
  */
 
+/*#define DEBUG*/
+/* Uncomment for some complaint messages */
+
 extern boolean notonhead;	/* for long worms */
 
 #define get_artifact(o) \
@@ -63,9 +66,18 @@ hack_artifacts()
 	    if (art->role == Role_switch && art->alignment != A_NONE)
 		art->alignment = alignmnt;
 
-	/* Excalibur can be used by any lawful character, not just knights */
-	if (!Role_if(PM_KNIGHT))
+	/* Excalibur can be used by any lawful character, not just knights
+		So can Dirge, for that matter */
+	if (!Role_if(PM_KNIGHT)) {
 	    artilist[ART_EXCALIBUR].role = NON_PM;
+		 artilist[ART_DIRGE].role = NON_PM;
+	 }
+
+	/* Demonbane should always be in the Priest's list of available toys
+	 * even though this might look a little odd when it comes out Chaotic */
+	if (Role_if(PM_PRIEST)) {
+		artilist[ART_DEMONBANE].alignment = alignmnt;
+	}
 
 	/* Fix up the quest artifact */
 	if (urole.questarti) {
@@ -327,9 +339,62 @@ register int adtyp;
 register struct obj *otmp;
 {
 	register const struct artifact *weap;
+	unsigned long mask;
 
-	if ((weap = get_artifact(otmp)) != 0)
-		return((boolean)(weap->defn.adtyp == adtyp));
+	if ((weap = get_artifact(otmp)) != 0) {
+		switch (adtyp) {
+			case AD_FIRE:
+				mask = (weap->defn & SPDF_FIRE);
+				break;
+			case AD_COLD:
+				mask = (weap->defn & SPDF_COLD);
+				break;
+			case AD_ELEC:
+				mask = (weap->defn & SPDF_ELEC);
+				break;
+			case AD_SLEE:
+				mask = (weap->defn & SPDF_SLEEP);
+				break;
+			case AD_DISN:
+				mask = (weap->defn & SPDF_DISINT);
+				break;
+			case AD_DRST:
+				mask = (weap->defn & SPDF_POISON);
+				break;
+			case AD_ACID:
+				mask = (weap->defn & SPDF_ACID);
+				break;
+			case AD_MAGM:
+				mask = (weap->defn & SPDF_MAGIC);
+				break;
+			case AD_BLND:
+				mask = (weap->defn & SPDF_BLIND);
+				break;
+			case AD_WERE:
+				mask = (weap->defn & SPDF_WERE);
+				break;
+			case AD_DRLI:
+				mask = (weap->defn & SPDF_DRAIN);
+				break;
+			case AD_STUN:
+				mask = (weap->defn & SPDF_STUN);
+				break;
+			case AD_CONF:
+				mask = (weap->defn & SPDF_CONFUSE);
+				break;
+			case AD_DISE:
+			case AD_DRIN:
+				mask = 0;	/* none yet */
+				break;
+			default:
+#ifdef DEBUG
+				/* Don't whine about this unless we really want to */
+				pline("strange attack type in defends(): %d",adtyp);
+#endif
+				return FALSE;
+		}
+		return (mask > 0);  /* straight cast will fail */
+	}
 	return FALSE;
 }
 
@@ -363,8 +428,8 @@ long wp_mask;
 
 	if (!oart) return;
 
-	/* effects from the defn field */
-	dtyp = (wp_mask != W_ART) ? oart->defn.adtyp : oart->cary.adtyp;
+	/* effects from the cary field */
+	dtyp = (wp_mask != W_ART) ? 0 : oart->cary.adtyp;
 
 	if (dtyp == AD_FIRE)
 	    mask = &EFire_resistance;
@@ -397,6 +462,61 @@ long wp_mask;
 	    else *mask &= ~wp_mask;
 	}
 
+	/* effects from the defn field; could be more than one
+		...Note that we don't have to check for other stuff, because
+		this uses wp_mask directly and you can only have one of 
+		any given thing in the appropriate slot */
+	if (wp_mask & (W_WEP | W_ARMOR | W_AMUL | W_RING | W_TOOL)) {
+		if (oart->defn & SPDF_FIRE) {
+			if (on) EFire_resistance |= wp_mask;
+			else EFire_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_COLD) {
+			if (on) ECold_resistance |= wp_mask;
+			else ECold_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_ELEC) {
+			if (on) EShock_resistance |= wp_mask;
+			else EShock_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_SLEEP) {
+			if (on) ESleep_resistance |= wp_mask;
+			else ESleep_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_POISON) {
+			if (on) EPoison_resistance |= wp_mask;
+			else EPoison_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_ACID) {
+			if (on) EAcid_resistance |= wp_mask;
+			else EAcid_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_DISINT) {
+			if (on) EDisint_resistance |= wp_mask;
+			else EDisint_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_DRAIN) {
+			if (on) EDrain_resistance |= wp_mask;
+			else EDrain_resistance &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_MAGIC) {
+			if (on) EAntimagic |= wp_mask;
+			else EAntimagic &= ~wp_mask;
+		}
+		if (oart->defn & SPDF_WERE) {
+			/* Doesn't have a specific resistance in the table */
+		}
+		if (oart->defn & SPDF_BLIND) {
+			/* Doesn't have a specific resistance in the table */
+		}
+		if (oart->defn & SPDF_CONFUSE) {
+			/* Doesn't have a specific resistance in the table */
+		}
+		if (oart->defn & SPDF_STUN) {
+			/* Doesn't have a specific resistance in the table */
+		}
+	}
+
 	/* intrinsics from the spfx field; there could be more than one */
 	spfx = (wp_mask != W_ART) ? oart->spfx : oart->cspfx;
 	if(spfx && wp_mask == W_ART && !on) {
@@ -412,6 +532,10 @@ long wp_mask;
 	if (spfx & SPFX_SEARCH) {
 	    if(on) ESearching |= wp_mask;
 	    else ESearching &= ~wp_mask;
+	}
+	if (spfx & SPFX_POLYC) {
+		if (on) EPolymorph_control |= wp_mask;
+		else EPolymorph_control &= ~wp_mask;
 	}
 	if (spfx & SPFX_HALRES) {
 	    /* make_hallucinated must (re)set the mask itself to get
@@ -440,13 +564,23 @@ long wp_mask;
 	    else ETeleport_control &= ~wp_mask;
 	}
 	if (spfx & SPFX_WARN) {
-	    if (spec_m2(otmp)) {
+		/* right now the only things that warn against a specific monster type
+		 * are wielded artifacts.  this may change in the future but for now
+		 * this is probably the smallest change to clean things up without
+		 * screwing around adding more M2 flags */
+		if (spfx & (SPFX_DCLAS | SPFX_DFLAG2)) {
 	    	if (on) {
-			EWarn_of_mon |= wp_mask;
+				if (spfx & SPFX_DCLAS)
+					flags.warntype = oart->mtype;
+				else
 			flags.warntype |= spec_m2(otmp);
+				EWarn_of_mon |= wp_mask;
 	    	} else {
-			EWarn_of_mon &= ~wp_mask;
+				if (spfx & SPFX_DCLAS)
+					flags.warntype = 0L;
+				else
 	    		flags.warntype &= ~spec_m2(otmp);
+				EWarn_of_mon &= ~wp_mask;
 		}
 		see_monsters();
 	    } else {
@@ -472,9 +606,18 @@ long wp_mask;
 	    else u.xray_range = -1;
 	    vision_full_recalc = 1;
 	}
-	if ((spfx & SPFX_REFLECT) && (wp_mask & W_WEP)) {
+	if (spfx & SPFX_REFLECT) {
+		/* Knights only have to carry the mirror; everyone else must wield it */
+		if (Role_if(PM_KNIGHT)) {
+			if (on) {
+				EReflecting |= wp_mask;
+			} else {
+				EReflecting &= ~wp_mask;
+			}
+		} else if (wp_mask & W_WEP) {
 	    if (on) EReflecting |= wp_mask;
 	    else EReflecting &= ~wp_mask;
+	}
 	}
 
 	if(wp_mask == W_ART && !on && oart->inv_prop) {
@@ -594,16 +737,16 @@ struct monst *mtmp;
 		return FALSE;
 	    switch(weap->attk.adtyp) {
 		case AD_FIRE:
-			return !(yours ? Fire_resistance : resists_fire(mtmp));
+			return !(!yours ? resists_fire(mtmp) : (how_resistant(FIRE_RES) > 99) ? TRUE : FALSE);
 		case AD_COLD:
-			return !(yours ? Cold_resistance : resists_cold(mtmp));
+			return !(!yours ? resists_cold(mtmp) : (how_resistant(COLD_RES) > 99) ? TRUE : FALSE);
 		case AD_ELEC:
-			return !(yours ? Shock_resistance : resists_elec(mtmp));
+			return !(!yours ? resists_elec(mtmp) : (how_resistant(SHOCK_RES) > 99) ? TRUE : FALSE);
 		case AD_MAGM:
 		case AD_STUN:
 			return !(yours ? Antimagic : (rn2(100) < ptr->mr));
 		case AD_DRST:
-			return !(yours ? Poison_resistance : resists_poison(mtmp));
+			return !(!yours ? resists_poison(mtmp) : (how_resistant(POISON_RES) > 99) ? TRUE : FALSE);
 		case AD_DRLI:
 			return !(yours ? Drain_resistance : resists_drli(mtmp));
 		case AD_STON:
@@ -649,6 +792,10 @@ struct monst *mon;
 int tmp;
 {
 	register const struct artifact *weap = get_artifact(otmp);
+
+	if (otmp->oclass == GEM_CLASS && uwep && uwep->oartifact == ART_GIANTSLAYER) {
+		weap = get_artifact(uwep);
+	}
 
 	if (!weap || (weap->attk.adtyp == AD_PHYS && /* check for `NO_ATTK' */
 			weap->attk.damn == 0 && weap->attk.damd == 0))
@@ -948,6 +1095,8 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 	const char *wepdesc;
 	static const char you[] = "you";
 	char hittee[BUFSZ];
+	struct artifact* atmp;
+	int j;
 
 	Strcpy(hittee, youdefend ? you : mon_nam(mdef));
 
@@ -1005,6 +1154,14 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 			  hittee, !spec_dbon_applies ? '.' : '!');
 	    return realizes_damage;
 	}
+	/* the fifth basic attack: poison */
+	if (attacks(AD_DRST, otmp)) {
+		if (realizes_damage) {
+			pline_The("venomous blade %s %s%c",spec_dbon_applies ? "strikes" : "nicks",
+				hittee, spec_dbon_applies ? '!' : '.');
+			return realizes_damage;
+		}
+	}
 
 	if (attacks(AD_STUN, otmp) && dieroll <= MB_MAX_DIEROLL) {
 	    /* Magicbane's special attacks (possibly modifies hittee[]) */
@@ -1015,6 +1172,81 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 	    /* since damage bonus didn't apply, nothing more to do;  
 	       no further attacks have side-effects on inventory */
 	    return FALSE;
+	}
+
+	/* Are we about to do something special vs. a monster type? */
+	atmp = &artilist[otmp->oartifact];
+	if (otmp->oclass == GEM_CLASS && uwep && uwep->oartifact == ART_GIANTSLAYER) {
+		atmp = &artilist[ART_GIANTSLAYER];
+		otmp->oartifact = ART_GIANTSLAYER;	/* really miserable hack */
+	}
+	if (atmp->spfx & (SPFX_DFLAG2 | SPFX_DCLAS)) {
+		j = rn2(2);	  /* 50% chance of instakill for some artifacts */
+		switch (otmp->oartifact) {
+			case ART_DRAGONBANE:
+				if (youattack && j) {
+					You("pierce the heart of %s!", mon_nam(mdef));
+					*dmgptr = (2 * mdef->mhp + FATAL_DAMAGE_MODIFIER);
+				} else if (youdefend && j) {
+					pline("The deadly spear pierces your heart!");
+					*dmgptr = (2 * Upolyd ? u.mh : u.uhp + FATAL_DAMAGE_MODIFIER);
+				} else {
+					return FALSE;
+				}
+				return TRUE;
+			case ART_WEREBANE:
+				if (youattack && j) {
+					*dmgptr = (2 * mdef->mhp + FATAL_DAMAGE_MODIFIER);
+				} else if (youdefend && j) {
+					*dmgptr = (2 * Upolyd ? u.mh : u.uhp + FATAL_DAMAGE_MODIFIER);
+				} else {
+					return FALSE;
+				}
+				return TRUE;
+			case ART_GIANTSLAYER:
+				if (otmp->oclass == GEM_CLASS) {	 /* second part of miserable hack */
+					otmp->oartifact = 0L;
+				}
+				if (youattack) {
+					You("strike %s in the forehead!",mon_nam(mdef));
+					*dmgptr = (2 * mdef->mhp + FATAL_DAMAGE_MODIFIER);
+				} else if (youdefend) {
+					*dmgptr = (2 * Upolyd ? u.mh : u.uhp + FATAL_DAMAGE_MODIFIER);
+					You("are hit in the center of your forehead!");
+				}
+				return TRUE;
+			case ART_OGRESMASHER:
+				if (youattack && j) {
+					You("crush the skull of %s!", mon_nam(mdef));
+					*dmgptr = (2 * mdef->mhp + FATAL_DAMAGE_MODIFIER);
+				} else if (youdefend && j) {
+					pline("The monstrous hammer crushes your skull!");
+					*dmgptr = (2 * Upolyd ? u.mh : u.uhp + FATAL_DAMAGE_MODIFIER);
+				} else {
+					return FALSE;
+				}
+				return TRUE;
+			case ART_TROLLSBANE:
+				if (youattack && j) {
+					pline("As you strike %s, it bursts into flame!", mon_nam(mdef));
+					*dmgptr = (2 * mdef->mhp + FATAL_DAMAGE_MODIFIER);
+				} else if (youdefend && j) {
+					You("burst into flame as you are hit!");
+					*dmgptr = (2 * Upolyd ? u.mh : u.uhp + FATAL_DAMAGE_MODIFIER);
+				} else {
+					return FALSE;
+				}
+				return TRUE;
+			/* below this we don't get any additional handling, so drop through
+			* just listed here for potential future reference */
+			case ART_DEMONBANE:
+			case ART_SUNSWORD:
+			case ART_ORCRIST:
+			case ART_STING:
+			default:
+				break;
+		}
+
 	}
 
 	/* We really want "on a natural 20" but Nethack does it in */

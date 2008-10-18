@@ -247,7 +247,7 @@ worm_nomove(worm)
     shrink_worm((int) worm->wormno);	/* shrink */
 
     if (worm->mhp > 3)
-	worm->mhp -= 3;		/* mhpmax not changed ! */
+	worm->mhp -= 3;		/* mhpmax not changed!  no need to call damage_mon() here */
     else
 	worm->mhp = 1;
 }
@@ -367,18 +367,19 @@ cutworm(worm, x, y, weap)
      */
 
     /* Sometimes the tail end dies. */
-    if (rn2(3) || !(new_wnum = get_wormno())) {
+    if (!rn2(3) || !(new_wnum = get_wormno())) {
 	if (flags.mon_moving)
 	    pline("Part of the tail of %s is cut off.", mon_nam(worm));
 	else
 	    You("cut part of the tail off of %s.", mon_nam(worm));
 	toss_wsegs(new_tail, TRUE);
-	if (worm->mhp > 1) worm->mhp /= 2;
+		if (worm->mhp > 1) worm->mhp /= 2;	/* no need to call damage_mon */
 	return;
     }
 
     remove_monster(x, y);		/* clone_mon puts new head here */
     new_worm = clone_mon(worm, x, y);
+	 if (!new_worm) { return; }  /* clone might not return a monster */
     new_worm->wormno = new_wnum;	/* affix new worm number */
 
     /* Devalue the monster level of both halves of the worm. */
@@ -394,6 +395,10 @@ cutworm(worm, x, y, weap)
 	worm->mhpmax = d((int)worm->m_lev, 8);
 	if (worm->mhpmax < worm->mhp) worm->mhp = worm->mhpmax;
     }
+
+	 /* just in case... */
+	 if (worm->mhp < 1) { worm->mhp = worm->mhpmax = 1; }
+	 if (new_worm->mhp < 1) { new_worm->mhp = new_worm->mhpmax = 1; }
 
     wtails[new_wnum] = new_tail;	/* We've got all the info right now */
     wheads[new_wnum] = curr;		/* so we can do this faster than    */

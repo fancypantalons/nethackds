@@ -224,6 +224,7 @@ WINOBJ = $(WINTTYOBJ)
 # AIX 3.1 on RS/6000 likes -lcurses if TERMINFO defined in unixconf.h
 # and -ltermcap otherwise
 # Linux uses -lncurses (newer) or -ltermcap (older)
+# OSX uses -lncurses
 # Be uses -ltermcap
 #
 # libraries for tty ports

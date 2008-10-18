@@ -11,7 +11,7 @@
 
 #include <ctype.h>
 
-#if !defined(MAC) && !defined(O_WRONLY) && !defined(AZTEC_C)
+#if (!defined(MAC) && !defined(O_WRONLY) && !defined(AZTEC_C)) || defined(USE_FCNTL)
 #include <fcntl.h>
 #endif
 
@@ -543,6 +543,9 @@ clearlocks()
 	/* can't access maxledgerno() before dungeons are created -dlc */
 	for (x = (n_dgns ? maxledgerno() : 0); x >= 0; x--)
 		delete_levelfile(x);	/* not all levels need be present */
+#  ifdef WHEREIS_FILE
+	delete_whereis();
+#  endif
 #endif
 }
 
@@ -606,6 +609,112 @@ int fd;
 	return _close(fd);
 }
 #endif
+ 	
+#ifdef WISH_TRACKER
+const char* wish_tracker_file =
+# ifdef UNIX
+		"wishtracker";
+# else
+#  if defined(MAC) || defined(__BEOS__)
+		"Wish Tracker";
+#  else
+		"wishes.txt";
+#  endif
+# endif
+
+void
+trackwish(wishstring)
+char* wishstring;
+{
+	char bigbuf[512];
+	FILE* fp;
+
+	fp = fopen_datafile(wish_tracker_file,"a+",LEVELPREFIX);
+	if (fp) {
+		Sprintf(bigbuf,"%s wished for %s (%d%s wish, T:%d)\n",
+				plname,wishstring,u.uconduct.wishes,
+				u.uconduct.wishes == 1 ? "st" : u.uconduct.wishes == 2 ? "nd" : 
+				u.uconduct.wishes == 3 ? "rd" : "th",moves);
+		fwrite(bigbuf,strlen(bigbuf),1,fp);
+		fclose(fp);
+	}
+}
+
+/* Handles generic announcements.  Cheats and uses the wishtracker file. */
+void makeannounce(announcement)
+char* announcement;
+{
+	FILE* fp;
+	fp = fopen_datafile(wish_tracker_file,"a+",LEVELPREFIX);
+	if (fp) {
+		fwrite(announcement,strlen(announcement),1,fp);
+		if (announcement[strlen(announcement)-1] != '\n') { fwrite("\n",1,1,fp); }
+		fclose(fp);
+	}
+
+}
+#endif
+
+#ifdef WHEREIS_FILE
+void
+touch_whereis()
+{
+	/* Write out our current level and branch to name.whereis
+	 *
+	 *	Could eventually bolt on all kinds of info, but this way
+	 *	at least something which wants to can scan for the games.
+	 *
+	 * For now this only works on Win32 and UNIX.  I'm too lazy
+	 * to sort out all the proper other-OS stuff.
+	 */
+
+	FILE* fp;
+	char whereis_file[255];
+	char whereis_work[255];
+
+#ifdef WIN32
+	Sprintf(whereis_file,"%s-%s.whereis",get_username(0),plname);
+#else
+	Sprintf(whereis_file,"%d-%s.whereis",(int)getuid(),plname);
+#endif
+	Sprintf(whereis_work,"%d,%d,%d,%d,%d,0,0,%s,%s,%s,%d,%d\n",
+			depth(&u.uz), u.uz.dnum, u.uhp, u.uhpmax, moves,
+			urole.name.m,urace.adj,u.mfemale ? "F" : "M",u.ualign.type + 2,
+			u.uhave.amulet ? 1 : 0);
+	fp = fopen_datafile(whereis_file,"w",LEVELPREFIX);
+	if (fp) {
+		fwrite(whereis_work,strlen(whereis_work),1,fp);
+		fclose(fp);
+	}
+
+}
+
+
+/* Changed over to write out where the player last was when they
+ * left the game; including possibly 'dead' :) */
+void
+delete_whereis()
+{
+	FILE* fp;
+	char whereis_file[255];
+	char whereis_work[255];
+#if defined (WIN32)
+	Sprintf(whereis_file,"%s-%s.whereis",get_username(0),plname);
+#else
+	Sprintf(whereis_file,"%d-%s.whereis",(int)getuid(),plname);
+#endif
+	Sprintf(whereis_work,"%d,%d,%d,%d,%d,%d,1,%s,%s,%s,%d,%d\n",
+			depth(&u.uz), u.uz.dnum, u.uhp, u.uhpmax, moves, 
+			u.uevent.ascended ? 2 : killer ? 1 : 0,
+			urole.name.m,urace.adj,u.mfemale ? "F" : "M",u.ualign.type + 2,
+			u.uhave.amulet ? 1 : 0);
+	fp = fopen_datafile(whereis_file,"w",LEVELPREFIX);
+	if (fp) {
+		fwrite(whereis_work,strlen(whereis_work),1,fp);
+		fclose(fp);
+	}
+}
+#endif /* WHEREIS_FILE */
 	
 /* ----------  END LEVEL FILE HANDLING ----------- */
 
@@ -1286,8 +1395,11 @@ const char *filename;
 
 static int nesting = 0;
 
-#ifdef NO_FILE_LINKS	/* implies UNIX */
+#if defined(NO_FILE_LINKS) || defined(USE_FCNTL) 	/* implies UNIX */
 static int lockfd;	/* for lock_file() to pass to unlock_file() */
+#endif
+#ifdef USE_FCNTL
+struct flock sflock; /* for unlocking, same as above */
 #endif
 
 #define HUP	if (!program_state.done_hup)
@@ -1346,18 +1458,51 @@ int retryct;
 	    return TRUE;
 	}
 
+#ifndef USE_FCNTL
 	lockname = make_lockname(filename, locknambuf);
-	filename = fqname(filename, whichprefix, 0);
 #ifndef NO_FILE_LINKS	/* LOCKDIR should be subsumed by LOCKPREFIX */
 	lockname = fqname(lockname, LOCKPREFIX, 2);
 #endif
+#endif
+	filename = fqname(filename, whichprefix, 0);
+
+#ifdef USE_FCNTL
+	lockfd = open(filename,O_RDWR);
+	if (lockfd == -1) {
+		HUP raw_printf("Cannot open file %s. This is a program bug.",
+			filename);
+	}
+	sflock.l_type = F_WRLCK;
+	sflock.l_whence = SEEK_SET;
+	sflock.l_start = 0;
+	sflock.l_len = 0;
+#endif
 
 #if defined(UNIX) || defined(VMS)
+# ifdef USE_FCNTL
+	while (fcntl(lockfd,F_SETLK,&sflock) == -1) {
+# else 
 # ifdef NO_FILE_LINKS
 	while ((lockfd = open(lockname, O_RDWR|O_CREAT|O_EXCL, 0666)) == -1) {
 # else
 	while (link(filename, lockname) == -1) {
 # endif
+# endif 
+
+#ifdef USE_FCNTL
+		if (retryct--) {
+			HUP raw_printf(
+				"Waiting for release of fcntl lock on %s. (%d retries left).",
+				filename, retryct);
+			sleep(1);
+		} else {
+		    HUP (void) raw_print("I give up.  Sorry.");
+		    HUP raw_printf("Some other process has an unnatural grip on %s.",
+					filename);
+		    nesting--;
+		    return FALSE;
+		}
+#else
 	    register int errnosv = errno;
 
 	    switch (errnosv) {	/* George Barbanis */
@@ -1404,10 +1549,11 @@ int retryct;
 		return FALSE;
 	    }
 
+#endif /* USE_FCNTL */
 	}
 #endif  /* UNIX || VMS */
 
-#if defined(AMIGA) || defined(WIN32) || defined(MSDOS)
+#if (defined(AMIGA) || defined(WIN32) || defined(MSDOS)) && !defined(USE_FCNTL)
 # ifdef AMIGA
 #define OPENFAILURE(fd) (!fd)
     lockptr = 0;
@@ -1461,6 +1607,13 @@ const char *filename;
 	const char *lockname;
 
 	if (nesting == 1) {
+#ifdef USE_FCNTL
+		sflock.l_type = F_UNLCK;
+		if (fcntl(lockfd,F_SETLK,&sflock) == -1) {
+			HUP raw_printf("Can't remove fcntl lock on %s.", filename);
+			(void) close(lockfd);
+		}
+# else
 		lockname = make_lockname(filename, locknambuf);
 #ifndef NO_FILE_LINKS	/* LOCKDIR should be subsumed by LOCKPREFIX */
 		lockname = fqname(lockname, LOCKPREFIX, 2);
@@ -1480,6 +1633,7 @@ const char *filename;
 		DeleteFile(lockname);
 		lockptr = 0;
 #endif /* AMIGA || WIN32 || MSDOS */
+#endif /* USE_FCNTL */
 	}
 
 	nesting--;
@@ -1491,6 +1645,21 @@ const char *filename;
 /* ----------  BEGIN CONFIG FILE HANDLING ----------- */
 
 const char *configfile =
+#ifdef UNIX
+			".sporkrc";
+#else
+# if defined(MAC) || defined(__BEOS__)
+			"SporkHack Defaults";
+# else
+#  if defined(MSDOS) || defined(WIN32) || defined(NDS)
+			"defaults.sh";
+#  else
+			"SporkHack.cnf";
+#  endif
+# endif
+#endif
+
+const char *oldconfigfile =
 #ifdef UNIX
 			".nethackrc";
 #else
@@ -1504,6 +1673,7 @@ const char *configfile =
 #  endif
 # endif
 #endif
+
 
 
 #ifdef MSDOS
@@ -1564,8 +1734,10 @@ const char *filename;
 
 #if defined(MICRO) || defined(MAC) || defined(__BEOS__) || defined(WIN32) \
 	|| defined(NDS)
-	if ((fp = fopenp(fqname(configfile, CONFIGPREFIX, 0), "r"))
-								!= (FILE *)0)
+	if ((fp = fopenp(fqname(configfile, CONFIGPREFIX, 0), "r")) != (FILE *)0)
+		return(fp);
+	/* try .nethackrc? */
+	else if ((fp = fopenp(fqname(oldconfigfile, CONFIGPREFIX, 0), "r")) != (FILE *)0)
 		return(fp);
 # ifdef MSDOS
 	else if ((fp = fopenp(fqname(backward_compat_configfile,
@@ -1592,6 +1764,15 @@ const char *filename;
 		Sprintf(tmp_config, "%s%s", envp, "NetHack.cnf");
 	if ((fp = fopenp(tmp_config, "r")) != (FILE *)0)
 		return(fp);
+	else {
+		/* try .nethackrc? */
+		if (!envp)
+			Strcpy(tmp_config, oldconfigfile);
+		else
+			Sprintf(tmp_config, "%s/%s", envp, oldconfigfile);
+		if ((fp = fopenp(tmp_config, "r")) != (FILE *)0)
+			return(fp);
+	}
 # else	/* should be only UNIX left */
 	envp = nh_getenv("HOME");
 	if (!envp)
@@ -1838,10 +2019,18 @@ char		*tmp_levels;
 	} else if (match_varname(buf, "BOULDER", 3)) {
 	    (void) get_uchars(fp, buf, bufp, &iflags.bouldersym, TRUE,
 			      1, "BOULDER");
+	} else if (match_varname(buf, "MENUCOLOR", 9)) {
+#ifdef MENU_COLOR
+	    (void) add_menu_coloring(bufp);
+#endif
 	} else if (match_varname(buf, "GRAPHICS", 4)) {
 	    len = get_uchars(fp, buf, bufp, translate, FALSE,
 			     MAXPCHARS, "GRAPHICS");
 	    assign_graphics(translate, len, MAXPCHARS, 0);
+#if defined(STATUS_COLORS) && defined(TEXTCOLOR)
+	} else if (match_varname(buf, "STATUSCOLOR", 11)) {
+	    (void) parse_status_color_options(bufp);
+#endif
 	} else if (match_varname(buf, "DUNGEON", 4)) {
 	    len = get_uchars(fp, buf, bufp, translate, FALSE,
 			     MAXDCHARS, "DUNGEON");

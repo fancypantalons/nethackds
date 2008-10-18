@@ -14,7 +14,9 @@ STATIC_DCL char *FDECL(strprepend,(char *,const char *));
 static boolean FDECL(wishymatch, (const char *,const char *,BOOLEAN_P));
 #endif
 static char *NDECL(nextobuf);
-static void FDECL(add_erosion_words, (struct obj *, char *));
+#ifdef SORTLOOT
+char * FDECL(xname2, (struct obj *, boolean));
+#endif
 
 struct Jitem {
 	int item;
@@ -233,6 +235,15 @@ boolean juice;	/* whether or not to append " juice" to the name */
 char *
 xname(obj)
 register struct obj *obj;
+#ifdef SORTLOOT
+{
+	return xname2(obj, FALSE);
+}
+char *
+xname2(obj, ignore_oquan)
+register struct obj *obj;
+boolean ignore_oquan;
+#endif
 {
 	register char *buf;
 	register int typ = obj->otyp;
@@ -469,10 +480,17 @@ register struct obj *obj;
 	default:
 		Sprintf(buf,"glorkum %d %d %d", obj->oclass, typ, obj->spe);
 	}
+#ifdef SORTLOOT
+	if (!ignore_oquan)
+#endif
 	if (obj->quan != 1L) Strcpy(buf, makeplural(buf));
 
 	if (obj->onamelth && obj->dknown) {
+		if (obj->otyp == SKULL) {
+			Strcat(buf, " of ");		 /* cheesy hotwire */
+		} else {
 		Strcat(buf, " named ");
+		}
 nameit:
 		Strcat(buf, ONAME(obj));
 	}
@@ -517,15 +535,12 @@ register struct obj *obj;
 			 (obj->known || obj->otyp == AMULET_OF_YENDOR));
 }
 
-static void
+void
 add_erosion_words(obj,prefix)
 struct obj *obj;
 char *prefix;
 {
 	boolean iscrys = (obj->otyp == CRYSKNIFE);
-
-
-	if (!is_damageable(obj) && !iscrys) return;
 
 	/* The only cases where any of these bits do double duty are for
 	 * rotted food and diluted potions, which are all not is_damageable().
@@ -542,8 +557,9 @@ char *prefix;
 			case 2:	Strcat(prefix, "very "); break;
 			case 3:	Strcat(prefix, "thoroughly "); break;
 		}			
-		Strcat(prefix, is_corrodeable(obj) ? "corroded " :
-			"rotted ");
+		/* This catches things like dragonscale mail. */
+		Strcat(prefix, !is_damageable(obj) ? "deteriorated " : 
+				is_corrodeable(obj) ? "corroded " : "rotted ");
 	}
 	if (obj->rknown && obj->oerodeproof)
 		Strcat(prefix,
@@ -672,7 +688,7 @@ plus:
 				!obj->lamplit ? " attached" : ", lit");
 			break;
 		} else if (obj->otyp == OIL_LAMP || obj->otyp == MAGIC_LAMP ||
-			obj->otyp == BRASS_LANTERN || Is_candle(obj)) {
+			obj->otyp == BRASS_LANTERN || obj->otyp == BAG_OF_POO || Is_candle(obj)) {
 			if (Is_candle(obj) &&
 			    obj->age < 20L * (long)objects[obj->otyp].oc_cost)
 				Strcat(prefix, "partly used ");
@@ -763,6 +779,7 @@ ring:
 			Strcat(bp, " (alternate weapon; not wielded)");
 	}
 	if(obj->owornmask & W_QUIVER) Strcat(bp, " (in quiver)");
+	if(obj->owornmask & W_LAUNCHER) Strcat(bp, " (chosen ranged weapon)");
 	if(obj->unpaid) {
 		xchar ox, oy; 
 		long quotedprice = unpaid_cost(obj);
@@ -853,6 +870,16 @@ struct obj *obj;
 	    return corpse_xname(obj, FALSE);
 	return xname(obj);
 }
+#ifdef SORTLOOT
+char *
+cxname2(obj)
+struct obj *obj;
+{
+	if (obj->otyp == CORPSE)
+	    return corpse_xname(obj, TRUE);
+	return xname2(obj, TRUE);
+}
+#endif /* SORTLOOT */
 
 /* treat an object as fully ID'd when it might be used as reason for death */
 char *
@@ -1496,7 +1523,7 @@ STATIC_DCL const struct o_range o_ranges[];
 
 /* wishable subranges of objects */
 STATIC_OVL NEARDATA const struct o_range o_ranges[] = {
-	{ "bag",	TOOL_CLASS,   SACK,	      BAG_OF_TRICKS },
+	{ "bag",	TOOL_CLASS,   SMALL_SACK,     BAG_OF_POO },
 	{ "lamp",	TOOL_CLASS,   OIL_LAMP,	      MAGIC_LAMP },
 	{ "candle",	TOOL_CLASS,   TALLOW_CANDLE,  WAX_CANDLE },
 	{ "horn",	TOOL_CLASS,   TOOLED_HORN,    HORN_OF_PLENTY },
@@ -1519,7 +1546,6 @@ STATIC_OVL NEARDATA const struct o_range o_ranges[] = {
 	{ "venom",	VENOM_CLASS,  BLINDING_VENOM, ACID_VENOM },
 #endif
 	{ "gray stone",	GEM_CLASS,    LUCKSTONE,      FLINT },
-	{ "grey stone",	GEM_CLASS,    LUCKSTONE,      FLINT },
 };
 
 #define BSTRCMP(base,ptr,string) ((ptr) < base || strcmp((ptr),string))
@@ -1721,10 +1747,13 @@ struct alt_spellings {
 	{ "scroll of destroy armour", SCR_DESTROY_ARMOR },
 	{ "leather armour", LEATHER_ARMOR },
 	{ "studded leather armour", STUDDED_LEATHER_ARMOR },
+	{ "spellbook of repair armour", SPE_REPAIR_ARMOR },
 	{ "iron ball", HEAVY_IRON_BALL },
 	{ "lantern", BRASS_LANTERN },
+	{ "bag of poop", BAG_OF_POO },
 	{ "mattock", DWARVISH_MATTOCK },
 	{ "amulet of poison resistance", AMULET_VERSUS_POISON },
+	{ "salt", SALT_CHUNK },
 	{ "stone", ROCK },
 #ifdef TOURIST
 	{ "camera", EXPENSIVE_CAMERA },
@@ -2462,7 +2491,7 @@ typfnd:
 	}
 
 	if (islit &&
-		(typ == OIL_LAMP || typ == MAGIC_LAMP || typ == BRASS_LANTERN ||
+		(typ == OIL_LAMP || typ == MAGIC_LAMP || typ == BRASS_LANTERN || typ == BAG_OF_POO ||
 		 Is_candle(otmp) || typ == POT_OIL)) {
 	    place_object(otmp, u.ux, u.uy);  /* make it viable light source */
 	    begin_burn(otmp, FALSE);
@@ -2516,7 +2545,7 @@ typfnd:
 			break;
 		case SLIME_MOLD: otmp->spe = ftype;
 			/* Fall through */
-		case SKELETON_KEY: case CHEST: case LARGE_BOX:
+		case SKELETON_KEY: case CHEST: case LARGE_BOX: case IRON_SAFE:
 		case HEAVY_IRON_BALL: case IRON_CHAIN: case STATUE:
 			/* otmp->cobj already done in mksobj() */
 				break;

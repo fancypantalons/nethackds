@@ -257,7 +257,7 @@ register char *s;
 char *get_username(lan_username_size)
 int *lan_username_size;
 {
-	static char username_buffer[BUFSZ] = "NetHack\0";	// will get it from preferences at some point
+	static char username_buffer[BUFSZ] = "SporkHack\0";	// will get it from preferences at some point
 	
 	//unsigned int status;
 	//int i = BUFSZ - 1;
@@ -265,14 +265,14 @@ int *lan_username_size;
 	/* i gets updated with actual size */
 	//status = GetUserName(username_buffer, &i);		
 	//if (status) username_buffer[i] = '\0';
-	//else Strcpy(username_buffer, "NetHack");
+	//else Strcpy(username_buffer, "SporkHack");
 	if (lan_username_size) *lan_username_size = strlen(username_buffer);
 	return username_buffer;
 }
 
 char* ds_getenv(const char* vn) {
-	static char* path = ".;/NetHack";
-	static char* hackdir = "/NetHack";
+	static char* path = ".;/SporkHack";
+	static char* hackdir = "/SporkHack";
 	if (!stricmp(vn,"PATH")) return path;
 	if (!stricmp(vn,"HACKDIR")) return hackdir;
 	return 0;

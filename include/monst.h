@@ -63,6 +63,26 @@ struct monst {
 	unsigned short mintrinsics;	/* low 8 correspond to mresists */
 	int mspec_used;		/* monster's special ability attack timeout */
 
+/* These should stay in the same order as monattk.h so
+ * the mask translations will work properly */
+
+#define M_SEEN_NOTHING	0x0000
+#define M_SEEN_MAGR		0x0001
+#define M_SEEN_FIRE		0x0002
+#define M_SEEN_COLD		0x0004
+#define M_SEEN_SLEEP		0x0008
+#define M_SEEN_DISINT	0x0010
+#define M_SEEN_ELEC		0x0020
+#define M_SEEN_POISON	0x0040
+#define M_SEEN_ACID	 	0x0080
+#define M_SEEN_REFL		0x0100
+
+#define m_seenres(mon,mask)	((mon)->seen_resistance & (mask))
+#define m_setseen(mon,mask)	((mon)->seen_resistance |= (mask))
+#define m_sawlose(mon,mask)	((mon)->seen_resistance &= (~mask))
+
+	unsigned long seen_resistance;  /* Has seen you resist an element or magical effect */
+
 	Bitfield(female,1);	/* is female */
 	Bitfield(minvis,1);	/* currently invisible */
 	Bitfield(invis_blkd,1); /* invisibility blocked */
@@ -95,6 +115,7 @@ struct monst {
 
 	Bitfield(mcanmove,1);	/* paralysis, similar to mblinded */
 	Bitfield(mfrozen,7);
+	Bitfield(mflying,1);	  /* is monster levitating/flying artificially? */
 
 	Bitfield(msleeping,1);	/* asleep until woken */
 	Bitfield(mstun,1);	/* stunned (off balance) */
@@ -102,9 +123,12 @@ struct monst {
 	Bitfield(mpeaceful,1);	/* does not attack unprovoked */
 	Bitfield(mtrapped,1);	/* trapped in a pit, web or bear trap */
 	Bitfield(mleashed,1);	/* monster is on a leash */
+	Bitfield(mberserk,1);    /* monster is berserk */
+
 	Bitfield(isshk,1);	/* is shopkeeper */
 	Bitfield(isminion,1);	/* is a minion */
 
+	Bitfield(isshopguard,1);	 /* monster is a shop guard */
 	Bitfield(isgd,1);	/* is guard */
 	Bitfield(ispriest,1);	/* is a priest */
 	Bitfield(iswiz,1);	/* is the Wizard of Yendor */

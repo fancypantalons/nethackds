@@ -31,7 +31,7 @@ register struct monst *mtmp;
 	}
 	wake_nearto(mtmp->mx, mtmp->my, 7*7);
 	mtmp->mstun = 1;
-	mtmp->mhp -= rnd(15);
+	damage_mon(mtmp,rnd(15),AD_PHYS);
 	if(mtmp->mhp <= 0) {
 		mondied(mtmp);
 		if (mtmp->mhp > 0) /* lifesaved */
@@ -131,15 +131,28 @@ onscary(x, y, mtmp)
 int x, y;
 struct monst *mtmp;
 {
+	int resist_percentage;
+	boolean mresists;
+
 	if (mtmp->isshk || mtmp->isgd || mtmp->iswiz || !mtmp->mcansee ||
 	    mtmp->mpeaceful || mtmp->data->mlet == S_HUMAN ||
 	    is_lminion(mtmp) || mtmp->data == &mons[PM_ANGEL] ||
-	    is_rider(mtmp->data) || mtmp->data == &mons[PM_MINOTAUR])
+	    is_rider(mtmp->data) || mtmp->data == &mons[PM_MINOTAUR] ||
+		 mtmp->mnum == quest_info(MS_NEMESIS) || mtmp->mnum == PM_VLAD_THE_IMPALER)
 		return(FALSE);
+
+	/* the smallest monsters always respect Elbereth;
+	 * more powerful things less so */
+	if (mtmp->m_lev < 10) {
+		resist_percentage = (int)(mtmp->m_lev * 1.5) - 3;
+	} else {
+		resist_percentage = (int)(mtmp->m_lev * 2.0);
+	}
+	mresists = rn2(100) < resist_percentage;
 
 	return (boolean)(sobj_at(SCR_SCARE_MONSTER, x, y)
 #ifdef ELBERETH
-			 || sengr_at("Elbereth", x, y)
+			 || (sengr_at("Elbereth", x, y) && !mresists)
 #endif
 			 || (mtmp->data->mlet == S_VAMPIRE
 			     && IS_ALTAR(levl[x][y].typ)));
@@ -212,6 +225,8 @@ int fleetime;
 boolean first;
 boolean fleemsg;
 {
+	struct monst* mtmp2;
+
 	if (u.ustuck == mtmp) {
 	    if (u.uswallow)
 		expels(mtmp, mtmp->data, TRUE);
@@ -231,8 +246,25 @@ boolean fleemsg;
 		if (fleetime == 1) fleetime++;
 		mtmp->mfleetim = min(fleetime, 127);
 	    }
-	    if (!mtmp->mflee && fleemsg && canseemon(mtmp) && !mtmp->mfrozen)
+	    if (!mtmp->mflee && fleemsg && !mtmp->mfrozen) {
+			 /* mindless, silent, and critters without proper voices 
+			  * won't scream, of course. */
+			 if (!rn2(8) && !mindless(mtmp->data) && !is_silent(mtmp->data) &&
+					 mtmp->data->msound != MS_BUZZ && mtmp->data->msound != MS_HISS) {
+				if (canseemon(mtmp))
+					pline("%s screams in terror!",Monnam(mtmp));
+				else 
+					You_hear("a frightened squeal!");
+				/* Check and see who was close enough to hear it */
+				for (mtmp2 = fmon; mtmp2; mtmp2 = mtmp2->nmon) {
+					if (dist2(mtmp->mx,mtmp->my,mtmp2->mx,mtmp2->my) < 19 && !rn2(3)) {
+						mtmp2->msleeping = 0;
+					}
+			   }
+			 }
+			 if (canseemon(mtmp))
 		pline("%s turns to flee!", (Monnam(mtmp)));
+		 }
 	    mtmp->mflee = 1;
 	}
 }
@@ -296,7 +328,8 @@ register struct monst *mtmp;
 {
 	register struct permonst *mdat;
 	register int tmp=0;
-	int inrange, nearby, scared;
+	struct monst* mdummy;
+	int inrange, nearby, scared, oldx, oldy;
 #ifdef GOLDOBJ
         struct obj *ygold = 0, *lepgold = 0;
 #endif
@@ -335,6 +368,29 @@ register struct monst *mtmp;
 	/* not frozen or sleeping: wipe out texts written in the dust */
 	wipe_engr_at(mtmp->mx, mtmp->my, 1);
 
+	/* special snark code; if it's next to you, you might discover
+	 * that it's a Boojum, and we need to swap out monsters in that case
+	 */
+	if (mtmp->mnum == PM_SNARK && distu(mtmp->mx,mtmp->my) <= 2) {
+		if (mtmp->m_id % 3 < 1) {
+			oldx = mtmp->mx; oldy = mtmp->my;
+			mongone(mtmp);
+			mdummy = makemon(&mons[PM_BOOJUM], oldx, oldy, NO_MM_FLAGS);
+			/* If someone has managed to extinct boojum, this will
+			 * result in the monster just vanishing.  But this should
+			 * be fairly difficult to do, since boojum only generate
+			 * from snarks at a rate of one snark, one boojum. */
+			if (mdummy) {
+				mtmp = mdummy;
+				if (canseemon(mtmp)) {
+					pline("Oh, no, this Snark is a Boojum!");
+				}
+			} else {
+				return(0);	// mtmp just went away, we'd better bail out
+			}
+		}
+	}
+
 	/* confused monsters get unconfused with small probability */
 	if (mtmp->mconf && !rn2(50)) mtmp->mconf = 0;
 
@@ -363,9 +419,12 @@ register struct monst *mtmp;
 	 * inrange, etc. all depend on stuff set by set_apparxy().
 	 */
 
-	/* Monsters that want to acquire things */
-	/* may teleport, so do it before inrange is set */
-	if(is_covetous(mdat)) (void) tactics(mtmp);
+	/* Monsters that want to acquire things may teleport, so do it 
+	 * before inrange is set
+	 * ...don't let peaceful covetous monsters stay underfoot, but
+	 * also don't stop demon princes from teleporting to you to get bribed */
+	if(is_covetous(mdat) && (!mtmp->mpeaceful || is_dprince(mtmp->data))) 
+			(void) tactics(mtmp);
 
 	/* check distance and scariness of attacks */
 	distfleeck(mtmp,&inrange,&nearby,&scared);
@@ -407,13 +466,17 @@ register struct monst *mtmp;
 
 		if (canseemon(mtmp))
 			pline("%s concentrates.", Monnam(mtmp));
-		if (distu(mtmp->mx, mtmp->my) > BOLT_LIM * BOLT_LIM) {
+		/* tinfoil hat is the only way to get blocked telepathy, so
+		 * it'll protect us here, though so should other future things 
+		 * that might block telepathy */
+		if (distu(mtmp->mx, mtmp->my) > BOLT_LIM * BOLT_LIM && !BTelepat) {
 			You("sense a faint wave of psychic energy.");
 			goto toofar;
 		}
+		if (!BTelepat) {
 		pline("A wave of psychic energy pours over you!");
 		if (mtmp->mpeaceful &&
-		    (!Conflict || resist(mtmp, RING_CLASS, 0, 0)))
+				(!Conflict || resist_conflict(mtmp)))
 			pline("It feels quite soothing.");
 		else {
 			register boolean m_sen = sensemon(mtmp);
@@ -428,6 +491,7 @@ register struct monst *mtmp;
 				losehp(dmg, "psychic blast", KILLED_BY_AN);
 			}
 		}
+		}
 		for(m2=fmon; m2; m2 = nmon) {
 			nmon = m2->nmon;
 			if (DEADMONSTER(m2)) continue;
@@ -438,7 +502,7 @@ register struct monst *mtmp;
 			    (rn2(2) || m2->mblinded)) || !rn2(10)) {
 				if (cansee(m2->mx, m2->my))
 				    pline("It locks on to %s.", mon_nam(m2));
-				m2->mhp -= rnd(15);
+				damage_mon(m2,rnd(15),AD_DRIN);
 				if (m2->mhp <= 0)
 				    monkilled(m2, "", AD_DRIN);
 				else
@@ -488,7 +552,7 @@ toofar:
 	   mtmp->mconf || mtmp->mstun || (mtmp->minvis && !rn2(3)) ||
 	   (mdat->mlet == S_LEPRECHAUN && !ygold && (lepgold || rn2(2))) ||
 #endif
-	   (is_wanderer(mdat) && !rn2(4)) || (Conflict && !mtmp->iswiz) ||
+	   (is_wanderer(mdat) && !rn2(4)) || (Conflict && !mtmp->iswiz) || is_skittish(mdat) ||
 	   (!mtmp->mcansee && !rn2(4)) || mtmp->mpeaceful) {
 		/* Possibly cast an undirected spell if not attacking you */
 		/* note that most of the time castmu() will pick a directed
@@ -502,7 +566,7 @@ toofar:
 		    for (a = &mdat->mattk[0]; a < &mdat->mattk[NATTK]; a++) {
 			if (a->aatyp == AT_MAGC && (a->adtyp == AD_SPEL || a->adtyp == AD_CLRC)) {
 			    if (castmu(mtmp, a, FALSE, FALSE)) {
-				tmp = 3;
+						tmp = is_skittish(mdat) ? 0 : 3;
 				break;
 			    }
 			}
@@ -547,8 +611,7 @@ toofar:
 
 /*	Now, attack the player if possible - one attack set per monst	*/
 
-	if (!mtmp->mpeaceful ||
-	    (Conflict && !resist(mtmp, RING_CLASS, 0, 0))) {
+	if (!mtmp->mpeaceful || (Conflict && !resist_conflict(mtmp))) {
 	    if(inrange && !noattacks(mdat) && u.uhp > 0 && !scared && tmp != 3)
 		if(mattacku(mtmp)) return(1); /* monster died (e.g. exploded) */
 
@@ -599,7 +662,7 @@ register int after;
 	xchar gx,gy,nix,niy,chcnt;
 	int chi;	/* could be schar except for stupid Sun-2 compiler */
 	boolean likegold=0, likegems=0, likeobjs=0, likemagic=0, conceals=0;
-	boolean likerock=0, can_tunnel=0;
+	boolean likerock=0, can_tunnel=0, breakrock=0;
 	boolean can_open=0, can_unlock=0, doorbuster=0;
 	boolean uses_items=0, setlikes=0;
 	boolean avoid=FALSE;
@@ -662,7 +725,7 @@ register int after;
 	}
 
 	/* and the acquisitive monsters get special treatment */
-	if(is_covetous(ptr)) {
+	if(is_covetous(ptr) && !mtmp->mpeaceful) {
 	    xchar tx = STRAT_GOALX(mtmp->mstrategy),
 		  ty = STRAT_GOALY(mtmp->mstrategy);
 	    struct monst *intruder = m_at(tx, ty);
@@ -714,6 +777,10 @@ not_special:
 	gx = mtmp->mux;
 	gy = mtmp->muy;
 	appr = mtmp->mflee ? -1 : 1;
+	/* does this monster like to play keep-away? */
+	if (is_skittish(ptr) && (dist2(mtmp->mx, mtmp->my, mtmp->mux, mtmp->muy) < 10)) {
+		appr = -1;
+	}
 	if (mtmp->mconf || (u.uswallow && mtmp == u.ustuck))
 		appr = 0;
 	else {
@@ -779,7 +846,8 @@ not_special:
 			&& pctload < 75);
 		likeobjs = (likes_objs(ptr) && pctload < 75);
 		likemagic = (likes_magic(ptr) && pctload < 85);
-		likerock = (throws_rocks(ptr) && pctload < 50 && !In_sokoban(&u.uz));
+		likerock = ((throws_rocks(ptr) && pctload < 50 && !In_sokoban(&u.uz)));
+		breakrock = is_rockbreaker(ptr);
 		conceals = hides_under(ptr);
 		setlikes = TRUE;
 	    }
@@ -798,7 +866,7 @@ not_special:
 	/* guards shouldn't get too distracted */
 	if(!mtmp->mpeaceful && is_mercenary(ptr)) minr = 1;
 
-	if((likegold || likegems || likeobjs || likemagic || likerock || conceals)
+	if((likegold || likegems || likeobjs || likemagic || likerock || breakrock || conceals)
 	      && (!*in_rooms(omx, omy, SHOPBASE) || (!rn2(25) && !mtmp->isshk))) {
 	look_for_obj:
 	    oomx = min(COLNO-1, omx+minr);
@@ -831,7 +899,7 @@ not_special:
 			   && !is_rider(&mons[otmp->corpsenm])))) ||
 		       (likemagic && index(magical, otmp->oclass)) ||
 		       (uses_items && searches_for_item(mtmp, otmp)) ||
-		       (likerock && otmp->otyp == BOULDER) ||
+		       ((likerock) && otmp->otyp == BOULDER) ||
 		       (likegems && otmp->oclass == GEM_CLASS &&
 			objects[otmp->otyp].oc_material != MINERAL) ||
 		       (conceals && !cansee(otmp->ox,otmp->oy)) ||
@@ -865,7 +933,7 @@ not_special:
 	} else if(likegold) {
 	    /* don't try to pick up anything else, but use the same loop */
 	    uses_items = 0;
-	    likegems = likeobjs = likemagic = likerock = conceals = 0;
+	    likegems = likeobjs = likemagic = likerock = breakrock = conceals = 0;
 	    goto look_for_obj;
 	}
 
@@ -887,7 +955,7 @@ not_special:
 	nix = omx;
 	niy = omy;
 	flag = 0L;
-	if (mtmp->mpeaceful && (!Conflict || resist(mtmp, RING_CLASS, 0, 0)))
+	if (mtmp->mpeaceful && (!Conflict || resist_conflict(mtmp)))
 	    flag |= (ALLOW_SANCT | ALLOW_SSM);
 	else flag |= ALLOW_U;
 	if (is_minion(ptr) || is_rider(ptr)) flag |= ALLOW_SANCT;
@@ -898,7 +966,9 @@ not_special:
 	if (can_tunnel) flag |= ALLOW_DIG;
 	if (is_human(ptr) || ptr == &mons[PM_MINOTAUR]) flag |= ALLOW_SSM;
 	if (is_undead(ptr) && ptr->mlet != S_GHOST) flag |= NOGARLIC;
-	if (throws_rocks(ptr)) flag |= ALLOW_ROCK;
+	if (throws_rocks(ptr) || is_rockbreaker(ptr)) {
+		flag |= ALLOW_ROCK;	
+	}
 	if (can_open) flag |= OPENDOOR;
 	if (can_unlock) flag |= UNLOCKDOOR;
 	if (doorbuster) flag |= BUSTDOOR;
@@ -1162,8 +1232,8 @@ postmov:
 				  && pctload < 75);
 		    likeobjs = (likes_objs(ptr) && pctload < 75);
 		    likemagic = (likes_magic(ptr) && pctload < 85);
-		    likerock = (throws_rocks(ptr) && pctload < 50 &&
-				!In_sokoban(&u.uz));
+		    likerock = ((throws_rocks(ptr) && pctload < 50 && !In_sokoban(&u.uz))); 
+			 breakrock = is_rockbreaker(ptr);
 		    conceals = hides_under(ptr);
 		}
 
@@ -1184,7 +1254,7 @@ postmov:
 
 		    if(likeobjs) picked |= mpickstuff(mtmp, practical);
 		    if(likemagic) picked |= mpickstuff(mtmp, magical);
-		    if(likerock) picked |= mpickstuff(mtmp, boulder_class);
+		    if(likerock || breakrock) picked |= mpickstuff(mtmp, boulder_class);
 		    if(likegems) picked |= mpickstuff(mtmp, gem_class);
 		    if(uses_items) picked |= mpickstuff(mtmp, (char *)0);
 		    if(picked) mmoved = 3;
@@ -1350,7 +1420,7 @@ struct monst *mtmp;
 #ifdef WIZARD
 		    obj->oclass != VENOM_CLASS &&
 #endif
-		    typ != SACK && typ != BAG_OF_HOLDING &&
+		    typ != SMALL_SACK && typ != SACK && typ != BAG_OF_HOLDING &&
 		    typ != BAG_OF_TRICKS && !Is_candle(obj) &&
 		    typ != OILSKIN_SACK && typ != LEASH &&
 		    typ != STETHOSCOPE && typ != BLINDFOLD && typ != TOWEL &&

@@ -3,6 +3,8 @@
 /* NetHack may be freely redistributed.  See license for details. */
 
 #include "hack.h"
+#include "edog.h"
+#include "epri.h"
 
 /* monster mage spells */
 #define MGC_PSI_BOLT	 0
@@ -17,6 +19,8 @@
 #define MGC_SUMMON_MONS	 9
 #define MGC_CLONE_WIZ	10
 #define MGC_DEATH_TOUCH	11
+#define MGC_FLY			12
+#define MGC_ENRAGE		13
 
 /* monster cleric spells */
 #define CLC_OPEN_WOUNDS	 0
@@ -29,14 +33,18 @@
 #define CLC_LIGHTNING	 7
 #define CLC_FIRE_PILLAR	 8
 #define CLC_GEYSER	 9
+#define CLC_FLY			10
+#define CLC_VULN_YOU		11
+#define CLC_SUMMON_ELM  12
 
 STATIC_DCL void FDECL(cursetxt,(struct monst *,BOOLEAN_P));
-STATIC_DCL int FDECL(choose_magic_spell, (int));
-STATIC_DCL int FDECL(choose_clerical_spell, (int));
+STATIC_DCL int FDECL(choose_magic_spell, (struct monst *, int));
+STATIC_DCL int FDECL(choose_clerical_spell, (struct monst *, int));
 STATIC_DCL void FDECL(cast_wizard_spell,(struct monst *, int,int));
 STATIC_DCL void FDECL(cast_cleric_spell,(struct monst *, int,int));
 STATIC_DCL boolean FDECL(is_undirected_spell,(unsigned int,int));
 STATIC_DCL boolean FDECL(spell_would_be_useless,(struct monst *,unsigned int,int));
+STATIC_DCL void FDECL(cast_fly,(struct monst *));
 
 #ifdef OVL0
 
@@ -77,28 +85,40 @@ boolean undirected;
 /* convert a level based random selection into a specific mage spell;
    inappropriate choices will be screened out by spell_would_be_useless() */
 STATIC_OVL int
-choose_magic_spell(spellval)
+choose_magic_spell(mtmp,spellval)
+struct monst* mtmp;
 int spellval;
 {
+	struct trap* tr;
+
+	/* If we're stuck in a pit, we know a way out */
+	tr = t_at(mtmp->mx,mtmp->my);
+	if (mtmp->mtrapped && tr && (tr->ttyp == PIT || tr->ttyp == SPIKED_PIT) 
+			&& mtmp->m_lev > 5) { spellval = 5; }
+
+	/* If we're hurt, seriously consider giving fixing ourselves priority */
+	if ((mtmp->mhp * 4) <= mtmp->mhpmax) { spellval = 1; }
+
     switch (spellval) {
     case 22:
     case 21:
-    case 20:
 	return MGC_DEATH_TOUCH;
+		case 20:
     case 19:
-    case 18:
 	return MGC_CLONE_WIZ;
+		case 18:
     case 17:
+			return MGC_ENRAGE;
     case 16:
     case 15:
 	return MGC_SUMMON_MONS;
     case 14:
-    case 13:
 	return MGC_AGGRAVATION;
+		case 13:
     case 12:
     case 11:
-    case 10:
 	return MGC_CURSE_ITEMS;
+		case 10:
     case 9:
     case 8:
 	return MGC_DESTRY_ARMR;
@@ -106,6 +126,7 @@ int spellval;
     case 6:
 	return MGC_WEAKEN_YOU;
     case 5:
+			return MGC_FLY;
     case 4:
 	return MGC_DISAPPEAR;
     case 3:
@@ -122,28 +143,43 @@ int spellval;
 
 /* convert a level based random selection into a specific cleric spell */
 STATIC_OVL int
-choose_clerical_spell(spellnum)
+choose_clerical_spell(mtmp,spellnum)
+struct monst* mtmp;
 int spellnum;
 {
+	struct trap* tr;
+
+	/* If we're stuck in a pit, we know a way out */
+	tr = t_at(mtmp->mx,mtmp->my);
+	if (mtmp->mtrapped && tr && (tr->ttyp == PIT || tr->ttyp == SPIKED_PIT) 
+			&& mtmp->m_lev > 3) { spellnum = 3; }
+
+	/* If we're hurt, seriously consider giving fixing ourselves priority */
+	if ((mtmp->mhp * 4) <= mtmp->mhpmax) { spellnum = 1; }
+
     switch (spellnum) {
+		case 14:
+			return CLC_SUMMON_ELM;
     case 13:
 	return CLC_GEYSER;
     case 12:
 	return CLC_FIRE_PILLAR;
     case 11:
-	return CLC_LIGHTNING;
     case 10:
+			return CLC_PARALYZE;
     case 9:
-	return CLC_CURSE_ITEMS;
+			return CLC_LIGHTNING;
     case 8:
-	return CLC_INSECTS;
     case 7:
+			return CLC_CURSE_ITEMS;
     case 6:
-	return CLC_BLIND_YOU;
+			return CLC_INSECTS;
     case 5:
+			return CLC_BLIND_YOU;
     case 4:
-	return CLC_PARALYZE;
+			return CLC_FLY;
     case 3:
+			return CLC_VULN_YOU;
     case 2:
 	return CLC_CONFUSE_YOU;
     case 1:
@@ -187,9 +223,9 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 	    do {
 		spellnum = rn2(ml);
 		if (mattk->adtyp == AD_SPEL)
-		    spellnum = choose_magic_spell(spellnum);
+		    spellnum = choose_magic_spell(mtmp,spellnum);
 		else
-		    spellnum = choose_clerical_spell(spellnum);
+		    spellnum = choose_clerical_spell(mtmp,spellnum);
 		/* not trying to attack?  don't allow directed spells */
 		if (!thinks_it_foundyou) {
 		    if (!is_undirected_spell(mattk->adtyp, spellnum) ||
@@ -214,6 +250,8 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 	if (mattk->adtyp == AD_SPEL || mattk->adtyp == AD_CLRC) {
 	    mtmp->mspec_used = 10 - mtmp->m_lev;
 	    if (mtmp->mspec_used < 2) mtmp->mspec_used = 2;
+		 /* your quest leader is a badass and does not need recharge time */
+		 if (mtmp->data->msound == MS_LEADER) mtmp->mspec_used = 0;
 	}
 
 	/* monster can cast spells, but is casting a directed spell at the
@@ -269,28 +307,36 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 
 	    case AD_FIRE:
 		pline("You're enveloped in flames.");
-		if(Fire_resistance) {
+		if (how_resistant(FIRE_RES) == 100) {
 			shieldeff(u.ux, u.uy);
 			pline("But you resist the effects.");
+			monstseesu(M_SEEN_FIRE);
 			dmg = 0;
+		} else {
+			dmg = resist_reduce(dmg,FIRE_RES);
 		}
 		burn_away_slime();
 		break;
 	    case AD_COLD:
 		pline("You're covered in frost.");
-		if(Cold_resistance) {
+		if(how_resistant(COLD_RES) == 100) {
 			shieldeff(u.ux, u.uy);
 			pline("But you resist the effects.");
+			monstseesu(M_SEEN_COLD);
 			dmg = 0;
+		} else {
+			dmg = resist_reduce(dmg,COLD_RES);
 		}
 		break;
 	    case AD_MAGM:
 		You("are hit by a shower of missiles!");
+		dmg = d((int)mtmp->m_lev/2 + 1,6);
 		if(Antimagic) {
 			shieldeff(u.ux, u.uy);
-			pline_The("missiles bounce off!");
-			dmg = 0;
-		} else dmg = d((int)mtmp->m_lev/2 + 1,6);
+			pline("Some of the missiles bounce off!");
+			monstseesu(M_SEEN_MAGR);
+			dmg /= 2;
+		}
 		break;
 	    case AD_SPEL:	/* wizard spell */
 	    case AD_CLRC:       /* clerical spell */
@@ -323,6 +369,13 @@ struct monst *mtmp;
 int dmg;
 int spellnum;
 {
+	struct obj* oatmp;
+	struct monst* mtmp2;
+	int erodelvl;
+	const char* desc = 0;
+	int seen,count;
+	struct edog* edog;
+
     if (dmg == 0 && !is_undirected_spell(AD_SPEL, spellnum)) {
 	impossible("cast directed wizard spell (%d) with dmg=0?", spellnum);
 	return;
@@ -333,17 +386,21 @@ int spellnum;
 	pline("Oh no, %s's using the touch of death!", mhe(mtmp));
 	if (nonliving(youmonst.data) || is_demon(youmonst.data)) {
 	    You("seem no deader than before.");
-	} else if (!Antimagic && rn2(mtmp->m_lev) > 12) {
+	} else {
 	    if (Hallucination) {
 		You("have an out of body experience.");
 	    } else {
-		killer_format = KILLED_BY_AN;
-		killer = "touch of death";
-		done(DIED);
+			dmg = d(8,6);
+			/* Magic resistance or half spell damage will cut this in half... */
+			if (Antimagic || Half_spell_damage) {
+				shieldeff(u.ux, u.uy);
+				monstseesu(M_SEEN_MAGR);
+				dmg /= 2;
+			}
+			You("feel drained...");
+			gainmaxhp(dmg/-2);
+			losehp(dmg,"touch of death",KILLED_BY_AN);
 	    }
-	} else {
-	    if (Antimagic) shieldeff(u.ux, u.uy);
-	    pline("Lucky for you, it didn't work!");
 	}
 	dmg = 0;
 	break;
@@ -355,11 +412,49 @@ int spellnum;
 	} else
 	    impossible("bad wizard cloning?");
 	break;
+	/* Inspire critters to fight a little more vigorously...
+	 *
+	 * -- Peaceful critters may become hostile.
+	 * -- Hostile critters may become berserk.
+	 * -- Borderline tame critters, or tame critters
+	 *    who have been treated poorly may ALSO become hostile!
+	 */
+	 case MGC_ENRAGE:
+		for (mtmp2 = fmon; mtmp2; mtmp2 = mtmp2->nmon) {
+			if (m_cansee(mtmp,mtmp2->mx,mtmp2->my) && rn2(3) &&
+					mtmp2 != mtmp && distu(mtmp2->mx,mtmp2->my) < 16) {
+				seen++;
+				if (mtmp2->mtame) {
+					edog = (mtmp2->isminion) ? 0 : EDOG(mtmp2);
+					if (mtmp2->mtame <= 3 || (edog && edog->abuse >= 5)) {
+						mtmp2->mtame = mtmp2->mpeaceful = 0;
+						if (mtmp2->mleashed) { m_unleash(mtmp2,FALSE); }
+						count++;
+					}
+				} else if (mtmp2->mpeaceful) {
+					mtmp2->mpeaceful = 0;
+					count++;
+				} else {
+					mtmp2->mberserk = 1;
+					count++;
+				}
+			}
+		}
+		/* Don't yell if we didn't see anyone to yell at. */
+		if (seen && (!rn2(3) || mtmp->iswiz)) {
+			verbalize("Get %s, you fools, or I'll have your figgin on a stick!",uhim());
+		}
+		if (count) {
+			pline("It seems a little more dangerous here now...");
+			doredraw();
+		}
+		dmg = 0;
+		break;
     case MGC_SUMMON_MONS:
     {
 	int count;
 
-	count = nasty(mtmp);	/* summon something nasty */
+	count = nasty(mtmp,FALSE);	/* summon something nasty */
 	if (mtmp->iswiz)
 	    verbalize("Destroy the thief, my pet%s!", plur(count));
 	else {
@@ -390,10 +485,30 @@ int spellnum;
 	dmg = 0;
 	break;
     case MGC_DESTRY_ARMR:
+	/* Magic resistance will reduce the amount by which your stuff is fiddled,
+	 * but it won't actually stop things from being damaged */
+	erodelvl = rnd(3);
 	if (Antimagic) {
 	    shieldeff(u.ux, u.uy);
-	    pline("A field of force surrounds you!");
-	} else if (!destroy_arm(some_armor(&youmonst))) {
+		monstseesu(M_SEEN_MAGR);
+		erodelvl = 1;
+	}
+	oatmp = some_armor(&youmonst);
+	if (oatmp) {
+		if (oatmp->oerodeproof) {
+			if (!Blind) {
+				pline("Your %s glows brown for a moment.",xname(oatmp));
+			}
+			oatmp->oerodeproof = 0;
+		}
+		if (greatest_erosion(oatmp) == MAX_ERODE) {
+			destroy_arm(oatmp);
+		} else {
+			while (erodelvl-- > 0) {
+				_erode_obj(oatmp, AD_MAGM);
+			}
+		}
+	} else {
 	    Your("skin itches.");
 	}
 	dmg = 0;
@@ -401,6 +516,7 @@ int spellnum;
     case MGC_WEAKEN_YOU:		/* drain strength */
 	if (Antimagic) {
 	    shieldeff(u.ux, u.uy);
+		 monstseesu(M_SEEN_MAGR);
 	    You_feel("momentarily weakened.");
 	} else {
 	    You("suddenly feel weaker!");
@@ -422,6 +538,9 @@ int spellnum;
 	} else
 	    impossible("no reason for monster to cast disappear spell?");
 	break;
+	 case MGC_FLY:		 /* take off! */
+		cast_fly(mtmp);
+		break;
     case MGC_STUN_YOU:
 	if (Antimagic || Free_action) {
 	    shieldeff(u.ux, u.uy);
@@ -455,7 +574,19 @@ int spellnum;
 	   made the spell virtually harmless to players with magic res. */
 	if (Antimagic) {
 	    shieldeff(u.ux, u.uy);
+		 monstseesu(M_SEEN_MAGR);
 	    dmg = (dmg + 1) / 2;
+	}
+	/* Tinfoil hat? ;) */
+	if (uarmh) {
+		desc = OBJ_DESCR(objects[uarmh->otyp]);
+		if (desc && strstri(desc,"tinfoil")) {
+			shieldeff(u.ux, u.uy);
+			dmg = 0;
+			Your("%s tingles.%s", body_part(HEAD), Hallucination ?
+					" You think your dandruff might be clearing up." : "");
+			break;
+		}
 	}
 	if (dmg <= 5)
 	    You("get a slight %sache.", body_part(HEAD));
@@ -475,6 +606,14 @@ int spellnum;
     if (dmg) mdamageu(mtmp, dmg);
 }
 
+const char* vulntext[] = {
+	"chartreuse polka-dot",
+	"reddish-orange",
+	"purplish-blue",
+	"coppery-yellow",
+	"greenish-mottled"
+};
+
 STATIC_OVL
 void
 cast_cleric_spell(mtmp, dmg, spellnum)
@@ -482,12 +621,24 @@ struct monst *mtmp;
 int dmg;
 int spellnum;
 {
+	int aligntype;
+
     if (dmg == 0 && !is_undirected_spell(AD_CLRC, spellnum)) {
 	impossible("cast directed cleric spell (%d) with dmg=0?", spellnum);
 	return;
     }
 
     switch (spellnum) {
+	 case CLC_SUMMON_ELM:
+		 if (mtmp->ispriest) {
+			 aligntype = EPRI(mtmp)->shralign;
+		 } else {
+			 /* uh, who fed the orc shaman so many gain level potions? */
+			 aligntype = (int)mtmp->data->maligntyp;
+		 }
+		 pline("A servant of %s appears!",aligns[1 - aligntype].noun);
+		summon_minion(aligntype, TRUE);
+		 break;
     case CLC_GEYSER:
 	/* this is physical damage, not magical damage */
 	pline("A sudden geyser slams into you from nowhere!");
@@ -496,11 +647,12 @@ int spellnum;
 	break;
     case CLC_FIRE_PILLAR:
 	pline("A pillar of fire strikes all around you!");
-	if (Fire_resistance) {
+	if (how_resistant(FIRE_RES) == 100) {
 	    shieldeff(u.ux, u.uy);
+		 monstseesu(M_SEEN_FIRE);
 	    dmg = 0;
 	} else
-	    dmg = d(8, 6);
+	    dmg = resist_reduce(d(8,6),FIRE_RES);
 	if (Half_spell_damage) dmg = (dmg + 1) / 2;
 	burn_away_slime();
 	(void) burnarmor(&youmonst);
@@ -512,19 +664,27 @@ int spellnum;
     case CLC_LIGHTNING:
     {
 	boolean reflects;
-
 	pline("A bolt of lightning strikes down at you from above!");
-	reflects = ureflects("It bounces off your %s%s.", "");
-	if (reflects || Shock_resistance) {
+		reflects = ureflects("Some of it bounces off your %s%s.", "");
+		if (reflects || (how_resistant(SHOCK_RES) == 100)) {
 	    shieldeff(u.ux, u.uy);
+			if (reflects) {
+				dmg = resist_reduce(d(4,6),SHOCK_RES);
+				monstseesu(M_SEEN_REFL);
+			}
+			if (how_resistant(SHOCK_RES) == 100) {
+				pline("You aren't shocked.");
 	    dmg = 0;
-	    if (reflects)
-		break;
-	} else
-	    dmg = d(8, 6);
-	if (Half_spell_damage) dmg = (dmg + 1) / 2;
-	destroy_item(WAND_CLASS, AD_ELEC);
+				monstseesu(M_SEEN_ELEC);
+			}
+		} else {
+			dmg = resist_reduce(d(8,6),SHOCK_RES);
+		}
+		if (dmg && Half_spell_damage)  { dmg = (dmg + 1) / 2; }
+		if (!reflects) {
+			destroy_item(WAND_CLASS, AD_ELEC);	 /* reflection protects items */
 	destroy_item(RING_CLASS, AD_ELEC);
+		}
 	break;
     }
     case CLC_CURSE_ITEMS:
@@ -613,6 +773,7 @@ int spellnum;
     case CLC_CONFUSE_YOU:
 	if (Antimagic) {
 	    shieldeff(u.ux, u.uy);
+		 monstseesu(M_SEEN_MAGR);
 	    You_feel("momentarily dizzy.");
 	} else {
 	    boolean oldprop = !!Confusion;
@@ -637,9 +798,41 @@ int spellnum;
 	    dmg = 0;
 	}
 	break;
+	 case CLC_FLY:
+		cast_fly(mtmp);
+		break;
+	 case CLC_VULN_YOU:
+		dmg = rnd(4);
+		pline("A %s film oozes over your skin!",Blind ? "slimy" : vulntext[dmg]);
+		switch (dmg) {
+			case 1:
+				if (Vulnerable_fire) return;
+				incr_itimeout(&HVulnerable_fire,rnd(100)+150);
+				You_feel("more inflammable.");
+				break;
+			case 2:
+				if (Vulnerable_cold) return;
+				incr_itimeout(&HVulnerable_cold,rnd(100)+150);
+				You_feel("like Jack Frost is out to get you.");
+				break;
+			case 3:
+				if (Vulnerable_elec) return;
+				incr_itimeout(&HVulnerable_elec,rnd(100)+150);
+				You_feel("overly conductive.");
+				break;
+			case 4:
+				if (Vulnerable_acid) return;
+				incr_itimeout(&HVulnerable_acid,rnd(100)+150);
+				You_feel("easily corrodable.");
+				break;
+			default:
+				break;
+		}
+		break;
     case CLC_OPEN_WOUNDS:
 	if (Antimagic) {
 	    shieldeff(u.ux, u.uy);
+		 monstseesu(M_SEEN_MAGR);
 	    dmg = (dmg + 1) / 2;
 	}
 	if (dmg <= 5)
@@ -674,6 +867,8 @@ int spellnum;
 	case MGC_DISAPPEAR:
 	case MGC_HASTE_SELF:
 	case MGC_CURE_SELF:
+	case MGC_FLY:
+	case MGC_ENRAGE:
 	    return TRUE;
 	default:
 	    break;
@@ -682,12 +877,38 @@ int spellnum;
 	switch (spellnum) {
 	case CLC_INSECTS:
 	case CLC_CURE_SELF:
+	case CLC_FLY:
 	    return TRUE;
 	default:
 	    break;
 	}
     }
     return FALSE;
+}
+
+STATIC_DCL
+void
+cast_fly(mtmp)
+struct monst* mtmp;
+{
+	struct trap* tr;
+	char msg[200];
+
+	if (!mtmp->mflying) {
+		mtmp->mflying = TRUE;
+		if (mtmp->mtrapped) {
+			tr = t_at(mtmp->mx,mtmp->my);
+			if (tr && (tr->ttyp == PIT || tr->ttyp == SPIKED_PIT)) {
+				sprintf(msg,"%s rises up, out of the pit!",Monnam(mtmp));
+				mtmp->mtrapped = FALSE;
+			}
+		} else {
+			sprintf(msg,"%s rises into the air!",Monnam(mtmp));
+		}
+		if (canseemon(mtmp)) { pline(msg); }
+	} else {
+		impossible("No reason to cast 'fly' spell?");
+	}
 }
 
 /* Some spells are useless under some circumstances. */
@@ -733,6 +954,15 @@ int spellnum;
 	if ((!mtmp->iswiz || flags.no_of_wizards > 1)
 						&& spellnum == MGC_CLONE_WIZ)
 	    return TRUE;
+	/* don't lift off if we're already in the air or just-peaceful
+	 * ...but go ahead and let pets do it */
+	if ((is_flyer(mtmp->data) || is_flying(mtmp) || 
+				(mtmp->mpeaceful && !mtmp->mtame)) && spellnum == MGC_FLY)
+		return TRUE;
+	/* Don't go making everything else bonkers if you're peaceful! */
+	if (spellnum == MGC_ENRAGE && (mtmp->mpeaceful || mtmp->mtame)) {
+		return TRUE;
+	}
     } else if (adtyp == AD_CLRC) {
 	/* summon insects/sticks to snakes won't be cast by peaceful monsters */
 	if (mtmp->mpeaceful && spellnum == CLC_INSECTS)
@@ -746,6 +976,11 @@ int spellnum;
 	/* blindness spell on blinded player */
 	if (Blinded && spellnum == CLC_BLIND_YOU)
 	    return TRUE;
+	/* don't lift off if we're already in the air or just-peaceful
+	 * ...but go ahead and let pets do it */
+	if ((is_flyer(mtmp->data) || is_flying(mtmp) || 
+				(mtmp->mpeaceful && !mtmp->mtame)) && spellnum == CLC_FLY)
+		return TRUE;
     }
     return FALSE;
 }

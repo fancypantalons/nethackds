@@ -75,7 +75,7 @@ const struct Role roles[] = {
 	/* Init   Lower  Higher */
 	{ 14, 0,  0,10,  2, 0 },	/* Hit points */
 	{  1, 0,  0, 1,  0, 1 },10,	/* Energy */
-	10, 14, 0, 0,  8, A_INT, SPE_HASTE_SELF,      -4
+	10, 14, 0, 0,  8, A_INT, SPE_HASTE_SELF,      -10	/* this isn't accidental */
 },
 {	{"Caveman", "Cavewoman"}, {
 	{"Troglodyte",  0},
@@ -88,10 +88,10 @@ const struct Role roles[] = {
 	{"Rover",       0},
 	{"Pioneer",     0} },
 	"Anu", "_Ishtar", "Anshar", /* Babylonian */
-	"Cav", "the Caves of the Ancestors", "the Dragon's Lair",
+	"Cav", "the Deep Jungle", "the Dragon's Lair",
 	PM_CAVEMAN, PM_CAVEWOMAN, PM_LITTLE_DOG,
 	PM_SHAMAN_KARNOV, PM_NEANDERTHAL, PM_CHROMATIC_DRAGON,
-	PM_BUGBEAR, PM_HILL_GIANT, S_HUMANOID, S_GIANT,
+	PM_TIGER, PM_APE, S_SNAKE, S_FELINE,
 	ART_SCEPTRE_OF_MIGHT,
 	MH_HUMAN|MH_DWARF|MH_GNOME | ROLE_MALE|ROLE_FEMALE |
 	  ROLE_LAWFUL|ROLE_NEUTRAL,
@@ -144,14 +144,14 @@ const struct Role roles[] = {
 	PM_KING_ARTHUR, PM_PAGE, PM_IXOTH,
 	PM_QUASIT, PM_OCHRE_JELLY, S_IMP, S_JELLY,
 	ART_MAGIC_MIRROR_OF_MERLIN,
-	MH_HUMAN | ROLE_MALE|ROLE_FEMALE | ROLE_LAWFUL,
+	MH_HUMAN | ROLE_MALE|ROLE_FEMALE | ROLE_LAWFUL|ROLE_CHAOTIC,
 	/* Str Int Wis Dex Con Cha */
 	{  13,  7, 14,  8, 10, 17 },
 	{  30, 15, 15, 10, 20, 10 },
 	/* Init   Lower  Higher */
 	{ 14, 0,  0, 8,  2, 0 },	/* Hit points */
 	{  1, 4,  0, 1,  0, 2 },10,	/* Energy */
-	10, 8,-2, 0,  9, A_WIS, SPE_TURN_UNDEAD,     -4
+	10, 8,-2, 0,  9, A_WIS, SPE_EXTRA_HEALING,     -4
 },
 {	{"Monk", 0}, {
 	{"Candidate",         0},
@@ -272,7 +272,7 @@ const struct Role roles[] = {
 	/* Init   Lower  Higher */
 	{ 13, 0,  0, 6,  1, 0 },	/* Hit points */
 	{  1, 0,  0, 1,  0, 1 },12,	/* Energy */
-	10, 9, 2, 1, 10, A_INT, SPE_INVISIBILITY,   -4
+	10, 9, 2, 1, 10, A_INT, SPE_DETECT_MONSTERS,   -4
 },
 {	{"Samurai", 0}, {
 	{"Hatamoto",    0},  /* Banner Knight */
@@ -373,7 +373,7 @@ const struct Role roles[] = {
 	{   7, 10,  7,  7,  7,  7 },
 	{  10, 30, 10, 20, 20, 10 },
 	/* Init   Lower  Higher */
-	{ 10, 0,  0, 8,  1, 0 },	/* Hit points */
+	{ 12, 0,  0, 6,  1, 0 },	/* Hit points */
 	{  4, 3,  0, 2,  0, 3 },12,	/* Energy */
 	0, 1, 0, 3, 10, A_INT, SPE_MAGIC_MISSILE,   -4
 },
@@ -381,6 +381,43 @@ const struct Role roles[] = {
 {{0, 0}}
 };
 
+/* 
+ * Realistically we don't need to build another structure array just for this
+ * but this does leave us a framework to do more crossaligned roles
+ * sometimes in the future, if we feel like it
+ *
+ * ideally we'd just properly expand roles[] but the hack is easier for a patch
+ */
+
+const struct Role align_roles[] = {
+{	{"Dark Knight", 0}, 
+	{  {"Sniveler", 0},
+		{"Pawn", 0},
+		{"Brute", 0},
+		{"Mercenary", 0},
+		{"Blackguard", 0},
+		{"Turncoat", 0},
+		{"Knave", 0},
+		{"Dark Baron", 0}, 
+		{"Dark Paladin", 0} },
+	"Lugh", "_Brigit", "Manannan Mac Lir", /* Celtic */
+	"Kni", "Camelot Castle", "the Isle of Glass",
+	PM_KNIGHT, NON_PM, PM_PONY,
+	PM_KING_ARTHUR, PM_PAGE, PM_IXOTH,
+	PM_QUASIT, PM_OCHRE_JELLY, S_IMP, S_JELLY,
+	ART_MAGIC_MIRROR_OF_MERLIN,
+	MH_HUMAN | ROLE_MALE|ROLE_FEMALE | ROLE_LAWFUL|ROLE_CHAOTIC,
+	/* Str Int Wis Dex Con Cha */
+	{  13,  7, 14,  8, 10, 17 },
+	{  30, 15, 15, 10, 20, 10 },
+	/* Init   Lower  Higher */
+	{ 14, 0,  0, 8,  2, 0 },	/* Hit points */
+	{  1, 4,  0, 1,  0, 2 },10,	/* Energy */
+	10, 8,-2, 0,  9, A_WIS, SPE_TURN_UNDEAD,     -4
+},
+/* new terminator, though we don't need it here */
+{{0, 0}}
+};
 
 /* The player's role, created at runtime from initial
  * choices.  This may be munged in role_init().
@@ -1387,6 +1424,11 @@ role_init()
 	/* Initialize urole and urace */
 	urole = roles[flags.initrole];
 	urace = races[flags.initrace];
+
+	/* kick it over to alternate-alignment role */
+	if (alignmnt == A_CHAOTIC && Role_if(PM_KNIGHT)) {
+		urole = align_roles[0];
+	}
 
 	/* Fix up the quest leader */
 	if (urole.ldrnum != NON_PM) {

@@ -64,11 +64,13 @@ boolean restore;
 		if (otmp->cobj)
 		    resetobjs(otmp->cobj,restore);
 
-		if (((otmp->otyp != CORPSE || otmp->corpsenm < SPECIAL_PM)
-			&& otmp->otyp != STATUE)
-			&& (!otmp->oartifact ||
-			   (restore && (exist_artifact(otmp->otyp, ONAME(otmp))
-					|| is_quest_artifact(otmp))))) {
+		if (
+			 ((otmp->otyp != CORPSE || otmp->corpsenm < SPECIAL_PM) && 
+				otmp->otyp != STATUE && otmp->otyp != SKULL) && 
+					(!otmp->oartifact || (restore && 
+						(exist_artifact(otmp->otyp, ONAME(otmp)) || 
+							 is_quest_artifact(otmp))))
+				) {
 			otmp->oartifact = 0;
 			otmp->onamelth = 0;
 			*ONAME(otmp) = '\0';
@@ -155,6 +157,11 @@ struct obj *cont;
 	}
 #endif
 	if (cont) cont->owt = weight(cont);
+
+	/* should we leave a skull behind? */
+	if (rn2(3) && has_head(youmonst.data) && !unsolid(youmonst.data)) {
+		otmp = mk_named_object(SKULL,youmonst.data,u.ux,u.uy,plname);
+	}
 }
 
 /* check whether bones are feasible */
@@ -231,8 +238,9 @@ struct obj *corpse;
 	    mptr = mtmp->data;
 	    if (mtmp->iswiz || mptr == &mons[PM_MEDUSA] ||
 		    mptr->msound == MS_NEMESIS || mptr->msound == MS_LEADER ||
-		    mptr == &mons[PM_VLAD_THE_IMPALER])
+		    mptr == &mons[PM_VLAD_THE_IMPALER]) {
 		mongone(mtmp);
+	}
 	}
 #ifdef STEED
 	if (u.usteed) dismount_steed(DISMOUNT_BONES);
@@ -246,6 +254,14 @@ struct obj *corpse;
 
 	/* check iron balls separately--maybe they're not carrying it */
 	if (uball) uball->owornmask = uchain->owornmask = 0;
+
+	/* extinguish armor */
+	if(uarm && (uarm->otyp == GOLD_DRAGON_SCALE_MAIL || uarm->otyp == GOLD_DRAGON_SCALES))
+		end_burn(uarm,FALSE);
+
+	if(uarms && uarms->otyp == SHIELD_OF_LIGHT) {
+		end_burn(uarms,FALSE);
+	}
 
 	/* dispose of your possessions, usually cursed */
 	if (u.ugrave_arise == (NON_PM - 1)) {
@@ -262,8 +278,45 @@ struct obj *corpse;
 		/* drop everything */
 		drop_upon_death((struct monst *)0, (struct obj *)0);
 		/* trick makemon() into allowing monster creation
-		 * on your location
+		 * on your location */
+		if (ukiller) {
+		   /* If you don't rise from your grave (and are thus carrying your stuff),
+			 * the critter that killed you gets some special handling here.
+			 *
+			 * First, he gets to loot your body; if he's a demon lord or prince,
+			 * he will tend to take all the "good stuff".
+			 *
+			 * He also gets a chance to be removed as well -- hitting Yeenybones
+			 * once is not a big deal, but a persistent upper-dungeon Yeeny from 
+			 * an unlucky fountain quaffer would be a bit much.
 		 */
+			struct obj* otmp;
+			struct obj* otmp2;
+			boolean greedy = FALSE;
+
+			/* For now the only actively mean monsters are demon lords/princes */
+			if (is_dlord(ukiller->data) || is_dprince(ukiller->data)) {
+				greedy = TRUE;
+			}
+
+			for (otmp = level.objects[u.ux][u.uy]; otmp; otmp = otmp2) {
+				otmp2 = otmp->nexthere; /* mpickobj might free otmp */
+				if (!rn2(8) || 
+						(greedy && rn2(2) && (otmp->oartifact || Is_dragon_armor(otmp) ||
+							otmp->otyp == AMULET_OF_LIFE_SAVING || otmp->otyp == AMULET_OF_POWER ||
+							otmp->otyp == MAGIC_MARKER || otmp->otyp == UNICORN_HORN))) {
+					if (!touch_artifact(otmp,ukiller)) continue;
+					if (!can_carry(ukiller,otmp)) continue;
+					obj_extract_self(otmp);
+					mpickobj(ukiller,otmp);
+				}
+			}
+			m_dowear(ukiller, TRUE); /* Let him put them on :) */
+			if (greedy && !rn2(2)) {
+				mongone(ukiller);
+				dmonsfree();		  /* have to call this again */
+			}
+		}
 		in_mklev = TRUE;
 		mtmp = makemon(&mons[PM_GHOST], u.ux, u.uy, MM_NONAME);
 		in_mklev = FALSE;
@@ -294,6 +347,7 @@ struct obj *corpse;
 		mtmp->female = flags.female;
 		mtmp->msleeping = 1;
 	}
+
 	for(mtmp = fmon; mtmp; mtmp = mtmp->nmon) {
 		resetobjs(mtmp->minvent,FALSE);
 		/* do not zero out m_ids for bones levels any more */

@@ -32,6 +32,15 @@ MAP
 ..........C.C.........................C............C...........}}}}}........
 ......................CCC.C.................................................
 ENDMAP
+
+SPILL:(60,15), '}', west, 20, lit
+SPILL:(69,15), '}', north, 20, lit
+
+# first do cloud everywhere
+REPLACE_TERRAIN:(0,0, 75,19), '.', 'C', lit, 10%
+# then replace clouds inside the tower back to floor
+REPLACE_TERRAIN:(13,5, 33,15), 'C', '.', lit, 100%
+
 # Dungeon Description
 REGION:(00,00,75,19),lit,"ordinary"
 REGION:(35,00,49,03),unlit,"ordinary"
@@ -41,6 +50,8 @@ REGION:(30,10,31,10),unlit,"ordinary"
 # Stairs
 STAIR:(30,10),down
 # Portal arrival point
+# need to make sure it's clear
+TERRAIN:(63,06),'.',lit
 BRANCH:(63,06,63,06),(0,0,0,0)
 # Doors
 DOOR:closed,(31,09)
@@ -127,6 +138,10 @@ MAP
 .............        .............}}}}}}}.}}}}}}}}}}}}}}}}}}}.}}}}}}}.......
 .............        .......................................................
 ENDMAP
+
+REPLACE_TERRAIN:(0,0,30,20), '.', 'C', lit, 15%
+REPLACE_TERRAIN:(68,0,75,20), '.', '}', lit, 25%
+
 # Dungeon Description
 REGION:(00,00,75,20),lit,"ordinary"
 REGION:(37,04,65,16),unlit,"ordinary"
@@ -231,9 +246,9 @@ MAP
                                                                             
                                                                             
                                                                             
-                   -------------                 -------------              
-                   |...........|                 |...........|              
-            -------|...........-------------------...........|              
+            --------------------                 -------------              
+            |......|...........|                 |...........|              
+            ---S---|...........-------------------...........|              
             |......S...........|..|..|..|..|..|..|...........|              
             |......|...........|..|..|..|..|..|..|...........|              
             |......|...........-F+-F+-F+-F+-F+-F+-...........|              
@@ -241,9 +256,9 @@ MAP
             |......|...........-F+-F+-F+-F+-F+-F+-...........|              
             |......|...........|..|..|..|..|..|..|...........|              
             |......|...........|..|..|..|..|..|..|...........|              
-            -------|...........-------------------...........|              
-                   |...........|                 |...........|              
-                   -------------                 -------------              
+            ----S--|...........-------------------...........|              
+            |......|...........|                 |...........|              
+            --------------------                 -------------              
                                                                             
                                                                             
                                                                             
@@ -267,6 +282,8 @@ REGION:(41,11,42,12),unlit,"ordinary"
 REGION:(44,11,45,12),unlit,"ordinary"
 REGION:(47,11,48,12),unlit,"ordinary"
 REGION:(50,04,60,14),lit,"ordinary"
+REGION:(13,04,18,04),lit,"ordinary"
+REGION:(13,14,18,14),lit,"ordinary"
 # Doors
 DOOR:locked,(19,06)
 DOOR:locked,(14,09)
@@ -284,6 +301,8 @@ DOOR:locked,(42,10)
 DOOR:locked,(45,10)
 DOOR:locked,(48,10)
 DOOR:locked,(49,09)
+DOOR:locked,(16,13)
+DOOR:locked,(15,05)
 # Stairs
 STAIR:(55,05),up
 # Non diggable walls
@@ -291,7 +310,7 @@ NON_DIGGABLE:(00,00,75,19)
 # The altar.  This is not a shrine.
 ALTAR:(16,11),noncoaligned,altar
 # Objects
-OBJECT:'"',"amulet of ESP",(16,11),blessed,0,"The Eye of the Aethiopica"
+OBJECT:'"',"amulet of power",(16,11),blessed,0,"The Eye of the Aethiopica"
 OBJECT:random,random,random
 OBJECT:random,random,random
 OBJECT:random,random,random
@@ -306,6 +325,10 @@ OBJECT:random,random,random
 OBJECT:random,random,random
 OBJECT:random,random,random
 OBJECT:random,random,random
+OBJECT:'+',"knock",(13,14)
+OBJECT:'+',random,(18,14)
+OBJECT:'+',random,(13,04)
+OBJECT:'+',"wizard lock",(18,04)
 # Random traps
 TRAP:random,random
 TRAP:random,random
@@ -313,6 +336,8 @@ TRAP:random,random
 TRAP:random,random
 TRAP:random,random
 TRAP:random,random
+TRAP:random,(16,14)
+TRAP:random,(15,04)
 # Random monsters.
 MONSTER:'@',"Dark One",(16,11)
 MONSTER:'B',random,random,hostile

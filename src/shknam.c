@@ -112,7 +112,7 @@ static const char * const shktools[] = {
     "Htargcm", "Enrobwem", "Kachzi Rellim", "Regien", "Donmyar",
     "Yelpur", "Nosnehpets", "Stewe", "Renrut", "_Zlaw", "Nosalnef",
     "Rewuorb", "Rellenk", "Yad", "Cire Htims", "Y-crad", "Nenilukah",
-    "Corsh", "Aned",
+    "Corsh", "Aned", "Kere-Dyar",
 #ifdef OVERLAY
     "Erreip", "Nehpets", "Mron", "Snivek", "Lapu", "Kahztiy",
 #endif
@@ -216,8 +216,8 @@ const struct shclass shtypes[] = {
 	 * loader.
 	 */
 	{"lighting store", TOOL_CLASS, 0, D_SHOP,
-	    {{32, -WAX_CANDLE}, {50, -TALLOW_CANDLE},
-	     {5, -BRASS_LANTERN}, {10, -OIL_LAMP}, {3, -MAGIC_LAMP}}, shklight},
+	    {{33, -WAX_CANDLE}, {50, -TALLOW_CANDLE},
+	     {5, -BRASS_LANTERN}, {10, -OIL_LAMP}, {2, -MAGIC_LAMP}}, shklight},
 	{(char *)0, 0, 0, 0, {{0, 0}, {0, 0}, {0, 0}}, 0}
 };
 
@@ -337,7 +337,9 @@ const struct shclass	*shp;
 struct mkroom	*sroom;
 {
 	register int sh, sx, sy;
+	int srace;
 	struct monst *shk;
+	struct permonst* mdat;
 
 	/* place the shopkeeper in the given room */
 	sh = sroom->fdoor;
@@ -390,6 +392,32 @@ struct mkroom	*sroom;
 	/* now initialize the shopkeeper monster structure */
 	if(!(shk = makemon(&mons[PM_SHOPKEEPER], sx, sy, NO_MM_FLAGS)))
 		return(-1);
+	/* change the shopkeeper to a particular race */
+	srace = rn2(5);
+	if (srace) { 
+		switch (srace) {
+			case 1:
+				mdat = &mons[PM_GREEN_ELF];
+				shk->mnum = PM_GREEN_ELF;
+				break;
+			case 2:
+				mdat = &mons[PM_DWARF];
+				shk->mnum = PM_DWARF;
+				break;
+			case 3:
+				mdat = &mons[PM_ORC];
+				shk->mnum = PM_ORC;
+				break;
+			case 4:
+				mdat = &mons[PM_GNOME];
+				shk->mnum = PM_GNOME;
+				break;
+			case 0:
+			default:
+				break;
+		}
+		set_mon_data(shk,mdat,1);
+	}
 	shk->isshk = shk->mpeaceful = 1;
 	set_malign(shk);
 	shk->msleeping = 0;

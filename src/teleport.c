@@ -7,7 +7,6 @@
 STATIC_DCL boolean FDECL(tele_jump_ok, (int,int,int,int));
 STATIC_DCL boolean FDECL(teleok, (int,int,BOOLEAN_P));
 STATIC_DCL void NDECL(vault_tele);
-STATIC_DCL boolean FDECL(rloc_pos_ok, (int,int,struct monst *));
 STATIC_DCL void FDECL(mvault_tele, (struct monst *));
 
 /*
@@ -25,6 +24,7 @@ unsigned gpflags;
 {
 	struct permonst *mdat = NULL;
 	boolean ignorewater = ((gpflags & MM_IGNOREWATER) != 0);
+	boolean unsafe = ((gpflags & MM_UNSAFEOK) != 0);
 
 	if (!isok(x, y)) return FALSE;
 
@@ -59,29 +59,42 @@ unsigned gpflags;
 
 	    mdat = mtmp->data;
 	    if (is_pool(x,y) && !ignorewater) {
+			 if (unsafe) {
+				 return TRUE;
+			 }
 		if (mtmp == &youmonst)
-			return !!(HLevitation || Flying || Wwalking ||
-					Swimming || Amphibious);
-		else	return (is_flyer(mdat) || is_swimmer(mdat) ||
-							is_clinger(mdat));
+				return !!(HLevitation || Flying || Wwalking || Swimming || Amphibious);
+			else	
+				return (is_flyer(mdat) || is_swimmer(mdat) || is_clinger(mdat) || is_flying(mtmp));
 	    } else if (mdat->mlet == S_EEL && rn2(13) && !ignorewater) {
 		return FALSE;
 	    } else if (is_lava(x,y)) {
+			 if (unsafe) {
+				 return TRUE;
+			 }
 		if (mtmp == &youmonst)
 		    return !!HLevitation;
 		else
-		    return (is_flyer(mdat) || likes_lava(mdat));
+				return (is_flyer(mdat) || likes_lava(mdat) || is_flying(mtmp));
 	    }
 	    if (passes_walls(mdat) && may_passwall(x,y)) return TRUE;
 	}
+
 	if (!ACCESSIBLE(levl[x][y].typ)) {
+		if (unsafe) {
+			if (is_pool(x,y) || is_lava(x,y)) {
+				return TRUE;
+			}
+		}
 		if (!(is_pool(x,y) && ignorewater)) return FALSE;
 	}
 
 	if (closed_door(x, y) && (!mdat || !amorphous(mdat)))
 		return FALSE;
+
 	if (sobj_at(BOULDER, x, y) && (!mdat || !throws_rocks(mdat)))
 		return FALSE;
+
 	return TRUE;
 }
 
@@ -414,7 +427,8 @@ tele()
 	/* don't show trap if "Sorry..." */
 	if (!Blinded) make_blinded(0L,FALSE);
 
-	if ((u.uhave.amulet || On_W_tower_level(&u.uz)) && !rn2(3)) {
+	/* With Gehennom now teleportable again, the amulet must block it all. */
+	if (u.uhave.amulet || On_W_tower_level(&u.uz)) {
 	    You_feel("disoriented for a moment.");
 	    return;
 	}
@@ -879,7 +893,7 @@ struct trap *trap;
 }
 
 /* check whether monster can arrive at location <x,y> via Tport (or fall) */
-STATIC_OVL boolean
+boolean
 rloc_pos_ok(x, y, mtmp)
 register int x, y;		/* coordinates of candidate location */
 struct monst *mtmp;

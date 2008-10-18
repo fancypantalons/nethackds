@@ -166,8 +166,7 @@ newman()
 	 * 9 - rn2(19): random change of -9 to +9 hit points
 	 */
 #ifndef LINT
-	u.uhpmax = ((u.uhpmax - 10) * (long)u.ulevel / oldlvl + 10) +
-		(9 - rn2(19));
+	u.uhpmax = ((u.uhpmax - 10) * (long)u.ulevel / oldlvl + 10) + (9 - rn2(19));
 #endif
 
 #ifdef LINT
@@ -1005,7 +1004,7 @@ dogaze()
 			    (void) destroy_mitem(mtmp, POTION_CLASS, AD_FIRE);
 			if((int) u.ulevel > rn2(25))
 			    (void) destroy_mitem(mtmp, SPBOOK_CLASS, AD_FIRE);
-			if (dmg && !DEADMONSTER(mtmp)) mtmp->mhp -= dmg;
+			if (dmg && !DEADMONSTER(mtmp)) damage_mon(mtmp,dmg,AD_FIRE);
 			if (mtmp->mhp <= 0) killed(mtmp);
 		    }
 		    /* For consistency with passive() in uhitm.c, this only
@@ -1097,7 +1096,7 @@ domindblast()
 				u_sen ? "telepathy" :
 				telepathic(mtmp->data) ? "latent telepathy" :
 				"mind");
-			mtmp->mhp -= rnd(15);
+			damage_mon(mtmp,rnd(15),AD_DRIN);
 			if (mtmp->mhp <= 0)
 				killed(mtmp);
 		}
@@ -1326,6 +1325,9 @@ int atyp;
 	    case GREEN_DRAGON_SCALE_MAIL:
 	    case GREEN_DRAGON_SCALES:
 		return PM_GREEN_DRAGON;
+	    case GOLD_DRAGON_SCALE_MAIL:
+	    case GOLD_DRAGON_SCALES:
+		return PM_GOLD_DRAGON;
 	    case YELLOW_DRAGON_SCALE_MAIL:
 	    case YELLOW_DRAGON_SCALES:
 		return PM_YELLOW_DRAGON;

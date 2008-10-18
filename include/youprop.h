@@ -60,6 +60,26 @@
 #define Drain_resistance	(HDrain_resistance || EDrain_resistance || \
 				 resists_drli(&youmonst))
 
+#define HVulnerable_fire  u.uprops[VULN_FIRE].intrinsic
+#define EVulnerable_fire  u.uprops[VULN_FIRE].extrinsic
+#define Vulnerable_fire	  (HVulnerable_fire || EVulnerable_fire || \
+		vulnerable_to(&youmonst,AD_FIRE))
+
+#define HVulnerable_cold  u.uprops[VULN_COLD].intrinsic
+#define EVulnerable_cold  u.uprops[VULN_COLD].extrinsic
+#define Vulnerable_cold	  (HVulnerable_cold || EVulnerable_cold || \
+		vulnerable_to(&youmonst,AD_COLD))
+
+#define HVulnerable_elec  u.uprops[VULN_ELEC].intrinsic
+#define EVulnerable_elec  u.uprops[VULN_ELEC].extrinsic
+#define Vulnerable_elec	  (HVulnerable_elec || EVulnerable_elec || \
+		vulnerable_to(&youmonst,AD_ELEC))
+
+#define HVulnerable_acid  u.uprops[VULN_ACID].intrinsic
+#define EVulnerable_acid  u.uprops[VULN_ACID].extrinsic
+#define Vulnerable_acid	  (HVulnerable_acid || EVulnerable_acid || \
+		vulnerable_to(&youmonst,AD_ACID))
+
 /* Intrinsics only */
 #define HSick_resistance	u.uprops[SICK_RES].intrinsic
 #define Sick_resistance		(HSick_resistance || \
@@ -79,6 +99,12 @@
 #define EStone_resistance	u.uprops[STONE_RES].extrinsic
 #define Stone_resistance	(EStone_resistance || resists_ston(&youmonst))
 
+#define EWere_resistance  u.uprops[WERE_RES].extrinsic
+#define Were_resistance	  (EWere_resistance)
+
+#define EBlind_resistance  u.uprops[BLIND_RES].extrinsic
+#define Blind_resistance	(EBlind_resistance || Vision)
+
 
 /*** Troubles ***/
 /* Pseudo-property */
@@ -86,20 +112,29 @@
 
 /* Those implemented solely as timeouts (we use just intrinsic) */
 #define HStun			u.uprops[STUNNED].intrinsic
-#define Stunned			(HStun || u.umonnum == PM_STALKER || \
-				 youmonst.data->mlet == S_BAT)
+#define Stunned			(!Stun_resistance && \
+							(HStun || u.umonnum == PM_STALKER || youmonst.data->mlet == S_BAT))
 		/* Note: birds will also be stunned */
 
 #define HConfusion		u.uprops[CONFUSION].intrinsic
-#define Confusion		HConfusion
+#define Confusion					  (HConfusion && !Confusion_resistance)
+
+/* cheap hack to avoid breaking save */
+#define EConfusion_resistance	  u.uprops[CONFUSION].extrinsic
+#define Confusion_resistance	  EConfusion_resistance
+#define EStun_resistance		  u.uprops[STUNNED].extrinsic
+#define Stun_resistance			  EStun_resistance
 
 #define Blinded			u.uprops[BLINDED].intrinsic
 #define Blindfolded		(ublindf && ublindf->otyp != LENSES)
 		/* ...means blind because of a cover */
 #define Blind	((Blinded || Blindfolded || !haseyes(youmonst.data)) && \
-		 !(ublindf && ublindf->oartifact == ART_EYES_OF_THE_OVERWORLD))
+		 !(ublindf && ublindf->oartifact == ART_EYES_OF_THE_OVERWORLD) && \
+		 !(haseyes(youmonst.data) && Blind_resistance))
+
 		/* ...the Eyes operate even when you really are blind
-		    or don't have any eyes */
+		    or don't have any eyes, but blindness resistance won't
+			 grant sight to something that didn't have it... */
 
 #define Sick			u.uprops[SICK].intrinsic
 #define Stoned			u.uprops[STONED].intrinsic
@@ -111,7 +146,7 @@
 /* Hallucination is solely a timeout; its resistance is extrinsic */
 #define HHallucination		u.uprops[HALLUC].intrinsic
 #define EHalluc_resistance	u.uprops[HALLUC_RES].extrinsic
-#define Halluc_resistance	(EHalluc_resistance || \
+#define Halluc_resistance	(EHalluc_resistance || Vision || \
 				 (Upolyd && dmgtype(youmonst.data, AD_HALU)))
 #define Hallucination		(HHallucination && !Halluc_resistance)
 
@@ -137,17 +172,24 @@
 #define HSee_invisible		u.uprops[SEE_INVIS].intrinsic
 #define ESee_invisible		u.uprops[SEE_INVIS].extrinsic
 #define See_invisible		(HSee_invisible || ESee_invisible || \
-				 perceives(youmonst.data))
+				 perceives(youmonst.data) || Vision)
 
 #define HTelepat		u.uprops[TELEPAT].intrinsic
 #define ETelepat		u.uprops[TELEPAT].extrinsic
-#define Blind_telepat		(HTelepat || ETelepat || \
-				 telepathic(youmonst.data))
-#define Unblind_telepat		(ETelepat)
+#define Blind_telepat		((HTelepat || ETelepat || \
+				 telepathic(youmonst.data)) && !BTelepat)
+#define Unblind_telepat		(ETelepat && !BTelepat)
+#define BTelepat	 u.uprops[TELEPAT].blocked
 
 #define HWarning		u.uprops[WARNING].intrinsic
 #define EWarning		u.uprops[WARNING].extrinsic
 #define Warning			(HWarning || EWarning)
+
+/* See invisible, infravision, protection from shape changers,
+ * blindness and hallucination resistance all rolled into one */
+#define EVision		 u.uprops[VISION].extrinsic
+#define Vision			 (EVision)
+
 
 /* Warning for a specific type of monster */
 #define HWarn_of_mon		u.uprops[WARN_OF_MON].intrinsic
@@ -170,7 +212,7 @@
 #define HInfravision		u.uprops[INFRAVISION].intrinsic
 #define EInfravision		u.uprops[INFRAVISION].extrinsic
 #define Infravision		(HInfravision || EInfravision || \
-				  infravision(youmonst.data))
+				  infravision(youmonst.data) || Vision)
 
 #define HDetect_monsters	u.uprops[DETECT_MONSTERS].intrinsic
 #define EDetect_monsters	u.uprops[DETECT_MONSTERS].extrinsic
@@ -240,6 +282,7 @@
 #endif
 	/* May touch surface; does not override any others */
 
+#define EWwalking	   u.uprops[WWALKING].extrinsic
 #define Wwalking		(u.uprops[WWALKING].extrinsic && \
 				 !Is_waterlevel(&u.uz))
 	/* Don't get wet, can't go under water; overrides others except levitation */
@@ -309,7 +352,8 @@
 				u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic
 #define Protection_from_shape_changers \
 				(HProtection_from_shape_changers || \
-				 EProtection_from_shape_changers)
+				 EProtection_from_shape_changers || \
+				 Vision)
 
 #define HPolymorph		u.uprops[POLYMORPH].intrinsic
 #define EPolymorph		u.uprops[POLYMORPH].extrinsic
@@ -325,11 +369,16 @@
 
 #define HFast			u.uprops[FAST].intrinsic
 #define EFast			u.uprops[FAST].extrinsic
-#define Fast			(HFast || EFast)
-#define Very_fast		((HFast & ~INTRINSIC) || EFast)
+#define Fast			((HFast || EFast) && !Slow)
+#define Very_fast		(((HFast & ~INTRINSIC) || EFast) && !Slow)
 
+#define HSlow		   u.uprops[SLOW].intrinsic
+#define ESlow		   u.uprops[SLOW].extrinsic
+#define Slow			(HSlow || ESlow)
+
+#define HReflecting		u.uprops[REFLECTING].intrinsic
 #define EReflecting		u.uprops[REFLECTING].extrinsic
-#define Reflecting		(EReflecting || \
+#define Reflecting		(EReflecting || HReflecting || \
 				 (youmonst.data == &mons[PM_SILVER_DRAGON]))
 
 #define Free_action		u.uprops[FREE_ACTION].extrinsic /* [Tom] */
@@ -338,5 +387,7 @@
 
 #define Lifesaved		u.uprops[LIFESAVED].extrinsic
 
+#define ELucky				u.uprops[LUCKY].extrinsic
+#define Lucky				(ELucky)
 
 #endif /* YOUPROP_H */

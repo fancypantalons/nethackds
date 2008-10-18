@@ -42,4 +42,7 @@ struct eshk {
 #define NOTANGRY(mon)	((mon)->mpeaceful)
 #define ANGRY(mon)	(!NOTANGRY(mon))
 
+#define match_shkrace(mon) ((urace.malenum == (mon)->mnum) || \
+				(urace.malenum == PM_ELF && (mon)->mnum == PM_GREEN_ELF))
+
 #endif /* ESHK_H */

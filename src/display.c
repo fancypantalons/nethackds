@@ -134,6 +134,9 @@ STATIC_DCL void FDECL(set_seenv, (struct rm *, int, int, int, int));
 STATIC_DCL void FDECL(t_warn, (struct rm *));
 STATIC_DCL int FDECL(wall_angle, (struct rm *));
 
+/* needed for warning, now */
+extern const int monstr[];
+
 #ifdef INVISIBLE_OBJECTS
 /*
  * vobj_at()
@@ -457,9 +460,10 @@ display_warning(mon)
     register struct monst *mon;
 {
     int x = mon->mx, y = mon->my;
-    int wl = (int) (mon->m_lev / 4);
+    int wl = (int)((monstr[mon->mnum] - u.ulevel) / 3) + 3;
     int glyph;
 
+	 if (wl < 1) wl = 1;	/* won't show up right */
     if (mon_warning(mon)) {
         if (wl > WARNCOUNT - 1) wl = WARNCOUNT - 1;
 	/* 3.4.1: this really ought to be rn2(WARNCOUNT), but value "0"
@@ -886,7 +890,7 @@ tmp_at(x, y)
 
 	default:	/* do it */
 	    if (tglyph->style == DISP_BEAM) {
-		if (!cansee(x,y)) break;
+			if (!isok(x,y) || !cansee(x,y)) break;
 		/* save pos for later erasing */
 		tglyph->saved[tglyph->sidx].x = x;
 		tglyph->saved[tglyph->sidx].y = y;
@@ -896,7 +900,7 @@ tmp_at(x, y)
 		    newsym(tglyph->saved[0].x, tglyph->saved[0].y);
 		    tglyph->sidx = 0;	/* display is presently up to date */
 		}
-		if (!cansee(x,y) && tglyph->style != DISP_ALWAYS) break;
+			if (isok(x,y) && !cansee(x,y) && tglyph->style != DISP_ALWAYS) break;
 		tglyph->saved[0].x = x;
 		tglyph->saved[0].y = y;
 		tglyph->sidx = 1;
@@ -1369,6 +1373,106 @@ flush_screen(cursor_on_u)
 }
 
 /* ========================================================================= */
+
+#ifdef DUMP_LOG
+/* D: Added to dump screen to output file */
+STATIC_PTR uchar get_glyph_char(glyph)
+int glyph;
+{
+    uchar   ch;
+    register int offset;
+
+    if (glyph >= NO_GLYPH)
+        return ' ';
+
+    /*
+     *  Map the glyph back to a character.
+     *
+     *  Warning:  For speed, this makes an assumption on the order of
+     *		  offsets.  The order is set in display.h.
+     */
+    if ((offset = (glyph - GLYPH_WARNING_OFF)) >= 0) {	/* a warning flash */
+	ch = def_warnsyms[offset].sym;
+    } else if ((offset = (glyph - GLYPH_SWALLOW_OFF)) >= 0) {	/* swallow */
+	/* see swallow_to_glyph() in display.c */
+	ch = (uchar) defsyms[S_sw_tl + (offset & 0x7)].sym;
+    } else if ((offset = (glyph - GLYPH_ZAP_OFF)) >= 0) {	/* zap beam */
+	/* see zapdir_to_glyph() in display.c */
+	ch = defsyms[S_vbeam + (offset & 0x3)].sym;
+    } else if ((offset = (glyph - GLYPH_CMAP_OFF)) >= 0) {	/* cmap */
+	ch = defsyms[offset].sym;
+    } else if ((offset = (glyph - GLYPH_OBJ_OFF)) >= 0) {	/* object */
+	ch = def_oc_syms[(int)objects[offset].oc_class];
+    } else if ((offset = (glyph - GLYPH_RIDDEN_OFF)) >= 0) { /* mon ridden */
+	ch = def_monsyms[(int)mons[offset].mlet];
+    } else if ((offset = (glyph - GLYPH_BODY_OFF)) >= 0) {	/* a corpse */
+	ch = def_oc_syms[(int)objects[CORPSE].oc_class];
+    } else if ((offset = (glyph - GLYPH_DETECT_OFF)) >= 0) { /* mon detect */
+	ch = def_monsyms[(int)mons[offset].mlet];
+    } else if ((offset = (glyph - GLYPH_INVIS_OFF)) >= 0) {  /* invisible */
+	ch = DEF_INVISIBLE;
+    } else if ((offset = (glyph - GLYPH_PET_OFF)) >= 0) {	/* a pet */
+	ch = def_monsyms[(int)mons[offset].mlet];
+    } else {						    /* a monster */
+	ch = monsyms[(int)mons[glyph].mlet];
+    }
+    return ch;
+}
+
+#ifdef TTY_GRAPHICS
+extern const char * FDECL(compress_str, (const char *));
+#else
+const char*
+compress_str(str) /* copied from win/tty/wintty.c */
+const char *str;
+{
+	static char cbuf[BUFSZ];
+	/* compress in case line too long */
+	if((int)strlen(str) >= 80) {
+		register const char *bp0 = str;
+		register char *bp1 = cbuf;
+
+		do {
+			if(*bp0 != ' ' || bp0[1] != ' ')
+				*bp1++ = *bp0;
+		} while(*bp0++);
+	} else
+	    return str;
+	return cbuf;
+}
+#endif /* TTY_GRAPHICS */
+
+/* Take a screen dump */
+void dump_screen()
+{
+    register int x,y;
+    int lastc;
+    /* D: botl.c has a closer approximation to the size, but we'll go with
+     *    this */
+    char buf[300], *ptr;
+    
+    for (y = 0; y < ROWNO; y++) {
+	lastc = 0;
+	ptr = buf;
+	for (x = 1; x < COLNO; x++) {
+	    uchar c = get_glyph_char(gbuf[y][x].glyph);
+	    *ptr++ = c;
+	    if (c != ' ')
+		lastc = x;
+	}
+	buf[lastc] = '\0';
+	dump("", buf);
+    }
+    dump("", "");
+    bot1str(buf);
+    ptr = (char *) compress_str((const char *) buf);
+    dump("", ptr);
+    bot2str(buf);
+    dump("", buf);
+    dump("", "");
+    dump("", "");
+}
+#endif /* DUMP_LOG */
 
 /*
  * back_to_glyph()

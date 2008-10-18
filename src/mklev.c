@@ -22,6 +22,7 @@ STATIC_DCL void FDECL(mkfount,(int,struct mkroom *));
 #ifdef SINKS
 STATIC_DCL void FDECL(mksink,(struct mkroom *));
 #endif
+STATIC_DCL void FDECL(mktree,(struct mkroom*));
 STATIC_DCL void FDECL(mkaltar,(struct mkroom *));
 STATIC_DCL void FDECL(mkgrave,(struct mkroom *));
 STATIC_DCL void NDECL(makevtele);
@@ -455,7 +456,7 @@ static NEARDATA const char *trap_engravings[TRAPNUM] = {
 			/* 14..16: trap door, teleport, level-teleport */
 			"Vlad was here", "ad aerarium", "ad aerarium",
 			(char *)0, (char *)0, (char *)0, (char *)0, (char *)0,
-			(char *)0,
+			(char *)0, (char *)0,
 };
 
 STATIC_OVL void
@@ -487,8 +488,11 @@ int trap_type;
 		    if (ttmp) {
 			if (trap_type != ROCKTRAP) ttmp->once = 1;
 			if (trap_engravings[trap_type]) {
-			    make_engr_at(xx, yy-dy,
-				     trap_engravings[trap_type], 0L, DUST);
+				if (level.flags.vault_is_aquarium) {
+					make_engr_at(xx, yy-dy,"ad aquarium",0L, DUST);
+				} else {
+			    make_engr_at(xx, yy-dy, trap_engravings[trap_type], 0L, DUST);
+				}
 			    wipe_engr_at(xx, yy-dy, 5); /* age it a little */
 			}
 		    }
@@ -608,7 +612,7 @@ makelevel()
 	register int x, y;
 	struct monst *tmonst;	/* always put a web with a spider */
 	branch *branchp;
-	int room_threshold;
+	int room_threshold, boxtype;
 
 	if(wiz1_level.dlevel == 0) init_dungeons();
 	oinit();	/* assign level dependent obj probabilities */
@@ -647,7 +651,14 @@ makelevel()
 	    } else if(In_hell(&u.uz) ||
 		  (rn2(5) && u.uz.dnum == medusa_level.dnum
 			  && depth(&u.uz) > depth(&medusa_level))) {
+			 /* The vibrating square code is hardcoded into mkmaze --
+			  * rather than fiddle around trying to port it to a 'generalist'
+			  * sort of level, just go ahead and let the VS level be a maze */
+			 if (!Invocation_lev(&u.uz)) {
+				makemaz("hellfill");
+			 } else {
 		    makemaz("");
+			 }
 		    return;
 	    }
 	}
@@ -782,6 +793,8 @@ skip0:
 #ifdef SINKS
 		if(!rn2(60)) mksink(croom);
 #endif
+		if (christmas() && !rn2(20)) mktree(croom);
+
 		if(!rn2(60)) mkaltar(croom);
 		x = 80 - (depth(&u.uz) * 2);
 		if (x < 2) x = 2;
@@ -792,14 +805,24 @@ skip0:
 		    (void) mkcorpstat(STATUE, (struct monst *)0,
 				      (struct permonst *)0,
 				      somex(croom), somey(croom), TRUE);
-		/* put box/chest inside;
+		/* put box/chest/safe inside;
 		 *  40% chance for at least 1 box, regardless of number
 		 *  of rooms; about 5 - 7.5% for 2 boxes, least likely
 		 *  when few rooms; chance for 3 or more is neglible.
+		 *
+		 *  Safes only show up below level 15 since they're not unlockable.
 		 */
-		if(!rn2(nroom * 5 / 2))
-		    (void) mksobj_at((rn2(3)) ? LARGE_BOX : CHEST,
-				     somex(croom), somey(croom), TRUE, FALSE);
+		if(!rn2(nroom * 5 / 2)) {
+			x = rn2(5);
+			if (!x && depth(&u.uz) > 15) {
+				boxtype = IRON_SAFE;
+			} else if (x > 2) {
+				boxtype = CHEST;
+			} else {
+				boxtype = LARGE_BOX;
+			}
+		    (void) mksobj_at(boxtype, somex(croom), somey(croom), TRUE, FALSE);
+		}
 
 		/* maybe make some graffiti */
 		if(!rn2(27 + 3 * abs(depth(&u.uz)))) {
@@ -1224,12 +1247,16 @@ coord *tm;
 		    case SPIKED_PIT:
 			if (lvl < 5) kind = NO_TRAP; break;
 		    case LANDMINE:
+			 case SPEAR_TRAP:
 			if (lvl < 6) kind = NO_TRAP; break;
+			 case ANTI_MAGIC:
 		    case WEB:
 			if (lvl < 7) kind = NO_TRAP; break;
 		    case STATUE_TRAP:
 		    case POLY_TRAP:
 			if (lvl < 8) kind = NO_TRAP; break;
+			 case COLLAPSE_TRAP:
+			if (lvl < 16) kind = NO_TRAP; break;	/* these hurt, put 'em deep */
 		    case FIRE_TRAP:
 			if (!Inhell) kind = NO_TRAP; break;
 		    case TELEP_TRAP:
@@ -1347,6 +1374,25 @@ register struct mkroom *croom;
 	level.flags.nsinks++;
 }
 #endif /* SINKS */
+
+STATIC_OVL void
+mktree(croom)
+struct mkroom* croom;
+{
+	coord loc;
+	int count = 0;
+
+	do { 
+		if (!somexy(croom,&loc)) return;
+		count++;
+	} while (count < 200 && (occupied(loc.x,loc.y) || bydoor(loc.x,loc.y)));
+
+	/* ho, ho, ho */
+	levl[loc.x][loc.y].typ = TREE;
+	if (level.objects[loc.x][loc.y]) {  /* "under" the tree */
+		bury_objs(loc.x,loc.y);
+	}
+}
 
 
 STATIC_OVL void

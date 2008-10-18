@@ -254,7 +254,7 @@ drinkfountain()
 		case 21: /* Poisonous */
 
 			pline_The("water is contaminated!");
-			if (Poison_resistance) {
+			if (how_resistant(POISON_RES) == 100) {
 			   pline(
 			      "Perhaps it is runoff from the nearby %s farm.",
 				 fruitname(FALSE));
@@ -262,8 +262,8 @@ drinkfountain()
 				KILLED_BY_AN);
 			   break;
 			}
-			losestr(rn1(4,3));
-			losehp(rnd(10),"contaminated water", KILLED_BY);
+			losestr(resist_reduce(rn1(4,3),POISON_RES));
+			losehp(resist_reduce(rnd(10),POISON_RES),"contaminated water", KILLED_BY);
 			exercise(A_CON, FALSE);
 			break;
 
@@ -329,7 +329,7 @@ drinkfountain()
 			pline("This water gives you bad breath!");
 			for(mtmp = fmon; mtmp; mtmp = mtmp->nmon)
 			    if(!DEADMONSTER(mtmp))
-				monflee(mtmp, 0, FALSE, FALSE);
+				monflee(mtmp, 0, FALSE, canseemon(mtmp) ? TRUE : FALSE);
 			}
 			break;
 
@@ -363,7 +363,7 @@ register struct obj *obj;
 	    && !obj->oartifact
 	    && !exist_artifact(LONG_SWORD, artiname(ART_EXCALIBUR))) {
 
-		if (u.ualign.type != A_LAWFUL) {
+		if (u.ualign.type != A_LAWFUL || !Role_if(PM_KNIGHT)) {
 			/* Ha!  Trying to cheat her. */
 			pline("A freezing mist rises from the water and envelopes the sword.");
 			pline_The("fountain disappears!");
@@ -522,9 +522,11 @@ drinksink()
 		case 1: You("take a sip of very warm water.");
 			break;
 		case 2: You("take a sip of scalding hot water.");
-			if (Fire_resistance)
+			if (how_resistant(FIRE_RES) == 100) {
 				pline("It seems quite tasty.");
-			else losehp(rnd(6), "sipping boiling water", KILLED_BY);
+				monstseesu(M_SEEN_FIRE);
+			}
+			else losehp(resist_reduce(rnd(6),FIRE_RES), "sipping boiling water", KILLED_BY);
 			break;
 		case 3: if (mvitals[PM_SEWER_RAT].mvflags & G_GONE)
 				pline_The("sink seems quite dirty.");

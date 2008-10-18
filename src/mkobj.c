@@ -144,16 +144,26 @@ struct obj *box;
 	box->cobj = (struct obj *) 0;
 
 	switch (box->otyp) {
-	case ICE_BOX:		n = 20; break;
-	case CHEST:		n = 5; break;
-	case LARGE_BOX:		n = 3; break;
+		case ICE_BOX:		
+			n = 20; box->capacity = MAX_CAPACITY; break;
+		case IRON_SAFE:   
+			n = 10; box->capacity = MAX_CAPACITY; break;
+		case CHEST:		   
+			n = 5; box->capacity = MAX_CAPACITY; break;
+		case LARGE_BOX:	
+			n = 3; box->capacity = 3000; break;
+		case SMALL_SACK:
+			n = 1; box->capacity = 200; break;
 	case SACK:
 	case OILSKIN_SACK:
+			box->capacity = 1000;
 				/* initial inventory: sack starts out empty */
-				if (moves <= 1 && !in_mklev) { n = 0; break; }
-				/*else FALLTHRU*/
-	case BAG_OF_HOLDING:	n = 1; break;
-	default:		n = 0; break;
+			if (moves <= 1 && !in_mklev) { n = 0; } else { n = 1; }
+			break;
+		case BAG_OF_HOLDING:	
+			n = 1; box->capacity = MAX_CAPACITY; break;
+		default:		
+			n = 0; box->capacity = 1000; break;
 	}
 
 	for (n = rn2(n+1); n > 0; n--) {
@@ -173,6 +183,7 @@ struct obj *box;
 
 		for (tprob = rnd(100); (tprob -= iprobs->iprob) > 0; iprobs++)
 		    ;
+
 		if (!(otmp = mkobj(iprobs->iclass, TRUE))) continue;
 
 		/* handle a couple of special cases */
@@ -180,11 +191,13 @@ struct obj *box;
 		    /* 2.5 x level's usual amount; weight adjusted below */
 		    otmp->quan = (long)(rnd(level_difficulty()+2) * rnd(75));
 		    otmp->owt = weight(otmp);
-		} else while (otmp->otyp == ROCK) {
+			} else { 
+				while (otmp->otyp == ROCK) {
 		    otmp->otyp = rnd_class(DILITHIUM_CRYSTAL, LOADSTONE);
 		    if (otmp->quan > 2L) otmp->quan = 1L;
 		    otmp->owt = weight(otmp);
 		}
+			}
 		if (box->otyp == BAG_OF_HOLDING) {
 		    if (Is_mbag(otmp)) {
 			otmp->otyp = SACK;
@@ -193,6 +206,13 @@ struct obj *box;
 		    } else while (otmp->otyp == WAN_CANCELLATION)
 			    otmp->otyp = rnd_class(WAN_LIGHT, WAN_LIGHTNING);
 		}
+
+			/* now that we know the weight, only add it if it fits */
+			if (weight(box) + otmp->owt > box->capacity) {
+				obfree(otmp,(struct obj*) 0);
+				continue;
+			}
+
 	    }
 	    (void) add_to_container(box, otmp);
 	}
@@ -467,13 +487,14 @@ boolean artif;
 					otmp->age = 20L * /* 400 or 200 */
 					      (long)objects[otmp->otyp].oc_cost;
 					otmp->lamplit = 0;
-					otmp->quan = 1L +
-					      (long)(rn2(2) ? rn2(7) : 0);
+					otmp->quan = 1L + (long)rn2(7);
 					blessorcurse(otmp, 5);
 					break;
 		case BRASS_LANTERN:
-		case OIL_LAMP:		otmp->spe = 1;
-					otmp->age = (long) rn1(500,1000);
+		case BAG_OF_POO:
+		case OIL_LAMP:		
+					otmp->spe = 1;
+					otmp->age = (long) rn1((otmp->otyp == BAG_OF_POO) ? 750 : 500,1000);
 					otmp->lamplit = 0;
 					blessorcurse(otmp, 5);
 					break;
@@ -481,10 +502,16 @@ boolean artif;
 					otmp->lamplit = 0;
 					blessorcurse(otmp, 2);
 					break;
+		case IRON_SAFE:
+					otmp->olocked = 1;
 		case CHEST:
-		case LARGE_BOX:		otmp->olocked = !!(rn2(5));
+		case LARGE_BOX:		
+					if (otmp->otyp != IRON_SAFE) {
+						otmp->olocked = !!(rn2(5));  /* clumsy tweak */
+					}
 					otmp->otrapped = !(rn2(10));
 		case ICE_BOX:
+		case SMALL_SACK:
 		case SACK:
 		case OILSKIN_SACK:
 		case BAG_OF_HOLDING:	mkbox_cnts(otmp);
@@ -552,6 +579,7 @@ boolean artif;
 		   otmp->otyp == LEVITATION_BOOTS ||
 		   otmp->otyp == HELM_OF_OPPOSITE_ALIGNMENT ||
 		   otmp->otyp == GAUNTLETS_OF_FUMBLING ||
+			otmp->otyp == BOOTS_OF_MOLASSES ||
 		   !rn2(11))) {
 			curse(otmp);
 			otmp->spe = -rne(3);
@@ -574,11 +602,14 @@ boolean artif;
 		}
 		break;
 	case WAND_CLASS:
-		if(otmp->otyp == WAN_WISHING) otmp->spe = rnd(3); else
-		otmp->spe = rn1(5,
-			(objects[otmp->otyp].oc_dir == NODIR) ? 11 : 4);
-		blessorcurse(otmp, 17);
+		if (otmp->otyp == WAN_WISHING) { 
+			otmp->spe = rnd(3); 
+			otmp->recharged = Is_stronghold(&u.uz) ? 0 : 1;
+		} else {
+			otmp->spe = rn1(5, (objects[otmp->otyp].oc_dir == NODIR) ? 11 : 4);
 		otmp->recharged = 0; /* used to control recharging */
+		}
+		blessorcurse(otmp, 17);
 		break;
 	case RING_CLASS:
 		if(objects[otmp->otyp].oc_charged) {
@@ -603,6 +634,7 @@ boolean artif;
 		switch (otmp->otyp) {
 		    case STATUE:
 			/* possibly overridden by mkcorpstat() */
+			otmp->capacity = MAX_CAPACITY;
 			otmp->corpsenm = rndmonnum();
 			if (!verysmall(&mons[otmp->corpsenm]) &&
 				rn2(level_difficulty()/2 + 10) > 10)
@@ -905,7 +937,7 @@ int x, y;
  */
 struct obj *
 mkcorpstat(objtype, mtmp, ptr, x, y, init)
-int objtype;	/* CORPSE or STATUE */
+int objtype;	/* CORPSE, SKULL or STATUE */
 struct monst *mtmp;
 struct permonst *ptr;
 int x, y;
@@ -913,7 +945,7 @@ boolean init;
 {
 	register struct obj *otmp;
 
-	if (objtype != CORPSE && objtype != STATUE)
+	if (objtype != CORPSE && objtype != STATUE && objtype != SKULL)
 	    impossible("making corpstat type %d", objtype);
 	if (x == 0 && y == 0) {		/* special case - random placement */
 		otmp = mksobj(objtype, init, FALSE);
@@ -1432,6 +1464,26 @@ add_to_container(container, obj)
     container->cobj = obj;
     return (obj);
 }
+
+/* Small utility function to allow us to check against capacity quickly.
+ * Do not confuse with container_weight! */
+long
+get_container_weight(container)
+struct obj* container;
+{
+	struct obj* ot;
+	long total_weight = 0;
+
+	if (container && container->cobj) {
+		/* quick recalculate so we can be lazy */
+		container_weight(container);
+		for (ot = container->cobj; ot; ot = ot->nobj) {
+			total_weight += ot->owt;
+		}
+	}
+	return total_weight;
+}
+
 
 void
 add_to_migration(obj)

@@ -134,12 +134,16 @@ lookat(x, y, buf, monbuf)
 		name = distant_monnam(mtmp, ARTICLE_NONE, monnambuf);
 
 	    pm = mtmp->data;
-	    Sprintf(buf, "%s%s%s",
+	    Sprintf(buf, "%s%s%s%s%s",
 		    (mtmp->mx != x || mtmp->my != y) ?
 			((mtmp->isshk && accurate)
 				? "tail of " : "tail of a ") : "",
 		    (mtmp->mtame && accurate) ? "tame " :
 		    (mtmp->mpeaceful && accurate) ? "peaceful " : "",
+			 /* don't show 'flying' unless they're not a natural flier */
+			 (is_flying(mtmp) && !is_flyer(mtmp->data) && accurate) ? "flying " : "",
+			 /* don't show 'berserk' unless they've had the spell cast on them */
+			 (mtmp->mberserk && !is_berserker(mtmp->data) && accurate) ? "enraged " : "",
 		    name);
 	    if (u.ustuck == mtmp)
 		Strcat(buf, (Upolyd && sticks(youmonst.data)) ?
@@ -624,7 +628,7 @@ do_look(quick)
 	    }
 	}
 
-#define is_cmap_trap(i) ((i) >= S_arrow_trap && (i) <= S_polymorph_trap)
+#define is_cmap_trap(i) ((i) >= S_arrow_trap && (i) <= S_falling_rocks_trap)
 #define is_cmap_drawbridge(i) ((i) >= S_vodbridge && (i) <= S_hcdbridge)
 
 	/* Now check for graphics symbols */
@@ -728,6 +732,12 @@ do_look(quick)
 
 	/* Finally, print out our explanation. */
 	if (found) {
+		/* Really lame hijack, but... */
+		if (christmas() && strstri(out_str,"a tree")) {
+			char temp_buf[BUFSZ];
+			Sprintf(temp_buf," (with little colored balls on it)");
+			(void)strncat(out_str, temp_buf, BUFSZ-strlen(out_str)-1);
+		}
 	    pline("%s", out_str);
 	    /* check the data file for information about this thing */
 	    if (found == 1 && ans != LOOK_QUICK && ans != LOOK_ONCE &&

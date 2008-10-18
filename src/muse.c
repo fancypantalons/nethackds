@@ -136,7 +136,7 @@ struct obj *obj;
 		monkilled(mon, "", AD_RBRE);
 		return 1;
 	    }
-	    else mon->mhp -= dam;
+		 else damage_mon(mon,dam,AD_RBRE);
 	    m.has_defense = m.has_offense = m.has_misc = 0;
 	    /* Only one needed to be set to 0 but the others are harmless */
 	}
@@ -668,7 +668,7 @@ mon_tele:
 		    pline("%s has made a hole in the %s.", Monnam(mtmp),
 				surface(mtmp->mx, mtmp->my));
 		    pline("%s %s through...", Monnam(mtmp),
-			  is_flyer(mtmp->data) ? "dives" : "falls");
+			  (is_flyer(mtmp->data) || is_flying(mtmp)) ? "dives" : "falls");
 		} else if (flags.soundok)
 			You_hear("%s crash through the %s.", something,
 				surface(mtmp->mx, mtmp->my));
@@ -771,7 +771,14 @@ mon_tele:
 			return 2;
 		}
 		m_flee(mtmp);
-		if (Inhell && mon_has_amulet(mtmp) && !rn2(4) &&
+		/* 
+		 * This has been removed from the player, but not so for the monsters...
+		 * ...and a little more common, too.
+		 *
+		 * Why else do you think none of them have walked out with the Amulet?
+		 * You're the "chosen one", right?  ;)
+		 */
+		if (Inhell && mon_has_amulet(mtmp) && !rn2(2) &&
 			(dunlev(&u.uz) < dunlevs_in_dungeon(&u.uz) - 3)) {
 		    if (vismon) pline(
      "As %s climbs the stairs, a mysterious force momentarily surrounds %s...",
@@ -967,7 +974,11 @@ struct monst *mtmp;
 {
 	register struct obj *obj;
 	boolean ranged_stuff = lined_up(mtmp);
-	boolean reflection_skip = (Reflecting && rn2(2));
+	/* In general if the monster has seen that you're not taking much damage (reflection or MR),
+	 * then it's going to prefer just running up and hitting you if it can.  But we need to take
+	 * the range into account, since half damage is better than no damage... */
+	boolean reflection_skip = m_seenres(mtmp,M_SEEN_REFL) && monnear(mtmp,mtmp->mux,mtmp->muy);
+	boolean mr_skip = m_seenres(mtmp,M_SEEN_MAGR) && monnear(mtmp,mtmp->mux,mtmp->muy);
 	struct obj *helmet = which_armor(mtmp, W_ARMH);
 
 	m.offensive = (struct obj *)0;
@@ -989,48 +1000,50 @@ struct monst *mtmp;
 	for(obj=mtmp->minvent; obj; obj=obj->nobj) {
 		/* nomore(MUSE_WAN_DEATH); */
 		if (!reflection_skip) {
-		    if(obj->otyp == WAN_DEATH && obj->spe > 0) {
+		    if(obj->otyp == WAN_DEATH && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_MAGR) &&
+					/* don't zap death if we know it'll bounce back... unless we resist it */
+					 (!m_seenres(mtmp,M_SEEN_REFL) || nonliving(mtmp->data) || mtmp->data->msound == MS_LEADER)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_DEATH;
 		    }
 		    nomore(MUSE_WAN_SLEEP);
-		    if(obj->otyp == WAN_SLEEP && obj->spe > 0 && multi >= 0) {
+		    if(obj->otyp == WAN_SLEEP && obj->spe > 0 && multi >= 0 && !m_seenres(mtmp,M_SEEN_SLEEP)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_SLEEP;
 		    }
 		    nomore(MUSE_WAN_FIRE);
-		    if(obj->otyp == WAN_FIRE && obj->spe > 0) {
+		    if(obj->otyp == WAN_FIRE && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_FIRE)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_FIRE;
 		    }
 		    nomore(MUSE_FIRE_HORN);
-		    if(obj->otyp == FIRE_HORN && obj->spe > 0) {
+		    if(obj->otyp == FIRE_HORN && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_FIRE)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_FIRE_HORN;
 		    }
 		    nomore(MUSE_WAN_COLD);
-		    if(obj->otyp == WAN_COLD && obj->spe > 0) {
+		    if(obj->otyp == WAN_COLD && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_COLD)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_COLD;
 		    }
 		    nomore(MUSE_FROST_HORN);
-		    if(obj->otyp == FROST_HORN && obj->spe > 0) {
+		    if(obj->otyp == FROST_HORN && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_COLD)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_FROST_HORN;
 		    }
 		    nomore(MUSE_WAN_LIGHTNING);
-		    if(obj->otyp == WAN_LIGHTNING && obj->spe > 0) {
+		    if(obj->otyp == WAN_LIGHTNING && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_ELEC)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_LIGHTNING;
 		    }
 		    nomore(MUSE_WAN_MAGIC_MISSILE);
-		    if(obj->otyp == WAN_MAGIC_MISSILE && obj->spe > 0) {
+		    if(obj->otyp == WAN_MAGIC_MISSILE && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_MAGR)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_MAGIC_MISSILE;
 		    }
 		}
 		nomore(MUSE_WAN_STRIKING);
-		if(obj->otyp == WAN_STRIKING && obj->spe > 0) {
+		if(obj->otyp == WAN_STRIKING && obj->spe > 0 && !m_seenres(mtmp,M_SEEN_MAGR)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_STRIKING;
 		}
@@ -1050,12 +1063,12 @@ struct monst *mtmp;
 			m.has_offense = MUSE_POT_CONFUSION;
 		}
 		nomore(MUSE_POT_SLEEPING);
-		if(obj->otyp == POT_SLEEPING) {
+		if(obj->otyp == POT_SLEEPING && !m_seenres(mtmp,M_SEEN_SLEEP)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_POT_SLEEPING;
 		}
 		nomore(MUSE_POT_ACID);
-		if(obj->otyp == POT_ACID) {
+		if(obj->otyp == POT_ACID && !m_seenres(mtmp,M_SEEN_ACID)) {
 			m.offensive = obj;
 			m.has_offense = MUSE_POT_ACID;
 		}
@@ -1113,6 +1126,7 @@ register struct obj *otmp;
 			if (zap_oseen) makeknown(WAN_STRIKING);
 			if (Antimagic) {
 			    shieldeff(u.ux, u.uy);
+				 monstseesu(M_SEEN_MAGR);
 			    pline("Boing!");
 			} else if (rnd(20) < 10 + u.uac) {
 			    pline_The("wand hits you!");
@@ -1266,14 +1280,38 @@ int
 use_offensive(mtmp)
 struct monst *mtmp;
 {
-	int i;
+	int i,maxdmg;
 	struct obj *otmp = m.offensive;
 	boolean oseen;
+	struct attack* mattk;
 
 	/* offensive potions are not drunk, they're thrown */
 	if (otmp->oclass != POTION_CLASS && (i = precheck(mtmp, otmp)) != 0)
 		return i;
 	oseen = otmp && canseemon(mtmp);
+
+	/* Not all monsters need to be hucking around potions, wands, etc. if they have
+	 * a chance to actually haul off and hit you -- things like the Olog-hai, Vlad,
+	 * and shopkeepers come to mind.  If the monster is wielding an artifact, OR
+	 * if one of the monster's attacks is noticeably meaner... and the monster is
+	 * close enough to actually _use_ the attack, then don't give too much priority
+	 * to the ranged/offensive item stuff. */
+
+	for (i = 0; i < NATTK; i++) {
+		mattk = &mtmp->data->mattk[i];
+		maxdmg += mattk->damn * mattk->damd;	/* total up the possible damage for just swinging */
+	}
+
+	/* if damage is sufficient _or_ we have a good weapon, use that if we're close enough;
+	 * but if we have the incapacitator wands use those anyway.  note that even though the player
+	 * may be sleep resistant the check for the monster knowing this is done in find_offensive,
+	 * so if we get here then the monster can correctly pick sleep wands */
+	if ((maxdmg > 36 || (MON_WEP(mtmp) && MON_WEP(mtmp)->oartifact)) && 
+			(monnear(mtmp,mtmp->mux,mtmp->muy) && 
+			 m.has_offense != MUSE_WAN_DEATH &&
+			 m.has_offense != MUSE_WAN_SLEEP)) {
+		return 0;
+	}
 
 	switch(m.has_offense) {
 	case MUSE_WAN_DEATH:
@@ -1388,7 +1426,7 @@ struct monst *mtmp;
 						mhim(mtmp2));
 				    }
 				}
-	    	    	    	mtmp2->mhp -= mdmg;
+							damage_mon(mtmp2,mdmg,AD_PHYS);
 	    	    	    	if (mtmp2->mhp <= 0) {
 				    pline("%s is killed.", Monnam(mtmp2));
 	    	    	    	    mondied(mtmp2);
@@ -1810,6 +1848,7 @@ skipmsg:
 		newsym(trapx, trapy);
 
 		(void) newcham(mtmp, (struct permonst *)0, FALSE, FALSE);
+		if (!rn2(10)) { deltrap(t_at(trapx,trapy)); }
 		return 2;
 	case MUSE_BULLWHIP:
 		/* attempt to disarm hero */
@@ -2073,25 +2112,43 @@ const char *fmt, *str;
 	    	pline(fmt, str, "shield");
 	    	makeknown(SHIELD_OF_REFLECTION);
 	    }
+		 monstseesu(M_SEEN_REFL);
+	    return TRUE;
+	} else if (HReflecting) {
+		if (fmt && str) {
+			pline(fmt,str,"magical shield");
+		}
+		monstseesu(M_SEEN_REFL);
 	    return TRUE;
 	} else if (EReflecting & W_WEP) {
 	    /* Due to wielded artifact weapon */
 	    if (fmt && str)
 	    	pline(fmt, str, "weapon");
+		 monstseesu(M_SEEN_REFL);
 	    return TRUE;
 	} else if (EReflecting & W_AMUL) {
 	    if (fmt && str) {
 	    	pline(fmt, str, "medallion");
 	    	makeknown(AMULET_OF_REFLECTION);
 	    }
+		 monstseesu(M_SEEN_REFL);
 	    return TRUE;
 	} else if (EReflecting & W_ARM) {
 	    if (fmt && str)
 	    	pline(fmt, str, "armor");
+		 monstseesu(M_SEEN_REFL);
+	    return TRUE;
+	} else if (EReflecting & W_ART) {
+		/* Due to the Magic Mirror, which shows as W_ART */
+		if (fmt && str) {
+			pline(fmt, str, "mirror");
+		}
+		monstseesu(M_SEEN_REFL);
 	    return TRUE;
 	} else if (youmonst.data == &mons[PM_SILVER_DRAGON]) {
 	    if (fmt && str)
 	    	pline(fmt, str, "scales");
+		 monstseesu(M_SEEN_REFL);
 	    return TRUE;
 	}
 	return FALSE;
@@ -2147,7 +2204,7 @@ boolean stoning;
     m_useup(mon, obj);
     if (((obj->otyp == POT_ACID) || acidic(&mons[obj->corpsenm])) &&
 		    !resists_acid(mon)) {
-	mon->mhp -= rnd(15);
+	damage_mon(mon,rnd(15),AD_ACID);
 	pline("%s has a very bad case of stomach acid.",
 	    Monnam(mon));
     }

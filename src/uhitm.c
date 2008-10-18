@@ -8,6 +8,7 @@ STATIC_DCL boolean FDECL(known_hitum, (struct monst *,int *,struct attack *));
 STATIC_DCL void FDECL(steal_it, (struct monst *, struct attack *));
 STATIC_DCL boolean FDECL(hitum, (struct monst *,int,struct attack *));
 STATIC_DCL boolean FDECL(hmon_hitmon, (struct monst *,struct obj *,int));
+STATIC_DCL void FDECL(noisy_hit,(struct monst*,struct obj*,int));
 #ifdef STEED
 STATIC_DCL int FDECL(joust, (struct monst *,struct obj *));
 #endif
@@ -219,10 +220,9 @@ struct monst *mtmp;
 {
 	if (Role_if(PM_KNIGHT) && u.ualign.type == A_LAWFUL &&
 	    (!mtmp->mcanmove || mtmp->msleeping ||
-	     (mtmp->mflee && !mtmp->mavenge)) &&
-	    u.ualign.record > -10) {
+	     (mtmp->mflee && !mtmp->mavenge))) {
 	    You("caitiff!");
-	    adjalign(-1);
+		 minor_sin();
 	}
 }
 
@@ -231,10 +231,10 @@ find_roll_to_hit(mtmp)
 register struct monst *mtmp;
 {
 	schar tmp;
-	int tmp2;
+	int tmp2,wepskill,twowepskill,useskill;
 
-	tmp = 1 + Luck + abon() + find_mac(mtmp) + u.uhitinc +
-		maybe_polyd(youmonst.data->mlevel, u.ulevel);
+	tmp = 1 + (Luck/3) + abon() + find_mac(mtmp) + u.uhitinc +
+		maybe_polyd(youmonst.data->mlevel, (u.ulevel > 20 ? 20 : u.ulevel));
 
 	check_caitiff(mtmp);
 
@@ -242,7 +242,7 @@ register struct monst *mtmp;
 	if (Role_if(PM_SAMURAI) && mtmp->mpeaceful &&
 	    u.ualign.record > -10) {
 	    You("dishonorably attack the innocent!");
-	    adjalign(-1);
+		 minor_sin();
 	}
 
 /*	Adjust vs. (and possibly modify) monster state.		*/
@@ -273,6 +273,11 @@ register struct monst *mtmp;
 	    }
 	}
 
+	/* gloves' bonus contributes if unarmed */
+	if (!uwep && uarmg) {
+		tmp += uarmg->spe;
+	}
+
 /*	with a lot of luggage, your agility diminishes */
 	if ((tmp2 = near_capacity()) != 0) tmp -= (tmp2*2) - 1;
 	if (u.utrap) tmp -= 3;
@@ -280,9 +285,31 @@ register struct monst *mtmp;
  *	attacks.  It is therefore wrong to add hitval to tmp; we must add
  *	it only for the specific attack (in hmonas()).
  */
-	if (uwep && !Upolyd) {
+	if (!Upolyd) {
 		tmp += hitval(uwep, mtmp);
-		tmp += weapon_hit_bonus(uwep);
+		tmp += weapon_hit_bonus(uwep);  /* picks up bare-handed bonuses */
+	} 
+	/* Let's make UNSKILLED matter, shall we?  If you're UNSKILLED,
+	 * you never get more than an 75% chance to hit anything.
+	 * (we'll let the fisticuffs guys slide on this, they've got
+	 * a hard enough row to hoe anyway)
+	 */
+	if (uwep && !u.uswallow) {
+		wepskill = P_SKILL(weapon_type(uwep));
+		twowepskill = P_SKILL(P_TWO_WEAPON_COMBAT);
+		/* use the lesser skill of two-weapon or your primary */
+		useskill = (u.twoweap && twowepskill < wepskill) ? twowepskill : wepskill;
+		if ((useskill == P_UNSKILLED || useskill == P_ISRESTRICTED) && tmp > 15) {
+			tmp = 15;
+			if (!rn2(3)) {
+				/* there's no 'right way' to swing a cockatrice corpse... */
+				if (uwep->oclass != WEAPON_CLASS && !is_weptool(uwep)) {
+					You("are having a tough time swinging the %s.",aobjnam(uwep, (char*)0));
+				} else {
+					You("aren't sure you're doing this the right way...");
+				}
+			}
+		}
 	}
 	return tmp;
 }
@@ -495,9 +522,16 @@ int thrown;
 			    (mon->ispriest || mon->isshk ||
 			     mon->data == &mons[PM_WATCHMAN] ||
 			     mon->data == &mons[PM_WATCH_CAPTAIN]));
+
+	/* check to see if what we're doing would wake up nearby critters */
+	noisy_hit(mon,obj,thrown);
+
+	/* go ahead and 'hit' the monster */
 	result = hmon_hitmon(mon, obj, thrown);
+
 	if (mon->ispriest && !rn2(2)) ghod_hitsu(mon);
 	if (anger_guards) (void)angry_guards(!flags.soundok);
+
 	return result;
 }
 
@@ -523,8 +557,10 @@ int thrown;
 	boolean silvermsg = FALSE, silverobj = FALSE;
 	boolean valid_weapon_attack = FALSE;
 	boolean unarmed = !uwep && !uarm && !uarms;
+	boolean bigpunch = (uarmg && uarmg->otyp == GAUNTLETS_OF_FORCE);
 #ifdef STEED
 	int jousting = 0;
+	int joustdmg;
 #endif
 	int wtype;
 	struct obj *monwep;
@@ -543,10 +579,14 @@ int thrown;
 		tmp = rnd(4);	/* bonus for martial arts */
 	    else
 		tmp = rnd(2);
-	    valid_weapon_attack = (tmp > 1);
+		 valid_weapon_attack = TRUE;	/* remove dorky 1 = d1 and no bonuses */
 	    /* blessed gloves give bonuses when fighting 'bare-handed' */
 	    if (uarmg && uarmg->blessed && (is_undead(mdat) || is_demon(mdat)))
 		tmp += rnd(4);
+		 /* fighting with fists will get the gloves' bonus... */
+		 if (uarmg) {
+			 tmp += uarmg->spe;
+		 }
 	    /* So do silver rings.  Note: rings are worn under gloves, so you
 	     * don't get both bonuses.
 	     */
@@ -603,7 +643,10 @@ int thrown;
 		    valid_weapon_attack = (tmp > 1);
 		    if (!valid_weapon_attack || mon == u.ustuck || u.twoweap) {
 			;	/* no special bonuses */
-		    } else if (mon->mflee && Role_if(PM_ROGUE) && !Upolyd) {
+		    } else if (mon->mflee && Role_if(PM_ROGUE) && 
+								!Upolyd && !thrown) {
+				 /* Rogues get the backstab bonus for fleeing monsters...
+				  * at least if they're in _melee_ :P */
 			You("strike %s from behind!", mon_nam(mon));
 			tmp += rnd(u.ulevel);
 			hittxt = TRUE;
@@ -638,7 +681,8 @@ int thrown;
 			hittxt = TRUE;
 		    }
 
-		    if (obj->oartifact &&
+		    if ((obj->oartifact || /* special case for rocks fired from giantslayer */
+					((obj->oclass == GEM_CLASS) && uwep && uwep->oartifact == ART_GIANTSLAYER)) &&
 			artifact_hit(&youmonst, mon, obj, &tmp, dieroll)) {
 			if(mon->mhp <= 0) /* artifact killed monster */
 			    return FALSE;
@@ -775,15 +819,14 @@ int thrown;
 			    if (resists_ston(mon)) break;
 			    return (boolean) (mon->mhp > 0);
 			} else {	/* ordinary egg(s) */
+				struct monst* montmp;
 			    const char *eggp =
 				     (obj->corpsenm != NON_PM && obj->known) ?
 					      the(mons[obj->corpsenm].mname) :
 					      (cnt > 1L) ? "some" : "an";
-			    You("hit %s with %s egg%s.",
-				mon_nam(mon), eggp, plur(cnt));
+			    You("hit %s with %s egg%s.", mon_nam(mon), eggp, plur(cnt));
 			    if (touch_petrifies(mdat) && !stale_egg(obj)) {
-				pline_The("egg%s %s alive any more...",
-				      plur(cnt),
+					pline_The("egg%s %s alive any more...", plur(cnt),
 				      (cnt == 1L) ? "isn't" : "aren't");
 				if (obj->timed) obj_stop_timers(obj);
 				obj->otyp = ROCK;
@@ -798,6 +841,12 @@ int thrown;
 				useup_eggs(obj);
 				exercise(A_WIS, FALSE);
 			    }
+				 /* Oz reference: Nomes ('gnomes') are afraid of eggs */
+				 for (montmp = fmon; montmp; montmp = montmp->nmon) {
+					 if (is_gnome(montmp->data) && m_canseeu(montmp)) {
+						 monflee(montmp,rnd(6)+4,TRUE,TRUE);
+					 }
+				 }
 			}
 			break;
 #undef useup_eggs
@@ -889,11 +938,23 @@ int thrown;
 
 	if (get_dmg_bonus && tmp > 0) {
 		tmp += u.udaminc;
-		/* If you throw using a propellor, you don't get a strength
-		 * bonus but you do get an increase-damage bonus.
+		/* If you throw using a propellor, you don't get a full strength
+		 * bonus.  For that matter, if you throw anything _period_ 
+		 * you don't get a full strength bonus; it's silly to consider that 
+		 * you could throw anything hard enough to match the force with 
+		 * which you could strike holding it.
+		 *
+		 * Magic increase-damage is different; it's _magic_.
 		 */
-		if(!thrown || !obj || !uwep || !ammo_and_launcher(obj, uwep))
+		if(!thrown || !obj || !uwep) /* || !ammo_and_launcher(obj, uwep)) */
 		    tmp += dbon();
+		else if (thrown)
+			tmp += (dbon() > 1) ? 2 : dbon();
+	}
+
+	/* Red make Zog MAD!  Zog hit harder. */
+	if (uarm && (uarm->otyp == RED_DRAGON_SCALE_MAIL || uarm->otyp == RED_DRAGON_SCALES)) {
+		tmp += rnd(6);
 	}
 
 	if (valid_weapon_attack) {
@@ -907,17 +968,21 @@ int thrown;
 	    use_skill(wtype, 1);
 	}
 
-	if (ispoisoned) {
+	if (ispoisoned || (obj && obj->oartifact == ART_DIRGE)) {
 	    int nopoison = (10 - (obj->owt/10));            
 	    if(nopoison < 2) nopoison = 2;
 	    if Role_if(PM_SAMURAI) {
 		You("dishonorably use a poisoned weapon!");
-		adjalign(-sgn(u.ualign.type));
+		minor_sin();
 	    } else if ((u.ualign.type == A_LAWFUL) && (u.ualign.record > -10)) {
 		You_feel("like an evil coward for using a poisoned weapon.");
-		adjalign(-1);
+		if (Role_if(PM_KNIGHT)) {
+			minor_sin();
+		} else {
+			venial_sin();
 	    }
-	    if (obj && !rn2(nopoison)) {
+	    }
+	    if (obj && !rn2(nopoison) && obj->oartifact != ART_DIRGE) {
 		obj->opoisoned = FALSE;
 		Your("%s %s no longer poisoned.", xname(obj),
 		     otense(obj, "are"));
@@ -947,7 +1012,18 @@ int thrown;
 
 #ifdef STEED
 	if (jousting) {
-	    tmp += d(2, (obj == uwep) ? 10 : 2);	/* [was in dmgval()] */
+		/*
+		 * jousting damage is a bit too strong in the early game
+		 * ...another change necessitated by making the Knight 100%
+		 * to ride his starting pony.
+		 *
+		 * While it's appropriate to consider that a fully-armored Knight
+		 * on a horse would be able to completely mop up the Mines,
+		 * game balance says there should be at least SOME effort
+		 * involved in getting to the luckstone.... 
+		 */
+		 joustdmg = 5 + u.ulevel/3;	 /* 2d5 -> 2d15 */
+	    tmp += d(2, (obj == uwep) ? joustdmg : 2);	/* [was in dmgval()] */
 	    You("joust %s%s",
 			 mon_nam(mon), canseemon(mon) ? exclam(tmp) : ".");
 	    if (jousting < 0) {
@@ -971,22 +1047,26 @@ int thrown;
 
 	/* VERY small chance of stunning opponent if unarmed. */
 	if (unarmed && tmp > 1 && !thrown && !obj && !Upolyd) {
-	    if (rnd(100) < P_SKILL(P_BARE_HANDED_COMBAT) &&
-			!bigmonst(mdat) && !thick_skinned(mdat)) {
-		if (canspotmon(mon))
-		    pline("%s %s from your powerful strike!", Monnam(mon),
-			  makeplural(stagger(mon->data, "stagger")));
+	    if ((rnd(100) < P_SKILL(P_BARE_HANDED_COMBAT) && !bigmonst(mdat) && !thick_skinned(mdat)) || bigpunch) {
+			/* try to avoid spamming the user with "powerful strike" messages just because they're
+			 * slinging around the gloves of punchy */
+			if (canspotmon(mon)) {
+				if (!bigpunch || !rn2(3)) {
+					pline("%s %s from your powerful strike!", Monnam(mon), makeplural(stagger(mon->data, "stagger")));
+					hittxt = TRUE;
+				}
+			}
 		/* avoid migrating a dead monster */
 		if (mon->mhp > tmp) {
-		    mhurtle(mon, u.dx, u.dy, 1);
+				mhurtle(mon, u.dx, u.dy, (bigmonst(mdat) || thick_skinned(mdat) || !bigpunch) ? 1 : rnd(4));
 		    mdat = mon->data; /* in case of a polymorph trap */
 		    if (DEADMONSTER(mon)) already_killed = TRUE;
 		}
-		hittxt = TRUE;
 	    }
 	}
 
-	if (!already_killed) mon->mhp -= tmp;
+	/* artifact_hit handles flaming-sword type damage */
+	if (!already_killed) damage_mon(mon,tmp,AD_PHYS);
 	/* adjustments might have made tmp become less than what
 	   a level draining artifact has already done to max HP */
 	if (mon->mhp > mon->mhpmax) mon->mhp = mon->mhpmax;
@@ -1064,6 +1144,65 @@ int thrown;
 
 	return((boolean)(destroyed ? FALSE : TRUE));
 }
+
+/* It's always seemed a bit odd that you can chop up a throne room,
+ * piece by piece, and nothing ever wakes up, yes?  Let's curb
+ * that behavior a bit; fighting is noisy!  This is a place to
+ * drop any special noise effects you may want to occur when a
+ * particular monster is hit.  */
+
+STATIC_OVL void
+noisy_hit(mtmp,otmp,thrown)
+struct monst* mtmp;
+struct obj* otmp;
+int thrown;
+{
+	struct monst* mtmp2;
+	int noiserange;
+	schar skilltype = P_NONE;
+
+	if (otmp && otmp->oclass == WEAPON_CLASS) { 
+		skilltype = objects[otmp->otyp].oc_skill; 
+	}
+
+	/* properly fired missiles shouldn't make much noise on impact,
+	 * and thrown darts, shuriken, and knives are by definition sneaky */
+	if (otmp && thrown) {
+		if ((ammo_and_launcher(otmp,uwep) && rn2(3)) || 
+				otmp->otyp == DART || otmp->otyp == SHURIKEN || skilltype == P_KNIFE) {
+			return;
+		}
+	}
+
+	/* If you're stealthy, you can slit throats with knives */
+	if (otmp && Stealth && skilltype == P_KNIFE) {
+		return;
+	}
+
+	/* Stealth will reduce the amount of noise made while fighting,
+	 * but won't reduce it entirely to zero */
+	noiserange = Stealth ? 9 : 64;
+
+	/* Some things are just never sneaky.
+	 * For example, smacking things with lightning is loud.
+	 * (TODO: add wand sounds for loud wands) */
+	if (otmp && (otmp->oclass != WEAPON_CLASS || 
+				otmp->oartifact == ART_MJOLLNIR || otmp->otyp == BULLWHIP)) {
+		noiserange = 64;
+	}
+
+	/* Check and see who was close enough to hear it */
+	for (mtmp2 = fmon; mtmp2; mtmp2 = mtmp2->nmon) {
+		if (dist2(mtmp->mx,mtmp->my,mtmp2->mx,mtmp2->my) < noiserange) {
+			/* Rogues get a bit of a bonus for knowing how to kill
+			 * in nice, quiet ways */
+			if (rn2(Role_if(PM_ROGUE) ? 3 : 5)) {
+				mtmp2->msleeping = 0;
+			}
+		}
+	}
+}
+
 
 STATIC_OVL boolean
 shade_aware(obj)
@@ -1469,7 +1608,7 @@ register struct attack *mattk;
 			int xtmp = d(2,6);
 			pline("%s suddenly seems weaker!", Monnam(mdef));
 			mdef->mhpmax -= xtmp;
-			if ((mdef->mhp -= xtmp) <= 0 || !mdef->m_lev) {
+			if (damage_mon(mdef,xtmp,AD_DRLI) || !mdef->m_lev) {
 				pline("%s dies!", Monnam(mdef));
 				xkilled(mdef,0);
 			} else
@@ -1639,7 +1778,7 @@ register struct attack *mattk;
 	}
 
 	mdef->mstrategy &= ~STRAT_WAITFORU; /* in case player is very fast */
-	if((mdef->mhp -= tmp) < 1) {
+	if(damage_mon(mdef,tmp,mattk->adtyp)) {
 	    if (mdef->mtame && !cansee(mdef->mx,mdef->my)) {
 		You_feel("embarrassed for a moment.");
 		if (tmp) xkilled(mdef, 0); /* !tmp but hp<1: already killed */
@@ -1689,7 +1828,7 @@ register struct attack *mattk;
 common:
 		if (!resistance) {
 		    pline("%s gets blasted!", Monnam(mdef));
-		    mdef->mhp -= tmp;
+			 damage_mon(mdef,tmp,AD_ELEC);
 		    if (mdef->mhp <= 0) {
 			 killed(mdef);
 			 return(2);
@@ -1891,7 +2030,7 @@ register struct attack *mattk;
 			break;
 		}
 		end_engulf();
-		if ((mdef->mhp -= dam) <= 0) {
+		if (damage_mon(mdef,dam,mattk->adtyp)) {
 		    killed(mdef);
 		    if (mdef->mhp <= 0)	/* not lifesaved */
 			return(2);
@@ -1954,11 +2093,9 @@ use_weapon:
 	 * we currently allow the player to get each of these as a weapon
 	 * attack.  Is this really desirable?
 	 */
-			if (uwep) {
 			    hittmp = hitval(uwep, mon);
 			    hittmp += weapon_hit_bonus(uwep);
 			    tmp += hittmp;
-			}
 			dhit = (tmp > (dieroll = rnd(20)) || u.uswallow);
 			/* KMH -- Don't accumulate to-hit bonuses */
 			if (uwep) tmp -= hittmp;
@@ -2163,6 +2300,8 @@ uchar aatyp;
 
 		if (!Acid_resistance)
 			mdamageu(mon, tmp);
+		else
+			monstseesu(M_SEEN_ACID);
 		if(!rn2(30)) erode_armor(&youmonst, TRUE);
 	    }
 	    if (mhit) {
@@ -2285,13 +2424,15 @@ uchar aatyp;
 		break;
 	      case AD_COLD:		/* brown mold or blue jelly */
 		if(monnear(mon, u.ux, u.uy)) {
-		    if(Cold_resistance) {
+		    if(how_resistant(COLD_RES) == 100) {
 			shieldeff(u.ux, u.uy);
+				monstseesu(M_SEEN_COLD);
 			You_feel("a mild chill.");
 			ugolemeffects(AD_COLD, tmp);
 			break;
 		    }
 		    You("are suddenly very cold!");
+			 tmp = resist_reduce(tmp,COLD_RES);
 		    mdamageu(mon, tmp);
 		/* monster gets stronger with your heat! */
 		    mon->mhp += tmp / 2;
@@ -2307,25 +2448,38 @@ uchar aatyp;
 		break;
 	      case AD_FIRE:
 		if(monnear(mon, u.ux, u.uy)) {
-		    if(Fire_resistance) {
+					if(how_resistant(FIRE_RES) == 100) {
 			shieldeff(u.ux, u.uy);
+						monstseesu(M_SEEN_FIRE);
 			You_feel("mildly warm.");
 			ugolemeffects(AD_FIRE, tmp);
 			break;
 		    }
 		    You("are suddenly very hot!");
+					tmp = resist_reduce(tmp,FIRE_RES);
 		    mdamageu(mon, tmp);
 		}
 		break;
 	      case AD_ELEC:
-		if(Shock_resistance) {
+				if(how_resistant(SHOCK_RES) == 100) {
 		    shieldeff(u.ux, u.uy);
+					monstseesu(M_SEEN_ELEC);
 		    You_feel("a mild tingle.");
 		    ugolemeffects(AD_ELEC, tmp);
 		    break;
 		}
 		You("are jolted with electricity!");
+				tmp = resist_reduce(tmp,SHOCK_RES);
+				mdamageu(mon, tmp);
+				break;
+			case AD_DISE:	/* gray fungus */
+				if (Sick_resistance) {
+					You("are covered with botulism spores, but they seem to be inert.");
+				} else {
+					You("are covered with botulism spores!");
 		mdamageu(mon, tmp);
+					make_sick(20, "bad case of botulism", TRUE, SICK_NONVOMITABLE);
+				}
 		break;
 	      default:
 		break;
@@ -2368,17 +2522,17 @@ struct attack *mattk;		/* null means we find one internally */
 
 	case AD_ACID:
 	    if(!rn2(6)) {
-		erode_obj(obj, TRUE, FALSE);
+		_erode_obj(obj,AD_ACID);
 	    }
 	    break;
 	case AD_RUST:
 	    if(!mon->mcan) {
-		erode_obj(obj, FALSE, FALSE);
+		_erode_obj(obj,AD_RUST);
 	    }
 	    break;
 	case AD_CORR:
 	    if(!mon->mcan) {
-		erode_obj(obj, TRUE, FALSE);
+		_erode_obj(obj,AD_ACID);
 	    }
 	    break;
 	case AD_ENCH:
@@ -2393,7 +2547,8 @@ struct attack *mattk;		/* null means we find one internally */
 	    break;
 	}
 
-	if (carried(obj)) update_inventory();
+	/* erode_obj might have made it go away */
+	if (obj && carried(obj)) update_inventory();
 }
 
 /* Note: caller must ascertain mtmp is mimicking... */
@@ -2484,7 +2639,7 @@ struct obj *otmp;	/* source of flash */
 		          rn2(min(mtmp->mhp,4));
 		    pline("%s %s!", Monnam(mtmp), amt > mtmp->mhp / 2 ?
 			  "wails in agony" : "cries out in pain");
-		    if ((mtmp->mhp -= amt) <= 0) {
+		    if (damage_mon(mtmp,amt,AD_BLND)) {
 			if (flags.mon_moving)
 			    monkilled(mtmp, (char *)0, AD_BLND);
 			else

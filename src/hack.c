@@ -316,13 +316,15 @@ still_chewing(x,y)
     struct rm *lev = &levl[x][y];
     struct obj *boulder = sobj_at(BOULDER,x,y);
     const char *digtxt = (char *)0, *dmgtxt = (char *)0;
+	 boolean getcoal = FALSE;
 
     if (digging.down)		/* not continuing previous dig (w/ pick-axe) */
 	(void) memset((genericptr_t)&digging, 0, sizeof digging);
 
     if (!boulder && IS_ROCK(lev->typ) && !may_dig(x,y)) {
 	You("hurt your teeth on the %s.",
-	    IS_TREE(lev->typ) ? "tree" : "hard stone");
+			/* ternary abuse! */
+	    IS_TREE(lev->typ) ? christmas() ? "christmas tree" : "tree" : "hard stone");
 	nomul(0);
 	return 1;
     } else if (digging.pos.x != x || digging.pos.y != y ||
@@ -339,7 +341,8 @@ still_chewing(x,y)
 	You("start chewing %s %s.",
 	    (boulder || IS_TREE(lev->typ)) ? "on a" : "a hole in the",
 	    boulder ? "boulder" :
-	    IS_TREE(lev->typ) ? "tree" : IS_ROCK(lev->typ) ? "rock" : "door");
+	    IS_TREE(lev->typ) ? christmas() ? "christmas tree" : "tree" : 
+			IS_ROCK(lev->typ) ? "rock" : "door");
 	watch_dig((struct monst *)0, x, y, FALSE);
 	return 1;
     } else if ((digging.effort += (30 + u.udaminc)) <= 100)  {
@@ -347,7 +350,7 @@ still_chewing(x,y)
 	    You("%s chewing on the %s.",
 		digging.chew ? "continue" : "begin",
 		boulder ? "boulder" :
-		IS_TREE(lev->typ) ? "tree" :
+		IS_TREE(lev->typ) ? christmas() ? "christmas tree" : "tree" :
 		IS_ROCK(lev->typ) ? "rock" : "door");
 	digging.chew = TRUE;
 	watch_dig((struct monst *)0, x, y, FALSE);
@@ -391,7 +394,12 @@ still_chewing(x,y)
 	    lev->doormask = D_NODOOR;
 	}
     } else if (IS_TREE(lev->typ)) {
+		 if (christmas()) {
+			digtxt = "chew through the christmas tree.";
+			getcoal = TRUE;
+		 } else {
 	digtxt = "chew through the tree.";
+		 }
 	lev->typ = ROOM;
     } else if (lev->typ == SDOOR) {
 	if (lev->doormask & D_TRAPPED) {
@@ -424,6 +432,7 @@ still_chewing(x,y)
     unblock_point(x, y);	/* vision */
     newsym(x, y);
     if (digtxt) You(digtxt);	/* after newsym */
+	 if (getcoal) get_coal();
     if (dmgtxt) pay_for_damage(dmgtxt, FALSE);
     (void) memset((genericptr_t)&digging, 0, sizeof digging);
     return 0;
@@ -925,9 +934,11 @@ domove()
 		    if ((uarmf && uarmf->otyp == skates)
 			    || resists_cold(&youmonst) || Flying
 			    || is_floater(youmonst.data) || is_clinger(youmonst.data)
-			    || is_whirly(youmonst.data))
+			    || is_whirly(youmonst.data) ||
+				 (uarm && (uarm->otyp == WHITE_DRAGON_SCALE_MAIL || 
+							  uarm->otyp == WHITE_DRAGON_SCALES)))
 			on_ice = FALSE;
-		    else if (!rn2(Cold_resistance ? 3 : 2)) {
+		    else if (!rn2((how_resistant(COLD_RES) > 50) ? 3 : 2)) {	
 			HFumbling |= FROMOUTSIDE;
 			HFumbling &= ~TIMEOUT;
 			HFumbling += 1;  /* slip on next move */
@@ -1341,7 +1352,7 @@ domove()
 		case 3:		/* changed levels */
 		    /* there's already been a trap message, reinforce it */
 		    abuse_dog(mtmp);
-		    adjalign(-3);
+			 minor_sin();
 		    break;
 		case 2:
 		    /* it may have drowned or died.  that's no way to
@@ -1350,7 +1361,7 @@ domove()
 		    if (rn2(4)) {
 			You_feel("guilty about losing your pet like this.");
 			u.ugangr++;
-			adjalign(-15);
+				major_sin();
 		    }
 
 		    /* you killed your pet by direct action.
@@ -1402,6 +1413,17 @@ domove()
 
 	if (Punished)				/* put back ball and chain */
 	    move_bc(0,bc_control,ballx,bally,chainx,chainy);
+
+	/* Special effects of WDSM; don't spam the player unless he's stepped onto
+	 * water from something that wasn't water/ice already */
+	if (is_pool(u.ux,u.uy) && !Levitation && !Flying && uarm && 
+			(uarm->otyp == WHITE_DRAGON_SCALE_MAIL || uarm->otyp == WHITE_DRAGON_SCALES)) {
+		levl[u.ux][u.uy].typ = ICE;
+      if (!is_pool(u.ux0,u.uy0) && !is_ice(u.ux0,u.uy0)) {
+			pline("The pool crackles and freezes under your feet.");
+		}
+		bury_objs(u.ux,u.uy);
+	}
 
 	spoteffects(TRUE);
 
@@ -1495,7 +1517,7 @@ stillinwater:;
 	    if (is_pool(u.ux, u.uy) || is_lava(u.ux, u.uy)) {
 #ifdef STEED
 		if (u.usteed && !is_flyer(u.usteed->data) &&
-			!is_floater(u.usteed->data) &&
+			!is_floater(u.usteed->data) && !is_flying(u.usteed) &&
 			!is_clinger(u.usteed->data)) {
 		    dismount_steed(Underwater ?
 			    DISMOUNT_FELL : DISMOUNT_GENERIC);
@@ -2152,6 +2174,84 @@ boolean k_format;
 	} else if (n > 0 && u.uhp*10 < u.uhpmax) {
 		maybe_wail();
 	}
+}
+
+int
+gainmaxhp(desired)
+int desired;
+{
+	int softcap,hardcap,i;
+	float scaled,overpct;
+	boolean pastcap;
+	int conbonus;
+
+	/* handle everything cleanly; the current-hp checks are in case we get called
+	 * to actually lose max HP, which might be desirable in some places */
+	if (Upolyd) {
+		/* Don't need to worry about capping anything with regard to this,
+		 * since it'll generally be temporary anyway.  Someone who slaps on
+		 * the amulet of unchanging and then busts out the HP abuse, well,
+		 * very clever, congratulations ;) */
+		u.mhmax += desired;
+		if (u.mh > u.mhmax) { u.mh = u.mhmax; }
+		return u.mhmax;
+	} else if (desired < 0) {
+		/* no need to do silly stuff if we're losing maxhp */
+		u.uhpmax += desired;
+		if (u.uhp > u.uhpmax) { u.uhp = u.uhpmax; }
+		return u.uhpmax;
+	}
+
+	/* Magical methods of increasing HP should certainly allow one to step
+	 * outside of the normal range gained by levels... but perhaps not 
+	 * _ridiculously_ so, to the point of 500+ HP or better on any character.
+	 *
+	 * So implement some slide based on your role/race; you can boost it
+	 * beyond a certain point that's appropriate for your level, but the
+	 * effectiveness of those gains will slowly decrease until you hit
+	 * an effective hard cap at 150% of possible natural maxHP at L30.  */
+	
+	/* first determine the maximum natural amounts this character could have */
+	conbonus = ACURR(A_CON) - 15;
+	if (conbonus < 0) conbonus = 0; 
+	if (conbonus > 4) conbonus = 4;
+	hardcap = softcap = urole.hpadv.infix + urole.hpadv.inrnd + 
+								urace.hpadv.infix + urace.hpadv.inrnd;
+
+	for (i=1;i<=30;i++) {
+		if (i <= u.ulevel) {
+			softcap += (i < urole.xlev) ? 
+				(urole.hpadv.lofix + urole.hpadv.lornd + urace.hpadv.lofix + urace.hpadv.lornd) :
+				(urole.hpadv.hifix + urole.hpadv.hirnd + urace.hpadv.hifix + urace.hpadv.hirnd);
+			softcap += conbonus;
+		}
+		hardcap += (i < urole.xlev) ?
+			(urole.hpadv.lofix + urole.hpadv.lornd + urace.hpadv.lofix + urace.hpadv.lornd) :
+			(urole.hpadv.hifix + urole.hpadv.hirnd + urace.hpadv.hifix + urace.hpadv.hirnd);
+		hardcap += conbonus;
+	}
+
+	/* paranoia */
+	if (softcap <= 0) { impossible("HP cap suspiciously low?"); return u.uhpmax; }
+
+	/* Reduce gains related to how far you are over the top.
+	 * If you're still below the maximum hard cap, you can be up to 200%
+	 * better than you should be at your level; otherwise, don't go more
+	 * than 150% past where you should be. */
+	pastcap = u.uhpmax >= hardcap;
+	overpct = (float)u.uhpmax / (float)softcap - 1;
+	if (overpct >= 0 && overpct < (pastcap ? 0.5 : 1.0)) { 
+		scaled = (float)desired * (1 - overpct * (pastcap ? 2 : 1));	
+		u.uhpmax += (int)scaled;
+		if (scaled - (int)scaled >= .5) { u.uhpmax++; } /* round up */
+	} else if (overpct < 0) {
+		/* if you haven't even hit the soft cap, you get the full bonus */
+		u.uhpmax += desired; 
+	} 
+
+	if (u.uhp > u.uhpmax) { u.uhp = u.uhpmax; }
+	return u.uhpmax;
+
 }
 
 int

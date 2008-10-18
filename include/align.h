@@ -12,8 +12,10 @@ typedef struct	align {		/* alignment & record */
 	int		record;
 } align;
 
-/* bounds for "record" -- respect initial alignments of 10 */
-#define ALIGNLIM	(10L + (moves/200L))
+/* bounds for "record" -- respect initial alignments of 10.
+ * note that the maximum alignment is now 50, so that mortal
+ * sins always put you out of favor with your god. */
+#define ALIGNLIM	(min(50,10L + (moves/300L)))
 
 #define A_NONE	      (-128)	/* the value range of type */
 
@@ -38,5 +40,15 @@ typedef struct	align {		/* alignment & record */
 			 : ((x) == AM_LAWFUL) ? A_LAWFUL : ((int)x) - 2))
 #define Align2amask(x)	(((x) == A_NONE) ? AM_NONE \
 			 : ((x) == A_LAWFUL) ? AM_LAWFUL : (x) + 2)
+
+/*
+ * These will make it a bit easier to adjust alignment swings
+ * while trying to get it balanced out to where it matters...
+ */
+
+#define venial_sin() (adjalign(-5))
+#define minor_sin() (adjalign(-10))
+#define major_sin() (adjalign(-20))
+#define mortal_sin() (adjalign(-50))
 
 #endif /* ALIGN_H */

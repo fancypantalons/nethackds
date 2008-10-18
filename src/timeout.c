@@ -166,13 +166,15 @@ nh_timeout()
 	int baseluck = (flags.moonphase == FULL_MOON) ? 1 : 0;
 
 	if (flags.friday13) baseluck -= 1;
+	if (Lucky) { baseluck += 5; }
 
 	if (u.uluck != baseluck &&
 		moves % (u.uhave.amulet || u.ugangr ? 300 : 600) == 0) {
 	/* Cursed luckstones stop bad luck from timing out; blessed luckstones
 	 * stop good luck from timing out; normal luckstones stop both;
 	 * neither is stopped if you don't have a luckstone.
-	 * Luck is based at 0 usually, +1 if a full moon and -1 on Friday 13th
+	 * Luck is based at 0 usually, +1 if a full moon, -1 on Friday 13th
+	 * and +5 if you have the gauntlets of fortune
 	 */
 	    register int time_luck = stone_luck(FALSE);
 	    boolean nostone = !carrying(LUCKSTONE) && !stone_luck(TRUE);
@@ -207,6 +209,11 @@ nh_timeout()
 	    }
 	}
 
+	/* Give a small warning that spell-based reflection is running out. */
+	if (HReflecting == 20 && !Blind) {
+		pline("The shimmering globe around you is becoming faint.");
+	}
+
 #ifdef STEED
 	if (u.ugallop) {
 	    if (--u.ugallop == 0L && u.usteed)
@@ -215,7 +222,9 @@ nh_timeout()
 #endif
 
 	for(upp = u.uprops; upp < u.uprops+SIZE(u.uprops); upp++)
-	    if((upp->intrinsic & TIMEOUT) && !(--upp->intrinsic & TIMEOUT)) {
+	    if(!(upp->intrinsic & HAVEPARTIAL) &&	 /* partial intrinsics don't time out */
+				 (upp->intrinsic & TIMEOUT) && 
+				 !(--upp->intrinsic & TIMEOUT)) {
 		switch(upp - u.uprops){
 		case STONED:
 			if (delayed_killer && !killer) {
@@ -265,6 +274,36 @@ nh_timeout()
 				You_feel("yourself slowing down%s.",
 							Fast ? " a bit" : "");
 			break;
+		case SLOW:
+			You_feel("less sluggish.");
+			break;
+		case REFLECTING:
+			if (!Blind)
+				pline("The shimmering globe around you flickers and vanishes.");
+			else
+				pline("You don't feel very smooth anymore.");
+			/* Monsters will see this, too, and assume it's safe to shoot again */
+			monstseesulose(M_SEEN_REFL);
+			break;
+		/*
+		 * all these need to make sure the external intrinsic isn't there too
+		 */
+		case VULN_FIRE:
+			if (!Vulnerable_fire)
+				You("don't shy away from sparks anymore.");
+			break;
+		case VULN_COLD:
+			if (!Vulnerable_cold)
+				You("aren't nervous about open iceboxes now.");
+			break;
+		case VULN_ELEC:
+			if (!Vulnerable_elec)
+				You("seem to be a less ideal conductor again.");
+			break;
+		case VULN_ACID:
+			if (!Vulnerable_acid)
+				You("don't seem to dissolve so easily anymore.");
+			break;
 		case CONFUSION:
 			HConfusion = 1; /* So make_confused works properly */
 			make_confused(0L, TRUE);
@@ -305,11 +344,11 @@ nh_timeout()
 			stop_occupation();
 			break;
 		case SLEEPING:
-			if (unconscious() || Sleep_resistance)
+			if (unconscious() || how_resistant(SLEEP_RES) == 100)
 				HSleeping += rnd(100);
 			else if (Sleeping) {
 				You("fall asleep.");
-				sleeptime = rnd(20);
+				sleeptime = resist_reduce(rnd(20),SLEEP_RES);
 				fall_asleep(-sleeptime, TRUE);
 				HSleeping += sleeptime + rnd(100);
 			}
@@ -812,7 +851,11 @@ long timeout;
 
 	    case BRASS_LANTERN:
 	    case OIL_LAMP:
+		 case BAG_OF_POO:
 		switch((int)obj->age) {
+			case 300:
+			case 250:
+			case 200:
 		    case 150:
 		    case 100:
 		    case 50:
@@ -868,6 +911,12 @@ long timeout;
 			    }
 			}
 			end_burn(obj, FALSE);
+
+			/* has to happen afterwards */
+			if (obj->otyp == BAG_OF_POO) { 
+				useup(obj);
+				BStealth = 0; 
+			}
 			break;
 
 		    default:
@@ -879,7 +928,7 @@ long timeout;
 			break;
 		}
 
-		if (obj->age)
+		if (obj && obj->age)
 		    begin_burn(obj, TRUE);
 
 		break;
@@ -1017,7 +1066,7 @@ long timeout;
  * a timer.
  *
  * Burn rules:
- *	potions of oil, lamps & candles:
+ *	potions of oil, lamps, bags of poo & candles:
  *		age = # of turns of fuel left
  *		spe = <unused>
  *
@@ -1052,6 +1101,10 @@ begin_burn(obj, already_lit)
 	    return;
 
 	switch (obj->otyp) {
+		case SHIELD_OF_LIGHT:
+			radius = 2;	 /* not quite as good as the others */
+		case GOLD_DRAGON_SCALE_MAIL:
+		case GOLD_DRAGON_SCALES:
 	    case MAGIC_LAMP:
 		obj->lamplit = 1;
 		do_timer = FALSE;
@@ -1062,6 +1115,9 @@ begin_burn(obj, already_lit)
 		radius = 1;	/* very dim light */
 		break;
 
+		/* These last a bit longer due to more, er, fuel */
+		 case BAG_OF_POO:
+		radius = 2;
 	    case BRASS_LANTERN:
 	    case OIL_LAMP:
 		/* magic times are 150, 100, 50, 25, and 0 */
@@ -1078,6 +1134,10 @@ begin_burn(obj, already_lit)
 		break;
 
 	    case CANDELABRUM_OF_INVOCATION:
+			if (!u.uevent.invoked) {
+				do_timer = FALSE;
+				obj->lamplit = 1;
+			}
 	    case TALLOW_CANDLE:
 	    case WAX_CANDLE:
 		/* magic times are 75, 15, and 0 */
@@ -1142,7 +1202,8 @@ end_burn(obj, timer_attached)
 	    return;
 	}
 
-	if (obj->otyp == MAGIC_LAMP || artifact_light(obj))
+	if (obj->otyp == MAGIC_LAMP || artifact_light(obj) ||
+			(obj->otyp == CANDELABRUM_OF_INVOCATION && !u.uevent.invoked))
 	    timer_attached = FALSE;
 
 	if (!timer_attached) {

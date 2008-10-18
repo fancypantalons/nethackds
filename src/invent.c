@@ -19,7 +19,12 @@ STATIC_DCL boolean FDECL(taking_off, (const char *));
 STATIC_DCL boolean FDECL(putting_on, (const char *));
 STATIC_PTR int FDECL(ckunpaid,(struct obj *));
 STATIC_PTR int FDECL(ckvalidcat,(struct obj *));
+#ifdef DUMP_LOG
+static char FDECL(display_pickinv,
+		 (const char *,BOOLEAN_P, long *, BOOLEAN_P, BOOLEAN_P));
+#else
 static char FDECL(display_pickinv, (const char *,BOOLEAN_P, long *));
+#endif /* DUMP_LOG */
 #ifdef OVLB
 STATIC_DCL boolean FDECL(this_type_only, (struct obj *));
 STATIC_DCL void NDECL(dounpaid);
@@ -244,6 +249,7 @@ void
 addinv_core1(obj)
 struct obj *obj;
 {
+	char buf[512];
 	if (obj->oclass == COIN_CLASS) {
 #ifndef GOLDOBJ
 		u.ugold += obj->quan;
@@ -253,6 +259,14 @@ struct obj *obj;
 	} else if (obj->otyp == AMULET_OF_YENDOR) {
 		if (u.uhave.amulet) impossible("already have amulet?");
 		u.uhave.amulet = 1;
+#ifdef WISH_TRACKER
+		if (Is_sanctum(&u.uz)) {
+			Sprintf(buf,
+				"%s picked up the Amulet of Yendor in Moloch's Sanctum on T:%d", 
+				plname,moves);
+			makeannounce(buf);
+		}
+#endif
 	} else if (obj->otyp == CANDELABRUM_OF_INVOCATION) {
 		if (u.uhave.menorah) impossible("already have candelabrum?");
 		u.uhave.menorah = 1;
@@ -1017,7 +1031,11 @@ register const char *let,*word;
 		    if (ilet == '?' && !*lets && *altlets)
 			allowed_choices = altlets;
 		    ilet = display_pickinv(allowed_choices, TRUE,
-					   allowcnt ? &ctmp : (long *)0);
+					   allowcnt ? &ctmp : (long *)0
+#ifdef DUMP_LOG
+					   , FALSE, TRUE
+#endif
+					   );
 		    if(!ilet) continue;
 		    if (allowcnt && ctmp >= 0) {
 			cnt = ctmp;
@@ -1163,7 +1181,7 @@ register struct obj *otmp;
 #ifdef STEED
 			W_SADDLE |
 #endif
-			W_WEP | W_SWAPWEP | W_QUIVER))));
+			W_WEP | W_SWAPWEP | W_QUIVER | W_LAUNCHER))));
 }
 
 static NEARDATA const char removeables[] =
@@ -1189,7 +1207,7 @@ unsigned *resultflags;
 	int oletct, iletct, unpaid, oc_of_sym;
 #endif
 	char sym, *ip, olets[MAXOCLASSES+5], ilets[MAXOCLASSES+5];
-	char extra_removeables[3+1];	/* uwep,uswapwep,uquiver */
+	char extra_removeables[4+1];	/* uwep,uswapwep,uquiver,ulauncher */
 	char buf[BUFSZ], qbuf[QBUFSZ];
 
 	if (resultflags) *resultflags = 0;
@@ -1258,6 +1276,7 @@ unsigned *resultflags;
 	    if (uwep) (void)strkitten(extra_removeables, uwep->oclass);
 	    if (uswapwep) (void)strkitten(extra_removeables, uswapwep->oclass);
 	    if (uquiver) (void)strkitten(extra_removeables, uquiver->oclass);
+	    if (ulauncher) (void)strkitten(extra_removeables, ulauncher->oclass);
 	}
 
 	ip = buf;
@@ -1275,7 +1294,7 @@ unsigned *resultflags;
 		    You("are not wearing any armor.");
 		    return 0;
 		} else if (oc_of_sym == WEAPON_CLASS &&
-			!uwep && !uswapwep && !uquiver) {
+			!uwep && !uswapwep && !uquiver && !ulauncher) {
 		    You("are not wielding anything.");
 		    return 0;
 		} else if (oc_of_sym == RING_CLASS && !uright && !uleft) {
@@ -1689,13 +1708,27 @@ find_unpaid(list, last_found)
  * inventory and return a count as well as a letter. If out_cnt is not null,
  * any count returned from the menu selection is placed here.
  */
+#ifdef DUMP_LOG
+static char
+display_pickinv(lets, want_reply, out_cnt, want_dump, want_disp)
+register const char *lets;
+boolean want_reply;
+long* out_cnt;
+boolean want_dump;
+boolean want_disp;
+#else
 static char
 display_pickinv(lets, want_reply, out_cnt)
 register const char *lets;
 boolean want_reply;
 long* out_cnt;
+#endif
 {
 	struct obj *otmp;
+#ifdef SORTLOOT
+	struct obj **oarray;
+	int i, j;
+#endif
 	char ilet, ret;
 	char *invlet = flags.inv_order;
 	int n, classcount;
@@ -1704,6 +1737,9 @@ long* out_cnt;
 	anything any;
 	menu_item *selected;
 
+#ifdef DUMP_LOG
+	if (want_disp) {
+#endif
 	/* overriden by global flag */
 	if (flags.perm_invent) {
 	    win = (lets && *lets) ? local_win : WIN_INVEN;
@@ -1712,6 +1748,11 @@ long* out_cnt;
 		win = local_win = create_nhwindow(NHW_MENU);
 	} else
 	    win = WIN_INVEN;
+
+#ifdef DUMP_LOG
+	}
+	if (want_dump)   dump("", "Your inventory");
+#endif
 
 	/*
 	Exit early if no inventory -- but keep going if we are doing
@@ -1725,10 +1766,23 @@ long* out_cnt;
 	to here is short circuited away.
 	*/
 	if (!invent && !(flags.perm_invent && !lets && !want_reply)) {
+#ifdef DUMP_LOG
+	  if (want_disp) {
+#endif
 #ifndef GOLDOBJ
 	    pline("Not carrying anything%s.", u.ugold ? " except gold" : "");
 #else
 	    pline("Not carrying anything.");
+#endif
+#ifdef DUMP_LOG
+	  }
+	  if (want_dump) {
+#ifdef GOLDOBJ
+	    dump("  ", "Not carrying anything");
+#else
+	    dump("  Not carrying anything", u.ugold ? " except gold." : ".");
+#endif
+	  }
 #endif
 	    return 0;
 	}
@@ -1743,37 +1797,129 @@ long* out_cnt;
 	    ret = '\0';
 	    for (otmp = invent; otmp; otmp = otmp->nobj) {
 		if (otmp->invlet == lets[0]) {
+#ifdef DUMP_LOG
+		  if (want_disp) {
+#endif
 		    ret = message_menu(lets[0],
 			  want_reply ? PICK_ONE : PICK_NONE,
 			  xprname(otmp, (char *)0, lets[0], TRUE, 0L, 0L));
 		    if (out_cnt) *out_cnt = -1L;	/* select all */
+#ifdef DUMP_LOG
+		  }
+		  if (want_dump) {
+		    char letbuf[7];
+		    sprintf(letbuf, "  %c - ", lets[0]);
+		    dump(letbuf,
+			 xprname(otmp, (char *)0, lets[0], TRUE, 0L, 0L));
+		  }
+#endif
 		    break;
 		}
 	    }
 	    return ret;
 	}
 
+#ifdef SORTLOOT
+	/* count the number of items */
+	for (n = 0, otmp = invent; otmp; otmp = otmp->nobj)
+	  if(!lets || !*lets || index(lets, otmp->invlet)) n++;
+
+	/* Make a temporary array to store the objects sorted */
+	oarray = (struct obj **)alloc(n*sizeof(struct obj*));
+
+	/* Add objects to the array */
+	i = 0;
+	for(otmp = invent; otmp; otmp = otmp->nobj)
+	  if(!lets || !*lets || index(lets, otmp->invlet)) {
+	    if (iflags.sortloot == 'f') {
+	      /* Insert object at correct index */
+	      for (j = i; j; j--) {
+		if (strcmpi(cxname2(otmp), cxname2(oarray[j-1]))>0) break;
+		oarray[j] = oarray[j-1];
+	      }
+	      oarray[j] = otmp;
+	      i++;
+	    } else {
+	      /* Just add it to the array */
+	      oarray[i++] = otmp;
+	    }
+	  }
+#endif /* SORTLOOT */
+
+#ifdef DUMP_LOG
+	if (want_disp)
+#endif
+
 	start_menu(win);
 nextclass:
 	classcount = 0;
 	any.a_void = 0;		/* set all bits to zero */
+#ifdef SORTLOOT
+	for(i = 0; i < n; i++) {
+	  otmp = oarray[i];
+	  ilet = otmp->invlet;
+	  if (!flags.sortpack || otmp->oclass == *invlet) {
+	    if (flags.sortpack && !classcount) {
+	      any.a_void = 0;             /* zero */
+#ifdef DUMP_LOG
+			if (want_disp)
+#endif
+	      add_menu(win, NO_GLYPH, &any, 0, 0, iflags.menu_headings,
+		       let_to_name(*invlet, FALSE), MENU_UNSELECTED);
+#ifdef DUMP_LOG
+	      if (want_dump)
+		dump("  ", let_to_name(*invlet, FALSE));
+#endif
+	      classcount++;
+	    }
+	    any.a_char = ilet;
+#ifdef DUMP_LOG
+			if (want_disp)
+#endif
+	    add_menu(win, obj_to_glyph(otmp),
+		     &any, ilet, 0, ATR_NONE, doname(otmp),
+		     MENU_UNSELECTED);
+#ifdef DUMP_LOG
+	    if (want_dump) {
+	      char letbuf[7];
+	      sprintf(letbuf, "  %c - ", ilet);
+	      dump(letbuf, doname(otmp));
+	    }
+#endif
+	  }
+	}
+#else /* SORTLOOT */
 	for(otmp = invent; otmp; otmp = otmp->nobj) {
 		ilet = otmp->invlet;
 		if(!lets || !*lets || index(lets, ilet)) {
 			if (!flags.sortpack || otmp->oclass == *invlet) {
 			    if (flags.sortpack && !classcount) {
 				any.a_void = 0;		/* zero */
+#ifdef DUMP_LOG
+				if (want_dump)
+				    dump("  ", let_to_name(*invlet, FALSE));
+				if (want_disp)
+#endif
 				add_menu(win, NO_GLYPH, &any, 0, 0, iflags.menu_headings,
 				    let_to_name(*invlet, FALSE), MENU_UNSELECTED);
 				classcount++;
 			    }
 			    any.a_char = ilet;
+#ifdef DUMP_LOG
+			    if (want_dump) {
+			      char letbuf[7];
+			      sprintf(letbuf, "  %c - ", ilet);
+			      dump(letbuf, doname(otmp));
+			    }
+			    if (want_disp)
+#endif
 			    add_menu(win, obj_to_glyph(otmp),
 					&any, ilet, 0, ATR_NONE, doname(otmp),
 					MENU_UNSELECTED);
 			}
 		}
 	}
+#endif /* SORTLOOT */
 	if (flags.sortpack) {
 		if (*++invlet) goto nextclass;
 #ifdef WIZARD
@@ -1783,6 +1929,12 @@ nextclass:
 		}
 #endif
 	}
+#ifdef SORTLOOT
+	free(oarray);
+#endif
+#ifdef DUMP_LOG
+	if (want_disp) {
+#endif
 	end_menu(win, (char *) 0);
 
 	n = select_menu(win, want_reply ? PICK_ONE : PICK_NONE, &selected);
@@ -1792,6 +1944,10 @@ nextclass:
 	    free((genericptr_t)selected);
 	} else
 	    ret = !n ? '\0' : '\033';	/* cancelled */
+#ifdef DUMP_LOG
+	} /* want_disp */
+	if (want_dump)  dump("", "");
+#endif
 
 	return ret;
 }
@@ -1808,8 +1964,23 @@ display_inventory(lets, want_reply)
 register const char *lets;
 boolean want_reply;
 {
-	return display_pickinv(lets, want_reply, (long *)0);
+	return display_pickinv(lets, want_reply, (long *)0
+#ifdef DUMP_LOG
+			       , FALSE , TRUE
+#endif
+	);
 }
+
+#ifdef DUMP_LOG
+/* See display_inventory. This is the same thing WITH dumpfile creation */
+char
+dump_inventory(lets, want_reply, want_disp)
+register const char *lets;
+boolean want_reply, want_disp;
+{
+  return display_pickinv(lets, want_reply, (long *)0, TRUE, want_disp);
+}
+#endif
 
 /*
  * Returns the number of unpaid items within the given list.  This includes

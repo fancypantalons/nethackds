@@ -229,7 +229,7 @@ dig()
 	} else { /* !digging.down */
 	    if (IS_TREE(lev->typ) && !may_dig(dpx,dpy) &&
 			dig_typ(uwep, dpx, dpy) == DIGTYP_TREE) {
-		pline("This tree seems to be petrified.");
+		pline("This %stree seems to be petrified.",christmas() ? "christmas " : "");
 		return(0);
 	    }
 	    if (IS_ROCK(lev->typ) && !may_dig(dpx,dpy) &&
@@ -304,6 +304,7 @@ dig()
 		register const char *digtxt, *dmgtxt = (const char*) 0;
 		register struct obj *obj;
 		register boolean shopedge = *in_rooms(dpx, dpy, SHOPBASE);
+		boolean getcoal = FALSE;
 
 		if ((obj = sobj_at(STATUE, dpx, dpy)) != 0) {
 			if (break_statue(obj))
@@ -336,7 +337,12 @@ dig()
 			    }
 			}
 			if (IS_TREE(lev->typ)) {
+				if (christmas()) {
+			    digtxt = "You cut down the christmas tree.";
+				 getcoal = TRUE;
+				} else {
 			    digtxt = "You cut down the tree.";
+				}
 			    lev->typ = ROOM;
 			    if (!rn2(5)) (void) rnd_treefruit_at(dpx, dpy);
 			} else {
@@ -380,6 +386,9 @@ dig()
 		else
 		    newsym(dpx, dpy);
 		if(digtxt && !digging.quiet) pline(digtxt); /* after newsym */
+		if (getcoal) {
+			get_coal();
+		}
 		if(dmgtxt)
 		    pay_for_damage(dmgtxt, FALSE);
 
@@ -424,7 +433,8 @@ cleanup:
 		} else if (!IS_ROCK(lev->typ) && dig_target == DIGTYP_ROCK)
 		    return(0); /* statue or boulder got taken */
 		if(!did_dig_msg) {
-		    You("hit the %s with all your might.",
+		    You("hit the %s%s with all your might.",
+					 (christmas() && dig_target == 5) ? "christmas " : "",
 			d_target[dig_target]);
 		    did_dig_msg = TRUE;
 		}
@@ -557,10 +567,10 @@ int ttyp;
 		if (oldobjs != newobjs)	/* something unearthed */
 			(void) pickup(1);	/* detects pit */
 	    } else if(mtmp) {
-		if(is_flyer(mtmp->data) || is_floater(mtmp->data)) {
+		if(is_flyer(mtmp->data) || is_floater(mtmp->data) || is_flying(mtmp)) {
 		    if(canseemon(mtmp))
 			pline("%s %s over the pit.", Monnam(mtmp),
-						     (is_flyer(mtmp->data)) ?
+						     (is_flyer(mtmp->data) || is_flying(mtmp)) ?
 						     "flies" : "floats");
 		} else if(mtmp != madeby)
 		    (void) mintrap(mtmp);
@@ -617,7 +627,7 @@ int ttyp;
 		if (mtmp) {
 		     /*[don't we need special sokoban handling here?]*/
 		    if (is_flyer(mtmp->data) || is_floater(mtmp->data) ||
-		        mtmp->data == &mons[PM_WUMPUS] ||
+		        is_flying(mtmp) || mtmp->data == &mons[PM_WUMPUS] ||
 			(mtmp->wormno && count_wsegs(mtmp) > 5) ||
 			mtmp->data->msize >= MZ_HUGE) return;
 		    if (mtmp == u.ustuck)	/* probably a vortex */
@@ -769,13 +779,13 @@ dig_up_grave()
 	/* Grave-robbing is frowned upon... */
 	exercise(A_WIS, FALSE);
 	if (Role_if(PM_ARCHEOLOGIST)) {
-	    adjalign(-sgn(u.ualign.type)*3);
+	    minor_sin();
 	    You_feel("like a despicable grave-robber!");
 	} else if (Role_if(PM_SAMURAI)) {
-	    adjalign(-sgn(u.ualign.type));
+	    venial_sin();
 	    You("disturb the honorable dead!");
 	} else if ((u.ualign.type == A_LAWFUL) && (u.ualign.record > -10)) {
-	    adjalign(-sgn(u.ualign.type));
+	    venial_sin();
 	    You("have violated the sanctity of this grave!");
 	}
 
@@ -1045,7 +1055,7 @@ watch_dig(mtmp, x, y, zap)
 		    if (IS_DOOR(lev->typ))
 			str = "door";
 		    else if (IS_TREE(lev->typ))
-			str = "tree";
+			str = christmas() ? "christmas tree" : "tree";
 		    else if (IS_ROCK(lev->typ))
 			str = "wall";
 		    else
@@ -1237,7 +1247,7 @@ zap_dig()
 			room->typ = ROOM;
 			unblock_point(zx,zy); /* vision */
 		    } else if (!Blind)
-			pline_The("tree shudders but is unharmed.");
+			pline_The("%stree shudders but is unharmed.",christmas() ? "christmas " : "");
 		    break;
 		} else if (room->typ == STONE || room->typ == SCORR) {
 		    if (!(room->wall_info & W_NONDIGGABLE)) {
@@ -1440,6 +1450,9 @@ long timeout;	/* unused */
 	    } else if (obj == uquiver) {
 		uqwepgone();
 		stop_occupation();
+	    } else if (obj == ulauncher) { /* not sure how this would be possible but */
+		ulwepgone();
+		stop_occupation();
 	    }
 	} else if (obj->where == OBJ_MINVENT && obj->owornmask) {
 	    if (obj == MON_WEP(obj->ocarry)) {
@@ -1552,6 +1565,17 @@ struct obj *otmp;
 	bury_objs(otmp->ox, otmp->oy);
 }
 #endif
+
+void
+get_coal()
+{
+	pline("What a Scrooge! There will surely be consequences...");
+	change_luck(-2);
+	if (!rn2(3)) {
+		pline("The Spirit of Dungeons Past appears before you!");
+		makemon(&mons[PM_SHADE],u.ux,u.uy,MM_ADJACENTOK);
+	}
+}
 
 #ifdef DEBUG
 int

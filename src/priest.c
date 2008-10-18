@@ -162,7 +162,7 @@ register struct monst *priest;
 	gy += rn1(3,-1);
 
 	if(!priest->mpeaceful ||
-	   (Conflict && !resist(priest, RING_CLASS, 0, 0))) {
+	   (Conflict && !resist_conflict(priest))) {
 		if(monnear(priest, u.ux, u.uy)) {
 			if(Displaced)
 				Your("displaced image doesn't fool %s!",
@@ -251,15 +251,12 @@ char *pname;		/* caller-supplied output buffer */
 
 	Strcpy(pname, "the ");
 	if (mon->minvis) Strcat(pname, "invisible ");
-	if (mon->ispriest || mon->data == &mons[PM_ALIGNED_PRIEST] ||
-					mon->data == &mons[PM_ANGEL]) {
+	if (mon->ispriest || mon->data == &mons[PM_ALIGNED_PRIEST] || mon->data == &mons[PM_ANGEL]) {
 		/* use epri */
 		if (mon->mtame && mon->data == &mons[PM_ANGEL])
 			Strcat(pname, "guardian ");
-		if (mon->data != &mons[PM_ALIGNED_PRIEST] &&
-				mon->data != &mons[PM_HIGH_PRIEST]) {
+		if (mon->data != &mons[PM_ALIGNED_PRIEST] && mon->data != &mons[PM_HIGH_PRIEST]) {
 			Strcat(pname, what);
-			Strcat(pname, " ");
 		}
 		if (mon->data != &mons[PM_ANGEL]) {
 			if (!mon->ispriest && EPRI(mon)->renegade)
@@ -273,8 +270,11 @@ char *pname;		/* caller-supplied output buffer */
 			else
 				Strcat(pname, "priest ");
 		}
+		/* You can't tell what kind of priest it is 'til you see them with your eyeballs. */
+		if (canseemon(mon)) {
 		Strcat(pname, "of ");
 		Strcat(pname, halu_gname((int)EPRI(mon)->shralign));
+		}
 		return(pname);
 	}
 	/* use emin instead of epri */
@@ -480,7 +480,7 @@ register struct monst *priest;
 			Monnam(priest));
 	    if((offer = bribe(priest)) == 0) {
 		verbalize("Thou shalt regret thine action!");
-		if(coaligned) adjalign(-1);
+		if(coaligned) venial_sin();
 	    } else if(offer < (u.ulevel * 200)) {
 #ifndef GOLDOBJ
 		if(u.ugold > (offer * 2L)) verbalize("Cheapskate.");

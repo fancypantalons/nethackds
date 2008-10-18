@@ -33,12 +33,12 @@ static long final_fpos;
 #define NAMSZ	10
 #define DTHSZ	100
 #define ROLESZ   3
-#define PERSMAX	 3		/* entries per name/uid per char. allowed */
+#define PERSMAX	 50		/* entries per name/uid per char. allowed */
 #define POINTSMIN	1	/* must be > 0 */
-#define ENTRYMAX	100	/* must be >= 10 */
+#define ENTRYMAX	2000	/* must be >= 10 */
 
 #if !defined(MICRO) && !defined(MAC) && !defined(WIN32)
-#define PERS_IS_UID		/* delete for PERSMAX per name; now per uid */
+/*#define PERS_IS_UID		 delete for PERSMAX per name; now per uid */
 #endif
 struct toptenentry {
 	struct toptenentry *tt_next;
@@ -160,7 +160,8 @@ struct toptenentry *tt;
 		tt->points = 0;
 	else {
 		/* Check for backwards compatibility */
-		if (tt->ver_major < 3 ||
+		/* force using the latest method even though we're a weird version */
+		if (0 && tt->ver_major < 3 ||
 				(tt->ver_major == 3 && tt->ver_minor < 3)) {
 			int i;
 
@@ -210,7 +211,8 @@ struct toptenentry *tt;
 		tt->points, tt->deathdnum, tt->deathlev,
 		tt->maxlvl, tt->hp, tt->maxhp, tt->deaths,
 		tt->deathdate, tt->birthdate, tt->uid);
-	if (tt->ver_major < 3 ||
+	/* force using the latest method even though we're a weird version */
+	if (0 && tt->ver_major < 3 ||
 			(tt->ver_major == 3 && tt->ver_minor < 3))
 #ifdef NO_SCAN_BRACK
 		(void) fprintf(rfile,"%c%c %s %s\n",
@@ -248,6 +250,76 @@ struct toptenentry *tt;
 	dealloc_ttentry(tt);
 }
 
+
+#ifdef LOGFILE
+void
+write_log_entry(how,score)
+int how;
+long score;
+{
+	int uid = getuid();
+	register struct toptenentry *t0;
+	FILE *lfile;
+
+	t0 = newttentry();
+	t0->ver_major = VERSION_MAJOR;
+	t0->ver_minor = VERSION_MINOR;
+	t0->patchlevel = PATCHLEVEL;
+	t0->points = score;
+	t0->deathdnum = u.uz.dnum;
+	t0->deathlev = observable_depth(&u.uz);
+	t0->maxlvl = deepest_lev_reached(TRUE);
+	t0->hp = u.uhp;
+	t0->maxhp = u.uhpmax;
+	t0->deaths = u.umortality;
+	t0->uid = uid;
+	(void) strncpy(t0->plrole, urole.filecode, ROLESZ);
+	t0->plrole[ROLESZ] = '\0';
+	(void) strncpy(t0->plrace, urace.filecode, ROLESZ);
+	t0->plrace[ROLESZ] = '\0';
+	(void) strncpy(t0->plgend, genders[flags.female].filecode, ROLESZ);
+	t0->plgend[ROLESZ] = '\0';
+	(void) strncpy(t0->plalign, aligns[1-u.ualign.type].filecode, ROLESZ);
+	t0->plalign[ROLESZ] = '\0';
+	(void) strncpy(t0->name, plname, NAMSZ);
+	t0->name[NAMSZ] = '\0';
+	t0->death[0] = '\0';
+	switch (killer_format) {
+		default: impossible("bad killer format?");
+		case KILLED_BY_AN:
+			Strcat(t0->death, killed_by_prefix[how]);
+			(void) strncat(t0->death, an(killer),
+						DTHSZ-strlen(t0->death));
+			break;
+		case KILLED_BY:
+			Strcat(t0->death, killed_by_prefix[how]);
+			(void) strncat(t0->death, killer,
+						DTHSZ-strlen(t0->death));
+			break;
+		case NO_KILLER_PREFIX:
+			(void) strncat(t0->death, killer, DTHSZ);
+			break;
+	}
+	t0->birthdate = yyyymmdd(u.ubirthday);
+	t0->deathdate = yyyymmdd((time_t)0L);
+	t0->tt_next = 0;
+#ifdef UPDATE_RECORD_IN_PLACE
+	t0->fpos = -1L;
+#endif
+
+	if (lock_file(LOGFILE, SCOREPREFIX, 10)) {
+	    if(!(lfile = fopen_datafile(LOGFILE, "a", SCOREPREFIX))) {
+			 /* should do something here */
+	    } else {
+		writeentry(lfile, t0);
+		(void) fclose(lfile);
+	    }
+	    unlock_file(LOGFILE);
+	}
+
+}
+#endif
+
 void
 topten(how)
 int how;
@@ -260,9 +332,6 @@ int how;
 	FILE *rfile;
 	register int flg = 0;
 	boolean t0_used;
-#ifdef LOGFILE
-	FILE *lfile;
-#endif /* LOGFILE */
 
 /* Under DICE 3.0, this crashes the system consistently, apparently due to
  * corruption of *rfile somewhere.  Until I figure this out, just cut out
@@ -280,7 +349,8 @@ int how;
 		return;
 
 	if (flags.toptenwin) {
-	    toptenwin = create_nhwindow(NHW_TEXT);
+	    /* toptenwin = create_nhwindow(NHW_TEXT); */
+		flags.toptenwin = 0;
 	}
 
 #if defined(UNIX) || defined(VMS) || defined(__EMX__)
@@ -346,18 +416,6 @@ int how;
 	t0->fpos = -1L;
 #endif
 
-#ifdef LOGFILE		/* used for debugging (who dies of what, where) */
-	if (lock_file(LOGFILE, SCOREPREFIX, 10)) {
-	    if(!(lfile = fopen_datafile(LOGFILE, "a", SCOREPREFIX))) {
-		HUP raw_print("Cannot open log file!");
-	    } else {
-		writeentry(lfile, t0);
-		(void) fclose(lfile);
-	    }
-	    unlock_file(LOGFILE);
-	}
-#endif /* LOGFILE */
-
 	if (wizard || discover) {
 	    if (how != PANICKED) HUP {
 		char pbuf[BUFSZ];
@@ -366,6 +424,12 @@ int how;
 	      "Since you were in %s mode, the score list will not be checked.",
 		    wizard ? "wizard" : "discover");
 		topten_print(pbuf);
+#ifdef DUMP_LOG
+		if (dump_fn[0]) {
+		  dump("", pbuf);
+		  dump("", "");
+		}
+#endif
 	    }
 	    goto showwin;
 	}
@@ -386,6 +450,9 @@ int how;
 	}
 
 	HUP topten_print("");
+#ifdef DUMP_LOG
+	dump("", "");
+#endif
 
 	/* assure minimum number of points */
 	if(t0->points < POINTSMIN) t0->points = 0;
@@ -430,6 +497,10 @@ int how;
 				    t1->points);
 			    topten_print(pbuf);
 			    topten_print("");
+#ifdef DUMP_LOG
+			    dump("", pbuf);
+			    dump("", "");
+#endif
 			}
 		    }
 		    if(occ_cnt < 0) {
@@ -460,17 +531,27 @@ int how;
 			goto destroywin;
 		}
 #endif	/* UPDATE_RECORD_IN_PLACE */
-		if(!done_stopprint) if(rank0 > 0){
-		    if(rank0 <= 10)
+		if(rank0 > 0){
+		    if(rank0 <= 10) {
+			if(!done_stopprint) 
 			topten_print("You made the top ten list!");
-		    else {
+#ifdef DUMP_LOG
+			dump("", "You made the top ten list!");
+#endif
+		    } else {
 			char pbuf[BUFSZ];
 			Sprintf(pbuf,
 			  "You reached the %d%s place on the top %d list.",
 				rank0, ordin(rank0), ENTRYMAX);
-			topten_print(pbuf);
+			if(!done_stopprint) topten_print(pbuf);
+#ifdef DUMP_LOG
+			dump("", pbuf);
+#endif
 		    }
-		    topten_print("");
+		    if(!done_stopprint) topten_print("");
+#ifdef DUMP_LOG
+		    dump("", "");
+#endif
 		}
 	}
 	if(rank0 == 0) rank0 = rank1;
@@ -483,7 +564,7 @@ int how;
 		    && rank >= rank0
 #endif
 		) writeentry(rfile, t1);
-	    if (done_stopprint) continue;
+	    /* if (done_stopprint) continue; */
 	    if (rank > flags.end_top &&
 		    (rank < rank0 - flags.end_around ||
 		     rank > rank0 + flags.end_around) &&
@@ -496,8 +577,12 @@ int how;
 		)) continue;
 	    if (rank == rank0 - flags.end_around &&
 		    rank0 > flags.end_top + flags.end_around + 1 &&
-		    !flags.end_own)
-		topten_print("");
+		    !flags.end_own) {
+		if(!done_stopprint) topten_print("");
+#ifdef DUMP_LOG
+		dump("", "");
+#endif
+	    }
 	    if(rank != rank0)
 		outentry(rank, t1, FALSE);
 	    else if(!rank1)
@@ -554,7 +639,10 @@ outheader()
 	bp = eos(linebuf);
 	while(bp < linebuf + COLNO - 9) *bp++ = ' ';
 	Strcpy(bp, "Hp [max]");
-	topten_print(linebuf);
+	if(!done_stopprint) topten_print(linebuf);
+#ifdef DUMP_LOG
+	dump("", linebuf);
+#endif
 }
 
 /* so>0: standout line; so=0: ordinary line */
@@ -672,9 +760,16 @@ boolean so;
 	    if (so) {
 		while (bp < linebuf + (COLNO-1)) *bp++ = ' ';
 		*bp = 0;
-		topten_print_bold(linebuf);
-	    } else
-		topten_print(linebuf);
+		if(!done_stopprint) topten_print_bold(linebuf);
+#ifdef DUMP_LOG
+		dump("*", linebuf[0]==' '? linebuf+1: linebuf);
+#endif
+	    } else {
+		if(!done_stopprint) topten_print(linebuf);
+#ifdef DUMP_LOG
+		dump(" ", linebuf[0]==' '? linebuf+1: linebuf);
+#endif
+	    }
 	    Sprintf(linebuf, "%15s %s", "", linebuf3);
 	    lngr = strlen(linebuf);
 	}
@@ -696,9 +791,12 @@ boolean so;
 	    if (so >= COLNO) so = COLNO-1;
 	    while (bp < linebuf + so) *bp++ = ' ';
 	    *bp = 0;
-	    topten_print_bold(linebuf);
+	    if(!done_stopprint) topten_print_bold(linebuf);
 	} else
-	    topten_print(linebuf);
+	    if(!done_stopprint) topten_print(linebuf);
+#ifdef DUMP_LOG
+	dump(" ", linebuf[0]==' '? linebuf+1: linebuf);
+#endif
 }
 
 STATIC_OVL int

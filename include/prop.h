@@ -73,7 +73,16 @@
 #define INFRAVISION		64
 #define WARN_OF_MON		65
 #define DETECT_MONSTERS		66
-#define LAST_PROP		(DETECT_MONSTERS)
+#define WERE_RES			67
+#define BLIND_RES			68
+#define SLOW				69
+#define VISION				70
+#define LUCKY				71
+#define VULN_FIRE			72
+#define VULN_COLD			73
+#define VULN_ELEC			74
+#define VULN_ACID			75
+#define LAST_PROP		 	(VULN_ACID)
 
 /*** Where the properties come from ***/
 /* Definitions were moved here from obj.h and you.h */
@@ -99,6 +108,7 @@ struct prop {
 #	define W_SWAPWEP    0x00000400L /* Secondary weapon */
 #	define W_ART	    0x00001000L /* Carrying artifact (not really worn) */
 #	define W_ARTI	    0x00002000L /* Invoked artifact  (not really worn) */
+#  define W_LAUNCHER  0x00004000L /* Selected ranged launcher */
 	/* Amulets, rings, tools, and other items */
 #	define W_AMUL	    0x00010000L /* Amulet */
 #	define W_RINGL	    0x00020000L /* Left ring */
@@ -122,7 +132,8 @@ struct prop {
 #	define FROMEXPER    0x01000000L /* Gain/lose with experience, for role */
 #	define FROMRACE     0x02000000L /* Gain/lose with experience, for race */
 #	define FROMOUTSIDE  0x04000000L /* By corpses, prayer, thrones, etc. */
-#	define INTRINSIC    (FROMOUTSIDE|FROMRACE|FROMEXPER)
+#  define HAVEPARTIAL  0x08000000L /* This is no longer a timeout, but a partial resistance */
+#	define INTRINSIC    (FROMOUTSIDE|FROMRACE|FROMEXPER|HAVEPARTIAL)
 	/* Control flags */
 #	define I_SPECIAL    0x10000000L /* Property is controllable */
 };

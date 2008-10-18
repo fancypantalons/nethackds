@@ -183,6 +183,12 @@ struct instance_flags {
 	char prevmsg_window;	/* type of old message window to use */
 	boolean  extmenu;	/* extended commands use menu interface */
 #endif
+#ifdef MENU_COLOR
+	boolean use_menu_color;	/* use color in menus; only if wc_color */
+#endif
+#if defined(STATUS_COLORS) && defined(TEXTCOLOR)
+	boolean use_status_colors; /* use color in status line; only if wc_color */
+#endif
 #ifdef MFLOPPY
 	boolean  checkspace;	/* check disk space before writing files */
 				/* (in iflags to allow restore after moving
@@ -215,6 +221,9 @@ struct instance_flags {
 #ifdef LAN_FEATURES
 	boolean lan_mail;	/* mail is initialized */
 	boolean lan_mail_fetched; /* mail is awaiting display */
+#endif
+#ifdef SORTLOOT
+	char sortloot;          /* sort items to loot alphabetically */
 #endif
 /*
  * Window capability support.
@@ -270,6 +279,9 @@ struct instance_flags {
 	boolean  lootabc;	/* use "a/b/c" rather than "o/i/b" when looting */
 	boolean  showrace;	/* show hero glyph by race rather than by role */
 	boolean  travelcmd;	/* allow travel command */
+	boolean  show_dgn_name; /* show dungeon names instead of Dlvl: on bottom line
+										 probably only good for people taking advantage of 
+										 the wide terminals allowed in Spork */
 	int	 runmode;	/* update screen display during run moves */
 #ifdef AUTOPICKUP_EXCEPTIONS
 	struct autopickup_exception *autopickup_exceptions[2];

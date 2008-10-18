@@ -1,3 +1,4 @@
+
 /*	SCCS Id: @(#)weapon.c	3.4	2002/11/07	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
@@ -8,6 +9,10 @@
  *	code for monsters.
  */
 #include "hack.h"
+
+#ifdef DUMP_LOG
+STATIC_DCL int FDECL(enhance_skill, (boolean));
+#endif
 
 /* Categories whose names don't come from OBJ_NAME(objects[type])
  */
@@ -128,7 +133,10 @@ struct monst *mon;
 {
 	int	tmp = 0;
 	struct permonst *ptr = mon->data;
-	boolean Is_weapon = (otmp->oclass == WEAPON_CLASS || is_weptool(otmp));
+	boolean Is_weapon = (otmp && (otmp->oclass == WEAPON_CLASS || is_weptool(otmp)));
+
+	/* not using a weapon; no special bonuses */
+	if (!otmp) return 0;
 
 	if (Is_weapon)
 		tmp += otmp->spe;
@@ -716,17 +724,30 @@ int
 dbon()		/* damage bonus for strength */
 {
 	int str = ACURR(A_STR);
+	int dbon = 0;
 
 	if (Upolyd) return(0);
 
-	if (str < 6) return(-1);
-	else if (str < 16) return(0);
-	else if (str < 18) return(1);
-	else if (str == 18) return(2);		/* up to 18 */
-	else if (str <= STR18(75)) return(3);		/* up to 18/75 */
-	else if (str <= STR18(90)) return(4);		/* up to 18/90 */
-	else if (str < STR18(100)) return(5);		/* up to 18/99 */
-	else return(6);
+	if (str < 6) dbon = -1;
+	else if (str < 16) dbon = 0;
+	else if (str < 18) dbon = 1;
+	else if (str == 18) dbon = 2;		/* up to 18 */
+	else if (str <= STR18(75)) dbon = 3;		/* up to 18/75 */
+	else if (str <= STR18(90)) dbon = 4;		/* up to 18/90 */
+	else if (str < STR18(100)) dbon = 5;		/* up to 18/99 */
+	else if (str == STR18(100)) dbon = 6;	   /* 18/00 only */
+	else dbon = 7;									   /* gauntlets of power */
+
+	/* HASAAAAAN CHOP!
+	 *
+	 * If you're wielding a two-handed weapon, let's just, hmm,
+	 * double this bonus.  Yes, even when negative; those are HEAVY.
+	 *
+	 * This should sharply increase the appeal of two-handers compared to #twoweapon. */
+
+	if (uwep && bimanual(uwep)) { dbon *= 2; }
+	return dbon;
+
 }
 
 
@@ -851,6 +872,23 @@ const static struct skill_range {
  */
 int
 enhance_weapon_skill()
+#ifdef DUMP_LOG
+{
+	return enhance_skill(FALSE);
+}
+
+void dump_weapon_skill()
+{
+	enhance_skill(TRUE);
+}
+
+int enhance_skill(boolean want_dump)
+/* This is the original enhance_weapon_skill() function slightly modified
+ * to write the skills to the dump file. I added the wrapper functions just
+ * because it looked like the easiest way to add a parameter to the
+ * function call. - Jukka Lahtinen, August 2001
+ */
+#endif
 {
     int pass, i, n, len, longest,
 	to_advance, eventually_advance, maxxed_cnt;
@@ -860,8 +898,15 @@ enhance_weapon_skill()
     anything any;
     winid win;
     boolean speedy = FALSE;
+#ifdef DUMP_LOG
+    char buf2[BUFSZ];
+    boolean logged;
+#endif
 
 #ifdef WIZARD
+#ifdef DUMP_LOG
+	if (!want_dump)
+#endif
 	if (wizard && yn("Advance skills without practice?") == 'y')
 	    speedy = TRUE;
 #endif
@@ -878,6 +923,11 @@ enhance_weapon_skill()
 		else if (peaked_skill(i)) maxxed_cnt++;
 	    }
 
+#ifdef DUMP_LOG
+	    if (want_dump)
+		dump("","Your skills at the end");
+	    else {
+#endif
 	    win = create_nhwindow(NHW_MENU);
 	    start_menu(win);
 
@@ -905,6 +955,9 @@ enhance_weapon_skill()
 		add_menu(win, NO_GLYPH, &any, 0, 0, ATR_NONE,
 			     "", MENU_UNSELECTED);
 	    }
+#ifdef DUMP_LOG
+	    } /* want_dump or not */
+#endif
 
 	    /* List the skills, making ones that could be advanced
 	       selectable.  List the miscellaneous skills first.
@@ -916,8 +969,26 @@ enhance_weapon_skill()
 		/* Print headings for skill types */
 		any.a_void = 0;
 		if (i == skill_ranges[pass].first)
+#ifdef DUMP_LOG
+		if (want_dump) {
+		    dump("  ",(char *)skill_ranges[pass].name);
+		    logged=FALSE;
+		} else
+#endif
 		    add_menu(win, NO_GLYPH, &any, 0, 0, iflags.menu_headings,
 			     skill_ranges[pass].name, MENU_UNSELECTED);
+#ifdef DUMP_LOG
+		if (want_dump) {
+		    if (P_SKILL(i) > P_UNSKILLED) {
+		 	Sprintf(buf2,"%-*s [%s]",
+			    longest, P_NAME(i),skill_level_name(i, buf));
+			dump("    ",buf2);
+			logged=TRUE;
+		    } else if (i == skill_ranges[pass].last && !logged) {
+			dump("    ","(none)");
+		    }
+               } else {
+#endif
 
 		if (P_RESTRICTED(i)) continue;
 		/*
@@ -962,6 +1033,9 @@ enhance_weapon_skill()
 		any.a_int = can_advance(i, speedy) ? i+1 : 0;
 		add_menu(win, NO_GLYPH, &any, 0, 0, ATR_NONE,
 			 buf, MENU_UNSELECTED);
+#ifdef DUMP_LOG
+		} /* !want_dump */
+#endif
 	    }
 
 	    Strcpy(buf, (to_advance > 0) ? "Pick a skill to advance:" :
@@ -970,6 +1044,12 @@ enhance_weapon_skill()
 	    if (wizard && !speedy)
 		Sprintf(eos(buf), "  (%d slot%s available)",
 			u.weapon_slots, plur(u.weapon_slots));
+#endif
+#ifdef DUMP_LOG
+	    if (want_dump) {
+		dump("","");
+		n=0;
+	    } else {
 #endif
 	    end_menu(win, buf);
 	    n = select_menu(win, to_advance ? PICK_ONE : PICK_NONE, &selected);
@@ -987,6 +1067,9 @@ enhance_weapon_skill()
 		    }
 		}
 	    }
+#ifdef DUMP_LOG
+	    }
+#endif
 	} while (speedy && n > 0);
 	return 0;
 }
@@ -999,6 +1082,16 @@ void
 unrestrict_weapon_skill(skill)
 int skill;
 {
+
+	/* Cavemen are good at what they know how to use, but not much on advanced fencing or combat tactics.
+	 * So never unrestrict an edged weapon for them.
+	 *
+	 * Same for priests and monks, though slightly different: priests shouldn't have edged weapons, and
+	 * monks and wizards really shouldn't be _using_ weapons, so don't give them _any_. */
+
+	if (Role_if(PM_MONK) || Role_if(PM_WIZARD)) { return; }
+	if ((Role_if(PM_CAVEMAN) || Role_if(PM_PRIEST)) && skill >= P_DAGGER && skill <= P_SABER) { return; }
+
     if (skill < P_NUM_SKILLS && P_RESTRICTED(skill)) {
 	P_SKILL(skill) = P_UNSKILLED;
 	P_MAX_SKILL(skill) = P_BASIC;
@@ -1098,6 +1191,7 @@ weapon_hit_bonus(weapon)
 struct obj *weapon;
 {
     int type, wep_type, skill, bonus = 0;
+	unsigned int maxweight = 0;
     static const char bad_skill[] = "weapon_hit_bonus: bad skill %d";
 
     wep_type = weapon_type(weapon);
@@ -1112,8 +1206,8 @@ struct obj *weapon;
 	    case P_ISRESTRICTED:
 	    case P_UNSKILLED:   bonus = -4; break;
 	    case P_BASIC:       bonus =  0; break;
-	    case P_SKILLED:     bonus =  2; break;
-	    case P_EXPERT:      bonus =  3; break;
+		case P_SKILLED:     bonus =  3; break;
+		case P_EXPERT:      bonus =  6; break;
 	}
     } else if (type == P_TWO_WEAPON_COMBAT) {
 	skill = P_SKILL(P_TWO_WEAPON_COMBAT);
@@ -1121,11 +1215,30 @@ struct obj *weapon;
 	switch (skill) {
 	    default: impossible(bad_skill, skill); /* fall through */
 	    case P_ISRESTRICTED:
-	    case P_UNSKILLED:   bonus = -9; break;
+			case P_UNSKILLED:   bonus = -9; break;	  /* tweaked back to support 2-handers */
 	    case P_BASIC:	bonus = -7; break;
 	    case P_SKILLED:	bonus = -5; break;
 	    case P_EXPERT:	bonus = -3; break;
 	}
+		/* Heavy things are hard to use in your offhand unless you're
+		 * very good at what you're doing.
+		 *
+		 * No real need to restrict unskilled here since knives and such
+		 * are very hard to find and people who are restricted can't
+		 * #twoweapon even at unskilled...
+		 */
+		switch (P_SKILL(P_TWO_WEAPON_COMBAT)) {
+			default: impossible(bad_skill, P_SKILL(P_TWO_WEAPON_COMBAT));
+			case P_ISRESTRICTED:
+			case P_UNSKILLED:
+			case P_BASIC:		 maxweight = 20; break;	 /* daggers */
+			case P_SKILLED:	 maxweight = 30; break;	 /* shortswords and spears */
+			case P_EXPERT:		 maxweight = 40; break;	 /* sabers and long swords */
+		}
+		if (uswapwep->owt > maxweight) {
+			pline("Your %s seem%s very unwieldy.",xname(uswapwep),uswapwep->quan == 1 ? "s" : "");
+			bonus = -30;
+		}
     } else if (type == P_BARE_HANDED_COMBAT) {
 	/*
 	 *	       b.h.  m.a.
@@ -1133,12 +1246,13 @@ struct obj *weapon;
 	 *	basic:	+1    +3
 	 *	skild:	+2    +4
 	 *	exprt:	+2    +5
-	 *	mastr:	+3    +6
-	 *	grand:	+3    +7
+	 *	mastr:	+3    +7
+	 *	grand:	+3    +9
 	 */
 	bonus = P_SKILL(type);
 	bonus = max(bonus,P_UNSKILLED) - 1;	/* unskilled => 0 */
 	bonus = ((bonus + 2) * (martial_bonus() ? 2 : 1)) / 2;
+		if (bonus > 5) { bonus += ((bonus - 5) * 2); }	/* extra boost for master/GM */
     }
 
 #ifdef STEED

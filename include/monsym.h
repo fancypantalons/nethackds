@@ -73,6 +73,9 @@
 
 #define MAXMCLASSES 61	/* number of monster classes */
 
+#define S_WERE		100	/* don't include this in MAXMCLASSES, it's a hack for warning */
+#define S_UNDEAD	101	/* etc */
+
 #if 0	/* moved to decl.h so that makedefs.c won't see them */
 extern const char def_monsyms[MAXMCLASSES];	/* default class symbols */
 extern uchar monsyms[MAXMCLASSES];		/* current class symbols */

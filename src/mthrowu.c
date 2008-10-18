@@ -40,6 +40,7 @@ struct obj *obj;
 const char *name;	/* if null, then format `obj' */
 {
 	const char *onm, *knm;
+	int realac;
 	boolean is_acid;
 	int kprefix = KILLED_BY_AN;
 	char onmbuf[BUFSZ], knmbuf[BUFSZ];
@@ -61,7 +62,8 @@ const char *name;	/* if null, then format `obj' */
 			    (obj && obj->quan > 1L) ? name : an(name);
 	is_acid = (obj && obj->otyp == ACID_VENOM);
 
-	if(u.uac + tlev <= rnd(20)) {
+	realac = AC_VALUE(u.uac);
+	if(realac + tlev <= rnd(20)) {
 		if(Blind || !flags.verbose) pline("It misses.");
 		else You("are almost hit by %s.", onm);
 		return(0);
@@ -75,9 +77,10 @@ const char *name;	/* if null, then format `obj' */
 			pline_The("silver sears your flesh!");
 			exercise(A_CON, FALSE);
 		}
-		if (is_acid && Acid_resistance)
+		if (is_acid && Acid_resistance) {
 			pline("It doesn't seem to hurt you.");
-		else {
+			monstseesu(M_SEEN_ACID);
+		} else {
 			if (is_acid) pline("It burns!");
 			if (Half_physical_damage) dam = (dam+1) / 2;
 			losehp(dam, knm, kprefix);
@@ -147,6 +150,7 @@ int range;		/* how much farther will object travel if it misses */
 boolean verbose;  /* give message(s) even when you can't see what happened */
 {
 	int damage, tmp;
+	int damtype = AD_PHYS;
 	boolean vis, ismimic;
 	int objgone = 1;
 
@@ -183,6 +187,7 @@ boolean verbose;  /* give message(s) even when you can't see what happened */
 		    if (vis) pline_The("poison doesn't seem to affect %s.",
 				   mon_nam(mtmp));
 		} else {
+			damtype = AD_DRST;
 		    if (rn2(30)) {
 			damage += rnd(6);
 		    } else {
@@ -203,11 +208,12 @@ boolean verbose;  /* give message(s) even when you can't see what happened */
 			pline("%s is unaffected.", Monnam(mtmp));
 		    damage = 0;
 		} else {
+			damtype = AD_ACID;
 		    if (vis) pline_The("acid burns %s!", mon_nam(mtmp));
 		    else if (verbose) pline("It is burned!");
 		}
 	    }
-	    mtmp->mhp -= damage;
+		 damage_mon(mtmp,damage,AD_ACID);
 	    if (mtmp->mhp < 1) {
 		if (vis || verbose)
 		    pline("%s is %s!", Monnam(mtmp),
@@ -367,8 +373,7 @@ m_throw(mon, x, y, dx, dy, range, obj)
 			    dam = dmgval(singleobj, &youmonst);
 			    hitv = 3 - distmin(u.ux,u.uy, mon->mx,mon->my);
 			    if (hitv < -4) hitv = -4;
-			    if (is_elf(mon->data) &&
-				objects[singleobj->otyp].oc_skill == P_BOW) {
+			    if (is_elf(mon->data) && objects[singleobj->otyp].oc_skill == P_BOW) {
 				hitv++;
 				if (MON_WEP(mon) &&
 				    MON_WEP(mon)->otyp == ELVEN_BOW)
@@ -377,6 +382,8 @@ m_throw(mon, x, y, dx, dy, range, obj)
 			    }
 			    if (bigmonst(youmonst.data)) hitv++;
 			    hitv += 8 + singleobj->spe;
+				 /* eagle-eyed monsters get a BIG bonus here */
+				 if (is_accurate(mon->data)) { hitv += mon->m_lev; }
 			    if (dam < 1) dam = 1;
 			    hitu = thitu(hitv, dam, singleobj, (char *)0);
 		    }
@@ -489,6 +496,7 @@ struct monst *mtmp;
 	xchar x, y;
 	schar skill;
 	int multishot;
+	int maxrange;
 	const char *onm;
 
 	/* Rearranged beginning so monsters can use polearms not in a line */
@@ -527,20 +535,46 @@ struct monst *mtmp;
 	    return;
 	}
 
+	skill = objects[otmp->otyp].oc_skill;
+	mwep = MON_WEP(mtmp);		/* wielded weapon */
 	x = mtmp->mx;
 	y = mtmp->my;
+
+	/* critters get to shoot things further, too */
+	maxrange = BOLT_LIM/2;
+	if (ammo_and_launcher(otmp,mwep)) {
+		switch (mwep->otyp) {
+			case ELVEN_BOW:
+			case YUMI:
+				maxrange += 6;
+				break;
+			case ORCISH_BOW:
+			case SLING:
+				maxrange += 2;
+				break;
+			case BOW:
+				maxrange += 4;
+				break;
+			case CROSSBOW:
+				maxrange *= 2;
+				break;
+			default:
+				break;
+		}
+	}
+
 	/* If you are coming toward the monster, the monster
 	 * should try to soften you up with missiles.  If you are
 	 * going away, you are probably hurt or running.  Give
 	 * chase, but if you are getting too far away, throw.
 	 */
-	if (!lined_up(mtmp) ||
-		(URETREATING(x,y) &&
+	if (!lined_up(mtmp) || (URETREATING(x,y) && 
 			rn2(BOLT_LIM - distmin(x,y,mtmp->mux,mtmp->muy))))
 	    return;
 
-	skill = objects[otmp->otyp].oc_skill;
-	mwep = MON_WEP(mtmp);		/* wielded weapon */
+	/* oh, and don't plink foolishly if we can't reach the hero */
+	if (distmin(x,y,mtmp->mux,mtmp->muy) > maxrange)
+		return;
 
 	/* Multishot calculations */
 	multishot = 1;
@@ -602,8 +636,7 @@ struct monst *mtmp;
 
 	m_shot.n = multishot;
 	for (m_shot.i = 1; m_shot.i <= m_shot.n; m_shot.i++)
-	    m_throw(mtmp, mtmp->mx, mtmp->my, sgn(tbx), sgn(tby),
-		    distmin(mtmp->mx, mtmp->my, mtmp->mux, mtmp->muy), otmp);
+	    m_throw(mtmp, mtmp->mx, mtmp->my, sgn(tbx), sgn(tby), maxrange, otmp);
 	m_shot.n = m_shot.i = 0;
 	m_shot.o = STRANGE_OBJECT;
 	m_shot.s = FALSE;
@@ -663,9 +696,9 @@ breamu(mtmp, mattk)			/* monster breathes at you (ranged) */
 {
 	/* if new breath types are added, change AD_ACID to max type */
 	int typ = (mattk->adtyp == AD_RBRE) ? rnd(AD_ACID) : mattk->adtyp ;
+	boolean player_resists = FALSE;
 
 	if(lined_up(mtmp)) {
-
 	    if(mtmp->mcan) {
 		if(flags.soundok) {
 		    if(canseemon(mtmp))
@@ -675,10 +708,17 @@ breamu(mtmp, mattk)			/* monster breathes at you (ranged) */
 		}
 		return(0);
 	    }
-	    if(!mtmp->mspec_used && rn2(3)) {
 
-		if((typ >= AD_MAGM) && (typ <= AD_ACID)) {
+		/* if we've seen the actual resistance, don't bother, or
+		 * if we're close by and they reflect, just jump the player */
+		player_resists = (m_seenres(mtmp,1 << (typ-1)) > 0);
+		if (player_resists || 
+				(m_seenres(mtmp,M_SEEN_REFL) && monnear(mtmp,mtmp->mux,mtmp->muy))) { 
+			return 1; 
+		}
 
+		if(!mtmp->mspec_used && rn2(3)) {
+			if((typ >= AD_MAGM) && (typ <= AD_ACID)) {
 		    if(canseemon(mtmp))
 			pline("%s breathes %s!", Monnam(mtmp),
 			      breathwep[typ-1]);
@@ -690,7 +730,7 @@ breamu(mtmp, mattk)			/* monster breathes at you (ranged) */
 		     */
 		    if(!rn2(3))
 			mtmp->mspec_used = 10+rn2(20);
-		    if(typ == AD_SLEE && !Sleep_resistance)
+				if(typ == AD_SLEE && how_resistant(SLEEP_RES) < 100)
 			mtmp->mspec_used += rnd(20);
 		} else impossible("Breath weapon %d used", typ-1);
 	    }

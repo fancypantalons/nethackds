@@ -35,6 +35,8 @@ register boolean clumsy;
 	int kick_skill = P_NONE;
 	int blessed_foot_damage = 0;
 	boolean trapkilled = FALSE;
+	boolean forcepush = FALSE;
+	struct trap* ttmp;
 
 	if (uarmf && uarmf->otyp == KICKING_BOOTS)
 	    dmg += 5;
@@ -86,15 +88,29 @@ register boolean clumsy;
 	if (blessed_foot_damage) dmg += rnd(4);
 	if (uarmf) dmg += uarmf->spe;
 	dmg += u.udaminc;	/* add ring(s) of increase damage */
-	if (dmg > 0)
-		mon->mhp -= dmg;
-	if (mon->mhp > 0 && martial() && !bigmonst(mon->data) && !rn2(3) &&
-	    mon->mcanmove && mon != u.ustuck && !mon->mtrapped) {
+	if (dmg > 0) {
+		damage_mon(mon,dmg,AD_PHYS);
+	}
+
+	/* THIS. IS. YENDOOOOOR? */
+	mdx = mon->mx + u.dx;
+	mdy = mon->my + u.dy;
+	if (isok(mdx,mdy)) {
+		ttmp = t_at(mdx,mdy);
+		if (ttmp && (ttmp->ttyp == PIT || ttmp->ttyp == SPIKED_PIT)) { 
+			forcepush = TRUE;
+		}
+	}
+
+	if ((mon->mhp > 0 && !bigmonst(mon->data) && mon != u.ustuck && !mon->mtrapped) && 
+			((!rn2(3) && martial() && mon->mcanmove) || forcepush)) {
 		/* see if the monster has a place to move into */
 		mdx = mon->mx + u.dx;
 		mdy = mon->my + u.dy;
 		if(goodpos(mdx, mdy, mon, 0)) {
+			if (!forcepush) {
 			pline("%s reels from the blow.", Monnam(mon));
+			}
 			if (m_in_out_region(mon, mdx, mdy)) {
 			    remove_monster(mon->mx, mon->my);
 			    newsym(mon->mx, mon->my);
@@ -121,6 +137,8 @@ register xchar x, y;
 	register boolean clumsy = FALSE;
 	register struct monst *mon = m_at(x, y);
 	register int i, j;
+	struct trap* ttmp;
+	int mdx,mdy;
 
 	bhitpos.x = x;
 	bhitpos.y = y;
@@ -168,7 +186,7 @@ register xchar x, y;
 	}
 
 	if(Levitation && !rn2(3) && verysmall(mon->data) &&
-	   !is_flyer(mon->data)) {
+	   !is_flyer(mon->data) && !is_flying(mon)) {
 		pline("Floating in the air, you miss wildly!");
 		exercise(A_DEX, FALSE);
 		(void) passive(mon, FALSE, 1, AT_KICK);
@@ -181,6 +199,15 @@ register xchar x, y;
 	if(i < (j*3)/10) {
 		if(!rn2((i < j/10) ? 2 : (i < j/5) ? 3 : 4)) {
 			if(martial() && !rn2(2)) goto doit;
+			mdx = mon->mx + u.dx;
+			mdy = mon->my + u.dy;
+			/* even a zero-damage kick may push them in */
+			if (isok(mdx,mdy)) {
+				ttmp = t_at(mdx,mdy);
+				if (ttmp && (ttmp->ttyp == PIT || ttmp->ttyp == SPIKED_PIT)) {
+					goto doit;
+				}
+			}
 			Your("clumsy kick does no damage.");
 			(void) passive(mon, FALSE, 1, AT_KICK);
 			return;
@@ -215,7 +242,7 @@ doit:
 			pline("%s %s, %s evading your %skick.", Monnam(mon),
 				(can_teleport(mon->data) ? "teleports" :
 				 is_floater(mon->data) ? "floats" :
-				 is_flyer(mon->data) ? "swoops" :
+				 (is_flyer(mon->data) || is_flying(mon)) ? "swoops" :
 				 (nolimbs(mon->data) || slithy(mon->data)) ?
 					"slides" : "jumps"),
 				clumsy ? "easily" : "nimbly",
@@ -506,9 +533,13 @@ xchar x, y;
 	if(Is_box(kickobj)) {
 		boolean otrp = kickobj->otrapped;
 
-		if(range < 2) pline("THUD!");
+		if(range < 2) pline("%s",kickobj->otyp == IRON_SAFE ? "CLANG!" : "THUD!");
 
 		container_impact_dmg(kickobj);
+
+		if (kickobj->otyp == IRON_SAFE) { /* can't kick these open or break 'em */
+			return 1;
+		}
 
 		if (kickobj->olocked) {
 		    if (!rn2(5) || (martial() && !rn2(2))) {
@@ -600,7 +631,7 @@ char *buf;
 
 	if (kickobj) what = distant_name(kickobj,doname);
 	else if (IS_DOOR(maploc->typ)) what = "a door";
-	else if (IS_TREE(maploc->typ)) what = "a tree";
+	else if (IS_TREE(maploc->typ)) what = christmas() ? "a christmas tree" : "a tree";
 	else if (IS_STWALL(maploc->typ)) what = "a wall";
 	else if (IS_ROCK(maploc->typ)) what = "a rock";
 	else if (IS_THRONE(maploc->typ)) what = "a throne";
@@ -889,6 +920,25 @@ dokick()
 		    goto ouch;
 		if(IS_TREE(maploc->typ)) {
 		    struct obj *treefruit;
+			/* special-case for christmas... :) */
+			if (christmas()) {
+				coord loc;
+				/* we can cheat with enexto to find an empty spot
+				 * next to the tree to drop our present... */
+				if (!rn2(5) || !enexto(&loc,x,y,(struct permonst*)0) ||
+						(maploc->looted & TREE_LOOTED) || In_quest(&u.uz)) {
+					goto ouch;
+				}
+				treefruit = mkobj_at(RANDOM_CLASS,loc.x,loc.y,FALSE);
+				if (treefruit) {
+					pline("%s falls out!",Blind ? "Something" : "A present");
+					newsym(loc.x,loc.y);
+					maploc->looted |= TREE_LOOTED;
+					return 1;
+				} else {
+					goto ouch;
+				}
+			}
 		    /* nothing, fruit or trouble? 75:23.5:1.5% */
 		    if (rn2(3)) {
 			if ( !rn2(6) && !(mvitals[PM_KILLER_BEE].mvflags & G_GONE) )
@@ -925,9 +975,8 @@ dokick()
 		    	coord mm;
 		    	mm.x = x; mm.y = y;
 			while (cnt--) {
-			    if (enexto(&mm, mm.x, mm.y, &mons[PM_KILLER_BEE])
-				&& makemon(&mons[PM_KILLER_BEE],
-					       mm.x, mm.y, MM_ANGRY))
+					if (enexto(&mm, mm.x, mm.y, &mons[PM_KILLER_BEE]) && 
+							makemon(&mons[PM_KILLER_BEE], mm.x, mm.y, MM_ANGRY))
 				made++;
 			}
 			if ( made )
@@ -1338,6 +1387,7 @@ boolean shop_floor_obj;
 
 	if (otmp == uwep) setuwep((struct obj *)0);
 	if (otmp == uquiver) setuqwep((struct obj *)0);
+	if (otmp == ulauncher) setulauncher((struct obj *)0);
 	if (otmp == uswapwep) setuswapwep((struct obj *)0);
 
 	/* some things break rather than ship */

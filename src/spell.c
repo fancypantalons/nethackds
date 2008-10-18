@@ -30,6 +30,7 @@ STATIC_DCL boolean FDECL(dospellmenu, (const char *,int,int *));
 STATIC_DCL int FDECL(percent_success, (int));
 STATIC_DCL int NDECL(throwspell);
 STATIC_DCL void NDECL(cast_protection);
+STATIC_DCL void NDECL(cast_reflection);
 STATIC_DCL void FDECL(spell_backfire, (int));
 STATIC_DCL const char *FDECL(spelltypemnemonic, (int));
 STATIC_DCL int FDECL(isqrt, (int));
@@ -64,7 +65,7 @@ STATIC_DCL int FDECL(isqrt, (int));
  *	Bar fugue/berserker (SPE_HASTE_SELF)
  *	Cav born to dig (SPE_DIG)
  *	Hea to heal (SPE_CURE_SICKNESS)
- *	Kni to turn back evil (SPE_TURN_UNDEAD)
+ *	Kni to lay on hands (SPE_EXTRA_HEALING)
  *	Mon to preserve their abilities (SPE_RESTORE_ABILITY)
  *	Pri to bless (SPE_REMOVE_CURSE)
  *	Ran to hide (SPE_INVISIBILITY)
@@ -152,9 +153,8 @@ cursed_book(bp)
 		}
 		/* temp disable in_use; death should not destroy the book */
 		bp->in_use = FALSE;
-		losestr(Poison_resistance ? rn1(2,1) : rn1(4,3));
-		losehp(rnd(Poison_resistance ? 6 : 10),
-		       "contact-poisoned spellbook", KILLED_BY_AN);
+		losestr(resist_reduce(rn1(4,3),POISON_RES)+rn1(2,1));
+		losehp(resist_reduce(rnd(6),POISON_RES)+rnd(6),"contact-poisoned spellbook", KILLED_BY_AN);
 		bp->in_use = TRUE;
 		break;
 	case 6:
@@ -250,6 +250,12 @@ struct obj *book2;
 	    /* successful invocation */
 	    mkinvokearea();
 	    u.uevent.invoked = 1;
+		 /* trigger the candles to start burning */
+		 for (otmp = invent; otmp; otmp = otmp->nobj) {
+			 if (otmp->otyp == CANDELABRUM_OF_INVOCATION) {
+				 begin_burn(otmp,TRUE);
+			 }
+		 }
 	    /* in case you haven't killed the Wizard yet, behave as if
 	       you just did */
 	    u.uevent.udemigod = 1;	/* wizdead() */
@@ -432,7 +438,7 @@ register struct obj *spellbook;
 
 		/* Books are often wiser than their readers (Rus.) */
 		spellbook->in_use = TRUE;
-		if (!spellbook->blessed &&
+		if ((!spellbook->blessed || (spellbook->blessed && Role_if(PM_CAVEMAN))) &&
 		    spellbook->otyp != SPE_BOOK_OF_THE_DEAD) {
 		    if (spellbook->cursed) {
 			too_hard = TRUE;
@@ -453,6 +459,12 @@ register struct obj *spellbook;
 				return(1);
 			    }
 			}
+
+			/* Cavemen always have at least a 20% chance to fail */
+			if (Role_if(PM_CAVEMAN) && read_ability > 16) {
+				read_ability = 16;
+			}
+
 			/* its up to random luck now */
 			if (rnd(20) > read_ability) {
 			    too_hard = TRUE;
@@ -680,6 +692,23 @@ cast_protection()
 	}
 }
 
+STATIC_OVL void
+cast_reflection()
+{
+	if (HReflecting) {
+		if (!Blind)
+			pline("The shimmering globe around you becomes slightly brighter.");
+		else
+			You_feel("slightly more smooth.");
+	} else {
+		if (!Blind)
+			pline("A shimmering globe appears around you!");
+		else
+			You_feel("smooth.");
+	}
+	incr_itimeout(&HReflecting, rn1(10, HReflecting ? 20 : 100));
+}
+
 /* attempting to cast a forgotten spell will cause disorientation */
 STATIC_OVL void
 spell_backfire(spell)
@@ -718,6 +747,7 @@ boolean atme;
 	int skill, role_skill;
 	boolean confused = (Confusion != 0);
 	struct obj *pseudo;
+	struct obj* otmp;
 	coord cc;
 
 	/*
@@ -878,8 +908,9 @@ boolean atme;
 		if (!(objects[pseudo->otyp].oc_dir == NODIR)) {
 			if (atme) u.dx = u.dy = u.dz = 0;
 			else if (!getdir((char *)0)) {
-			    /* getdir cancelled, re-use previous direction */
+			    /* getdir cancelled, use random direction */
 			    pline_The("magical energy is released!");
+				 confdir();
 			}
 			if(!u.dx && !u.dy && !u.dz) {
 			    if ((damage = zapyourself(pseudo, TRUE)) != 0) {
@@ -949,6 +980,37 @@ boolean atme;
 	case SPE_JUMPING:
 		if (!jump(max(role_skill,1)))
 			pline(nothing_happens);
+		break;
+	case SPE_DETECT_FOOT:
+		pline("Your nose tingles, and you smell feet!");
+		if (nolimbs(youmonst.data) || slithy(youmonst.data)) {
+			pline("You aren't sure where the feet might be, though.");
+		} else {
+			pline("You see here a %s on the end of your %s.",body_part(FOOT),body_part(LEG));
+		}
+		break;
+	case SPE_REFLECTION:
+		cast_reflection();
+		break;
+	case SPE_REPAIR_ARMOR:
+		/* removes one level of erosion (both types) for a random piece of armor */
+		otmp = some_armor(&youmonst);
+		if (otmp) {
+			if (greatest_erosion(otmp) > 0) {
+				if (!Blind) {
+					pline("Your %s glows faintly golden for a moment.",xname(otmp));
+				}
+				if (otmp->oeroded > 0) { otmp->oeroded--; }
+				if (otmp->oeroded2 > 0) { otmp->oeroded2--; }
+			} else {
+				if (!Blind) {
+					pline("Your %s glows briefly, but looks as new as ever.",xname(otmp));
+				}
+			}
+		} else {
+			/* the player can probably feel this, so no need for a !Blind check :) */
+			pline("Your embarrassing skin rash clears up slightly.");
+		}
 		break;
 	default:
 		impossible("Unknown spell %d attempted.", spell);
@@ -1114,6 +1176,35 @@ int *spell_no;
 	return FALSE;
 }
 
+#ifdef DUMP_LOG
+void 
+dump_spells()
+{
+	int i;
+	char buf[BUFSZ];
+
+	if (spellid(0) == NO_SPELL) {
+	    dump("", "You didn't know any spells.");
+	    dump("", "");
+	    return;
+	}
+	dump("", "Spells known in the end");
+
+	Sprintf(buf, "%-20s   Level    %-12s Fail", "    Name", "Category");
+	dump("  ",buf);
+	for (i = 0; i < MAXSPELL && spellid(i) != NO_SPELL; i++) {
+		Sprintf(buf, "%c - %-20s  %2d%s   %-12s %3d%%",
+			spellet(i), spellname(i), spellev(i),
+			spellknow(i) ? " " : "*",
+			spelltypemnemonic(spell_skilltype(spellid(i))),
+			100 - percent_success(i));
+		dump("  ", buf);
+	}
+	dump("","");
+
+} /* dump_spells */
+#endif
+
 /* Integer square root function without using floating point. */
 STATIC_OVL int
 isqrt(val)
@@ -1139,6 +1230,8 @@ int spell;
 	int chance, splcaster, special, statused;
 	int difficulty;
 	int skill;
+	int penalty;
+	boolean paladin_bonus;
 
 	/* Calculate intrinsic ability (splcaster) */
 
@@ -1146,17 +1239,19 @@ int spell;
 	special = urole.spelheal;
 	statused = ACURR(urole.spelstat);
 
-	if (uarm && is_metallic(uarm))
-	    splcaster += (uarmc && uarmc->otyp == ROBE) ?
-		urole.spelarmr/2 : urole.spelarmr;
+	/* Knights don't get metal armor penalty for clerical spells */
+	paladin_bonus = Role_if(PM_KNIGHT) && spell_skilltype(spellid(spell)) == P_CLERIC_SPELL;
+
+	if (uarm && is_metallic(uarm) && !paladin_bonus)
+	    splcaster += (uarmc && uarmc->otyp == ROBE) ? urole.spelarmr/2 : urole.spelarmr;
 	else if (uarmc && uarmc->otyp == ROBE)
-	    splcaster -= urole.spelarmr;
+	    splcaster -= urole.spelarmr/2;
 	if (uarms) splcaster += urole.spelshld;
 
-	if (uarmh && is_metallic(uarmh) && uarmh->otyp != HELM_OF_BRILLIANCE)
+	if (uarmh && is_metallic(uarmh) && uarmh->otyp != HELM_OF_BRILLIANCE && !paladin_bonus)
 		splcaster += uarmhbon;
-	if (uarmg && is_metallic(uarmg)) splcaster += uarmgbon;
-	if (uarmf && is_metallic(uarmf)) splcaster += uarmfbon;
+	if (uarmg && is_metallic(uarmg) && !paladin_bonus) splcaster += uarmgbon;
+	if (uarmf && is_metallic(uarmf) && !paladin_bonus) splcaster += uarmfbon;
 
 	if (spellid(spell) == urole.spelspec)
 		splcaster += urole.spelsbon;
@@ -1228,6 +1323,17 @@ int spell;
 	 * and no matter how able, learning is always required.
 	 */
 	chance = chance * (20-splcaster) / 15 - splcaster;
+
+	/* Oh, wait... and there's one more.  Wizards are casters,
+	 * not combat monkeys.  Bolting body armor onto a Wizard is
+	 * very similar to bolting body armor onto a Monk.  It just isn't
+	 * going to work that well.  So there's a minimum chance of failure...
+	 * which of course increases with the spell difficulty. */
+
+	if (Role_if(PM_WIZARD) && uarm) { 
+		penalty = 90 - spellev(spell) * 10;
+		if (chance > penalty) { chance = penalty; }
+	}
 
 	/* Clamp to percentile */
 	if (chance > 100) chance = 100;

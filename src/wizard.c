@@ -32,7 +32,7 @@ static NEARDATA const int nasties[] = {
 	PM_COUATL, PM_CAPTAIN, PM_WINGED_GARGOYLE, PM_MASTER_MIND_FLAYER,
 	PM_FIRE_ELEMENTAL, PM_JABBERWOCK, PM_ARCH_LICH, PM_OGRE_KING,
 	PM_OLOG_HAI, PM_IRON_GOLEM, PM_OCHRE_JELLY, PM_GREEN_SLIME,
-	PM_DISENCHANTER
+	PM_DISENCHANTER, PM_MAGICAL_EYE
 	};
 
 static NEARDATA const unsigned wizapp[] = {
@@ -301,8 +301,30 @@ tactics(mtmp)
 	register struct monst *mtmp;
 {
 	long strat = strategy(mtmp);
+	int j;
+	schar nx,ny;
 
 	mtmp->mstrategy = (mtmp->mstrategy & STRAT_WAITMASK) | strat;
+
+	/* this should be in strategy() but the STRAT_ flags are
+	 * overloaded and i'm in no mood to fix them right now;
+	 * if monster is magically scared, don't 'flee' right next
+	 * to the player */
+	if (mtmp->mflee) {
+		mtmp->mavenge = 1;
+		for (j=0;j<400;j++) {
+			nx = rnd(COLNO-1);
+			ny = rn2(ROWNO);
+			if (rloc_pos_ok(nx,ny,mtmp) && distu(nx,ny) > 64) {
+				rloc_to(mtmp,nx,ny);
+				return 1;
+			}
+		}
+		/* we couldn't find someplace far enough away from the player
+		 * to run to, which should be very rare, but ...
+		 * and in that case, just fall through so we do something */
+		pline("%s looks around nervously.",Monnam(mtmp));
+	}
 
 	switch (strat) {
 	    case STRAT_HEAL:	/* hide and recover */
@@ -317,7 +339,7 @@ tactics(mtmp)
 		    (void) mnearto(mtmp, xupstair, yupstair, TRUE);
 		}
 		/* if you're not around, cast healing spells */
-		if (distu(mtmp->mx,mtmp->my) > (BOLT_LIM * BOLT_LIM))
+		if (distu(mtmp->mx,mtmp->my) > 64)
 		    if(mtmp->mhp <= mtmp->mhpmax - 8) {
 			mtmp->mhp += rnd(8);
 			return(1);
@@ -419,10 +441,12 @@ pick_nasty()
 /* create some nasty monsters, aligned or neutral with the caster */
 /* a null caster defaults to a chaotic caster (e.g. the wizard) */
 int
-nasty(mcast)
+nasty(mcast,centered_on_stairs)
 	struct monst *mcast;
+BOOLEAN_P centered_on_stairs;
 {
     register struct monst	*mtmp;
+	 struct permonst* mdat;
     register int	i, j, tmp;
     int castalign = (mcast ? mcast->data->maligntyp : -1);
     coord bypos;
@@ -433,9 +457,16 @@ nasty(mcast)
 	count++;
     } else {
 	tmp = (u.ulevel > 3) ? u.ulevel/3 : 1; /* just in case -- rph */
-	/* if we don't have a casting monster, the nasties appear around you */
+		/* if we don't have a casting monster, the nasties appear around you
+		 * ...unless we're being called with the 'stairs' flag to block the
+		 * adventurer's return with the amulet */
+		if (centered_on_stairs && xupstair) {
+			bypos.x = xupstair;
+			bypos.y = yupstair;
+		} else {
 	bypos.x = u.ux;
 	bypos.y = u.uy;
+		}
 	for(i = rnd(tmp); i > 0; --i)
 	    for(j=0; j<20; j++) {
 		int makeindex;
@@ -451,13 +482,19 @@ nasty(mcast)
 		if (mcast &&
 		    !enexto(&bypos, mcast->mux, mcast->muy, &mons[makeindex]))
 		    continue;
-		if ((mtmp = makemon(&mons[makeindex],
-				    bypos.x, bypos.y, NO_MM_FLAGS)) != 0) {
+				/* If this is a demon prince, tend to make more demons */
+				if (mcast && is_dprince(mcast->data) && !rn2(2)) {
+					mdat = mkclass(S_DEMON,0);
+					mtmp = makemon(mdat ? mdat : &mons[makeindex],bypos.x, bypos.y, MM_ADJACENTOK);
+				} else {
+					mtmp = makemon(&mons[makeindex], bypos.x, bypos.y, MM_ADJACENTOK);
+				}
+				if (mtmp != 0) {
 		    mtmp->msleeping = mtmp->mpeaceful = mtmp->mtame = 0;
 		    set_malign(mtmp);
 		} else /* GENOD? */
 		    mtmp = makemon((struct permonst *)0,
-					bypos.x, bypos.y, NO_MM_FLAGS);
+							bypos.x, bypos.y, MM_ADJACENTOK);
 		if(mtmp && (mtmp->data->maligntyp == 0 ||
 		            sgn(mtmp->data->maligntyp) == sgn(castalign)) ) {
 		    count++;
@@ -522,8 +559,9 @@ resurrect()
 void
 intervene()
 {
-	int which = Is_astralevel(&u.uz) ? rnd(4) : rn2(6);
-	/* cases 0 and 5 don't apply on the Astral level */
+	/* many cases don't apply on the Astral level or Planes */
+	int which = Is_astralevel(&u.uz) ? rnd(4) : rn2(8);
+
 	switch (which) {
 	    case 0:
 	    case 1:	You_feel("vaguely nervous.");
@@ -535,9 +573,14 @@ intervene()
 			break;
 	    case 3:	aggravate();
 			break;
-	    case 4:	(void)nasty((struct monst *)0);
+	    case 4:	
+			(void)nasty((struct monst *)0,FALSE);
 			break;
-	    case 5:	resurrect();
+	    case 5:	
+			resurrect();
+		 case 6:
+		 case 7:
+			(void)nasty((struct monst*)0,TRUE);
 			break;
 	}
 }

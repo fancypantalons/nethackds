@@ -108,11 +108,9 @@ boolean pushing;
 		    vision_full_recalc = 1;
 		    You("find yourself on dry land again!");
 		} else if (lava && distu(rx,ry) <= 2) {
-		    You("are hit by molten lava%c",
-			Fire_resistance ? '.' : '!');
+		    You("are hit by molten lava%c", (how_resistant(FIRE_RES) > 50) ? '.' : '!');
 			burn_away_slime();
-		    losehp(d((Fire_resistance ? 1 : 3), 6),
-			   "molten lava", KILLED_BY);
+		    losehp(resist_reduce(d(3,6),FIRE_RES), "molten lava", KILLED_BY);
 		} else if (!fills_up && flags.verbose &&
 			   (pushing ? !Blind : cansee(rx,ry)))
 		    pline("It sinks without a trace!");
@@ -473,6 +471,9 @@ register struct obj *obj;
 	if (obj == uswapwep) {
 		setuswapwep((struct obj *)0);
 	}
+	if (obj == ulauncher) {
+		setulauncher((struct obj*)0);
+	}
 
 	if (u.uswallow) {
 		/* barrier between you and the floor */
@@ -539,6 +540,7 @@ register struct obj *obj;
 {
 	if (obj == uwep) setuwep((struct obj *)0);
 	if (obj == uquiver) setuqwep((struct obj *)0);
+	if (obj == ulauncher) setulauncher((struct obj *)0);
 	if (obj == uswapwep) setuswapwep((struct obj *)0);
 
 	if (!u.uswallow && flooreffects(obj,u.ux,u.uy,"drop")) return;
@@ -978,24 +980,33 @@ boolean at_stairs, falling, portal;
 
 	/* If you have the amulet and are trying to get out of Gehennom, going
 	 * up a set of stairs sometimes does some very strange things!
-	 * Biased against law and towards chaos, but not nearly as strongly
-	 * as it used to be (prior to 3.2.0).
-	 * Odds:	    old				    new
-	 *	"up"    L      N      C		"up"    L      N      C
-	 *	 +1   75.0   75.0   75.0	 +1   75.0   75.0   75.0
-	 *	  0    0.0   12.5   25.0	  0    6.25   8.33  12.5
-	 *	 -1    8.33   4.17   0.0	 -1    6.25   8.33  12.5
-	 *	 -2    8.33   4.17   0.0	 -2    6.25   8.33   0.0
-	 *	 -3    8.33   4.17   0.0	 -3    6.25   0.0    0.0
+	 *
+	 * No longer biased, because it's bad enough to get zotzed without getting
+	 * absolutely bludgeoned to death by being dropped too many levels.  This
+	 * was really just annoying players to no good effect; Rodney's appearance
+	 * rate is tuned up for Lawful and Nootral players to help counter this change.
+	 *
+	 * Odds:        older                       old            Newest
+	 *	"up"    L      N      C		"up"    L      N      C		  L/N/C
+	 *	 +1   75.0   75.0   75.0	 +1   75.0   75.0   75.0      75.0
+	 *	  0    0.0   12.5   25.0	  0    6.25   8.33  12.5      12.5
+	 *	 -1    8.33   4.17   0.0	 -1    6.25   8.33  12.5      12.5
+	 *	 -2    8.33   4.17   0.0	 -2    6.25   8.33   0.0       0.0
+	 *	 -3    8.33   4.17   0.0	 -3    6.25   0.0    0.0       0.0
+	 *
+	 *	 11/19: Removed entirely as part of an experiment with new nasty()
+	 *	 functionality; clog the stairs with critters, but let the player move
+	 *	 between levels without jerking him around.
+	 *
 	 */
+#if 0
 	if (Inhell && up && u.uhave.amulet && !newdungeon && !portal &&
 				(dunlev(&u.uz) < dunlevs_in_dungeon(&u.uz)-3)) {
 		if (!rn2(4)) {
-		    int odds = 3 + (int)u.ualign.type,		/* 2..4 */
-			diff = odds <= 1 ? 0 : rn2(odds);	/* paranoia */
-
+		    int diff = rn2(2);
 		    if (diff != 0) {
 			assign_rnd_level(newlevel, &u.uz, diff);
+
 			/* if inside the tower, stay inside */
 			if (was_in_W_tower &&
 			    !On_W_tower_level(newlevel)) diff = 0;
@@ -1014,6 +1025,7 @@ boolean at_stairs, falling, portal;
 			at_stairs = at_ladder = FALSE;
 		}
 	}
+#endif
 
 	/* Prevent the player from going past the first quest level unless
 	 * (s)he has been given the go-ahead by the leader.
@@ -1318,8 +1330,14 @@ boolean at_stairs, falling, portal;
 	    You("enter what seems to be an older, more primitive world.");
 #endif
 	/* Final confrontation */
-	if (In_endgame(&u.uz) && newdungeon && u.uhave.amulet)
+	if (In_endgame(&u.uz) && newdungeon && u.uhave.amulet) {
+#ifdef WISH_TRACKER
+		char buf[512];
+		Sprintf(buf,"%s just entered the Plane of Earth on T:%d!",plname,moves);
+		makeannounce(buf);
+#endif
 		resurrect();
+	}
 	if (newdungeon && In_V_tower(&u.uz) && In_hell(&u.uz0))
 		pline_The("heat and smoke are gone.");
 
@@ -1356,6 +1374,14 @@ boolean at_stairs, falling, portal;
 	/* assume this will always return TRUE when changing level */
 	(void) in_out_region(u.ux, u.uy);
 	(void) pickup(1);
+
+	/* Don't autotarget a monster on a level you've just left */
+	polemonst = 0;
+
+#ifdef WHEREIS_FILE
+	touch_whereis();
+#endif
+
 }
 
 STATIC_OVL void
@@ -1363,6 +1389,7 @@ final_level()
 {
 	struct monst *mtmp;
 	struct obj *otmp;
+	char buf[512];
 	coord mm;
 	int i;
 
@@ -1372,6 +1399,11 @@ final_level()
 
 	/* create some player-monsters */
 	create_mplayers(rn1(4, 3), TRUE);
+
+#ifdef WISH_TRACKER
+	Sprintf(buf,"%s just entered the Astral Plane on T:%d!",plname,moves);
+	makeannounce(buf);
+#endif
 
 	/* create a guardian angel next to player, if worthy */
 	if (Conflict) {

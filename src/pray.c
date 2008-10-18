@@ -172,8 +172,16 @@ in_trouble()
 	if(Blindfolded && ublindf->cursed) return(TROUBLE_CURSED_BLINDFOLD);
 
 	/*
-	 * minor troubles
+	 * Minor troubles from here forward.
+	 * And Cavemen get another flavor kick: their god is also
+	 * a bit primitive, so they get a 20% chance of god being
+	 * asleep at the switch
 	 */
+
+	if (Role_if(PM_CAVEMAN) && !rn2(5)) {
+		return (0);
+	}
+
 	if(Punished) return(TROUBLE_PUNISHED);
 	if (Cursed_obj(uarmg, GAUNTLETS_OF_FUMBLING) ||
 		Cursed_obj(uarmf, FUMBLE_BOOTS))
@@ -318,11 +326,11 @@ register int trouble;
 		       boosted to be more than that */
 		    You_feel("much better.");
 		    if (Upolyd) {
-			u.mhmax += rnd(5);
+				 gainmaxhp(rnd(5));
 			if (u.mhmax <= 5) u.mhmax = 5+1;
 			u.mh = u.mhmax;
 		    }
-		    if (u.uhpmax < u.ulevel * 5 + 11) u.uhpmax += rnd(5);
+		    if (u.uhpmax < u.ulevel * 5 + 11) gainmaxhp(rnd(5));
 		    if (u.uhpmax <= 5) u.uhpmax = 5+1;
 		    u.uhp = u.uhpmax;
 		    flags.botl = 1;
@@ -480,12 +488,14 @@ aligntyp resp_god;
 	    pline("Suddenly, a bolt of lightning strikes you!");
 	    if (Reflecting) {
 		shieldeff(u.ux, u.uy);
+		monstseesu(M_SEEN_REFL);
 		if (Blind)
 		    pline("For some reason you're unaffected.");
 		else
 		    (void) ureflects("%s reflects from your %s.", "It");
-	    } else if (Shock_resistance) {
+	    } else if (how_resistant(SHOCK_RES) == 100) {
 		shieldeff(u.ux, u.uy);
+			monstseesu(M_SEEN_ELEC);
 		pline("It seems not to affect you.");
 	    } else
 		fry_by_god(resp_god);
@@ -518,10 +528,11 @@ aligntyp resp_god;
 #ifdef TOURIST
 	    if (uarmu && !uarm && !uarmc) (void) destroy_arm(uarmu);
 #endif
-	    if (!Disint_resistance)
+	    if (how_resistant(DISINT_RES) < 100)
 		fry_by_god(resp_god);
 	    else {
 		You("bask in its %s glow for a minute...", NH_BLACK);
+			monstseesu(M_SEEN_DISINT);
 		godvoice(resp_god, "I believe it not!");
 	    }
 	    if (Is_astralevel(&u.uz) || Is_sanctum(&u.uz)) {
@@ -644,11 +655,12 @@ gcrownu()
 #define ok_wep(o) ((o) && ((o)->oclass == WEAPON_CLASS || is_weptool(o)))
 
     HSee_invisible |= FROMOUTSIDE;
-    HFire_resistance |= FROMOUTSIDE;
-    HCold_resistance |= FROMOUTSIDE;
-    HShock_resistance |= FROMOUTSIDE;
-    HSleep_resistance |= FROMOUTSIDE;
-    HPoison_resistance |= FROMOUTSIDE;
+	 incr_resistance(&HFire_resistance,100);
+    incr_resistance(&HCold_resistance,100);
+    incr_resistance(&HShock_resistance,100);
+    incr_resistance(&HSleep_resistance,100);
+    incr_resistance(&HPoison_resistance,100);
+	 monstseesu(M_SEEN_FIRE|M_SEEN_COLD|M_SEEN_ELEC|M_SEEN_SLEEP|M_SEEN_POISON);
     godvoice(u.ualign.type, (char *)0);
 
     obj = ok_wep(uwep) ? uwep : 0;
@@ -800,7 +812,7 @@ pleased(g_align)
 
 	/* not your deity */
 	if (on_altar() && p_aligntyp != u.ualign.type) {
-		adjalign(-1);
+		major_sin();
 		return;
 	} else if (u.ualign.record < 2 && trouble <= 0) adjalign(1);
 
@@ -846,7 +858,10 @@ pleased(g_align)
     /* note: can't get pat_on_head unless all troubles have just been
        fixed or there were no troubles to begin with; hallucination
        won't be in effect so special handling for it is superfluous */
-    if(pat_on_head)
+
+	 /* Cavemen may be ignored occasionally by god */
+
+    if(pat_on_head && (Role_if(PM_CAVEMAN) ? rn2(5) : 1))
 	switch(rn2((Luck + 6)>>1)) {
 	case 0:	break;
 	case 1:
@@ -921,8 +936,7 @@ pleased(g_align)
 		u.ulevelmax -= 1;	/* see potion.c */
 		pluslvl(FALSE);
 	    } else {
-		u.uhpmax += 5;
-		if (Upolyd) u.mhmax += 5;
+			 gainmaxhp(5);	  /* no longer get base form benefit if selfpolied */
 	    }
 	    u.uhp = u.uhpmax;
 	    if (Upolyd) u.mh = u.mhmax;
@@ -1013,6 +1027,8 @@ pleased(g_align)
 	}
 	default:	impossible("Confused deity!");
 	    break;
+	} else if (pat_on_head) {
+		You_feel("that %s is not entirely paying attention.", align_gname(g_align));
 	}
 
 	u.ublesscnt = rnz(350);
@@ -1211,14 +1227,32 @@ dosacrifice()
 	    }
 
 	    if (u.ualign.type != A_CHAOTIC) {
-		adjalign(-5);
+			 mortal_sin();
 		u.ugangr += 3;
 		(void) adjattrib(A_WIS, -1, TRUE);
 		if (!Inhell) angrygods(u.ualign.type);
 		change_luck(-5);
-	    } else adjalign(5);
+	    } else {
+			 adjalign(5);
+		 }
 	    if (carried(otmp)) useup(otmp);
 	    else useupf(otmp, 1L);
+
+		 /* create Dirge from player's longsword here if possible */
+		 if (u.ualign.type == A_CHAOTIC && Role_if(PM_KNIGHT) && 
+				 !u.ugangr && u.ualign.record > 0 &&
+				 uwep && uwep->otyp == LONG_SWORD && !uwep->oartifact &&
+				 !exist_artifact(LONG_SWORD, artiname(ART_DIRGE))) {
+
+			 uwep = oname(uwep, artiname(ART_DIRGE));
+			 bless(uwep);
+			 uwep->oeroded = uwep->oeroded2 = 0;
+			 uwep->oerodeproof = TRUE;
+			 discover_artifact(ART_DIRGE);
+			 exercise(A_WIS,TRUE);
+			 pline("Your sword slithers in your hand and seems to change!");
+		 }
+
 	    return(1);
 	} else if (otmp->oxlth && otmp->oattached == OATTACHED_MONST
 		    && ((mtmp = get_mtraits(otmp, FALSE)) != (struct monst *)0)
@@ -1226,7 +1260,7 @@ dosacrifice()
 	    /* mtmp is a temporary pointer to a tame monster's attributes,
 	     * not a real monster */
 	    pline("So this is how you repay loyalty?");
-	    adjalign(-3);
+		 major_sin();
 	    value = -1;
 	    HAggravate_monster |= FROMOUTSIDE;
 	} else if (is_undead(ptr)) { /* Not demons--no demon corpses */
@@ -1241,7 +1275,8 @@ dosacrifice()
 		      (unicalign == A_CHAOTIC)
 		      ? "chaos" : unicalign ? "law" : "balance");
 		(void) adjattrib(A_WIS, -1, TRUE);
-		value = -5;
+			major_sin();
+			value = -1;
 	    } else if (u.ualign.type == altaralign) {
 		/* If different from altar, and altar is same as yours, */
 		/* it's a very good action */
@@ -1277,7 +1312,7 @@ dosacrifice()
 	    if (u.ualign.type != altaralign) {
 		/* And the opposing team picks you up and
 		   carries you off on their shoulders */
-		adjalign(-99);
+		adjalign(-2*ALIGNLIM);
 		pline("%s accepts your gift, and gains dominion over %s...",
 		      a_gname(), u_gname());
 		pline("%s is enraged...", u_gname());
@@ -1285,8 +1320,21 @@ dosacrifice()
 		pline("A cloud of %s smoke surrounds you...",
 		      hcolor((const char *)"orange"));
 		done(ESCAPED);
-	    } else { /* super big win */
+	    } else { 
+			/* Would this action put you in positive standing? */
 		adjalign(10);
+			/* You'd better hope so... */
+			if (u.ualign.record < 0) {
+				pline("%s accepts your gift...",a_gname());
+				godvoice(altaralign,"Mortal, thou art unworthy to join me!");
+				verbalize("Thou art no longer a follower of the path of %s, "
+						"and this I cannot forgive.",a_gname());
+				verbalize("I permit thee to retain thy treasure, but "
+						"thou shalt not be freed of this mortal coil.  BEGONE!");
+				pline("A cloud of %s smoke surrounds you...",hcolor((const char*)"orange"));
+				done(ESCAPED);
+			}
+			/* super big win */
 pline("An invisible choir sings, and you are bathed in radiance...");
 		godvoice(altaralign, "Congratulations, mortal!");
 		display_nhwindow(WIN_MESSAGE, FALSE);
@@ -1310,7 +1358,7 @@ verbalize("In return for thy service, I grant thee the gift of Immortality!");
 	    } else {
 		/* don't you dare try to fool the gods */
 		change_luck(-3);
-		adjalign(-1);
+		minor_sin();
 		u.ugangr += 3;
 		value = -3;
 	    }
@@ -1365,7 +1413,7 @@ verbalize("In return for thy service, I grant thee the gift of Immortality!");
 		    adjalign((int)(u.ualignbase[A_ORIGINAL] * (ALIGNLIM / 2)));
 		} else {
 		    u.ugangr += 3;
-		    adjalign(-5);
+			 major_sin();
 		    pline("%s rejects your sacrifice!", a_gname());
 		    godvoice(altaralign, "Suffer, infidel!");
 		    change_luck(-5);
@@ -1385,21 +1433,28 @@ verbalize("In return for thy service, I grant thee the gift of Immortality!");
 		    /* Yes, this is supposed to be &=, not |= */
 		    levl[u.ux][u.uy].altarmask &= AM_SHRINE;
 		    /* the following accommodates stupid compilers */
-		    levl[u.ux][u.uy].altarmask =
-			levl[u.ux][u.uy].altarmask | (Align2amask(u.ualign.type));
+		    levl[u.ux][u.uy].altarmask = levl[u.ux][u.uy].altarmask | (Align2amask(u.ualign.type));
 		    if (!Blind)
 			pline_The("altar glows %s.",
 			      hcolor(
 			      u.ualign.type == A_LAWFUL ? NH_WHITE :
 			      u.ualign.type ? NH_BLACK : (const char *)"gray"));
-
-		    if (rnl(u.ulevel) > 6 && u.ualign.record > 0 &&
-		       rnd(u.ualign.record) > (3*ALIGNLIM)/4)
+			 /* 
+			  * The old test here started with "if rnl(u.ulevel) > 6", thus ensuring
+			  * that the vast majority of altars converted in the dungeon never,
+			  * EVER pissed off the owner due to the stilted effect of luck.
+			  *
+			  * We can fix that.  god should be pissed if you muck up his altars.
+			  * If you muck up his temples, he should be even more pissed.
+			  */
+		    if (u.ualign.record > 0 && rnd(u.ualign.record) > 
+					 (3*ALIGNLIM)/(temple_occupied(u.urooms) ? 12 : u.ulevel)) {
 			summon_minion(altaralign, TRUE);
+			 }
 		    /* anger priest; test handles bones files */
-		    if((pri = findpriest(temple_occupied(u.urooms))) &&
-		       !p_coaligned(pri))
+		    if((pri = findpriest(temple_occupied(u.urooms))) && !p_coaligned(pri)) {
 			angry_priest();
+			 }
 		} else {
 		    pline("Unluckily, you feel the power of %s decrease.",
 			  u_gname());
@@ -1416,24 +1471,20 @@ verbalize("In return for thy service, I grant thee the gift of Immortality!");
 	consume_offering(otmp);
 	/* OK, you get brownie points. */
 	if(u.ugangr) {
-	    u.ugangr -=
-		((value * (u.ualign.type == A_CHAOTIC ? 2 : 3)) / MAXVALUE);
+	    u.ugangr -= ((value * (u.ualign.type == A_CHAOTIC ? 2 : 3)) / MAXVALUE);
 	    if(u.ugangr < 0) u.ugangr = 0;
 	    if(u.ugangr != saved_anger) {
 		if (u.ugangr) {
 		    pline("%s seems %s.", u_gname(),
 			  Hallucination ? "groovy" : "slightly mollified");
-
 		    if ((int)u.uluck < 0) change_luck(1);
 		} else {
 		    pline("%s seems %s.", u_gname(), Hallucination ?
 			  "cosmic (not a new fact)" : "mollified");
-
 		    if ((int)u.uluck < 0) u.uluck = 0;
 		}
 	    } else { /* not satisfied yet */
-		if (Hallucination)
-		    pline_The("gods seem tall.");
+			if (Hallucination) pline_The("gods seem tall.");
 		else You("have a feeling of inadequacy.");
 	    }
 	} else if(ugod_is_angry()) {
@@ -1442,8 +1493,7 @@ verbalize("In return for thy service, I grant thee the gift of Immortality!");
 	    adjalign(value);
 	    You_feel("partially absolved.");
 	} else if (u.ublesscnt > 0) {
-	    u.ublesscnt -=
-		((value * (u.ualign.type == A_CHAOTIC ? 500 : 300)) / MAXVALUE);
+	    u.ublesscnt -= ((value * (u.ualign.type == A_CHAOTIC ? 500 : 300)) / MAXVALUE);
 	    if(u.ublesscnt < 0) u.ublesscnt = 0;
 	    if(u.ublesscnt != saved_cnt) {
 		if (u.ublesscnt) {
@@ -1462,12 +1512,59 @@ verbalize("In return for thy service, I grant thee the gift of Immortality!");
 	    }
 	} else {
 	    int nartifacts = nartifact_exist();
+		 int nchance = u.ulevel+6;
 
-	    /* you were already in pretty good standing */
-	    /* The player can gain an artifact */
-	    /* The chance goes down as the number of artifacts goes up */
-	    if (u.ulevel > 2 && u.uluck >= 0 &&
-		!rn2(10 + (2 * u.ugifts * nartifacts))) {
+	    /* you were already in pretty good standing
+		  *
+		  * The player can gain an artifact;
+	     * The chance goes down as the number of artifacts goes up.
+		  * 
+		  * The player can also get handed just a plain old hunk of weaponry
+		  * or piece of armor, but it will be blessed, +3 to +5, fire/rustproof, and 
+		  * if it's a weapon, it'll be in one of the player's available skill 
+		  * slots. The lower level you are, the more likely it is that you'll 
+		  * get a hunk of ordinary junk rather than an artifact.
+		  *
+		  * Note that no artifact is guaranteed; it's still subject to the
+		  * chances of generating one of those in the first place; these are
+		  * just the chances that an artifact will even be considered as a gift.
+		  *
+		  * level  4: 10% chance  level  9: 20% chance  level 12: 30% chance 
+		  * level 14: 40% chance  level 17: 50% chance  level 19: 60% chance 
+		  * level 21: 70% chance  level 23: 80% chance  level 24: 90% chance 
+		  * level 26: 100% chance
+		  */
+
+		 if (rn2(10) >= (nchance*nchance)/100) {
+			 if (u.uluck >= 0 && !rn2(6 + (2 * u.ugifts))) {
+				 int typ, ncount = 0; 
+				 if (rn2(2)) {
+					/* don't give unicorn horns or anything the player's restricted in */
+					do {
+						typ = rnd_class(SPEAR,CROSSBOW);
+					} while (ncount++ < 500 && typ && P_RESTRICTED(objects[typ].oc_skill));
+					if (ncount > 499) { return 1; }
+				 } else {
+					 typ = rnd_class(ELVEN_LEATHER_HELM,LEVITATION_BOOTS);
+				 }
+				 if (typ) {
+					otmp = mksobj(typ, FALSE, FALSE);
+					if (otmp) {
+						bless(otmp);
+						otmp->spe = rn2(3)+3; /* +3 to +5 */
+						otmp->oerodeproof = TRUE;
+						dropy(otmp);
+						at_your_feet("An object");
+						godvoice(u.ualign.type, "Use this gift valorously!");
+						u.ugifts++;
+						u.ublesscnt = rnz(300 + (50 * u.ugifts));
+						exercise(A_WIS, TRUE);
+						makeknown(otmp->otyp);
+						return 1;
+					}
+				 }
+			 }
+		 } else if (u.uluck >= 0 && !rn2(10 + (2 * nartifacts))) {
 		otmp = mk_artifact((struct obj *)0, a_align(u.ux,u.uy));
 		if (otmp) {
 		    if (otmp->spe < 0) otmp->spe = 0;
@@ -1690,7 +1787,7 @@ doturn()
 	exercise(A_WIS, TRUE);
 
 	/* note: does not perform unturn_dead() on victims' inventories */
-	range = BOLT_LIM + (u.ulevel / 5);	/* 5 to 11 */
+	range = 8 + (u.ulevel / 5);	/* 5 to 11 */
 	range *= range;
 	once = 0;
 	for(mtmp = fmon; mtmp; mtmp = mtmp2) {

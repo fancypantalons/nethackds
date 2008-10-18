@@ -72,7 +72,7 @@ static struct trobj Healer[] = {
 static struct trobj Knight[] = {
 	{ LONG_SWORD, 1, WEAPON_CLASS, 1, UNDEF_BLESS },
 	{ LANCE, 1, WEAPON_CLASS, 1, UNDEF_BLESS },
-	{ RING_MAIL, 1, ARMOR_CLASS, 1, UNDEF_BLESS },
+	{ PLATE_MAIL, 0, ARMOR_CLASS, 1, UNDEF_BLESS },
 	{ HELMET, 0, ARMOR_CLASS, 1, UNDEF_BLESS },
 	{ SMALL_SHIELD, 0, ARMOR_CLASS, 1, UNDEF_BLESS },
 	{ LEATHER_GLOVES, 0, ARMOR_CLASS, 1, UNDEF_BLESS },
@@ -120,7 +120,7 @@ static struct trobj Ranger[] = {
 };
 static struct trobj Rogue[] = {
 #define R_DAGGERS	1
-	{ SHORT_SWORD, 0, WEAPON_CLASS, 1, UNDEF_BLESS },
+	{ STILETTO, 1, WEAPON_CLASS, 1, UNDEF_BLESS },
 	{ DAGGER, 0, WEAPON_CLASS, 10, 0 },	/* quan is variable */
 	{ LEATHER_ARMOR, 1, ARMOR_CLASS, 1, UNDEF_BLESS },
 	{ POT_SICKNESS, 0, POTION_CLASS, 1, 0 },
@@ -161,12 +161,13 @@ static struct trobj Wizard[] = {
 #define W_MULTSTART	2
 #define W_MULTEND	6
 	{ QUARTERSTAFF, 1, WEAPON_CLASS, 1, 1 },
-	{ CLOAK_OF_MAGIC_RESISTANCE, 0, ARMOR_CLASS, 1, UNDEF_BLESS },
+	{ CLOAK_OF_PROTECTION, 0, ARMOR_CLASS, 1, UNDEF_BLESS },
 	{ UNDEF_TYP, UNDEF_SPE, WAND_CLASS, 1, UNDEF_BLESS },
 	{ UNDEF_TYP, UNDEF_SPE, RING_CLASS, 2, UNDEF_BLESS },
 	{ UNDEF_TYP, UNDEF_SPE, POTION_CLASS, 3, UNDEF_BLESS },
 	{ UNDEF_TYP, UNDEF_SPE, SCROLL_CLASS, 3, UNDEF_BLESS },
 	{ SPE_FORCE_BOLT, 0, SPBOOK_CLASS, 1, 1 },
+	{ SPE_PROTECTION, 0, SPBOOK_CLASS, 1, 1},
 	{ UNDEF_TYP, UNDEF_SPE, SPBOOK_CLASS, 1, UNDEF_BLESS },
 	{ 0, 0, 0, 0, 0 }
 };
@@ -197,6 +198,10 @@ static struct trobj Instrument[] = {
 };
 static struct trobj Xtra_food[] = {
 	{ UNDEF_TYP, UNDEF_SPE, FOOD_CLASS, 2, 0 },
+	{ 0, 0, 0, 0, 0 }
+};
+static struct trobj Poison[] = {
+	{ POT_SICKNESS, 0, POTION_CLASS, 2, 0 },
 	{ 0, 0, 0, 0, 0 }
 };
 #ifdef TOURIST
@@ -248,6 +253,10 @@ static struct inv_sub { short race_pm, item_otyp, subs_otyp; } inv_subs[] = {
  /* { PM_DWARF, PICK_AXE,		DWARVISH_MATTOCK      }, */
     { PM_GNOME, BOW,			CROSSBOW	      },
     { PM_GNOME, ARROW,			CROSSBOW_BOLT	      },
+	 { PM_GNOME, HELMET,	GNOMISH_HELM },
+	 { PM_GNOME, LOW_BOOTS, GNOMISH_BOOTS },
+	 { PM_GNOME, HIGH_BOOTS, GNOMISH_BOOTS },
+	 { PM_GNOME, LEATHER_ARMOR, GNOMISH_SUIT },
     { NON_PM,	STRANGE_OBJECT,		STRANGE_OBJECT	      }
 };
 
@@ -279,7 +288,7 @@ static const struct def_skill Skill_B[] = {
     { P_FLAIL, P_BASIC },		{ P_HAMMER, P_EXPERT },
     { P_QUARTERSTAFF, P_BASIC },	{ P_SPEAR, P_SKILLED },
     { P_TRIDENT, P_SKILLED },		{ P_BOW, P_BASIC },
-    { P_ATTACK_SPELL, P_SKILLED },
+    { P_ATTACK_SPELL, P_SKILLED }, { P_ESCAPE_SPELL, P_BASIC },
 #ifdef STEED
     { P_RIDING, P_BASIC },
 #endif
@@ -289,7 +298,7 @@ static const struct def_skill Skill_B[] = {
 };
 
 static const struct def_skill Skill_C[] = {
-    { P_DAGGER, P_BASIC },		{ P_KNIFE,  P_SKILLED },
+    { P_KNIFE,  P_SKILLED },
     { P_AXE, P_SKILLED },		{ P_PICK_AXE, P_BASIC },
     { P_CLUB, P_EXPERT },		{ P_MACE, P_EXPERT },
     { P_MORNING_STAR, P_BASIC },	{ P_FLAIL, P_SKILLED },
@@ -297,9 +306,9 @@ static const struct def_skill Skill_C[] = {
     { P_POLEARMS, P_SKILLED },		{ P_SPEAR, P_EXPERT },
     { P_JAVELIN, P_SKILLED },		{ P_TRIDENT, P_SKILLED },
     { P_BOW, P_SKILLED },		{ P_SLING, P_EXPERT },
-    { P_ATTACK_SPELL, P_BASIC },	{ P_MATTER_SPELL, P_SKILLED },
-    { P_BOOMERANG, P_EXPERT },		{ P_UNICORN_HORN, P_BASIC },
-    { P_BARE_HANDED_COMBAT, P_MASTER },
+    { P_ESCAPE_SPELL, P_SKILLED },	{ P_MATTER_SPELL, P_SKILLED },
+    { P_BOOMERANG, P_EXPERT }, { P_BARE_HANDED_COMBAT, P_MASTER },
+    { P_TWO_WEAPON_COMBAT, P_BASIC },
     { P_NONE, 0 }
 };
 
@@ -320,17 +329,16 @@ static const struct def_skill Skill_H[] = {
 static const struct def_skill Skill_K[] = {
     { P_DAGGER, P_BASIC },		{ P_KNIFE, P_BASIC },
     { P_AXE, P_SKILLED },		{ P_PICK_AXE, P_BASIC },
-    { P_SHORT_SWORD, P_SKILLED },	{ P_BROAD_SWORD, P_SKILLED },
-    { P_LONG_SWORD, P_EXPERT },	{ P_TWO_HANDED_SWORD, P_SKILLED },
+    { P_SHORT_SWORD, P_SKILLED },	{ P_BROAD_SWORD, P_EXPERT },
+    { P_LONG_SWORD, P_EXPERT },	{ P_TWO_HANDED_SWORD, P_EXPERT },
     { P_SCIMITAR, P_BASIC },		{ P_SABER, P_SKILLED },
-    { P_CLUB, P_BASIC },		{ P_MACE, P_SKILLED },
+    { P_CLUB, P_BASIC },		{ P_MACE, P_BASIC },
     { P_MORNING_STAR, P_SKILLED },	{ P_FLAIL, P_BASIC },
-    { P_HAMMER, P_BASIC },		{ P_POLEARMS, P_SKILLED },
-    { P_SPEAR, P_SKILLED },		{ P_JAVELIN, P_SKILLED },
+    { P_HAMMER, P_BASIC },		{ P_POLEARMS, P_EXPERT },
+    { P_SPEAR, P_EXPERT },		{ P_JAVELIN, P_BASIC },
     { P_TRIDENT, P_BASIC },		{ P_LANCE, P_EXPERT },
     { P_BOW, P_BASIC },			{ P_CROSSBOW, P_SKILLED },
-    { P_ATTACK_SPELL, P_SKILLED },	{ P_HEALING_SPELL, P_SKILLED },
-    { P_CLERIC_SPELL, P_SKILLED },
+    { P_HEALING_SPELL, P_SKILLED }, { P_CLERIC_SPELL, P_SKILLED },
 #ifdef STEED
     { P_RIDING, P_EXPERT },
 #endif
@@ -404,6 +412,7 @@ static const struct def_skill Skill_Ran[] = {
 #ifdef STEED
     { P_RIDING, P_BASIC },
 #endif
+    { P_TWO_WEAPON_COMBAT, P_BASIC },
     { P_BARE_HANDED_COMBAT, P_BASIC },
     { P_NONE, 0 }
 };
@@ -474,15 +483,11 @@ static const struct def_skill Skill_V[] = {
 
 static const struct def_skill Skill_W[] = {
     { P_DAGGER, P_EXPERT },		{ P_KNIFE,  P_SKILLED },
-    { P_AXE, P_SKILLED },		{ P_SHORT_SWORD, P_BASIC },
-    { P_CLUB, P_SKILLED },		{ P_MACE, P_BASIC },
-    { P_QUARTERSTAFF, P_EXPERT },	{ P_POLEARMS, P_SKILLED },
-    { P_SPEAR, P_BASIC },		{ P_JAVELIN, P_BASIC },
-    { P_TRIDENT, P_BASIC },		{ P_SLING, P_SKILLED },
-    { P_DART, P_EXPERT },		{ P_SHURIKEN, P_BASIC },
-    { P_ATTACK_SPELL, P_EXPERT },	{ P_HEALING_SPELL, P_SKILLED },
-    { P_DIVINATION_SPELL, P_EXPERT },	{ P_ENCHANTMENT_SPELL, P_SKILLED },
-    { P_CLERIC_SPELL, P_SKILLED },	{ P_ESCAPE_SPELL, P_EXPERT },
+    { P_CLUB, P_BASIC },		{ P_QUARTERSTAFF, P_EXPERT },
+    { P_DART, P_SKILLED },
+    { P_ATTACK_SPELL, P_EXPERT },	{ P_HEALING_SPELL, P_EXPERT },
+    { P_DIVINATION_SPELL, P_EXPERT },	{ P_ENCHANTMENT_SPELL, P_EXPERT },
+    { P_CLERIC_SPELL, P_BASIC },	{ P_ESCAPE_SPELL, P_EXPERT },
     { P_MATTER_SPELL, P_EXPERT },
 #ifdef STEED
     { P_RIDING, P_BASIC },
@@ -534,7 +539,7 @@ u_init()
 # endif
 	uarm = uarmc = uarmh = uarms = uarmg = uarmf = 0;
 	uwep = uball = uchain = uleft = uright = 0;
-	uswapwep = uquiver = 0;
+	uswapwep = uquiver = ulauncher = 0;
 	u.twoweap = 0;
 	u.ublessed = 0;				/* not worthy yet */
 	u.ugangr   = 0;				/* gods not angry */
@@ -782,12 +787,19 @@ u_init()
 	    break;
 
 	case PM_GNOME:
+		 /* Gnomes don't see how silly they really look */
+		 knows_object(GNOMISH_HELM);
+		 knows_object(GNOMISH_BOOTS);
+		 knows_object(GNOMISH_SUIT);
+		 knows_object(AKLYS);			  /* they're all carrying one! */
 	    break;
 
 	case PM_ORC:
 	    /* compensate for generally inferior equipment */
 	    if (!Role_if(PM_WIZARD))
 		ini_inv(Xtra_food);
+		 /* Orcs are naughty and carry poison */
+		 ini_inv(Poison);
 	    /* Orcs can recognize all orcish objects */
 	    knows_object(ORCISH_SHORT_SWORD);
 	    knows_object(ORCISH_ARROW);
@@ -800,6 +812,7 @@ u_init()
 	    knows_object(ORCISH_SHIELD);
 	    knows_object(URUK_HAI_SHIELD);
 	    knows_object(ORCISH_CLOAK);
+		 knows_object(POT_SICKNESS);
 	    break;
 
 	default:	/* impossible */
@@ -937,8 +950,9 @@ register struct trobj *trop;
 				/* Monks don't use weapons */
 				|| (otyp == SCR_ENCHANT_WEAPON &&
 				    Role_if(PM_MONK))
-				/* wizard patch -- they already have one */
-				|| (otyp == SPE_FORCE_BOLT &&
+				/* wizard patch -- they already have one
+				   and the polymorph wand lets wizards go nuts with spellbooks too easily */
+				|| ((otyp == SPE_FORCE_BOLT || otyp == WAN_POLYMORPH) &&
 				    Role_if(PM_WIZARD))
 				/* powerful spells are either useless to
 				   low level players or unbalancing; also
@@ -1037,10 +1051,15 @@ register struct trobj *trop;
 
 		if (obj->oclass == WEAPON_CLASS || is_weptool(obj) ||
 			otyp == TIN_OPENER || otyp == FLINT || otyp == ROCK) {
-		    if (is_ammo(obj) || is_missile(obj)) {
-			if (!uquiver) setuqwep(obj);
-		    } else if (!uwep) setuwep(obj);
+			/* In order: fill the quiver first if possible, then launcher;
+			 * then the rest will sort themselves out later. */
+			if (!uquiver && (is_ammo(obj) || is_missile(obj) || (is_thrown(obj) && obj->quan > 1))) setuqwep(obj);
+			else if (!ulauncher && is_launcher(obj)) setulauncher(obj);
+			/* don't put ammo in weapon slots */
+			else if (!is_ammo(obj) && !is_missile(obj)) {
+				if (!uwep) setuwep(obj);
 		    else if (!uswapwep) setuswapwep(obj);
+		}
 		}
 		if (obj->oclass == SPBOOK_CLASS &&
 				obj->otyp != SPE_BLANK_PAPER)

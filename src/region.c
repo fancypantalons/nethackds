@@ -909,12 +909,13 @@ genericptr_t p2;
 	    return FALSE;
 	if (!Blind)
 	    make_blinded(1L, FALSE);
-	if (!Poison_resistance) {
+	if (how_resistant(POISON_RES) < 100) {
 	    pline("%s is burning your %s!", Something, makeplural(body_part(LUNG)));
 	    You("cough and spit blood!");
-	    losehp(rnd(dam) + 5, "gas cloud", KILLED_BY_AN);
+	    losehp(resist_reduce(rnd(dam) + 5,POISON_RES), "gas cloud", KILLED_BY_AN);
 	    return FALSE;
 	} else {
+		 monstseesu(M_SEEN_POISON);
 	    You("cough!");
 	    return FALSE;
 	}
@@ -932,7 +933,7 @@ genericptr_t p2;
 	    }
 	    if (resists_poison(mtmp))
 		return FALSE;
-	    mtmp->mhp -= rnd(dam) + 5;
+		 damage_mon(mtmp,rnd(dam)+5,AD_DRST);
 	    if (mtmp->mhp <= 0) {
 		if (heros_fault(reg))
 		    killed(mtmp);

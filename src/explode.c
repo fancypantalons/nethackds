@@ -42,6 +42,11 @@ int expltype;
 	boolean shopdamage = FALSE;
 	boolean generic = FALSE;
 
+#if 0
+	// No good justification for this.  Why should
+	// these roles take _such_ less damage from explosions?
+	// If they're going to huck fireballs around, _be careful_.
+
 	if (olet == WAND_CLASS)		/* retributive strike */
 		switch (Role_switch) {
 			case PM_PRIEST:
@@ -53,6 +58,7 @@ int expltype;
 				  break;
 			default:  break;
 		}
+#endif
 
 	if (olet == MON_EXPLODE) {
 	    str = killer;
@@ -104,21 +110,21 @@ int expltype;
 				explmask[i][j] = !!Antimagic;
 				break;
 			case AD_FIRE:
-				explmask[i][j] = !!Fire_resistance;
+				explmask[i][j] = (how_resistant(FIRE_RES) > 50);
 				break;
 			case AD_COLD:
-				explmask[i][j] = !!Cold_resistance;
+				explmask[i][j] = (how_resistant(COLD_RES) > 50);
 				break;
 			case AD_DISN:
 				explmask[i][j] = (olet == WAND_CLASS) ?
 						!!(nonliving(youmonst.data) || is_demon(youmonst.data)) :
-						!!Disint_resistance;
+						(how_resistant(DISINT_RES) > 50);
 				break;
 			case AD_ELEC:
-				explmask[i][j] = !!Shock_resistance;
+				explmask[i][j] = (how_resistant(SHOCK_RES) > 50);
 				break;
 			case AD_DRST:
-				explmask[i][j] = !!Poison_resistance;
+				explmask[i][j] = (how_resistant(POISON_RES) > 50);
 				break;
 			case AD_ACID:
 				explmask[i][j] = !!Acid_resistance;
@@ -277,7 +283,7 @@ int expltype;
 
 		if (explmask[i][j] == 1) {
 			golemeffects(mtmp, (int) adtyp, dam + idamres);
-			mtmp->mhp -= idamnonres;
+			damage_mon(mtmp,idamnonres,adtyp);
 		} else {
 		/* call resist with 0 and do damage manually so 1) we can
 		 * get out the message before doing the damage, and 2) we can
@@ -296,8 +302,8 @@ int expltype;
 				mdam *= 2;
 			else if (resists_fire(mtmp) && adtyp == AD_COLD)
 				mdam *= 2;
-			mtmp->mhp -= mdam;
-			mtmp->mhp -= (idamres + idamnonres);
+			damage_mon(mtmp,mdam,adtyp);
+			damage_mon(mtmp,idamres + idamnonres,adtyp);
 		}
 		if (mtmp->mhp <= 0) {
 			/* KMH -- Don't blame the player for pets killing gas spores */
@@ -332,6 +338,11 @@ int expltype;
 		    else
 			u.uhp -= damu;
 		    flags.botl = 1;
+		}
+
+		/* You resisted the damage, so alert critters */
+		if (uhurt == 1) {
+			monstseesu(1 << (adtyp-1));
 		}
 
 		if (u.uhp <= 0 || (Upolyd && u.mh <= 0)) {

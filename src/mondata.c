@@ -212,6 +212,26 @@ struct obj *obj;		/* aatyp == AT_WEAP, AT_SPIT */
 	return TRUE;
 }
 
+boolean
+vulnerable_to(mon,element)
+struct monst* mon;
+int element;
+{
+	switch (element) {
+		case AD_FIRE:
+			return (mon->data->mflags4 && M4_VULNERABLE_FIRE);
+		case AD_COLD:
+			return (mon->data->mflags4 && M4_VULNERABLE_COLD);
+		case AD_ELEC:
+			return (mon->data->mflags4 && M4_VULNERABLE_ELEC);
+		case AD_ACID:
+			return (mon->data->mflags4 && M4_VULNERABLE_ACID);
+		default:
+			break;
+	}
+	return FALSE;
+}
+
 #endif /* OVLB */
 #ifdef OVL0
 
@@ -362,7 +382,7 @@ max_passive_dmg(mdef, magr)
 		    (adtyp == AD_COLD && !resists_cold(magr)) ||
 		    (adtyp == AD_FIRE && !resists_fire(magr)) ||
 		    (adtyp == AD_ELEC && !resists_elec(magr)) ||
-		    adtyp == AD_PHYS) {
+		    adtyp == AD_DISE || adtyp == AD_PHYS) {
 		dmg = mdef->data->mattk[i].damn;
 		if(!dmg) dmg = mdef->data->mlevel+1;
 		dmg *= mdef->data->mattk[i].damd;
@@ -385,8 +405,8 @@ monsndx(ptr)		/* return an index into the mons array */
 	i = (int)(ptr - &mons[0]);
 	if (i < LOW_PM || i >= NUMMONS) {
 		/* ought to switch this to use `fmt_ptr' */
-	    panic("monsndx - could not index monster (%lx)",
-		  (unsigned long)ptr);
+		panic("monsndx could not get index, missed by %d;\n"
+				 "pointer claims name is \"%s\"", (i-NUMMONS), ptr->mname);
 	    return NON_PM;		/* will not get here */
 	}
 
@@ -585,6 +605,7 @@ static const short grownups[][2] = {
 	{PM_BABY_BLACK_DRAGON, PM_BLACK_DRAGON},
 	{PM_BABY_BLUE_DRAGON, PM_BLUE_DRAGON},
 	{PM_BABY_GREEN_DRAGON, PM_GREEN_DRAGON},
+	{PM_BABY_GOLD_DRAGON, PM_GOLD_DRAGON},
 	{PM_BABY_YELLOW_DRAGON, PM_YELLOW_DRAGON},
 	{PM_RED_NAGA_HATCHLING, PM_RED_NAGA},
 	{PM_BLACK_NAGA_HATCHLING, PM_BLACK_NAGA},
@@ -679,6 +700,7 @@ const char *def;
 {
 	int capitalize = (*def == highc(*def));
 
+	/* TODO: no pointer to the monster here so we can't check is_flying */
 	return (
 		is_floater(ptr) ? levitate[capitalize] :
 		(is_flyer(ptr) && ptr->msize <= MZ_SMALL) ? flys[capitalize] :
@@ -699,6 +721,7 @@ const char *def;
 {
 	int capitalize = 2 + (*def == highc(*def));
 
+	/* TODO: no pointer to the monster here so we can't check is_flying */
 	return (
 		is_floater(ptr) ? levitate[capitalize] :
 		(is_flyer(ptr) && ptr->msize <= MZ_SMALL) ? flys[capitalize] :
@@ -751,6 +774,7 @@ struct attack *mattk;
     }
     return what;
 }
+
 
 #endif /* OVLB */
 

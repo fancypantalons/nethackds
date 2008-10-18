@@ -7,6 +7,7 @@
 STATIC_DCL void FDECL(m_lose_armor, (struct monst *,struct obj *));
 STATIC_DCL void FDECL(m_dowear_type, (struct monst *,long, BOOLEAN_P, BOOLEAN_P));
 STATIC_DCL int FDECL(extra_pref, (struct monst *, struct obj *));
+STATIC_DCL int FDECL(w_blocks, (struct obj *, long));
 
 const struct worn {
 	long w_mask;
@@ -26,6 +27,7 @@ const struct worn {
 	{ W_WEP, &uwep },
 	{ W_SWAPWEP, &uswapwep },
 	{ W_QUIVER, &uquiver },
+	{ W_LAUNCHER, &ulauncher },
 	{ W_AMUL, &uamul },
 	{ W_TOOL, &ublindf },
 	{ W_BALL, &uball },
@@ -33,14 +35,39 @@ const struct worn {
 	{ 0, 0 }
 };
 
-/* This only allows for one blocking item per property */
+/* This only allows for one blocking item per property
 #define w_blocks(o,m) \
 		((o->otyp == MUMMY_WRAPPING && ((m) & W_ARMC)) ? INVIS : \
 		 (o->otyp == CORNUTHAUM && ((m) & W_ARMH) && \
-			!Role_if(PM_WIZARD)) ? CLAIRVOYANT : 0)
-		/* note: monsters don't have clairvoyance, so your role
-		   has no significant effect on their use of w_blocks() */
+			!Role_if(PM_WIZARD)) ? CLAIRVOYANT : \
+		 (strcmpi(OBJ_DESCR(objects[o->otyp]),"tinfoil") == 0 ? TELEPAT : 0)
 
+		 note: monsters don't have clairvoyance, so your role
+		 has no significant effect on their use of w_blocks()
+
+*/
+
+int
+w_blocks(obj, mask) 
+struct obj* obj;
+long mask;
+{
+	const char* desc = 0;
+
+	if (!obj) { return 0; }
+	desc = OBJ_DESCR(objects[obj->otyp]);
+
+	if (obj->otyp == MUMMY_WRAPPING && 
+			(mask & W_ARMC)) { return INVIS; }
+
+	if (obj->otyp == CORNUTHAUM && (mask & W_ARMH) && 
+			!Role_if(PM_WIZARD)) { return CLAIRVOYANT; }
+
+	if (desc && strstri(desc,"tinfoil") && 
+			(mask & W_ARMH)) { return TELEPAT; }
+
+	return 0;
+}
 
 /* Updated to use the extrinsic and blocked fields. */
 void
@@ -65,7 +92,7 @@ long mask;
 		    if (u.twoweap && (oobj->owornmask & (W_WEP|W_SWAPWEP)))
 			u.twoweap = 0;
 		    oobj->owornmask &= ~wp->w_mask;
-		    if (wp->w_mask & ~(W_SWAPWEP|W_QUIVER)) {
+		    if (wp->w_mask & ~(W_SWAPWEP|W_QUIVER|W_LAUNCHER)) {
 			/* leave as "x = x <op> y", here and below, for broken
 			 * compilers */
 			p = objects[oobj->otyp].oc_oprop;
@@ -85,7 +112,7 @@ long mask;
 		     * Allow weapon-tools, too.
 		     * wp_mask should be same as mask at this point.
 		     */
-		    if (wp->w_mask & ~(W_SWAPWEP|W_QUIVER)) {
+		    if (wp->w_mask & ~(W_SWAPWEP|W_QUIVER|W_LAUNCHER)) {
 			if (obj->oclass == WEAPON_CLASS || is_weptool(obj) ||
 					    mask != W_WEP) {
 			    p = objects[obj->otyp].oc_oprop;
@@ -219,6 +246,16 @@ boolean on, silently;
     int which = (int) objects[obj->otyp].oc_oprop;
 
     unseen = !canseemon(mon);
+	if(obj->otyp == GOLD_DRAGON_SCALE_MAIL || obj->otyp == GOLD_DRAGON_SCALES ||
+			obj->otyp == SHIELD_OF_LIGHT) {
+		if(on)
+			begin_burn(obj,FALSE);
+		else
+			end_burn(obj,FALSE);
+		if(!unseen && !silently)
+			if(on) pline("%s begins to glow.", The(xname(obj)));
+	}
+		
     if (!which) goto maybe_blocks;
 
     if (on) {
@@ -330,6 +367,8 @@ register struct monst *mon;
 {
 	register struct obj *obj;
 	int base = mon->data->ac;
+	float bonus;
+	int div;
 	long mwflags = mon->misc_worn_check;
 
 	for (obj = mon->minvent; obj; obj = obj->nobj) {
@@ -337,6 +376,15 @@ register struct monst *mon;
 		base -= ARM_BONUS(obj);
 		/* since ARM_BONUS is positive, subtracting it increases AC */
 	}
+
+	/* Tweak the monster's AC a bit according to its level */
+	div = (mon->m_lev > 20) ? 6 : 5;
+	bonus = (float)(mon->m_lev/2);
+	bonus *= bonus/div;
+	if (bonus > 16) { bonus = 16; }
+	if (bonus < 0) { bonus = 0; }
+	base -= (int)bonus;
+
 	return base;
 }
 

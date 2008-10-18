@@ -835,7 +835,7 @@ cl_eos()			/* free after Robert Viduya */
 
 #include <curses.h>
 
-#ifndef LINUX
+#if !defined(LINUX) && !defined(OSX)
 // extern char *tparm(void);
 #endif
 

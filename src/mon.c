@@ -187,6 +187,7 @@ register struct monst *mtmp;
 	    case PM_BLACK_DRAGON:
 	    case PM_BLUE_DRAGON:
 	    case PM_GREEN_DRAGON:
+	    case PM_GOLD_DRAGON:
 	    case PM_YELLOW_DRAGON:
 		/* Make dragon scales.  This assumes that the order of the */
 		/* dragons is the same as the order of the scales.	   */
@@ -383,9 +384,9 @@ register struct monst *mtmp;
 {
     boolean inpool, inlava, infountain;
 
-    inpool = is_pool(mtmp->mx,mtmp->my) &&
+	 inpool = is_pool(mtmp->mx,mtmp->my) && !is_flying(mtmp) &&
 	     !is_flyer(mtmp->data) && !is_floater(mtmp->data);
-    inlava = is_lava(mtmp->mx,mtmp->my) &&
+    inlava = is_lava(mtmp->mx,mtmp->my) && !is_flying(mtmp) &&
 	     !is_flyer(mtmp->data) && !is_floater(mtmp->data);
     infountain = IS_FOUNTAIN(levl[mtmp->mx][mtmp->my].typ);
 
@@ -409,7 +410,7 @@ register struct monst *mtmp;
 	int dam = d(2,6);
 	if (cansee(mtmp->mx,mtmp->my))
 	    pline("%s rusts.", Monnam(mtmp));
-	mtmp->mhp -= dam;
+	damage_mon(mtmp,dam,AD_PHYS); /* Not quite accurate but no resistance to rusting */
 	if (mtmp->mhpmax > dam) mtmp->mhpmax -= dam;
 	if (mtmp->mhp < 1) {
 	    mondead(mtmp);
@@ -434,7 +435,7 @@ register struct monst *mtmp;
 		mondead(mtmp);
 	    }
 	    else {
-		if (--mtmp->mhp < 1) {
+		if (damage_mon(mtmp,1,AD_FIRE)) {
 		    if (cansee(mtmp->mx,mtmp->my))
 			pline("%s surrenders to the fire.", Monnam(mtmp));
 		    mondead(mtmp);
@@ -477,8 +478,8 @@ register struct monst *mtmp;
     } else {
 	/* but eels have a difficult time outside */
 	if (mtmp->data->mlet == S_EEL && !Is_waterlevel(&u.uz)) {
-	    if(mtmp->mhp > 1) mtmp->mhp--;
-	    monflee(mtmp, 2, FALSE, FALSE);
+		if(mtmp->mhp > 1) damage_mon(mtmp,1,AD_PHYS);
+	    monflee(mtmp, 2, FALSE, mtmp->mflee ? FALSE : TRUE);
 	}
     }
     return (0);
@@ -502,6 +503,26 @@ struct monst *mon;
 
 #ifdef STEED
     if (mon == u.usteed) {
+		 /* if you aren't a good rider you can't go as fast
+		  * this offsets to some degree the perma-bonus we had to
+		  * give Knights to let them be able to use starting equipment
+		  * (ie. their pony) safely */
+
+		 switch (P_SKILL(P_RIDING)) {
+			 case P_BASIC:
+				 mmove -= 4;
+				 break;
+			 case P_SKILLED:
+				 break;
+			 case P_EXPERT:
+				 mmove += 4;
+				 break;
+			 case P_UNSKILLED:
+			 default:
+				 mmove -= 6;
+				 break;
+		 }
+
 	if (u.ugallop && flags.mv) {
 	    /* average movement is 1.50 times normal */
 	    mmove = ((rn2(2) ? 4 : 5) * mmove) / 3;
@@ -606,7 +627,7 @@ movemon()
 	}
 
 	/* continue if the monster died fighting */
-	if (Conflict && !mtmp->iswiz && mtmp->mcansee) {
+	if (Conflict && !mtmp->iswiz && m_canseeu(mtmp)) {
 	    /* Note:
 	     *  Conflict does not take effect in the first round.
 	     *  Therefore, A monster when stepping into the area will
@@ -615,7 +636,7 @@ movemon()
 	     *  The call to fightm() must be _last_.  The monster might
 	     *  have died if it returns 1.
 	     */
-	    if (couldsee(mtmp->mx,mtmp->my) &&
+	    if (cansee(mtmp->mx,mtmp->my) &&
 		(distu(mtmp->mx,mtmp->my) <= BOLT_LIM*BOLT_LIM) &&
 							fightm(mtmp))
 		continue;	/* mon might have died */
@@ -889,15 +910,27 @@ mpickstuff(mtmp, str)
 #ifdef INVISIBLE_OBJECTS
 		if (otmp->oinvis && !perceives(mtmp->data)) continue;
 #endif
-		if (cansee(mtmp->mx,mtmp->my) && flags.verbose)
-			pline("%s picks up %s.", Monnam(mtmp),
-			      (distu(mtmp->mx, mtmp->my) <= 5) ?
-				doname(otmp) : distant_name(otmp, doname));
+		if (otmp->otyp == BOULDER && is_rockbreaker(mtmp->data)) {
+			if (cansee(mtmp->mx,mtmp->my)) {
+				pline("A thunderclap rings out, and %s shatters!", (distu(mtmp->mx, mtmp->my) <= 5) ? doname(otmp) : distant_name(otmp, doname));
+				pline("%s strides through the dust cloud.", Monnam(mtmp));
+			} else {
+				pline("A thunderclap rings out!");
+			}
+		} else {
+			if (cansee(mtmp->mx,mtmp->my) && flags.verbose) { 
+				pline("%s picks up %s.", Monnam(mtmp), (distu(mtmp->mx, mtmp->my) <= 5) ? doname(otmp) : distant_name(otmp, doname));
+			}
+		}
+		if (otmp->otyp == BOULDER && is_rockbreaker(mtmp->data)) {
+			remove_object(otmp);
+		} else {
 		obj_extract_self(otmp);
 		/* unblock point after extract, before pickup */
 		if (otmp->otyp == BOULDER)
 		    unblock_point(otmp->ox,otmp->oy);	/* vision */
 		(void) mpickobj(mtmp, otmp);	/* may merge and free otmp */
+		}
 		m_dowear(mtmp, FALSE);
 		newsym(mtmp->mx, mtmp->my);
 		return TRUE;			/* pick only one object */
@@ -982,8 +1015,24 @@ struct obj *otmp;
 	 * their alignment if the monster takes something they need
 	 */
 
-	/* special--boulder throwers carry unlimited amounts of boulders */
-	if (throws_rocks(mdat) && otyp == BOULDER)
+	/* Critters without hands can't pick up gold, rocks, or gems; ie,
+	 * things that are typically in a loose pile.
+	 * (Technically they could do it one item at a time, but that
+	 * requires a lot of elaborate fiddling and doesn't add to gameplay.)
+	 *
+	 * This will also prevent them from picking up a significant stack
+	 * anything; ie. 100 darts.
+	 *
+	 * Dragons are exempted from this for obvious thematic reasons.
+	 */
+	if ((otmp->oclass == COIN_CLASS || otmp->oclass == GEM_CLASS ||
+				otmp->quan > 3) && nohands(mdat) && mdat->mlet != S_DRAGON) {
+		return FALSE;
+	}
+
+	/* special--boulder throwers carry unlimited amounts of boulders
+	 * and quest leaders can shatter boulders (will be handled in mpickstuff) */
+	if ((throws_rocks(mdat) || is_rockbreaker(mdat)) && otyp == BOULDER)
 		return(TRUE);
 
 	/* nymphs deal in stolen merchandise, but not boulders or statues */
@@ -1018,9 +1067,10 @@ mfndpos(mon, poss, info, flag)
 
 	nodiag = (mdat == &mons[PM_GRID_BUG]);
 	wantpool = mdat->mlet == S_EEL;
-	poolok = is_flyer(mdat) || is_clinger(mdat) ||
+	poolok = is_flyer(mdat) || is_clinger(mdat) || is_flying(mon) ||
 		 (is_swimmer(mdat) && !wantpool);
-	lavaok = is_flyer(mdat) || is_clinger(mdat) || likes_lava(mdat);
+	lavaok = is_flyer(mdat) || is_clinger(mdat) || is_flying(mon) ||
+				likes_lava(mdat);
 	thrudoor = ((flag & (ALLOW_WALL|BUSTDOOR)) != 0L);
 	if (flag & ALLOW_DIG) {
 	    struct obj *mw_tmp;
@@ -1171,16 +1221,17 @@ impossible("A monster looked at a very strange trap of type %d.", ttmp->ttyp);
 				    && ttmp->ttyp != HOLE)
 				      || (!is_flyer(mdat)
 				    && !is_floater(mdat)
-				    && !is_clinger(mdat))
+				    && !is_clinger(mdat)
+					 && !is_flying(mon))
 				      || In_sokoban(&u.uz))
 				&& (ttmp->ttyp != SLP_GAS_TRAP ||
 				    !resists_sleep(mon))
 				&& (ttmp->ttyp != BEAR_TRAP ||
 				    (mdat->msize > MZ_SMALL &&
-				     !amorphous(mdat) && !is_flyer(mdat)))
+				     !amorphous(mdat) && !is_flyer(mdat) && !is_flying(mon)))
 				&& (ttmp->ttyp != FIRE_TRAP ||
 				    !resists_fire(mon))
-				&& (ttmp->ttyp != SQKY_BOARD || !is_flyer(mdat))
+				&& (ttmp->ttyp != SQKY_BOARD || !is_flyer(mdat) || !is_flying(mon))
 				&& (ttmp->ttyp != WEB || (!amorphous(mdat) &&
 				    !webmaker(mdat)))
 			) {
@@ -1219,12 +1270,31 @@ struct monst *magr,	/* monster that is currently deciding where to move */
 {
 	/* supposedly purple worms are attracted to shrieking because they
 	   like to eat shriekers, so attack the latter when feasible */
-	if (magr->data == &mons[PM_PURPLE_WORM] &&
-		mdef->data == &mons[PM_SHRIEKER])
+	if (magr->data == &mons[PM_PURPLE_WORM] && mdef->data == &mons[PM_SHRIEKER])
 	    return ALLOW_M|ALLOW_TM;
 	/* Various other combinations such as dog vs cat, cat vs rat, and
 	   elf vs orc have been suggested.  For the time being we don't
 	   support those. */
+
+	/* don't let pets kill each other, as amusing as it can be */
+	if (!magr->mtame && !magr->mpeaceful) {
+		/* bigger critters and Riders will step on your pets to get to you */
+		if ((is_rider(magr->data) || 
+					magr->data->msize > mdef->data->msize + 1) && mdef->mtame) {
+			return ALLOW_M|ALLOW_TM;
+		}
+		if (m_canseeu(magr)) {	/* if you're in sight... */
+			/* Berserk monsters will attack anything but their own to reach you... */
+			if (magr->mberserk && magr->data->mlet != mdef->data->mlet) {
+				return ALLOW_M|ALLOW_TM;
+			} 
+			/* and just about everything will step on an insect in the way */
+			if (mdef->data->msize == MZ_TINY && magr->data->msize > MZ_TINY) {
+				return ALLOW_M|ALLOW_TM;
+			}
+		}
+	}
+
 	return 0L;
 }
 
@@ -1415,6 +1485,7 @@ register struct monst *mtmp;
 {
 	struct permonst *mptr;
 	int tmp;
+	struct obj* otmp;
 
 	if(mtmp->isgd) {
 		/* if we're going to abort the death, it *must* be before
@@ -1429,6 +1500,15 @@ register struct monst *mtmp;
 	if (mtmp == u.usteed)
 		dismount_steed(DISMOUNT_GENERIC);
 #endif
+
+	/* extinguish monster's armor */
+	if ( (otmp = which_armor(mtmp, W_ARM)) && 
+		(otmp->otyp==GOLD_DRAGON_SCALE_MAIL || otmp->otyp == GOLD_DRAGON_SCALES) )
+		end_burn(otmp,FALSE);
+
+	if ((otmp = which_armor(mtmp, W_ARMS)) && otmp->otyp == SHIELD_OF_LIGHT) {
+		end_burn(otmp,FALSE);
+	}
 
 	mptr = mtmp->data;		/* save this for m_detach() */
 	/* restore chameleon, lycanthropes to true form at death */
@@ -1502,6 +1582,14 @@ boolean was_swallowed;			/* digestion */
 	    return FALSE;
 	}
 
+	/* Trolls don't leave a corpse when the player is wielding Trollsbane */
+	if (mdat->mlet == S_TROLL && uwep && uwep->oartifact == ART_TROLLSBANE) {
+		if (cansee(mon->mx, mon->my)) {
+			pline("%s corpse flares brightly and burns to ashes.", s_suffix(Monnam(mon)));
+			return FALSE;
+		}
+	}
+
 	/* Gas spores always explode upon death */
 	for(i = 0; i < NATTK; i++) {
 	    if (mdat->mattk[i].aatyp == AT_BOOM) {
@@ -1521,7 +1609,7 @@ boolean was_swallowed;			/* digestion */
 			losehp(tmp, killer_buf, KILLED_BY_AN);
 		    } else {
 			if (flags.soundok) You_hear("an explosion.");
-			magr->mhp -= tmp;
+			damage_mon(magr,tmp,AD_PHYS);
 			if (magr->mhp < 1) mondied(magr);
 			if (magr->mhp < 1) { /* maybe lifesaved */
 			    if (canspotmon(magr))
@@ -1852,13 +1940,21 @@ xkilled(mtmp, dest)
 	}
 	if(redisp) newsym(x,y);
 cleanup:
-	/* punish bad behaviour */
-	if(is_human(mdat) && (!always_hostile(mdat) && mtmp->malign <= 0) &&
-	   (mndx < PM_ARCHEOLOGIST || mndx > PM_WIZARD) &&
+	/* punish bad behaviour...
+	 * malign check should catch renegade priests on Astral so you don't
+	 * end up a murderer even though they're trying to eat your face
+	 */
+	if(((always_peaceful(mdat) && mtmp->malign <= 0) || mtmp->isshk) && 
 	   u.ualign.type != A_CHAOTIC) {
 		HTelepat &= ~INTRINSIC;
 		change_luck(-2);
+		if (u.ualign.type == A_LAWFUL) {
+			You("murderer! You feel very guilty.");
+			mortal_sin();
+		} else {
 		You("murderer!");
+			major_sin();
+		}
 		if (Blind && !Blind_telepat)
 		    see_monsters(); /* Can't sense monsters any more. */
 	}
@@ -1866,6 +1962,7 @@ cleanup:
 	if (is_unicorn(mdat) &&
 				sgn(u.ualign.type) == sgn(mdat->maligntyp)) {
 		change_luck(-5);
+		major_sin();
 		You_feel("guilty...");
 	}
 
@@ -1886,18 +1983,23 @@ cleanup:
 	    if (!Hallucination) pline("That was probably a bad idea...");
 	    else pline("Whoopsie-daisy!");
 	}else if (mtmp->ispriest) {
-		adjalign((p_coaligned(mtmp)) ? -2 : 2);
 		/* cancel divine protection for killing your priest */
-		if (p_coaligned(mtmp)) u.ublessed = 0;
+		if (p_coaligned(mtmp)) {
+			mortal_sin();
+			u.ublessed = 0;
+		} else {
+			adjalign(5);
+		}
 		if (mdat->maligntyp == A_NONE)
 			adjalign((int)(ALIGNLIM / 4));		/* BIG bonus */
 	} else if (mtmp->mtame) {
-		adjalign(-15);	/* bad!! */
-		/* your god is mighty displeased... */
+		major_sin();	 /* bad!  your god is mighty displeased... */
 		if (!Hallucination) You_hear("the rumble of distant thunder...");
 		else You_hear("the studio audience applaud!");
-	} else if (mtmp->mpeaceful)
-		adjalign(-5);
+	} else if (mtmp->mpeaceful) {
+		You("slaughter the unwary!");
+		minor_sin();	 /* very hard to get this, but */
+	}
 
 	/* malign was already adjusted for u.ualign.type and randomization */
 	adjalign(mtmp->malign);
@@ -2027,7 +2129,7 @@ int  typ, fatal;
 			string, plural ? "were" : "was");
 	}
 
-	if(Poison_resistance) {
+	if(how_resistant(POISON_RES) == 100) {
 		if(!strcmp(string, "blast")) shieldeff(u.ux, u.uy);
 		pline_The("poison doesn't seem to affect you.");
 		return;
@@ -2044,14 +2146,18 @@ int  typ, fatal;
 	}
 	i = rn2(fatal + 20*thrown_weapon);
 	if(i == 0 && typ != A_CHA) {
-		u.uhp = -1;
-		pline_The("poison was deadly...");
+		/* used to be instantly fatal; now just gongs your maxhp for (4d6)/2
+		 * ...which is probably pretty close to fatal anyway for low-levels */
+		pline_The("poison was extremely toxic!");
+		i = resist_reduce(d(4,6),POISON_RES);
+		losehp(i,pname,kprefix);
+		gainmaxhp(i/-2);
 	} else if(i <= 5) {
 		/* Check that a stat change was made */
-		if (adjattrib(typ, thrown_weapon ? -1 : -rn1(3,3), 1))
+		if (adjattrib(typ, thrown_weapon ? -1 : -resist_reduce(rn1(3,3),POISON_RES), 1))
 		    pline("You%s!", poiseff[typ]);
 	} else {
-		i = thrown_weapon ? rnd(6) : rn1(10,6);
+		i = resist_reduce(thrown_weapon ? rnd(6) : rn1(10,6),POISON_RES);
 		if(Half_physical_damage) i = (i+1) / 2;
 		losehp(i, pname, kprefix);
 	}
@@ -2106,10 +2212,11 @@ register struct monst *mtmp;
 	if(mtmp->mtame) return;
 	mtmp->mpeaceful = 0;
 	if(mtmp->ispriest) {
-		if(p_coaligned(mtmp)) adjalign(-5); /* very bad */
+		if (p_coaligned(mtmp)) minor_sin(); /* very bad */
 		else adjalign(2);
-	} else
-		adjalign(-1);		/* attacking peaceful monsters is bad */
+	} else {
+		venial_sin();		/* attacking peaceful monsters is bad */
+	}
 	if (couldsee(mtmp->mx, mtmp->my)) {
 		if (humanoid(mtmp->data) || mtmp->isshk || mtmp->isgd)
 		    pline("%s gets angry!", Monnam(mtmp));
@@ -2735,6 +2842,23 @@ int damtype, dam;
 	}
     }
 }
+
+/* Damages mon by amount of type; handles vulnerabilities.
+ * Returns whether mon should have died or not.
+ */
+boolean
+damage_mon(mon,amount,type)
+struct monst* mon;
+int amount;
+int type;
+{
+	if (vulnerable_to(mon,type)) {
+		amount *= 1.5;
+	}
+	mon->mhp -= amount;
+	return (mon->mhp < 1);
+}
+
 
 boolean
 angry_guards(silent)

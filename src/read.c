@@ -73,6 +73,65 @@ doread()
     "Don't Panic",				/* HHGTTG */
     "Furinkan High School Athletic Dept.",	/* Ranma 1/2 */
     "Hel-LOOO, Nurse!",			/* Animaniacs */
+
+    "=^.^=",
+    "100% goblin hair - do not wash",
+    "Aberzombie and Fitch",
+    "Aim >>> <<< here",
+    "cK -- Cockatrice touches the Kop",
+    "Croesus for President 2008 - Campaign Finance Reform Now (for the other guy)",
+    "- - - - - - CUT HERE - - - - - -",
+    "Don't ask me, I only adventure here",
+    "Down With Pants!",
+    "d, your dog or a killer?",
+    "FREE PUG AND NEWT!",
+    "Gehennoms Angels",
+    "Glutton For Punishment",
+    "Go Team Ant!",
+    "Got Newt?",
+    "Heading for Godhead",
+    "Hey! Nymphs! Steal This T-Shirt!",
+    "I <3 Dungeon of Doom",
+    "I <3 Maud",
+    "I am a Valkyrie. If you see me running, try to keep up.",
+    "I Am Not a Pack Rat - I Am a Collector",
+    "I bounced off a rubber tree",
+    "If you can read this, I can hit you with my polearm",
+    "I'm Confused!",
+    "I met Carl, the swordmaster of Jambalaya island and all I got was this lousy t-shirt",
+    "I'm in ur base, killin ur doods",
+    "I scored with the princess",
+    "I Support Single Succubi",
+    "I want to live forever or die in the attempt.",
+    "Kop Killaz",
+    "Lichen Park",
+    "LOST IN THOUGHT - please send search party",
+    "Meat Is Mordor",
+    "Minetown Better Business Bureau",
+    "Minetown Watch",
+    "Ms. Palm's House of Negotiable Affection -- A Very Reputable House Of Disrepute",
+    "^^  My eyes are up there!  ^^",
+    "Neferet/Pelias '08",
+    "Next time you wave at me, use more than one finger, please.",
+    "No Outfit Is Complete Without a Little Cat Fur",
+    "Objects In This Shirt Are Closer Than They Appear",
+    "Protection Racketeer",
+    "P Happens",
+    "Real men love Crom",
+    "Rodney in '08. OR ELSE!",
+    "Sokoban Gym -- Get Strong or Die Trying",
+    "Somebody stole my Mojo!",
+    "The Hellhound Gang",
+    "The Werewolves",
+    "They Might Be Storm Giants",
+    "Up with miniskirts!",
+    "Weapons don't kill people, I kill people",
+    "Where's the beef?",
+    "White Zombie",
+    "Worship me",
+    "You laugh because I'm different, I laugh because you're about to die",
+    "You're killing me!",
+    "You should hear what the voices in my head are saying about you.",
 	    };
 	    char buf[BUFSZ];
 	    int erosion;
@@ -239,7 +298,7 @@ int curse_bless;
 	     *	7 : 100     100
 	     */
 	    n = (int)obj->recharged;
-	    if (n > 0 && (obj->otyp == WAN_WISHING ||
+	    if (n > 0 && (obj->otyp == WAN_WISHING || obj->otyp == WAN_DEATH ||
 		    (n * n * n > rn2(7*7*7)))) {	/* recharge_limit */
 		wand_explode(obj);
 		return;
@@ -274,7 +333,7 @@ int curse_bless;
 	    boolean is_on = (obj == uleft || obj == uright);
 
 	    /* destruction depends on current state, not adjustment */
-	    if (obj->spe > rn2(7) || obj->spe <= -5) {
+	    if (obj->spe > rn2(6)+3 || (is_cursed && obj->spe <= -5)) {
 		Your("%s %s momentarily, then %s!",
 		     xname(obj), otense(obj,"pulsate"), otense(obj,"explode"));
 		if (is_on) Ring_gone(obj);
@@ -351,6 +410,7 @@ int curse_bless;
 		break;
 	    case OIL_LAMP:
 	    case BRASS_LANTERN:
+		 case BAG_OF_POO:
 		if (is_cursed) {
 		    stripspe(obj);
 		    if (obj->lamplit) {
@@ -1128,16 +1188,16 @@ register struct obj	*sobj;
 		useup(sobj);
 		makeknown(SCR_FIRE);
 		if(confused) {
-		    if(Fire_resistance) {
+		    if(how_resistant(FIRE_RES) == 100) {
 			shieldeff(u.ux, u.uy);
+				monstseesu(M_SEEN_FIRE);
 			if(!Blind)
 			    pline("Oh, look, what a pretty fire in your %s.",
 				makeplural(body_part(HAND)));
 			else You_feel("a pleasant warmth in your %s.",
 				makeplural(body_part(HAND)));
 		    } else {
-			pline_The("scroll catches fire and you burn your %s.",
-				makeplural(body_part(HAND)));
+				pline_The("scroll catches fire and you burn your %s.",makeplural(body_part(HAND)));
 			losehp(1, "scroll of fire", KILLED_BY_AN);
 		    }
 		    return(1);
@@ -1216,7 +1276,7 @@ register struct obj	*sobj;
 						mhim(mtmp));
 				    }
 				}
-	    	    	    	mtmp->mhp -= mdmg;
+							damage_mon(mtmp,mdmg,AD_PHYS);
 	    	    	    	if (mtmp->mhp <= 0)
 	    	    	    	    xkilled(mtmp, 1);
 	    	    	    }
@@ -1424,10 +1484,15 @@ do_it:
 	vision_full_recalc = 1;	/* delayed vision recalculation */
 }
 
+/* 1/9/08 DSR: Experimental change; what if blessed geno wiped out
+ * two species, but selected those species at random (with preference
+ * to the weaker stuff first)?
+ */
 static void
 do_class_genocide()
 {
 	int i, j, immunecnt, gonecnt, goodcnt, class, feel_dead = 0;
+	int killed, candidates;
 	char buf[BUFSZ];
 	boolean gameover = FALSE;	/* true iff killed self */
 
@@ -1458,8 +1523,7 @@ do_class_genocide()
 		}
 		immunecnt = gonecnt = goodcnt = 0;
 		for (i = LOW_PM; i < NUMMONS; i++) {
-		    if (class == 0 &&
-			    strstri(monexplain[(int)mons[i].mlet], buf) != 0)
+		    if (class == 0 && strstri(monexplain[(int)mons[i].mlet], buf) != 0)
 			class = mons[i].mlet;
 		    if (mons[i].mlet == class) {
 			if (!(mons[i].geno & G_GENO)) immunecnt++;
@@ -1475,8 +1539,7 @@ do_class_genocide()
 				class != mons[urace.malenum].mlet) {
 			if (gonecnt)
 	pline("All such monsters are already nonexistent.");
-			else if (immunecnt ||
-				(buf[0] == DEF_INVISIBLE && buf[1] == '\0'))
+			else if (immunecnt || (buf[0] == DEF_INVISIBLE && buf[1] == '\0'))
 	You("aren't permitted to genocide such monsters.");
 			else
 #ifdef WIZARD	/* to aid in topology testing; remove pesky monsters */
@@ -1498,6 +1561,7 @@ do_class_genocide()
 			continue;
 		}
 
+		killed = candidates = 0;
 		for (i = LOW_PM; i < NUMMONS; i++) {
 		    if(mons[i].mlet == class) {
 			char nam[BUFSZ];
@@ -1506,12 +1570,18 @@ do_class_genocide()
 			/* Although "genus" is Latin for race, the hero benefits
 			 * from both race and role; thus genocide affects either.
 			 */
+			candidates++;
 			if (Your_Own_Role(i) || Your_Own_Race(i) ||
-				((mons[i].geno & G_GENO)
-				&& !(mvitals[i].mvflags & G_GENOD))) {
+				((mons[i].geno & G_GENO) && !(mvitals[i].mvflags & G_GENOD))) {
 			/* This check must be first since player monsters might
-			 * have G_GENOD or !G_GENO.
+			 * have G_GENOD or !G_GENO.  We also have to keep track of
+			 * whether there are only two or fewer critters left available for us
+			 * to geno in the first place; we must get them all then.
+			 * finally, we have to make sure the self-geno cases always happen.
 			 */
+				if ((killed < 2 && (!rn2(goodcnt) || (killed+candidates > goodcnt-2))) ||
+					Your_Own_Role(i) || Your_Own_Race(i)) {
+					killed++;
 			    mvitals[i].mvflags |= (G_GENOD|G_NOCORPSE);
 			    reset_rndmonst(i);
 			    kill_genocided_monsters();
@@ -1539,6 +1609,7 @@ do_class_genocide()
 				    gameover = TRUE;
 				}
 			    }
+				} 
 			} else if (mvitals[i].mvflags & G_GENOD) {
 			    if (!gameover)
 				pline("All %s are already nonexistent.", nam);
@@ -1633,14 +1704,19 @@ int how;
 			killplayer++;
 			break;
 		}
-		if (is_human(ptr)) adjalign(-sgn(u.ualign.type));
-		if (is_demon(ptr)) adjalign(sgn(u.ualign.type));
+
+		/* you'll still be punished for some of this... */
+		if ((is_human(ptr) && u.ualign.type != A_CHAOTIC) ||
+				(is_demon(ptr) && u.ualign.type == A_CHAOTIC)) {
+			major_sin();
+		} else {
+			adjalign(sgn(u.ualign.type));
+		}
 
 		if(!(ptr->geno & G_GENO)) {
 			if(flags.soundok) {
-	/* fixme: unconditional "caverns" will be silly in some circumstances */
 			    if(flags.verbose)
-			pline("A thunderous voice booms through the caverns:");
+			pline("A thunderous voice booms:");
 			    verbalize("No, mortal!  That will not be done.");
 			}
 			continue;

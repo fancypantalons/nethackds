@@ -18,6 +18,8 @@
 #define resists_poison(mon)	(((mon)->mintrinsics & MR_POISON) != 0)
 #define resists_acid(mon)	(((mon)->mintrinsics & MR_ACID) != 0)
 #define resists_ston(mon)	(((mon)->mintrinsics & MR_STONE) != 0)
+#define resists_sick(mon)  ((mon)->data->mlet == S_FUNGUS || \
+										(mon)->data == &mons[PM_GHOUL])
 
 #define is_lminion(mon)		(is_minion((mon)->data) && \
 				 (mon)->data->maligntyp >= A_COALIGNED && \
@@ -26,6 +28,7 @@
 
 #define is_flyer(ptr)		(((ptr)->mflags1 & M1_FLY) != 0L)
 #define is_floater(ptr)		((ptr)->mlet == S_EYE)
+#define is_flying(mon)		((mon)->mflying != 0L)
 #define is_clinger(ptr)		(((ptr)->mflags1 & M1_CLING) != 0L)
 #define is_swimmer(ptr)		(((ptr)->mflags1 & M1_SWIM) != 0L)
 #define breathless(ptr)		(((ptr)->mflags1 & M1_BREATHLESS) != 0L)
@@ -127,6 +130,10 @@
 				 ((ptr) == &mons[PM_LONG_WORM]) || \
 				 ((ptr) == &mons[PM_LONG_WORM_TAIL]))
 #define is_covetous(ptr)	((ptr->mflags3 & M3_COVETOUS))
+#define is_skittish(ptr)   ((ptr->mflags3 & M3_SKITTISH))
+#define is_accurate(ptr)   ((ptr->mflags3 & M3_EAGLEEYE))
+#define is_berserker(ptr)  ((ptr->mflags3 & M3_BERSERK))
+#define is_shopguard(ptr)  ((ptr->mflags3 & M3_SHOPGUARD))
 #define infravision(ptr)	((ptr->mflags3 & M3_INFRAVISION))
 #define infravisible(ptr)	((ptr->mflags3 & M3_INFRAVISIBLE))
 #define is_mplayer(ptr)		(((ptr) >= &mons[PM_ARCHEOLOGIST]) && \
@@ -146,6 +153,8 @@
 #define emits_light(ptr)	(((ptr)->mlet == S_LIGHT || \
 				  (ptr) == &mons[PM_FLAMING_SPHERE] || \
 				  (ptr) == &mons[PM_SHOCKING_SPHERE] || \
+				  (ptr) == &mons[PM_GOLD_DRAGON] || \
+				  (ptr) == &mons[PM_BABY_GOLD_DRAGON] || \
 				  (ptr) == &mons[PM_FIRE_VORTEX]) ? 1 : \
 				 ((ptr) == &mons[PM_FIRE_ELEMENTAL]) ? 1 : 0)
 /*	[note: the light ranges above were reduced to 1 for performance...] */
@@ -188,6 +197,11 @@
 				 (ptr) != &mons[PM_BLACK_PUDDING]))
 
 #define befriend_with_obj(ptr, obj) ((obj)->oclass == FOOD_CLASS && \
-				     is_domestic(ptr))
+				(is_domestic(ptr) || (Role_if(PM_CAVEMAN) && (ptr) == &mons[PM_MASTODON]) || \
+				 ((obj)->otyp == BANANA && ((ptr) == &mons[PM_MONKEY] || (ptr) == &mons[PM_APE]))))
+
+#define is_rockbreaker(ptr)							\
+				(((ptr)->msound == MS_LEADER || is_rider((ptr))) && \
+				 !mtmp->mpeaceful)
 
 #endif /* MONDATA_H */

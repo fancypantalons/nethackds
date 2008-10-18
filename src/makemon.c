@@ -70,6 +70,8 @@ wrong_elem_type(ptr)
     } else if (Is_firelevel(&u.uz)) {
 	if (!pm_resistance(ptr,MR_FIRE)) return TRUE;
     } else if (Is_airlevel(&u.uz)) {
+	/* fortunately elementals can't cast 'fly' so we don't have
+	 * to check for is_flying here; we don't have a monst pointer */
 	if(!(is_flyer(ptr) && ptr->mlet != S_TRAPPER) && !is_floater(ptr)
 	   && !amorphous(ptr) && !noncorporeal(ptr) && !is_whirly(ptr))
 	    return TRUE;
@@ -167,6 +169,7 @@ register struct monst *mtmp;
 	register struct permonst *ptr = mtmp->data;
 	register int mm = monsndx(ptr);
 	struct obj *otmp;
+	int randwand;
 
 #ifdef REINCARNATION
 	if (Is_rogue_level(&u.uz)) return;
@@ -200,6 +203,46 @@ register struct monst *mtmp;
 			  break;
 			case PM_SERGEANT:
 			  w1 = rn2(2) ? FLAIL : MACE;
+			  /* The sergeants in the towers get bows and wands so
+				* they can shoot at you while you're piddling with the
+				* drawbridge.  This should suck a lot if you're low level. */
+			  if (Is_stronghold(&u.uz)) {
+				  w2 = BOW;
+				  m_initthrow(mtmp,ARROW,30);
+
+				  /* wands of death should be very rare: 1 in 400 or so
+					* since we're making 8 wands per castle at this point,
+					* we need to be sure it's _super_ rare that one shows up */
+				  do {
+					  randwand = rn2(7);
+				  } while (randwand > 5 && rn2(50));
+
+				  switch (randwand) {
+					  case 1:
+						  randwand = WAN_MAGIC_MISSILE;
+						  break;
+					  case 2:
+						  randwand = WAN_SLEEP;
+						  break;
+					  case 3:
+						  randwand = WAN_FIRE;
+						  break;
+					  case 4:
+						  randwand = WAN_COLD;
+						  break;
+					  case 5:
+						  randwand = WAN_LIGHTNING;
+						  break;
+					  case 6:
+						  randwand = WAN_DEATH;
+						  break;
+					  case 0:
+					  default:
+						  randwand = WAN_STRIKING;
+						  break;
+				  }
+				  (void)mongets(mtmp, randwand);
+			  }
 			  break;
 			case PM_LIEUTENANT:
 			  w1 = rn2(2) ? BROADSWORD : LONG_SWORD;
@@ -207,6 +250,7 @@ register struct monst *mtmp;
 			case PM_CAPTAIN:
 			case PM_WATCH_CAPTAIN:
 			  w1 = rn2(2) ? LONG_SWORD : SILVER_SABER;
+			  (void)mongets(mtmp, SKELETON_KEY);
 			  break;
 			default:
 			  if (!rn2(4)) w1 = DAGGER;
@@ -217,9 +261,10 @@ register struct monst *mtmp;
 		    if (!w2 && w1 != DAGGER && !rn2(4)) w2 = KNIFE;
 		    if (w2) (void)mongets(mtmp, w2);
 		} else if (is_elf(ptr)) {
-		    if (rn2(2))
-			(void) mongets(mtmp,
-				   rn2(2) ? ELVEN_MITHRIL_COAT : ELVEN_CLOAK);
+			/* only higher-ranking elves get the good armor */
+		    if (rn2(2)) (void)mongets(mtmp,
+					(rn2(2) && (mm == PM_GREY_ELF || mm == PM_ELF_LORD || mm == PM_ELVENKING)) ? 
+					ELVEN_MITHRIL_COAT : ELVEN_CLOAK);
 		    if (rn2(2)) (void)mongets(mtmp, ELVEN_LEATHER_HELM);
 		    else if (!rn2(4)) (void)mongets(mtmp, ELVEN_BOOTS);
 		    if (rn2(2)) (void)mongets(mtmp, ELVEN_DAGGER);
@@ -261,13 +306,20 @@ register struct monst *mtmp;
 		{
 		    int spe2;
 
-		    /* create minion stuff; can't use mongets */
+		    /* create minion stuff; can't use mongets.
+			  * some angelic minions will get demonbane or sunsword;
+			  * decide that ahead of time so we know what to make */
+		    if (!rn2(20) || is_lord(ptr)) {
+				spe2 = rn2(2);
+				if (spe2) {
+					otmp = mksobj(SILVER_MACE, FALSE, FALSE);	/* TODO: unhardcode this crap */
+				} else {
+					otmp = mksobj(SILVER_LONG_SWORD, FALSE, FALSE);
+				}
+				otmp = oname(otmp, artiname(spe2 ? ART_DEMONBANE : ART_SUNSWORD));
+			 } else {
 		    otmp = mksobj(LONG_SWORD, FALSE, FALSE);
-
-		    /* maybe make it special */
-		    if (!rn2(20) || is_lord(ptr))
-			otmp = oname(otmp, artiname(
-				rn2(2) ? ART_DEMONBANE : ART_SUNSWORD));
+			 }
 		    bless(otmp);
 		    otmp->oerodeproof = TRUE;
 		    spe2 = rn2(4);
@@ -286,6 +338,13 @@ register struct monst *mtmp;
 
 	    case S_HUMANOID:
 		if (mm == PM_HOBBIT) {
+			if (!rn2(20)) {
+				(void)mongets(mtmp, ELVEN_MITHRIL_COAT);
+				(void)mongets(mtmp, ELVEN_DAGGER);
+				otmp = mksobj(RIN_INVISIBILITY,FALSE,FALSE);
+				otmp->cursed = TRUE;
+				(void) mpickobj(mtmp,otmp);
+			} else {
 		    switch (rn2(3)) {
 			case 0:
 			    (void)mongets(mtmp, DAGGER);
@@ -297,7 +356,7 @@ register struct monst *mtmp;
 			    (void)mongets(mtmp, SLING);
 			    break;
 		      }
-		    if (!rn2(10)) (void)mongets(mtmp, ELVEN_MITHRIL_COAT);
+			}
 		    if (!rn2(10)) (void)mongets(mtmp, DWARVISH_CLOAK);
 		} else if (is_dwarf(ptr)) {
 		    if (rn2(7)) (void)mongets(mtmp, DWARVISH_CLOAK);
@@ -311,7 +370,8 @@ register struct monst *mtmp;
 				(void)mongets(mtmp, DWARVISH_ROUNDSHIELD);
 			}
 			(void)mongets(mtmp, DWARVISH_IRON_HELM);
-			if (!rn2(3))
+			/* only higher ranking dwarves get the good stuff */
+			if (!rn2(3) && mm != PM_DWARF)
 			    (void)mongets(mtmp, DWARVISH_MITHRIL_COAT);
 		    } else {
 			(void)mongets(mtmp, !rn2(3) ? PICK_AXE : DAGGER);
@@ -371,15 +431,14 @@ register struct monst *mtmp;
 		break;
 
 	    case S_CENTAUR:
-		if (rn2(2)) {
-		    if(ptr == &mons[PM_FOREST_CENTAUR]) {
+			/* the skittish centaurs all need to have missile weapons at least */
+			if(ptr == &mons[PM_FOREST_CENTAUR] || ptr == &mons[PM_PLAINS_CENTAUR]) {
 			(void)mongets(mtmp, BOW);
-			m_initthrow(mtmp, ARROW, 12);
-		    } else {
+				m_initthrow(mtmp, ARROW, 24);
+			} else if (rn2(2)) {
 			(void)mongets(mtmp, CROSSBOW);
 			m_initthrow(mtmp, CROSSBOW_BOLT, 12);
 		    }
-		}
 		break;
 	    case S_WRAITH:
 		(void)mongets(mtmp, KNIFE);
@@ -394,6 +453,32 @@ register struct monst *mtmp;
 		if (mm == PM_SALAMANDER)
 			(void)mongets(mtmp, (rn2(7) ? SPEAR : rn2(3) ?
 					     TRIDENT : STILETTO));
+		break;
+		 case S_GNOME:
+			if (rn2(5)) { (void)mongets(mtmp, GNOMISH_HELM); }
+			if (!rn2(3)) { (void)mongets(mtmp, GNOMISH_BOOTS); }
+			if (!rn2(5)) { (void)mongets(mtmp, GNOMISH_SUIT); }
+			/* some of this ported up from below, so gnomes are
+			 * more than a speedbump again */
+			switch (rn2(4)) {
+				case 3:
+					(void) mongets(mtmp, CROSSBOW);
+					m_initthrow(mtmp, CROSSBOW_BOLT, 12);
+					break;
+				case 2:
+					(void) mongets(mtmp, BOW);
+					m_initthrow(mtmp, ARROW, 12);
+					break;
+				case 1:
+					m_initthrow(mtmp, DAGGER, 3);
+					break;
+				case 0:
+				default:
+					(void) mongets(mtmp, AKLYS);
+					if ((int) mtmp->m_lev > rn2(75)) {
+						(void) mongets(mtmp, rnd_offensive_item(mtmp));
+					}
+			}
 		break;
 	    case S_DEMON:
 		switch (mm) {
@@ -624,6 +709,7 @@ register struct	monst	*mtmp;
 		if (!rn2(20)) {
 			otmp = mksobj(LARGE_BOX, FALSE, FALSE);
 			otmp->spe = 1; /* flag for special box */
+			otmp->capacity = 3000; /* it should still be standard capacity */
 			otmp->owt = weight(otmp);
 			(void) mpickobj(mtmp, otmp);
 		}
@@ -708,13 +794,21 @@ xchar x, y;	/* clone's preferred location or 0 (near mon) */
 #ifndef GOLDOBJ
 	m2->mgold = 0L;
 #endif
-	/* Max HP the same, but current HP halved for both.  The caller
-	 * might want to override this by halving the max HP also.
-	 * When current HP is odd, the original keeps the extra point.
+	/* Max HP remaining the same allows infinite pudding farming
+	 * so let's go ahead and chop both in half as well, so eventually
+	 * there'll be a finite end to things...
 	 */
-	m2->mhpmax = mon->mhpmax;
+	m2->mhpmax = mon->mhpmax / 2;
+	mon->mhpmax -= m2->mhpmax;
 	m2->mhp = mon->mhp / 2;
 	mon->mhp -= m2->mhp;
+
+	/* don't accidentally set any of these to zero
+	 * since our caller will be expecting a live critter */
+	if (m2->mhpmax < 1) m2->mhpmax = 1;
+	if (mon->mhpmax < 1) mon->mhpmax = 1;
+	if (m2->mhp < 1) m2->mhp = 1;
+	if (mon->mhp < 1) mon->mhp = 1;
 
 	/* since shopkeepers and guards will only be cloned if they've been
 	 * polymorphed away from their original forms, the clone doesn't have
@@ -827,7 +921,8 @@ register int	x, y;
 register int	mmflags;
 {
 	register struct monst *mtmp;
-	int mndx, mcham, ct, mitem, xlth;
+	struct obj* otmp;
+	int mndx, mcham, ct, mitem, xlth, mhitdie;
 	boolean anymon = (!ptr);
 	boolean byyou = (x == u.ux && y == u.uy);
 	boolean allow_minvent = ((mmflags & NO_MINVENT) == 0);
@@ -927,14 +1022,32 @@ register int	mmflags;
 	     * above the 1..49 that indicate "normal" monster levels */
 	    mtmp->mhpmax = mtmp->mhp = 2*(ptr->mlevel - 6);
 	    mtmp->m_lev = mtmp->mhp / 4;	/* approximation */
-	} else if (ptr->mlet == S_DRAGON && mndx >= PM_GRAY_DRAGON) {
-	    /* adult dragons */
-	    mtmp->mhpmax = mtmp->mhp = (int) (In_endgame(&u.uz) ?
-		(8 * mtmp->m_lev) : (4 * mtmp->m_lev + d((int)mtmp->m_lev, 4)));
+	} else if (ptr->mlet == S_DRAGON && mndx >= PM_GRAY_DRAGON && In_endgame(&u.uz)) {
+	    /* dragons in the endgame are always at least average HP
+		  * note modified hit die here as well; they're MZ_GIGANTIC */
+	    mtmp->mhpmax = mtmp->mhp = 7 * mtmp->m_lev + d((int)mtmp->m_lev, 8);
 	} else if (!mtmp->m_lev) {
-	    mtmp->mhpmax = mtmp->mhp = rnd(4);
+	    mtmp->mhpmax = mtmp->mhp = rnd(4);	 /* level 0 monsters are pathetic */
+	} else if (ptr->msound == MS_LEADER) {
+		/* Quest Leaders need to be fairly burly */
+		mtmp->mhpmax = mtmp->mhp = 135 + rnd(30);
 	} else {
-	    mtmp->mhpmax = mtmp->mhp = d((int)mtmp->m_lev, 8);
+		/* plain old ordinary monsters; modify hit die based on size;
+		 * big-ass critters like mastodons should have big-ass HP, and
+		 * small things like bees and locusts should get less 
+		 */
+		switch (mtmp->data->msize) {
+			case MZ_TINY: mhitdie = 4; break;
+			case MZ_SMALL: mhitdie = 6; break;
+			case MZ_LARGE: mhitdie = 10; break;
+			case MZ_HUGE: mhitdie = 12; break;
+			case MZ_GIGANTIC: mhitdie = 15; break;
+			case MZ_MEDIUM: 
+			default:	
+				mhitdie = 8;
+				break;
+		}
+	    mtmp->mhpmax = mtmp->mhp = d((int)mtmp->m_lev, mhitdie);
 	    if (is_home_elemental(ptr))
 		mtmp->mhpmax = (mtmp->mhp *= 3);
 	}
@@ -950,6 +1063,9 @@ register int	mmflags;
 
 	place_monster(mtmp, x, y);
 	mtmp->mcansee = mtmp->mcanmove = TRUE;
+	mtmp->mflying = is_flyer(mtmp->data);	  /* fliers start out flying */
+	mtmp->seen_resistance = M_SEEN_NOTHING;
+	mtmp->mberserk = is_berserker(mtmp->data); /* berserkers start out crazed */
 	mtmp->mpeaceful = (mmflags & MM_ANGRY) ? FALSE : peace_minded(ptr);
 
 	switch(ptr->mlet) {
@@ -979,6 +1095,7 @@ register int	mmflags;
 			mtmp->msleeping = 1;
 			break;
 		case S_JABBERWOCK:
+			break;
 		case S_NYMPH:
 			if (rn2(5) && !u.uhave.amulet) mtmp->msleeping = 1;
 			break;
@@ -993,6 +1110,31 @@ register int	mmflags;
 		case S_BAT:
 			if (Inhell && is_bat(ptr))
 			    mon_adjust_speed(mtmp, 2, (struct obj *)0);
+			break;
+		case S_DRAGON:
+			/* Dragons are always generated awake and pissed for Knights. */
+			if (Role_if(PM_KNIGHT)) {
+				mtmp->mpeaceful = mtmp->mtame = FALSE;
+				mtmp->msleeping = 0;
+			}
+			/* Warren Robinett didn't leave this easter egg, but... */
+			if (!rn2(13)) {
+				switch (mtmp->mnum) {
+					case PM_YELLOW_DRAGON:
+						mtmp = christen_monst(mtmp,"Yorgle"); 
+						break;
+					case PM_GREEN_DRAGON:
+						mtmp = christen_monst(mtmp,"Grundle");
+						if (rn2(2)) (void)mongets(mtmp, SKELETON_KEY); /* black key */
+						break;
+					case PM_RED_DRAGON:
+						mtmp = christen_monst(mtmp,"Rhindle");
+						if (rn2(2)) (void)mongets(mtmp, SKELETON_KEY); /* white key */
+						break;
+					default:
+						break;
+				}
+			}
 			break;
 	}
 	if ((ct = emits_light(mtmp->data)) > 0)
@@ -1023,6 +1165,13 @@ register int	mmflags;
 			mtmp = christen_monst(mtmp, rndghostname());
 	} else if (mndx == PM_VLAD_THE_IMPALER) {
 		mitem = CANDELABRUM_OF_INVOCATION;
+		/* give him Lifestealer so he has teeth, ha ha */
+		otmp = mksobj(TWO_HANDED_SWORD,FALSE,FALSE);
+		otmp = oname(otmp, artiname(ART_LIFESTEALER));
+		curse(otmp);	 /* this shouldn't be much fun for players at all */
+		otmp->oerodeproof = TRUE;
+		otmp->spe = rn2(3);
+		(void) mpickobj(mtmp, otmp);
 	} else if (mndx == PM_CROESUS) {
 		mitem = TWO_HANDED_SWORD;
 	} else if (ptr->msound == MS_NEMESIS) {
@@ -1491,6 +1640,10 @@ register int otyp;
 
 	if (!otyp) return 0;
 	otmp = mksobj(otyp, TRUE, FALSE);
+	/* special case for Vlad's new sword */
+	if (mtmp->mnum == PM_VLAD_THE_IMPALER && otyp == TWO_HANDED_SWORD) {
+		otmp = mk_artifact(otmp,(aligntyp)A_NONE);
+	}
 	if (otmp) {
 	    if (mtmp->data->mlet == S_DEMON) {
 		/* demons never get blessed objects */
@@ -1543,12 +1696,12 @@ int type;
 		case PM_ROPE_GOLEM: return 30;
 		case PM_LEATHER_GOLEM: return 40;
 		case PM_GOLD_GOLEM: return 40;
-		case PM_WOOD_GOLEM: return 50;
+		case PM_WOOD_GOLEM: return 60;
 		case PM_FLESH_GOLEM: return 40;
-		case PM_CLAY_GOLEM: return 50;
-		case PM_STONE_GOLEM: return 60;
-		case PM_GLASS_GOLEM: return 60;
-		case PM_IRON_GOLEM: return 80;
+		case PM_CLAY_GOLEM: return 60;
+		case PM_STONE_GOLEM: return 150;		/* it's a rock */
+		case PM_GLASS_GOLEM: return 80;
+		case PM_IRON_GOLEM: return 150;		/* it's solid iron */
 		default: return 0;
 	}
 }
@@ -1641,7 +1794,7 @@ struct monst *mtmp;
 		if (coaligned)
 			mtmp->malign = 0;
 		else
-			mtmp->malign = max(5,absmal);
+			mtmp->malign = max(3,absmal);
 	} else if (coaligned) {
 		int absmal = abs(mal);
 		if (mtmp->mpeaceful)

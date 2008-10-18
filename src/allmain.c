@@ -24,7 +24,13 @@ moveloop()
     int abort_lev;
 #endif
     int moveamt = 0, wtcap = 0, change = 0;
+	 int regen_frequency;
     boolean didmove = FALSE, monscanmove = FALSE;
+	 /* don't make it obvious when monsters will start speeding up */
+	 int monclock;
+	 int timeout_start = rnd(10000)+15000;
+	 int clock_base = 70000L-timeout_start;
+	 int past_clock;
 
     flags.moonphase = phase_of_the_moon();
     if(flags.moonphase == FULL_MOON) {
@@ -58,6 +64,9 @@ moveloop()
 
     u.uz0.dlevel = u.uz.dlevel;
     youmonst.movement = NORMAL_SPEED;	/* give the hero some movement points */
+#ifdef WHEREIS_FILE
+	 touch_whereis();
+#endif
 
     for(;;) {
 	get_nh_event();
@@ -91,9 +100,51 @@ moveloop()
 		    for (mtmp = fmon; mtmp; mtmp = mtmp->nmon)
 			mtmp->movement += mcalcmove(mtmp);
 
-		    if(!rn2(u.uevent.udemigod ? 25 :
-			    (depth(&u.uz) > depth(&stronghold_level)) ? 50 : 70))
+			 /* Vanilla generates a critter every 70-ish turns.
+			  * The rate accelerates to every 50 or so below the Castle,
+			  * and 'round every 25 turns once you've done the Invocation.
+			  *
+			  * We will push it even further.  Monsters post-Invocation
+			  * will almost always appear on the stairs (if present), and 
+			  * much more frequently; this, along with the extra intervene()
+			  * calls, should certainly make it seem like you're wading back
+			  * through the teeming hordes.
+			  *
+			  * Aside from that, a more general clock should be put on things;
+			  * after about 30,000 turns, the frequency rate of appearance
+			  * and (TODO) difficulty of monsters generated will slowly increase until
+			  * it reaches the point it will be at as if you were post-Invocation.
+			  *
+			  * 80,000 turns should be adequate as a target mark for this effect;
+			  * if you haven't ascended in 80,000 turns, you're intentionally
+			  * fiddling around somewhere and will certainly be strong enough
+			  * to handle anything that comes your way, so this won't be 
+			  * dropping newbies off the edge of the planet.  -- DSR 12/2/07
+			  */
+
+			 monclock = 70;
+			 if (u.uevent.udemigod) {
+				 monclock = 10;
+			 } else {
+				 if (depth(&u.uz) > depth(&stronghold_level)) {
+					 monclock = 50;
+				 }
+				 past_clock = moves - timeout_start;
+				 if (past_clock > 0) {
+					 monclock -= past_clock*60/clock_base;
+				 }
+			 }
+			 /* make sure we don't fall off the bottom */
+			 if (monclock < 10) { monclock = 10; }
+
+			 /* TODO: adj difficulty in makemon */
+		    if(!rn2(monclock)) {
+				 if (u.uevent.udemigod && xupstair && rn2(10)) {
+					(void) makemon((struct permonst *)0, xupstair, yupstair, MM_ADJACENTOK);
+				 } else {
 			(void) makemon((struct permonst *)0, 0, 0, NO_MM_FLAGS);
+				 }
+			 }
 
 		    /* calculate how much time passed. */
 #ifdef STEED
@@ -112,6 +163,9 @@ moveloop()
 			} else if (Fast) {
 			    /* average movement is 1.33 times normal */
 			    if (rn2(3) != 0) moveamt += NORMAL_SPEED / 2;
+				} else if (Slow) {
+					/* average movement noticeably slower */
+					if (rn2(3) != 0) moveamt -= NORMAL_SPEED / 2;
 			}
 		    }
 
@@ -206,14 +260,24 @@ moveloop()
 			}
 		    }
 
-		    if ((u.uen < u.uenmax) &&
-			((wtcap < MOD_ENCUMBER &&
-			  (!(moves%((MAXULEV + 8 - u.ulevel) *
-				    (Role_if(PM_WIZARD) ? 3 : 4) / 6))))
-			 || Energy_regeneration)) {
+			 /* wizards regen slightly faster than others; energy regeneration is
+			  * faster than both; wizards + energy regeneration (Eye) is fastest of all */
+		    if (u.uen < u.uenmax && wtcap < MOD_ENCUMBER) {
+				if (Energy_regeneration) {
+					regen_frequency = (MAXULEV - (Role_if(PM_WIZARD) ? 5 : 0) - u.ulevel) * (Role_if(PM_WIZARD) ? 2 : 3) / 6;
+				} else {
+					regen_frequency = (MAXULEV + 8 - u.ulevel) * (Role_if(PM_WIZARD) ? 3 : 4) / 6;
+				}
+				/* regen_freq should never hit 0 or negative, but let's cover it here just in case
+				 * since we saw a crash earlier at this line -- this is the only thing it could be */
+				if (regen_frequency < 1) { regen_frequency = 1; }
+				if (!(moves % regen_frequency)) {
 			u.uen += rn1((int)(ACURR(A_WIS) + ACURR(A_INT)) / 15 + 1,1);
-			if (u.uen > u.uenmax)  u.uen = u.uenmax;
+					if (u.uen > u.uenmax) {
+						u.uen = u.uenmax;
+					}
 			flags.botl = 1;
+		    }
 		    }
 
 		    if(!u.uinvulnerable) {
@@ -267,7 +331,7 @@ moveloop()
 			if (u.udg_cnt) u.udg_cnt--;
 			if (!u.udg_cnt) {
 			    intervene();
-			    u.udg_cnt = rn1(200, 50);
+			    u.udg_cnt = rn1(100, 50);
 			}
 		    }
 		    restore_attrib();
@@ -294,6 +358,24 @@ moveloop()
 	    /* once-per-hero-took-time things go here */
 	    /******************************************/
 
+		 /* move this here so player can check inventory safely in lava
+		  * but any actual action will cause time to pass */
+		if (u.utrap && u.utraptype == TT_LAVA) {
+			if(!is_lava(u.ux,u.uy))
+				u.utrap = 0;
+			else if (!u.uinvulnerable) {
+				u.utrap -= 1<<8;
+				if (u.utrap < 1<<8) {
+					killer_format = KILLED_BY;
+					killer = "molten lava";
+					You("sink below the surface and die.");
+					done(DISSOLVED);
+				} else if(didmove && !u.umoved) {
+					Norep("You sink deeper into the lava.");
+					u.utrap += rnd(4);
+				}
+			}
+		}
 
 	} /* actual time passed */
 
@@ -355,23 +437,6 @@ moveloop()
 	    !In_endgame(&u.uz) && !BClairvoyant &&
 	    !(moves % 15) && !rn2(2))
 		do_vicinity_map();
-
-	if(u.utrap && u.utraptype == TT_LAVA) {
-	    if(!is_lava(u.ux,u.uy))
-		u.utrap = 0;
-	    else if (!u.uinvulnerable) {
-		u.utrap -= 1<<8;
-		if(u.utrap < 1<<8) {
-		    killer_format = KILLED_BY;
-		    killer = "molten lava";
-		    You("sink below the surface and die.");
-		    done(DISSOLVED);
-		} else if(didmove && !u.umoved) {
-		    Norep("You sink deeper into the lava.");
-		    u.utrap += rnd(4);
-		}
-	    }
-	}
 
 #ifdef WIZARD
 	if (iflags.sanity_check)
@@ -566,8 +631,8 @@ boolean new_game;	/* false => restoring an old game */
 	     currentgend != flags.initgend))
 	Sprintf(eos(buf), " %s", genders[currentgend].adj);
 
-    pline(new_game ? "%s %s, welcome to NetHack!  You are a%s %s %s."
-		   : "%s %s, the%s %s %s, welcome back to NetHack!",
+    pline(new_game ? "%s %s, welcome to SporkHack!  You are a%s %s %s."
+		   : "%s %s, the%s %s %s, welcome back to SporkHack!",
 	  Hello((struct monst *) 0), plname, buf, urace.adj,
 	  (currentgend && urole.name.f) ? urole.name.f : urole.name.m);
 }

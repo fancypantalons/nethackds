@@ -140,7 +140,7 @@ const char *drainer;	/* cause of death, if drain should be fatal */
 		u.uexp = 0;
 	}
 	num = newhp();
-	u.uhpmax -= num;
+	gainmaxhp(-num);
 	if (u.uhpmax < 1) u.uhpmax = 1;
 	u.uhp -= num;
 	if (u.uhp < 1) u.uhp = 1;
@@ -185,6 +185,9 @@ boolean incr;	/* true iff via incremental experience growth */
 
 	if (!incr) You_feel("more experienced.");
 	num = newhp();
+	/* we let this go rather than pushing it through gainmaxhp() because
+	 * the player's HP growth from levels is already restricted at XL30
+	 * and we don't want to screw them on level gain */
 	u.uhpmax += num;
 	u.uhp += num;
 	if (Upolyd) {

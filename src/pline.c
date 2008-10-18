@@ -15,6 +15,11 @@ static boolean no_repeat = FALSE;
 
 static char *FDECL(You_buf, (int));
 
+#if defined(DUMP_LOG) && defined(DUMPMSGS)
+char msgs[DUMPMSGS][BUFSZ];
+int lastmsg = -1;
+#endif
+
 /*VARARGS1*/
 /* Note that these declarations rely on knowledge of the internals
  * of the variable argument handling stuff in "tradstdc.h"
@@ -55,6 +60,12 @@ pline VA_DECL(const char *, line)
 	    Vsprintf(pbuf,line,VA_ARGS);
 	    line = pbuf;
 	}
+#if defined(DUMP_LOG) && defined(DUMPMSGS)
+	if (DUMPMSGS > 0 && !program_state.gameover) {
+	  lastmsg = (lastmsg + 1) % DUMPMSGS;
+	  strncpy(msgs[lastmsg], line, BUFSZ);
+	}
+#endif
 	if (!iflags.window_inited) {
 	    raw_print(line);
 	    return;
@@ -257,7 +268,7 @@ impossible VA_DECL(const char *, s)
 	    paniclog("impossible", pbuf);
 	}
 	vpline(s,VA_ARGS);
-	pline("Program in disorder - perhaps you'd better #quit.");
+	pline("Program in disorder; you probably should S)ave and restart the process.");
 	program_state.in_impossible = 0;
 	VA_END();
 }
@@ -311,6 +322,7 @@ register struct monst *mtmp;
 				  Strcat(info, ", blind");
 	if (mtmp->mstun)	  Strcat(info, ", stunned");
 	if (mtmp->msleeping)	  Strcat(info, ", asleep");
+	if (mtmp->mflying && !is_flyer(mtmp->data)) { Strcat(info,", flying"); }
 #if 0	/* unfortunately mfrozen covers temporary sleep and being busy
 	   (donning armor, for instance) as well as paralysis */
 	else if (mtmp->mfrozen)	  Strcat(info, ", paralyzed");
@@ -399,6 +411,7 @@ ustatusline()
 	if (u.utrap)		Strcat(info, ", trapped");
 	if (Fast)		Strcat(info, Very_fast ?
 						", very fast" : ", fast");
+	if (Slow)		Strcat(info, ", slow");
 	if (u.uundetected)	Strcat(info, ", concealed");
 	if (Invis)		Strcat(info, ", invisible");
 	if (u.ustuck) {

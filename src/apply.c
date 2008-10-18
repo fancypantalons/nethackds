@@ -15,7 +15,7 @@ static const char tools_too[] = { ALL_CLASSES, TOOL_CLASS, POTION_CLASS,
 STATIC_DCL int FDECL(use_camera, (struct obj *));
 #endif
 STATIC_DCL int FDECL(use_towel, (struct obj *));
-STATIC_DCL boolean FDECL(its_dead, (int,int,int *));
+STATIC_DCL boolean FDECL(its_dead, (int,int,int *,struct obj*));
 STATIC_DCL int FDECL(use_stethoscope, (struct obj *));
 STATIC_DCL void FDECL(use_whistle, (struct obj *));
 STATIC_DCL void FDECL(use_magic_whistle, (struct obj *));
@@ -26,11 +26,13 @@ STATIC_DCL void FDECL(use_candelabrum, (struct obj *));
 STATIC_DCL void FDECL(use_candle, (struct obj **));
 STATIC_DCL void FDECL(use_lamp, (struct obj *));
 STATIC_DCL void FDECL(light_cocktail, (struct obj *));
+STATIC_DCL void FDECL(light_poo, (struct obj *));
 STATIC_DCL void FDECL(use_tinning_kit, (struct obj *));
 STATIC_DCL void FDECL(use_figurine, (struct obj **));
 STATIC_DCL void FDECL(use_grease, (struct obj *));
 STATIC_DCL void FDECL(use_trap, (struct obj *));
 STATIC_DCL void FDECL(use_stone, (struct obj *));
+STATIC_DCL void FDECL(apply_flint, (struct obj *));
 STATIC_PTR int NDECL(set_trap);		/* occupation callback */
 STATIC_DCL int FDECL(use_whip, (struct obj *));
 STATIC_DCL int FDECL(use_pole, (struct obj *));
@@ -159,8 +161,9 @@ use_towel(obj)
 
 /* maybe give a stethoscope message based on floor objects */
 STATIC_OVL boolean
-its_dead(rx, ry, resp)
+its_dead(rx, ry, resp, tobj)
 int rx, ry, *resp;
+struct obj* tobj;
 {
 	struct obj *otmp;
 	struct trap *ttmp;
@@ -191,6 +194,30 @@ int rx, ry, *resp;
 	    }
 	    return TRUE;
 	}
+
+	/* listening to eggs is a little fishy, but so is stethoscopes detecting alignment
+	 * The overcomplex wording is because all the monster-naming functions operate
+	 * on actual instances of the monsters, and we're dealing with just an index
+	 * so we can avoid things like "a owlbear", etc. */
+	if (otmp = sobj_at(EGG,rx,ry)) {
+		if (Hallucination) {
+			pline("You listen to the egg and guess... %s?",rndmonnam());
+		} else {
+			if (stale_egg(otmp) || otmp->corpsenm == NON_PM) {
+				pline("The egg doesn't make much noise at all.");
+			} else {
+				pline("You listen to the egg and guess... %s?",mons[otmp->corpsenm].mname);
+			}
+		}
+		return TRUE;
+	}
+
+	/* using a stethoscope on a safe?  You safe-cracker, you. */
+	if (otmp = sobj_at(IRON_SAFE,rx,ry)) {
+		pick_lock(tobj,rx,ry);
+		return TRUE;
+	}
+
 	return FALSE;
 }
 
@@ -249,7 +276,7 @@ use_stethoscope(obj)
 		else if (u.dz < 0 || !can_reach_floor())
 		    You_cant("reach the %s.",
 			(u.dz > 0) ? surface(u.ux,u.uy) : ceiling(u.ux,u.uy));
-		else if (its_dead(u.ux, u.uy, &res))
+		else if (its_dead(u.ux, u.uy, &res, obj))
 		    ;	/* message already given */
 		else if (Is_stronghold(&u.uz))
 		    You_hear("the crackling of hellfire.");
@@ -302,7 +329,7 @@ use_stethoscope(obj)
 		return res;
 	}
 
-	if (!its_dead(rx, ry, &res))
+	if (!its_dead(rx, ry, &res, obj))
 	    You("hear nothing special.");	/* not You_hear()  */
 	return res;
 }
@@ -561,8 +588,7 @@ register xchar x, y;
 		if (!um_dist(mtmp->mx, mtmp->my, 3)) {
 		    ;	/* still close enough */
 		} else if (otmp->cursed && !breathless(mtmp->data)) {
-		    if (um_dist(mtmp->mx, mtmp->my, 5) ||
-			    (mtmp->mhp -= rnd(2)) <= 0) {
+		    if (um_dist(mtmp->mx, mtmp->my, 5) || damage_mon(mtmp,rnd(2),AD_PHYS)) {
 			long save_pacifism = u.uconduct.killer;
 
 			Your("leash chokes %s to death!", mon_nam(mtmp));
@@ -894,7 +920,7 @@ register struct obj *obj;
 		pline("%s's %s burn%s", The(xname(obj)), s,
 			(Blind ? "." : " brightly!"));
 	}
-	if (!invocation_pos(u.ux, u.uy)) {
+	if (!invocation_pos(u.ux, u.uy) && u.uevent.invoked) {
 		pline_The("%s %s being rapidly consumed!", s, vtense(s, "are"));
 		obj->age /= 2;
 	} else {
@@ -908,6 +934,36 @@ register struct obj *obj;
 	}
 	begin_burn(obj, FALSE);
 }
+
+
+STATIC_OVL void
+light_poo(obj)
+struct obj* obj;
+{
+	char buf[BUFSZ];
+
+	makeknown(obj->otyp);
+	if(Underwater) {
+		pline("Not even -that- will burn here.");
+		return;
+	}
+	if(obj->lamplit) {
+		You("snuff out %s and breathe a little more deeply.", yname(obj));
+		BStealth = 0;
+		end_burn(obj, TRUE);
+		return;
+	}
+	if (obj->age == 0) {
+		pline("This %s is (mostly) empty; what's left won't burn anymore.", xname(obj));
+		return;
+	}
+	check_unpaid(obj);
+	pline("%s %s burns with a dim flame and vile stench.", Shk_Your(buf, obj), xname(obj));
+	begin_burn(obj, FALSE);
+	BStealth = (int)obj;
+
+}
+
 
 STATIC_OVL void
 use_candle(optr)
@@ -1008,7 +1064,8 @@ struct obj *obj;
 
 	if (obj->lamplit) {
 	    if (obj->otyp == OIL_LAMP || obj->otyp == MAGIC_LAMP ||
-		    obj->otyp == BRASS_LANTERN || obj->otyp == POT_OIL) {
+		    obj->otyp == BRASS_LANTERN || obj->otyp == POT_OIL ||
+			 obj->otyp == BAG_OF_POO) {
 		(void) get_obj_location(obj, &x, &y, 0);
 		if (obj->where == OBJ_MINVENT ? cansee(x,y) : !Blind)
 		    pline("%s %s out!", Yname2(obj), otense(obj, "go"));
@@ -1360,7 +1417,12 @@ int magic; /* 0=Physical, otherwise skill level */
 	    teleds(cc.x, cc.y, TRUE);
 	    nomul(-1);
 	    nomovemsg = "";
+		 /* Knights get it for cheaper */
+		 if (Role_if(PM_KNIGHT)) {
+			 morehungry(rnd(10));
+		 } else {
 	    morehungry(rnd(25));
+		 }
 	    return 1;
 	}
 }
@@ -1446,10 +1508,18 @@ use_unicorn_horn(obj)
 struct obj *obj;
 {
 #define PROP_COUNT 6		/* number of properties we're dealing with */
-#define ATTR_COUNT (A_MAX*3)	/* number of attribute points we might fix */
+#define ATTR_COUNT 0	 	/* number of attribute points we might fix */
+
+	/* Changing this to 0 is going to cause people's hair to stand on end.
+	 * The problem is, the spellbook and potion of restore ability are
+	 * absolutely junk at the moment, because the unicorn horn handles 
+	 * it all.  So we can fix that; let the unicorn horn handle
+	 * transitional troubles, and make the player find restore ability
+	 * potions and whatnot for stat abuse/stat drop.  -- DSR 12/02/07 */
+
 	int idx, val, val_limit,
-	    trouble_count, unfixable_trbl, did_prop, did_attr;
-	int trouble_list[PROP_COUNT + ATTR_COUNT];
+	    trouble_count, unfixable_trbl, did_prop;
+	int trouble_list[PROP_COUNT];
 
 	if (obj && obj->cursed) {
 	    long lcount = (long) rnd(100);
@@ -1483,7 +1553,7 @@ struct obj *obj;
 #define prop_trouble(X) trouble_list[trouble_count++] = prop2trbl(X)
 #define attr_trouble(Y) trouble_list[trouble_count++] = attr2trbl(Y)
 
-	trouble_count = unfixable_trbl = did_prop = did_attr = 0;
+	trouble_count = unfixable_trbl = did_prop = 0;
 
 	/* collect property troubles */
 	if (Sick) prop_trouble(SICK);
@@ -1494,6 +1564,9 @@ struct obj *obj;
 	if (HStun) prop_trouble(STUNNED);
 
 	unfixable_trbl = unfixable_trouble_count(TRUE);
+
+#if 0
+	/*... don't need to fix these anymore */
 
 	/* collect attribute troubles */
 	for (idx = 0; idx < A_MAX; idx++) {
@@ -1508,6 +1581,7 @@ struct obj *obj;
 	    /* keep track of unfixed trouble, for message adjustment below */
 	    unfixable_trbl += (AMAX(idx) - val_limit);
 	}
+#endif
 
 	if (trouble_count == 0) {
 	    pline(nothing_happens);
@@ -1562,23 +1636,30 @@ struct obj *obj;
 		did_prop++;
 		break;
 	    default:
+#if 0
 		if (idx >= 0 && idx < A_MAX) {
 		    ABASE(idx) += 1;
 		    did_attr++;
 		} else
 		    panic("use_unicorn_horn: bad trouble? (%d)", idx);
+#endif
 		break;
 	    }
 	}
 
+#if 0
 	if (did_attr)
 	    pline("This makes you feel %s!",
 		  (did_prop + did_attr) == (trouble_count + unfixable_trbl) ?
 		  "great" : "better");
-	else if (!did_prop)
+	else
+#endif
+
+	if (!did_prop)
 	    pline("Nothing seems to happen.");
 
-	flags.botl = (did_attr || did_prop);
+	flags.botl = (did_prop);
+
 #undef PROP_COUNT
 #undef ATTR_COUNT
 #undef prop2trbl
@@ -1702,7 +1783,7 @@ boolean quietly;
 	    !(passes_walls(&mons[obj->corpsenm]) && may_passwall(x,y))) {
 		if (!quietly)
 		    You("cannot place a figurine in %s!",
-			IS_TREE(levl[x][y].typ) ? "a tree" : "solid rock");
+			IS_TREE(levl[x][y].typ) ? christmas() ? "a christmas tree" : "a tree" : "solid rock");
 		return FALSE;
 	}
 	if (sobj_at(BOULDER,x,y) && !passes_walls(&mons[obj->corpsenm])
@@ -1831,6 +1912,51 @@ reset_trapset()
 	trapinfo.force_bungle = 0;
 }
 
+/* creating flint arrows - DSR */
+
+STATIC_OVL void
+apply_flint(flint)
+struct obj* flint;
+{
+	struct obj* obj;
+	char szwork[QBUFSZ];
+	int flints, arrows, i;
+	static const char menulist[2] = {WEAPON_CLASS,0};
+
+	flints = flint->quan;
+
+	Sprintf(szwork, "affix the stone%s to", plur(flints));
+	if ((obj = getobj(menulist,szwork)) == 0) {
+		return;
+	}
+
+	/* can only stick flint to arrows */
+	if (obj->otyp < ARROW || obj->otyp > YA) {
+		You("aren't really sure what good that will do.");
+		return;
+	}
+
+	/* can't make MIRV arrows; if they're +1, leave it be */
+	if (obj->spe > 0) {
+		You("don't think you can make these any better than they are.");
+		return;
+	}
+
+	arrows = obj->quan;
+
+	/* One flint stone will do 10 arrows. */
+	if (flints*10 > arrows) {
+		(obj->spe)++;
+		You("lash flint tips to the arrows.");
+		for (i = 0;i <= arrows/10;i++) {
+			useup(flint);
+		}
+	} else {
+		You("don't have enough flint to re-tip all of these.");
+	}
+	return;
+}
+
 /* touchstones - by Ken Arnold */
 STATIC_OVL void
 use_stone(tstone)
@@ -1838,6 +1964,9 @@ struct obj *tstone;
 {
     struct obj *obj;
     boolean do_scratch;
+	 boolean make_sparks;
+	 int i, j;
+	 struct monst* mtmp;
     const char *streak_color, *choices;
     char stonebuf[QBUFSZ];
     static const char scritch[] = "\"scritch, scritch\"";
@@ -1896,12 +2025,16 @@ struct obj *tstone;
     }
 
     do_scratch = FALSE;
+	 make_sparks = FALSE;
     streak_color = 0;
 
     switch (obj->oclass) {
     case GEM_CLASS:	/* these have class-specific handling below */
     case RING_CLASS:
 	if (tstone->otyp != TOUCHSTONE) {
+				if (tstone->otyp == FLINT && objects[obj->otyp].oc_material == IRON) {
+					make_sparks = TRUE;	/* we'll catch it later */
+				} 
 	    do_scratch = TRUE;
 	} else if (obj->oclass == GEM_CLASS && (tstone->blessed ||
 		(!tstone->cursed &&
@@ -1945,6 +2078,10 @@ struct obj *tstone;
 	    do_scratch = TRUE;	/* scratching and streaks */
 	    streak_color = "silvery";
 	    break;
+				case IRON:
+					if (tstone->otyp == FLINT) {
+						make_sparks = TRUE;
+					}
 	default:
 	    /* Objects passing the is_flimsy() test will not
 	       scratch a stone.  They will leave streaks on
@@ -1959,11 +2096,61 @@ struct obj *tstone;
     }
 
     Sprintf(stonebuf, "stone%s", plur(tstone->quan));
-    if (do_scratch)
+    if (do_scratch) {
+	 	if (!make_sparks) {
 	pline("You make %s%sscratch marks on the %s.",
 	      streak_color ? streak_color : (const char *)"",
 	      streak_color ? " " : "", stonebuf);
-    else if (streak_color)
+		} else if (tstone->otyp == FLINT) {
+			/* Iron and flint make sparks. Non-intelligent creatures
+			 * fear fire.  So anything next to Our Hero(tm) that isn't
+			 * intelligent should have a chance of becoming afraid. */
+			 makeknown(tstone->otyp);
+			 if (u.uinwater) {
+			 	pline("You'd need a flamethrower to make fire here.");
+				return;
+			 }
+			 You("strike a few sparks from the flint stone!");
+			 if (u.uswallow) {
+				/* Not even the thing you're inside can see your piddly spark. */
+			 	pline("That's not going to make it any brighter in here.");
+				if (!rn2(3)) {
+					Your("flint stone crumbles!");
+					useup(tstone);
+				}
+				return;
+			 }
+
+			 for (i = u.ux-1;i < u.ux+2;i++) {
+			 	for (j = u.uy-1;j < u.uy+2;j++) {
+					if (!isok(i,j)) {
+						continue;
+					}
+					mtmp = m_at(i,j);
+					/* blind monsters can't see it */
+					if (!mtmp || mtmp->mblinded || !haseyes(mtmp->data)) {
+						continue;
+					}
+					/* only some things will be scared:
+					 * animals and undead fear fire, but
+					 * not if they're fire resistant, sufficiently powerful,
+					 * gigantic (purple worm), or currently in water */
+					if ((is_animal(mtmp->data) || is_undead(mtmp->data)) &&
+						!(resists_fire(mtmp) || mtmp->data->mcolor == CLR_MAGENTA ||
+							mtmp->data->msize == MZ_GIGANTIC || is_pool(i,j))) {
+						if (rn2(3)) {
+							monflee(mtmp,rnd(10), TRUE, TRUE);
+						}
+					}	
+				}
+			}
+			if (!rn2(3)) {
+				Your("flint stone crumbles!");
+				useup(tstone);
+			}
+			return;
+		}
+	 } else if (streak_color)
 	pline("You see %s streaks on the %s.", streak_color, stonebuf);
     else
 	pline(scritch);
@@ -2246,6 +2433,20 @@ struct obj *obj;
 	   pline("A monster is there that you couldn't see.");
 	   map_invisible(rx, ry);
 	}
+	/* Disciplining your pets? */
+	if (mtmp->mtame) {
+		pline("You severely beat %s!",y_monnam(mtmp));
+		abuse_dog(mtmp);
+		return 1;
+	}
+	/* invitation to a little S&M perhaps? */
+	if (mtmp->data == &mons[PM_SUCCUBUS] || mtmp->data == &mons[PM_INCUBUS]) {
+		pline("As you crack the whip, %s winks at you.",mon_nam(mtmp));
+		if (!Upolyd && mtmp->female != flags.female) {
+			mattacku(mtmp);
+		}
+		return 1;
+	}
 	otmp = MON_WEP(mtmp);	/* can be null */
 	if (otmp) {
 	    char onambuf[BUFSZ];
@@ -2385,8 +2586,14 @@ use_pole (obj)
 
 	/* Prompt for a location */
 	pline(where_to_hit);
+	if (polemonst && !DEADMONSTER(polemonst)) {
+		cc.x = polemonst->mx;
+		cc.y = polemonst->my;
+	} else {
+		polemonst = 0;	 /* reset this since it's either already 0 or should be */
 	cc.x = u.ux;
 	cc.y = u.uy;
+	}
 	if (getpos(&cc, TRUE, "the spot to hit") < 0)
 	    return 0;	/* user pressed ESC */
 
@@ -2415,6 +2622,7 @@ use_pole (obj)
 	if ((mtmp = m_at(cc.x, cc.y)) != (struct monst *)0) {
 	    int oldhp = mtmp->mhp;
 
+		 polemonst = mtmp;
 	    bhitpos = cc;
 	    check_caitiff(mtmp);
 	    (void) thitmonst(mtmp, uwep);
@@ -2424,6 +2632,7 @@ use_pole (obj)
 	     */
 	    if (mtmp->mhp < oldhp)
 		u.uconduct.weaphit++;
+		 if (DEADMONSTER(mtmp)) polemonst = 0;	 /* clean up pre-emptively */
 	} else
 	    /* Now you know that nothing is there... */
 	    pline(nothing_happens);
@@ -2679,6 +2888,7 @@ do_break_wand(obj)
     case WAN_POLYMORPH:
     case WAN_TELEPORTATION:
     case WAN_UNDEAD_TURNING:
+	 case WAN_WIND:
 	affects_objects = TRUE;
 	break;
     default:
@@ -2781,11 +2991,13 @@ doapply()
 {
 	struct obj *obj;
 	register int res = 1;
+	int breakchance;
+	char eroded[256];
 	char class_list[MAXOCLASSES+2];
 
 	if(check_capacity((char *)0)) return (0);
 
-	if (carrying(POT_OIL) || uhave_graystone())
+	if (carrying(FLINT) || carrying(POT_OIL) || uhave_graystone())
 		Strcpy(class_list, tools_too);
 	else
 		Strcpy(class_list, tools);
@@ -2826,13 +3038,18 @@ doapply()
 	case LARGE_BOX:
 	case CHEST:
 	case ICE_BOX:
+	case SMALL_SACK:
 	case SACK:
 	case BAG_OF_HOLDING:
 	case OILSKIN_SACK:
+	case IRON_SAFE:
 		res = use_container(obj, 1);
 		break;
 	case BAG_OF_TRICKS:
 		bagotricks(obj);
+		break;
+	case BAG_OF_POO:
+		light_poo(obj);
 		break;
 	case CAN_OF_GREASE:
 		use_grease(obj);
@@ -2842,7 +3059,7 @@ doapply()
 	case CREDIT_CARD:
 #endif
 	case SKELETON_KEY:
-		(void) pick_lock(obj);
+		(void) pick_lock(obj,0,0);
 		break;
 	case PICK_AXE:
 	case DWARVISH_MATTOCK:
@@ -2996,9 +3213,16 @@ doapply()
 		use_trap(obj);
 		break;
 	case FLINT:
+		if (Role_if(PM_CAVEMAN)) {
+			apply_flint(obj);
+		} else {
+			use_stone(obj);
+		}
+		break;
 	case LUCKSTONE:
 	case LOADSTONE:
 	case TOUCHSTONE:
+	case SALT_CHUNK:
 		use_stone(obj);
 		break;
 	default:
@@ -3017,6 +3241,35 @@ doapply()
 	}
 	if (res && obj && obj->oartifact) arti_speak(obj);
 	nomul(0);
+	
+	/* Tools that aren't in perfect condition might break... 
+	 * ...but only tools, not the weapons */
+	if (obj && !obj->oerodeproof && obj->otyp != BULLWHIP && 
+			!is_pole(obj) && !is_pick(obj) && !obj->oartifact) {	 /* don't break the Key */
+		breakchance = obj->blessed ? 100 : obj->cursed ? 5 : 10;
+		if (rn2(breakchance) < greatest_erosion(obj)) {
+			Strcpy(eroded,"");
+			add_erosion_words(obj,(char*)eroded);
+			Strcat(eroded,xname(obj));
+			pline("Your %s breaks!",eroded);
+			if (Has_contents(obj)) {
+				struct obj* octmp;
+				struct obj* tobj;
+				pline("The contents spill out everywhere!");
+				for (octmp = obj->cobj; octmp; octmp = tobj) {
+					tobj = octmp->nobj;
+					obj_extract_self(octmp);
+					if (!flooreffects(octmp,u.ux,u.uy,"falls")) {
+						place_object(octmp,u.ux,u.uy);
+						stackobj(octmp);
+					}
+				}
+			}
+			useup(obj);
+			return res;
+		}
+	}
+
 	return res;
 }
 

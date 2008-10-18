@@ -184,6 +184,9 @@ E const char *delayed_killer;
 E long done_money;
 #endif
 E char killer_buf[BUFSZ];
+#ifdef DUMP_LOG
+E char dump_fn[];		/* dumpfile name (dump patch) */
+#endif
 E const char *configfile;
 E NEARDATA char plname[PL_NSIZ];
 E NEARDATA char dogname[];
@@ -243,7 +246,7 @@ E NEARDATA struct obj *invent,
 	*uarmu,				/* under-wear, so to speak */
 #endif
 	*uskin, *uamul, *uleft, *uright, *ublindf,
-	*uwep, *uswapwep, *uquiver;
+	*uwep, *uswapwep, *uquiver, *ulauncher;
 
 E NEARDATA struct obj *uchain;		/* defined only when punished */
 E NEARDATA struct obj *uball;
@@ -261,6 +264,8 @@ E NEARDATA struct you u;
 
 E NEARDATA struct monst youmonst;	/* init'd and defined in decl.c */
 E NEARDATA struct monst *mydogs, *migrating_mons;
+E NEARDATA struct monst* polemonst;
+E NEARDATA struct monst* ukiller;
 
 E NEARDATA struct mvitals {
 	uchar	born;

@@ -30,9 +30,9 @@ static int shift = false, ctrl = false, alt = false, caps = false;
 void kbd_init() {
         u16 palette[4];
 
-        nds_load_file("/NetHack/kbd.bin", (void *)BG_TILE_RAM(0));
-        nds_load_file("/NetHack/kbd.map", (void *)BG_MAP_RAM(4));
-        nds_load_palette("/NetHack/kbd.pal", palette);
+        nds_load_file("/SporkHack/kbd.bin", (void *)BG_TILE_RAM(0));
+        nds_load_file("/SporkHack/kbd.map", (void *)BG_MAP_RAM(4));
+        nds_load_palette("/SporkHack/kbd.pal", palette);
 
         BG_PALETTE[0] = RGB15(0, 0, 0);   /* Regular background */
         BG_PALETTE[16] = RGB15(0, 0, 0);

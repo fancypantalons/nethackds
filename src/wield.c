@@ -219,6 +219,14 @@ register struct obj *obj;
 	update_inventory();
 }
 
+void
+setulauncher(obj)
+struct obj* obj;
+{
+	setworn(obj, W_LAUNCHER);
+	update_inventory();
+}
+
 
 /*** Commands to change particular slot(s) ***/
 
@@ -228,6 +236,8 @@ static NEARDATA const char ready_objs[] =
 	{ ALL_CLASSES, ALLOW_NONE, WEAPON_CLASS, 0 };
 static NEARDATA const char bullets[] =	/* (note: different from dothrow.c) */
 	{ ALL_CLASSES, ALLOW_NONE, GEM_CLASS, WEAPON_CLASS, 0 };
+static NEARDATA const char launchers[] =
+	{ ALL_CLASSES, ALLOW_NONE, WEAPON_CLASS, 0 };
 
 int
 dowield()
@@ -340,7 +350,7 @@ dowieldquiver()
 	multi = 0;
 
 	/* Because 'Q' used to be quit... */
-	if (flags.suppress_alert < FEATURE_NOTICE_VER(3,3,0))
+	if (flags.suppress_alert < FEATURE_NOTICE_VER(0,2,0))
 		pline("Note: Please use #quit if you wish to exit the game.");
 
 	/* Prompt for a new quiver */
@@ -396,6 +406,51 @@ dowieldquiver()
 	/* Take no time since this is a convenience slot */
 	return (0);
 }
+
+int
+dowieldlauncher()
+{
+	struct obj *newlauncher;
+
+	/* Since the "spot" isn't in your hands, don't check cantwield(), */
+	/* will_weld(), touch_petrifies(), etc. */
+	multi = 0;
+
+	/* Prompt for a new object */
+	if (!(newlauncher = getobj(launchers, "fire missiles with"))) {
+		return 0;
+	}
+
+	/* did they explicitly pick nothing? */
+	if (newlauncher == &zeroobj) {
+		if (ulauncher) {
+			You("now have no ranged weapon chosen.");
+			setulauncher(newlauncher = (struct obj *) 0);
+		} else {
+			You("didn't have a ranged weapon ready to begin with.");
+			return 0;
+		}
+	/* It's OK for this to also be the primary or secondary weapon. */
+	} else if (newlauncher == ulauncher) {
+		pline("That's already your chosen ranged weapon.");
+		return 0;
+	} else if (!is_launcher(newlauncher)) {
+		pline("That won't fire anything very far.");
+		return 0;
+	} else {
+		long dummy;
+		dummy = newlauncher->owornmask;
+		newlauncher->owornmask |= W_LAUNCHER;
+		prinv((char *)0, newlauncher, 0L);
+		newlauncher->owornmask = dummy;
+	}
+
+	setulauncher(newlauncher);
+
+	/* Never use any time for this */
+	return 0;
+}
+
 
 /* used for #rub and for applying pick-axe, whip, grappling hook, or polearm */
 /* (moved from apply.c) */
@@ -522,6 +577,9 @@ drop_uswapwep()
 	dropx(obj);
 }
 
+/* This needs to take a turn, really.  You've either _got_ a sharp thing
+ * in each hand and are trying to put it away, or you're trying to get a
+ * sharp thing out and get it operational. */
 int
 dotwoweapon()
 {
@@ -530,7 +588,7 @@ dotwoweapon()
 		You("switch to your primary weapon.");
 		u.twoweap = 0;
 		update_inventory();
-		return (0);
+		return 1;
 	}
 
 	/* May we use two weapons? */
@@ -539,9 +597,9 @@ dotwoweapon()
 		You("begin two-weapon combat.");
 		u.twoweap = 1;
 		update_inventory();
-		return (rnd(20) > ACURR(A_DEX));
+		return 1;
 	}
-	return (0);
+	return 0;
 }
 
 /*** Functions to empty a given slot ***/
@@ -583,6 +641,15 @@ uqwepgone()
 }
 
 void
+ulwepgone()
+{
+	if (ulauncher) {
+		setworn((struct obj*)0, W_LAUNCHER);
+		update_inventory();
+	}
+}
+
+void
 untwoweapon()
 {
 	if (u.twoweap) {
@@ -593,17 +660,187 @@ untwoweapon()
 	return;
 }
 
+/*
+ * Centralized call for eroding any single object; handles all types of
+ * damage appropriately, including magical (cf. "destroy armor" spell)
+ *
+ * For now, the corresponding AD_* damage types are used:
+ *
+ * AD_MAGM: the "destroy armor" spell
+ * AD_FIRE: fire damage
+ * AD_RUST: water damage
+ * AD_ACID: acid damage (corrosion)
+ * 
+ * If 'target' goes away as a result of this damage, returns TRUE.
+ */
+boolean
+_erode_obj(target, damage_type)
+struct obj* target;
+uchar damage_type;
+{
+	int old_erlevel;
+	struct monst* victim;
+	boolean vismon, visobj;
+	boolean unaffected = FALSE;
+	boolean secondary = FALSE;
+	char verb[20];
+	char past_adj[20];
+	char adjective[20];
+
+	if (!target) return TRUE;	/* we didn't do it, but it's gone */
+
+	victim = carried(target) ? &youmonst : mcarried(target) ? target->ocarry : (struct monst *)0;
+	vismon = victim && (victim != &youmonst) && canseemon(victim);
+	visobj = !victim && cansee(bhitpos.x, bhitpos.y);	/* assume thrown */
+
+	/* grease protects against everything but magic damage */
+	if (target->greased && damage_type != AD_MAGM) {
+		grease_protect(target,(char*)0,victim);
+		return FALSE;
+	} 
+
+	/* scrolls will fade if exposed to water, or dissolve in acid */
+	if (target->oclass == SCROLL_CLASS) {
+#ifdef MAIL
+		if (target->otyp == SCR_MAIL) {
+			unaffected = TRUE;
+		} else
+#endif
+		if (target->otyp != SCR_BLANK_PAPER && damage_type == AD_RUST) {
+			if (!Blind) {
+				if (victim == &youmonst) {
+					Your("%s.", aobjnam(target, "fade"));
+				} else if (vismon) {
+					pline("%s's %s.",Monnam(victim),aobjnam(target,"fade"));
+				} else if (visobj) {
+					pline_The("%s.",aobjnam(target,"fade"));
+				}
+			}
+			target->otyp = SCR_BLANK_PAPER;
+			target->spe = 0;
+			return FALSE;
+		} else if (damage_type == AD_ACID) {
+			if (!Blind) {
+				if (victim == &youmonst) {
+					Your("%s!", aobjnam(target,"dissolve"));
+				} else if (vismon) {
+					pline("%s's %s!",Monnam(victim),aobjnam(target,"dissolve"));
+				} else if (visobj) {
+					pline_The("%s!",aobjnam(target,"dissolve"));
+				}
+			}
+			useupall(target);
+			return TRUE;
+		}
+		unaffected = TRUE;
+	} 
+
+	/* weed out all the fooproof stuff here */
+	if ((damage_type != AD_MAGM && target->oerodeproof) ||
+			(damage_type == AD_ACID && !is_corrodeable(target) && !is_rottable(target)) ||
+			(damage_type == AD_RUST && !is_rustprone(target)) ||
+			(damage_type == AD_FIRE && !is_flammable(target))) {
+		unaffected = TRUE;
+	}
+		
+	if (unaffected) {
+		if (flags.verbose || !(target->oerodeproof && target->rknown)) {
+			if (victim == &youmonst) {
+				Your("%s not affected.",aobjnam(target,"are"));
+			} else if (vismon) {
+				pline("%s's %s not affected.",Monnam(victim),aobjnam(target,"are"));
+			}
+		}
+		if (target->oerodeproof) target->rknown = TRUE;
+		return FALSE;
+	}
+
+	/* Ugly, but cleaner than the old way */
+	switch (damage_type) {
+		case AD_MAGM:
+			if (is_flammable(target)) { 
+				strcpy(verb,"smolder"); strcpy(past_adj,"burnt"); 
+			} else if (is_rottable(target)) { 
+				strcpy(verb,"rot"); strcpy(past_adj,"rotten"); secondary = TRUE; 
+			} else if (is_rustprone(target)) { 
+				strcpy(verb,"rust"); strcpy(past_adj,"rusty");
+			} else if (is_corrodeable(target)) { 
+				strcpy(verb,"corrode"); strcpy(past_adj,"corroded"); secondary = TRUE; 
+			} else { 
+				strcpy(verb,"deteriorate"); strcpy(past_adj,"deteriorated"); 
+				secondary = TRUE;
+			}
+			break;
+		case AD_RUST:
+			if (is_rustprone(target)) { 
+				strcpy(verb,"rust"); strcpy(past_adj,"rusty");
+			} else { 
+				strcpy(verb,"rot"); strcpy(past_adj,"rotten"); secondary = TRUE; 
+			}
+			break;
+		case AD_ACID:
+			if (is_rottable(target)) { 
+				strcpy(verb,"rot"); strcpy(past_adj,"rotten"); 
+			} else {
+				strcpy(verb,"corrode"); strcpy(past_adj,"corroded"); 
+			}
+			secondary = TRUE;
+			break;
+		case AD_FIRE:
+			strcpy(verb,"smolder");
+			strcpy(past_adj,"burnt");
+			break;
+	}
+
+	old_erlevel = secondary ? target->oeroded2 : target->oeroded;
+	if (!old_erlevel) { 
+		strcpy(adjective,""); 
+	} else { 
+		if (old_erlevel+1 < MAX_ERODE) { strcpy(adjective," further"); } 
+		else { strcpy(adjective," completely"); }
+	}
+
+	/* generate obnoxious output */
+	if (old_erlevel < MAX_ERODE) {
+		if (secondary) { target->oeroded2++; } 
+		else { target->oeroded++; }
+		if (victim == &youmonst) {
+			Your("%s%s!",aobjnam(target,verb),adjective);
+		} else if (vismon) {
+			pline("%s's %s%s!",Monnam(victim),aobjnam(target,verb),adjective);
+		} else if (visobj) {
+			pline_The("%s%s!",aobjnam(target,verb),adjective);
+		}
+	} else {
+	/* eventually there will be a possibility of complete destruction here */
+		if (flags.verbose) {
+			if (victim == &youmonst) {
+				Your("%s completely %s.",aobjnam(target,Blind ? "feel" : "look"),past_adj);
+			} else if (vismon) {
+				pline("%s's %s completely %s.",Monnam(victim),aobjnam(target,"look"),past_adj);
+			} else if (visobj) {
+				pline_The("%s completely %s.",aobjnam(target,"look"),past_adj);
+			}
+		}
+	}
+
+	return FALSE;
+}
+
 /* Maybe rust object, or corrode it if acid damage is called for */
 void
-erode_obj(target, acid_dmg, fade_scrolls)
+erode_obj(target, acid_dmg, fade_scrolls, magic_dmg)
 struct obj *target;		/* object (e.g. weapon or armor) to erode */
 boolean acid_dmg;
 boolean fade_scrolls;
+boolean magic_dmg;
 {
 	int erosion;
 	struct monst *victim;
 	boolean vismon;
 	boolean visobj;
+	boolean corrosion;
+	boolean rotting;
 
 	if (!target)
 	    return;
@@ -612,9 +849,11 @@ boolean fade_scrolls;
 	vismon = victim && (victim != &youmonst) && canseemon(victim);
 	visobj = !victim && cansee(bhitpos.x, bhitpos.y); /* assume thrown */
 
-	erosion = acid_dmg ? target->oeroded2 : target->oeroded;
+	erosion = (acid_dmg || magic_dmg) ? target->oeroded2 : target->oeroded;
+	corrosion = (acid_dmg || magic_dmg);
+	rotting = FALSE; /* TODO: temporary */
 
-	if (target->greased) {
+	if (target->greased && !magic_dmg) {
 	    grease_protect(target,(char *)0,victim);
 	} else if (target->oclass == SCROLL_CLASS) {
 	    if(fade_scrolls && target->otyp != SCR_BLANK_PAPER
@@ -635,8 +874,9 @@ boolean fade_scrolls;
 		target->otyp = SCR_BLANK_PAPER;
 		target->spe = 0;
 	    }
-	} else if (target->oerodeproof ||
-		(acid_dmg ? !is_corrodeable(target) : !is_rustprone(target))) {
+	/* if this is 'destroy armor', non-corrodeable won't affect it */
+	} else if (!magic_dmg && (target->oerodeproof ||
+		(acid_dmg ? !is_corrodeable(target) : !is_rustprone(target)))) {
 	    if (flags.verbose || !(target->oerodeproof && target->rknown)) {
 		if (victim == &youmonst)
 		    Your("%s not affected.", aobjnam(target, "are"));
@@ -648,20 +888,23 @@ boolean fade_scrolls;
 	    if (target->oerodeproof) target->rknown = TRUE;
 	} else if (erosion < MAX_ERODE) {
 	    if (victim == &youmonst)
-		Your("%s%s!", aobjnam(target, acid_dmg ? "corrode" : "rust"),
+		Your("%s%s!", aobjnam(target, !is_damageable(target) ? "deteriorate" : 
+			 corrosion ? "corrode" : rotting ? "rot" : "rust"),
 		    erosion+1 == MAX_ERODE ? " completely" :
 		    erosion ? " further" : "");
 	    else if (vismon)
 		pline("%s's %s%s!", Monnam(victim),
-		    aobjnam(target, acid_dmg ? "corrode" : "rust"),
+		    aobjnam(target, !is_damageable(target) ? "deteriorate" : 
+			 corrosion ? "corrode" : rotting ? "rot" : "rust"),
 		    erosion+1 == MAX_ERODE ? " completely" :
 		    erosion ? " further" : "");
 	    else if (visobj)
 		pline_The("%s%s!",
-		    aobjnam(target, acid_dmg ? "corrode" : "rust"),
+		    aobjnam(target, !is_damageable(target) ? "deteriorate" : 
+			 corrosion ? "corrode" : rotting ? "rot" : "rust"),
 		    erosion+1 == MAX_ERODE ? " completely" :
 		    erosion ? " further" : "");
-	    if (acid_dmg)
+	    if (corrosion)
 		target->oeroded2++;
 	    else
 		target->oeroded++;
@@ -670,15 +913,18 @@ boolean fade_scrolls;
 		if (victim == &youmonst)
 		    Your("%s completely %s.",
 			aobjnam(target, Blind ? "feel" : "look"),
-			acid_dmg ? "corroded" : "rusty");
+			!is_damageable(target) ? "deteriorated" : corrosion ? "corroded" : 
+			rotting ? "rotten" : "rusty");
 		else if (vismon)
 		    pline("%s's %s completely %s.", Monnam(victim),
 			aobjnam(target, "look"),
-			acid_dmg ? "corroded" : "rusty");
+			!is_damageable(target) ? "deteriorated" : corrosion ? "corroded" : 
+			rotting ? "rotten" : "rusty");
 		else if (visobj)
 		    pline_The("%s completely %s.",
 			aobjnam(target, "look"),
-			acid_dmg ? "corroded" : "rusty");
+			!is_damageable(target) ? "deteriorated" : corrosion ? "corroded" : 
+			rotting ? "rotten" : "rusty");
 	    }
 	}
 }

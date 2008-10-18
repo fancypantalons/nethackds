@@ -143,11 +143,14 @@ NEARDATA struct monst youmonst = DUMMY;
 NEARDATA struct flag flags = DUMMY;
 NEARDATA struct instance_flags iflags = DUMMY;
 NEARDATA struct you u = DUMMY;
+NEARDATA struct monst* polemonst = (struct monst*)0;	/* last monster we tried to polearm */
+NEARDATA struct monst* ukiller = (struct monst*)0;		/* The one that got ya */
 
 NEARDATA struct obj *invent = (struct obj *)0,
 	*uwep = (struct obj *)0, *uarm = (struct obj *)0,
 	*uswapwep = (struct obj *)0,
 	*uquiver = (struct obj *)0, /* quiver */
+	*ulauncher = (struct obj *)0, /* def. ranged weapon */
 #ifdef TOURIST
 	*uarmu = (struct obj *)0, /* under-wear, so to speak */
 #endif
@@ -209,6 +212,15 @@ NEARDATA struct monst *migrating_mons = (struct monst *)0;
 
 NEARDATA struct mvitals mvitals[NUMMONS];
 
+/* originally from end.c */
+#ifdef DUMP_LOG
+#ifdef DUMP_FN
+char dump_fn[] = DUMP_FN;
+#else
+char dump_fn[PL_PSIZ] = DUMMY;
+#endif
+#endif /* DUMP_LOG */
+
 NEARDATA struct c_color_names c_color_names = {
 	"black", "amber", "golden",
 	"light blue", "red", "green",
@@ -234,6 +246,10 @@ const char *c_obj_colors[] = {
 	"bright cyan",		/* CLR_BRIGHT_CYAN */
 	"white",		/* CLR_WHITE */
 };
+
+#ifdef MENU_COLOR
+struct menucoloring *menu_colorings = 0;
+#endif
 
 struct c_common_strings c_common_strings = {
 	"Nothing happens.",		"That's enough tries!",

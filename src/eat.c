@@ -231,7 +231,7 @@ choke(food)	/* To a full belly all food is bad. (It.) */
 		if (!food || food->otyp != AMULET_OF_STRANGULATION)
 			return;
 	} else if (Role_if(PM_KNIGHT) && u.ualign.type == A_LAWFUL) {
-			adjalign(-1);		/* gluttony is unchivalrous */
+			major_sin();		/* gluttony is unchivalrous */
 			You_feel("like a glutton!");
 	}
 
@@ -453,6 +453,16 @@ boolean allowmsg;
 		change_luck(-rn1(4,2));		/* -5..-2 */
 		return TRUE;
 	}
+	
+	/* Cavemen get a bonus for cannibalism */
+	if (Role_if(PM_CAVEMAN) && your_race(&mons[pm])) {
+		if (allowmsg) {
+			You("consume the corpse in accordance with ancient ritual.");
+			u.ualign.record += 5;
+			return FALSE;
+		}
+	}
+
 	return FALSE;
 }
 
@@ -646,98 +656,95 @@ int type;
 register struct permonst *ptr;
 {
 	register int chance;
+	long percentincrease;
 
 #ifdef DEBUG
 	debugpline("Attempting to give intrinsic %d", type);
 #endif
-	/* some intrinsics are easier to get than others */
+	/* some intrinsics are easier to get than others...
+	 * the values seem high because there's a chance to get each when
+	 * you eat a critter now, so it has to be adjusted slightly */
 	switch (type) {
-		case POISON_RES:
-			if ((ptr == &mons[PM_KILLER_BEE] ||
-					ptr == &mons[PM_SCORPION]) && !rn2(4))
-				chance = 1;
-			else
-				chance = 15;
-			break;
 		case TELEPORT:
-			chance = 10;
+			chance = 30;
 			break;
 		case TELEPORT_CONTROL:
-			chance = 12;
+			chance = 36;
 			break;
 		case TELEPAT:
 			chance = 1;
 			break;
 		default:
-			chance = 15;
+			chance = 1;	/* the rest use the new system, give it to them all the time */
 			break;
 	}
 
 	if (ptr->mlevel <= rn2(chance))
 		return;		/* failed die roll */
 
+	percentincrease = (ptr->cwt / 90);
+	if (percentincrease < 5) { percentincrease = 5; }
+
 	switch (type) {
+		 /* All these use the new system, which is based on corpse weight. */
 	    case FIRE_RES:
 #ifdef DEBUG
 		debugpline("Trying to give fire resistance");
 #endif
-		if(!(HFire_resistance & FROMOUTSIDE)) {
-			You(Hallucination ? "be chillin'." :
-			    "feel a momentary chill.");
-			HFire_resistance |= FROMOUTSIDE;
+		if((HFire_resistance & (TIMEOUT|FROMRACE|FROMEXPER)) < 100) {
+			You(Hallucination ? "be chillin'." : "feel a momentary chill.");
+			incr_resistance(&HFire_resistance,percentincrease);
 		}
 		break;
 	    case SLEEP_RES:
 #ifdef DEBUG
 		debugpline("Trying to give sleep resistance");
 #endif
-		if(!(HSleep_resistance & FROMOUTSIDE)) {
+		if((HSleep_resistance & (TIMEOUT|FROMRACE|FROMEXPER)) < 100) {
 			You_feel("wide awake.");
-			HSleep_resistance |= FROMOUTSIDE;
+			incr_resistance(&HSleep_resistance,percentincrease);
 		}
 		break;
 	    case COLD_RES:
 #ifdef DEBUG
 		debugpline("Trying to give cold resistance");
 #endif
-		if(!(HCold_resistance & FROMOUTSIDE)) {
+		if((HCold_resistance & (TIMEOUT|FROMRACE|FROMEXPER)) < 100) {
 			You_feel("full of hot air.");
-			HCold_resistance |= FROMOUTSIDE;
+			incr_resistance(&HCold_resistance,percentincrease);
 		}
 		break;
 	    case DISINT_RES:
 #ifdef DEBUG
 		debugpline("Trying to give disintegration resistance");
 #endif
-		if(!(HDisint_resistance & FROMOUTSIDE)) {
-			You_feel(Hallucination ?
-			    "totally together, man." :
-			    "very firm.");
-			HDisint_resistance |= FROMOUTSIDE;
+		if((HDisint_resistance & (TIMEOUT|FROMRACE|FROMEXPER)) < 100) {
+			You_feel(Hallucination ? "totally together, man." : "very firm.");
+			incr_resistance(&HDisint_resistance,percentincrease);
 		}
 		break;
 	    case SHOCK_RES:	/* shock (electricity) resistance */
 #ifdef DEBUG
 		debugpline("Trying to give shock resistance");
 #endif
-		if(!(HShock_resistance & FROMOUTSIDE)) {
+		if((HShock_resistance & (TIMEOUT|FROMRACE|FROMEXPER)) < 100) {
 			if (Hallucination)
 				You_feel("grounded in reality.");
 			else
 				Your("health currently feels amplified!");
-			HShock_resistance |= FROMOUTSIDE;
+			incr_resistance(&HShock_resistance,percentincrease);
 		}
 		break;
 	    case POISON_RES:
 #ifdef DEBUG
 		debugpline("Trying to give poison resistance");
 #endif
-		if(!(HPoison_resistance & FROMOUTSIDE)) {
-			You_feel(Poison_resistance ?
-				 "especially healthy." : "healthy.");
-			HPoison_resistance |= FROMOUTSIDE;
+		if((HPoison_resistance & (TIMEOUT|FROMRACE|FROMEXPER)) < 100) {
+			You_feel(how_resistant(POISON_RES) == 100 ? "especially healthy." : "healthy.");
+			incr_resistance(&HPoison_resistance,percentincrease);
 		}
 		break;
+		/* From here forward, we'll use the old stuff.  But. */
 	    case TELEPORT:
 #ifdef DEBUG
 		debugpline("Trying to give teleport");
@@ -883,10 +890,14 @@ register int pm;
 		Your("velocity suddenly seems very uncertain!");
 		if (HFast & INTRINSIC) {
 			HFast &= ~INTRINSIC;
+			if (!Slow) {
 			You("seem slower.");
+			}
 		} else {
 			HFast |= FROMOUTSIDE;
+			if (!Slow) {
 			You("seem faster.");
+		}
 		}
 		break;
 	    case PM_LIZARD:
@@ -946,29 +957,22 @@ register int pm;
 		 * Elliott Kleinrock, October 5, 1990
 		 */
 
+		/* Above proof recorded for posterity, even though i'm about
+		 * to vigorously jostle the means of getting most of
+		 * the resistances in the first place; it's no longer random
+		 * for anything except telecontrol, teleport, and telepathy.
+		 *
+		 * Derek S. Ray, October 28, 2007
+		 */
+
 		 count = 0;	/* number of possible intrinsics */
 		 tmp = 0;	/* which one we will try to give */
 		 for (i = 1; i <= LAST_PROP; i++) {
 			if (intrinsic_possible(i, ptr)) {
-				count++;
-				/* a 1 in count chance of replacing the old
-				 * one with this one, and a count-1 in count
-				 * chance of keeping the old one.  (note
-				 * that 1 in 1 and 0 in 1 are what we want
-				 * for the first one
-				 */
-				if (!rn2(count)) {
-#ifdef DEBUG
-					debugpline("Intrinsic %d replacing %d",
-								i, tmp);
-#endif
-					tmp = i;
-				}
+				givit(i,ptr);
 			}
 		 }
 
-		 /* if any found try to give them one */
-		 if (count) givit(tmp, ptr);
 	    }
 	    break;
 	}
@@ -989,7 +993,7 @@ violated_vegetarian()
     u.uconduct.unvegetarian++;
     if (Role_if(PM_MONK)) {
 	You_feel("guilty.");
-	adjalign(-1);
+		venial_sin();
     }
     return;
 }
@@ -1289,9 +1293,9 @@ eatcorpse(otmp)		/* called when a corpse is selected as food */
 	} else if (poisonous(&mons[mnum]) && rn2(5)) {
 		tp++;
 		pline("Ecch - that must have been poisonous!");
-		if(!Poison_resistance) {
-			losestr(rnd(4));
-			losehp(rnd(15), "poisonous corpse", KILLED_BY_AN);
+		if(how_resistant(POISON_RES) < 100) {
+			losestr(resist_reduce(rnd(4),POISON_RES));
+			losehp(resist_reduce(rnd(15),POISON_RES), "poisonous corpse", KILLED_BY_AN);
 		} else	You("seem unaffected by the poison.");
 	/* now any corpse left too long will make you mildly ill */
 	} else if ((rotted > 5L || (rotted > 3L && rn2(5)))
@@ -1553,11 +1557,11 @@ struct obj *otmp;
 		break;
 	    case RIN_FREE_ACTION:
 		/* Give sleep resistance instead */
-		if (!(HSleep_resistance & FROMOUTSIDE))
+			if (how_resistant(SLEEP_RES) < 100) {
 		    accessory_has_effect(otmp);
-		if (!Sleep_resistance)
 		    You_feel("wide awake.");
-		HSleep_resistance |= FROMOUTSIDE;
+			}
+			incr_resistance(&HSleep_resistance,100);
 		break;
 	    case AMULET_OF_CHANGE:
 		accessory_has_effect(otmp);
@@ -1586,6 +1590,7 @@ struct obj *otmp;
 		break;
 	    case RIN_SUSTAIN_ABILITY:
 	    case AMULET_OF_LIFE_SAVING:
+		 case AMULET_OF_POWER:
 	    case AMULET_OF_REFLECTION: /* nice try */
 	    /* can't eat Amulet of Yendor or fakes,
 	     * and no oc_prop even if you could -3.
@@ -1642,6 +1647,7 @@ eatspecial() /* called after eating non-food */
 
 	if (otmp == uwep && otmp->quan == 1L) uwepgone();
 	if (otmp == uquiver && otmp->quan == 1L) uqwepgone();
+	if (otmp == ulauncher && otmp->quan == 1L) ulwepgone();
 	if (otmp == uswapwep && otmp->quan == 1L) uswapwepgone();
 
 	if (otmp == uball) unpunish();
@@ -1693,7 +1699,7 @@ register struct obj *otmp;
 		if (Upolyd) {
 		    u.mh += otmp->cursed ? -rnd(20) : rnd(20);
 		    if (u.mh > u.mhmax) {
-			if (!rn2(17)) u.mhmax++;
+			if (!rn2(17)) gainmaxhp(1);
 			u.mh = u.mhmax;
 		    } else if (u.mh <= 0) {
 			rehumanize();
@@ -1701,7 +1707,7 @@ register struct obj *otmp;
 		} else {
 		    u.uhp += otmp->cursed ? -rnd(20) : rnd(20);
 		    if (u.uhp > u.uhpmax) {
-			if(!rn2(17)) u.uhpmax++;
+				if(!rn2(17)) gainmaxhp(1);
 			u.uhp = u.uhpmax;
 		    } else if (u.uhp <= 0) {
 			killer_format = KILLED_BY_AN;
@@ -1803,7 +1809,7 @@ struct obj *otmp;
 		if (yn_function(buf,ynchars,'n')=='n') return 1;
 		else return 2;
 	}
-	if (cadaver && poisonous(&mons[mnum]) && !Poison_resistance) {
+	if (cadaver && poisonous(&mons[mnum]) && how_resistant(POISON_RES) < 100) {
 		/* poisonous */
 		Sprintf(buf, "%s like %s might be poisonous! %s",
 			foodsmell, it_or_they, eat_it_anyway);
@@ -1943,6 +1949,11 @@ doeat()		/* generic "eat" command funtion (see cmd.c) */
 		/* Don't split it, we don't need to if it's 1 move */
 	    victual.usedtime = 0;
 	    victual.canchoke = (u.uhs == SATIATED);
+		 /* for characters with code of conduct, gluttony is bad */
+		if (Role_if(PM_KNIGHT) && u.ualign.type == A_LAWFUL) {
+			You("are slightly ashamed for overeating.");
+			venial_sin();
+		}
 		/* Note: gold weighs 1 pt. for each 1000 pieces (see */
 		/* pickup.c) so gold and non-gold is consistent. */
 	    if (otmp->oclass == COIN_CLASS)
@@ -1969,9 +1980,9 @@ doeat()		/* generic "eat" command funtion (see cmd.c) */
 
 	    if (otmp->oclass == WEAPON_CLASS && otmp->opoisoned) {
 		pline("Ecch - that must have been poisonous!");
-		if(!Poison_resistance) {
-		    losestr(rnd(4));
-		    losehp(rnd(15), xname(otmp), KILLED_BY_AN);
+		if (how_resistant(POISON_RES) < 100) {
+		    losestr(resist_reduce(rnd(4),POISON_RES));
+		    losehp(resist_reduce(rnd(15),POISON_RES), xname(otmp), KILLED_BY_AN);
 		} else
 		    You("seem unaffected by the poison.");
 	    } else if (!otmp->cursed)
@@ -2272,9 +2283,10 @@ boolean incr;
 	int h = u.uhunger;
 
 	newhs = (h > 1000) ? SATIATED :
-		(h > 150) ? NOT_HUNGRY :
+		(h > 200) ? NOT_HUNGRY :
 		(h > 50) ? HUNGRY :
-		(h > 0) ? WEAK : FAINTING;
+		(h > 0) ? WEAK : 
+		FAINTING;
 
 	/* While you're eating, you may pass from WEAK to HUNGRY to NOT_HUNGRY.
 	 * This should not produce the message "you only feel hungry now";

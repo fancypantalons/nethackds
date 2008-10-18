@@ -145,13 +145,12 @@ dosit()
 		return 1;
 	    }
 	    pline_The("lava burns you!");
-	    losehp(d((Fire_resistance ? 2 : 10), 10),
-		   "sitting on lava", KILLED_BY);
+	    losehp(resist_reduce(d(8,10),FIRE_RES) + d(2,10), "sitting on lava", KILLED_BY);
 
 	} else if (is_ice(u.ux, u.uy)) {
 
 	    You(sit_message, defsyms[S_ice].explanation);
-	    if (!Cold_resistance) pline_The("ice feels cold.");
+	    if (how_resistant(COLD_RES) < 100) pline_The("ice feels cold.");
 
 	} else if (typ == DRAWBRIDGE_DOWN) {
 
@@ -170,19 +169,17 @@ dosit()
 			(void) adjattrib(rn2(A_MAX), 1, FALSE);
 			break;
 		    case 3:
-			pline("A%s electric shock shoots through your body!",
-			      (Shock_resistance) ? "n" : " massive");
-			losehp(Shock_resistance ? rnd(6) : rnd(30),
-			       "electric chair", KILLED_BY_AN);
+			pline("A%s electric shock shoots through your body!", (how_resistant(SHOCK_RES) > 50) ? "n" : " massive");
+			losehp(resist_reduce(rnd(24),SHOCK_RES)+rnd(6), "electric chair", KILLED_BY_AN);
 			exercise(A_CON, FALSE);
 			break;
 		    case 4:
 			You_feel("much, much better!");
 			if (Upolyd) {
-			    if (u.mh >= (u.mhmax - 5))  u.mhmax += 4;
+			    if (u.mh >= (u.mhmax - 5))  gainmaxhp(4);
 			    u.mh = u.mhmax;
 			}
-			if(u.uhp >= (u.uhpmax - 5))  u.uhpmax += 4;
+			if(u.uhp >= (u.uhpmax - 5)) gainmaxhp(4);
 			u.uhp = u.uhpmax;
 			make_blinded(0L,TRUE);
 			make_sick(0L, (char *) 0, FALSE, SICK_ALL);
@@ -386,8 +383,8 @@ void
 attrcurse()			/* remove a random INTRINSIC ability */
 {
 	switch(rnd(11)) {
-	case 1 : if (HFire_resistance & INTRINSIC) {
-			HFire_resistance &= ~INTRINSIC;
+	case 1 : if (HFire_resistance) {
+			HFire_resistance = 0;
 			You_feel("warmer.");
 			break;
 		}
@@ -396,8 +393,8 @@ attrcurse()			/* remove a random INTRINSIC ability */
 			You_feel("less jumpy.");
 			break;
 		}
-	case 3 : if (HPoison_resistance & INTRINSIC) {
-			HPoison_resistance &= ~INTRINSIC;
+	case 3 : if (HPoison_resistance) {
+			HPoison_resistance = 0;
 			You_feel("a little sick!");
 			break;
 		}
@@ -408,8 +405,8 @@ attrcurse()			/* remove a random INTRINSIC ability */
 			Your("senses fail!");
 			break;
 		}
-	case 5 : if (HCold_resistance & INTRINSIC) {
-			HCold_resistance &= ~INTRINSIC;
+	case 5 : if (HCold_resistance) {
+			HCold_resistance = 0;
 			You_feel("cooler.");
 			break;
 		}
@@ -426,7 +423,9 @@ attrcurse()			/* remove a random INTRINSIC ability */
 		}
 	case 8 : if (HFast & INTRINSIC) {
 			HFast &= ~INTRINSIC;
+			if (!Slow) {
 			You_feel("slower.");
+			}
 			break;
 		}
 	case 9 : if (HStealth & INTRINSIC) {

@@ -359,7 +359,7 @@ need of your help.  There is a great quest you must undertake.
 %Cc Bar 00018
 "Pah!  You have betrayed the gods, %p.  You will never attain
 the glory which you aspire to.  Your failure to follow the true path has
-closed this future to you.
+closed that future to you.
 
 "I will protect these people as best I can, but soon %n will overcome
 me and destroy all who once called you %s.  Now begone!"
@@ -559,12 +559,12 @@ speaks of you.
 #	Cave(wo)man
 #
 %Cc Cav 00001
-You descend through a barely familiar stairwell that you remember
+You walk through a barely familiar overgrown path that you remember
 %l showing you when you embarked upon your vision quest.
 
-You arrive back at %H, but something seems
-wrong here.  The usual smoke and glowing light of the fires of the
-outer caves are absent, and an uneasy quiet fills the damp air.
+You arrive back at %H, ... but something seems
+wrong here.  The jungle has a tense aura about it, and the beasts
+are snarling and hostile.  An uneasy quiet fills the damp air.
 %E
 %Cp Cav 00002
 Once again, you arrive back at %H.
@@ -619,8 +619,7 @@ ask you to undertake."
 "Ah, %p.  Are you finally ready?"
 %E
 %Cc Cav 00018
-"%pC!  You have sealed our fate.  You seem unable to reform yourself,
-so I must select another to take your place.
+"%pC!  You have sealed our fate by being unable to reform yourself.
 
 "Begone from %H!  You have betrayed us by choosing
 the path of the %C over the true path of the %L.
@@ -639,7 +638,7 @@ a difficult quest as that I propose to give you.
 %E
 %Cc Cav 00020
 "%pC!  You have deviated from my teachings.  You no longer follow
-the path of the %a as you should.  I banish you from these caves, to
+the path of the %a as you should.  I banish you from this temple, to
 go forth and purify yourself.  Then, you might be able to accomplish this
 quest."
 %E
@@ -647,19 +646,22 @@ quest."
 "You are indeed ready now, %p.  I shall tell you a tale of
 great suffering among your people:
 
-"Shortly after you left on your vision quest, the caves were invaded by
+"Shortly after you left on your vision quest, the jungle was invaded by
 the creatures sent against us by %n.
 
 "She, herself, could not attack us due to her great size, but her minions
 have harassed us ever since.  In the first attacks, many died, and the
 minions of %n managed to steal %o.
 They took it to %i and there, none of our
-%g warriors have been able to go.
+%g warriors have been able to go.  Worse, she has invoked its power
+against us, and now conflict ravages our once-peaceful jungle.
 
 "You must find %i, and within it wrest
 %o from %n.  She guards it as
 jealously as she guards all treasures she attains.  But with it,
-we can make our caves safe once more.
+we can make our jungle safe once more.  Without it, the spirit of the
+jungle cries out in pain, and the animals are crazed and attack all
+who pass near.
 
 "Please, %p, recover %o for us, and return it here."
 %E
@@ -698,12 +700,12 @@ of our strength to defend ourselves."
 "If only we had an amulet of reflection, this would not have happened."
 %E
 %Cc Cav 00035
-You %x many large claw marks on the ground.  The tunnels ahead
-of you are larger than most of those in any cave complex you have
-ever been in before.
+You %x many large claw marks on the ground.  Your brief respite 
+from the narrow jungle confines appears to be over... many paths lead
+into the trees in all directions, and stagnant pools cover the ground.
 
-Your nose detects the smell of carrion from within, and bones litter
-the sides of the tunnels.
+Your nose detects the smell of carrion from somewhere deep within, and
+unidentifiable, gnawed bones litter the nearby underbrush.
 %E
 %Cp Cav 00036
 Once again, you approach %i.
@@ -712,7 +714,7 @@ Once again, you approach %i.
 You find yourself in a large cavern, with neatly polished walls, that
 nevertheless show signs of being scorched by fire.
 
-Bones litter the floor, and there are objects scattered everywhere.
+Bones cover the floor, and there are objects scattered everywhere.
 The air is close with the stench of sulphurous fumes.
 
 %nC is clearly visible, but she seems to be asleep.
@@ -782,6 +784,12 @@ He smiles and says:
     You have done it!  We are saved.  But I fear that %o
     will always be a target for %C forces who will want it for their
     own.
+
+He takes it from your hands and does something you cannot see. You 
+feel the very trees relax as the magic-induced hatred melts away from
+the land.
+
+He returns it to you and says:
 
     To prevent further trouble, I would like you, %p,
     to take %o away with you.  It will help you as you
@@ -1148,15 +1156,15 @@ Begone from Our sight!"
 "Verily, %p, thou hast done well.  That thou hast survived thus
 far is a credit to thy valor, but thou art yet unprepared for
 the demands required as Our Champion.  %rA, no matter how
-pure, could never hope to defeat the foul %n.
+brave, could never hope to defeat the foul %n.
 
 "Journey forth from this place, and hone thy skills.  Return to
-Our presence when thou hast attained the noble title of %R."
+Our presence when thou hast attained the title of %R."
 %E
 %Cc Kni 00020
-"Thou dishonourest Us, %p!  Thou hast strayed from the path of
-chivalry! Go from Our presence and do penance.  Only when thou art again
-pure mayst thou return hence."
+"Thou dishonourest Us, %p!  Thou hast strayed from thine chosen 
+path!  Go from Our presence and do penance.  Only when thou 
+hast regained thy soul's direction mayst thou return hence."
 %E
 %Cc Kni 00021
 "Ah, %p.  Thou art truly ready, as no %c before thee hath
@@ -2138,10 +2146,8 @@ think me as stupid as your behavior.  I warn you not to try my patience."
 %Cc Rog 00018
 "Well %gp, it looks like our friend has forgotten who is the boss
 around here.  Our friend seems to think that %rp have been put in
-charge.  Wrong.  DEAD WRONG!"
+charge.  Wrong.  DEAD wrong, in fact..."
 
-Your sudden shift in surroundings prevents you from hearing the end
-of %ls curse.
 %E
 %Cc Rog 00019
 "In the time that you've been gone you've only been able to master the
@@ -2884,8 +2890,8 @@ made changes to become ready for this task..."
 %E
 %Cc Val 00018
 "No, %p.  Your fate is sealed.  I must cast about for another
-champion.  Begone from my presence, and never return.  Know this, that
-you shall never succeed in this life, and Valhalla is denied to you."
+champion.  Begone from my presence, and never return.  Know that
+Valhalla shall be denied to you."
 %E
 %Cc Val 00019
 "I see you and %n fighting, %p.  But you are not prepared and
@@ -3462,12 +3468,11 @@ essential in locating the Amulet of Yendor."
 My allegiance to %d holds fast and I cannot condone or accept what you 
 have done.
 
-Leave this place.  You shall never set foot at %H again.
-That which you seek is now lost forever, for without the Bell of Opening, 
-you will never be able to enter the place where he who has the Amulet 
-resides.
+Leave this place. You shall never set foot beyond %H again as long as I
+draw breath... and without the Bell of Opening, you will never be able to 
+enter the place where he who has the Amulet resides.
 
-Go now!  You are banished from this place.
+Begone from my sight!"
 %E
 #
 #	TEST PATTERN

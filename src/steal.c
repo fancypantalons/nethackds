@@ -208,13 +208,15 @@ boolean unchain_ball;	/* whether to unpunish or just unwield */
 	    Ring_gone(obj);
 	} else if (obj->owornmask & W_TOOL) {
 	    Blindf_off(obj);
-	} else if (obj->owornmask & (W_WEP|W_SWAPWEP|W_QUIVER)) {
+	} else if (obj->owornmask & (W_WEP|W_SWAPWEP|W_QUIVER|W_LAUNCHER)) {
 	    if (obj == uwep)
 		uwepgone();
 	    if (obj == uswapwep)
 		uswapwepgone();
 	    if (obj == uquiver)
 		uqwepgone();
+	    if (obj == ulauncher)
+		ulwepgone();
 	}
 
 	if (obj->owornmask & (W_BALL|W_CHAIN)) {
@@ -312,7 +314,7 @@ gotobj:
 	       (ignores loadstones; the !can_carry() check will catch those) */
 	    if (otmp == uball)
 		ostuck = TRUE;	/* effectively worn; curse is implicit */
-	    else if (otmp == uquiver || (otmp == uswapwep && !u.twoweap))
+	    else if (otmp == uquiver || otmp == ulauncher || (otmp == uswapwep && !u.twoweap))
 		ostuck = FALSE;	/* not really worn; curse doesn't matter */
 	    else
 		ostuck = (otmp->cursed && otmp->owornmask);

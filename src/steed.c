@@ -33,7 +33,11 @@ can_saddle(mtmp)
 	return (index(steeds, ptr->mlet) && (ptr->msize >= MZ_MEDIUM) &&
 			(!humanoid(ptr) || ptr->mlet == S_CENTAUR) &&
 			!amorphous(ptr) && !noncorporeal(ptr) &&
-			!is_whirly(ptr) && !unsolid(ptr));
+			!is_whirly(ptr) && !unsolid(ptr) && 
+			!(ptr->mlet == S_JABBERWOCK && mtmp->mnum != PM_JABBERWOCK));
+
+	/* hack to avoid people saddling up snarks and boojum */
+
 }
 
 
@@ -194,6 +198,7 @@ mount_steed(mtmp, force)
 {
 	struct obj *otmp;
 	char buf[BUFSZ];
+	int role_modifier;
 	struct permonst *ptr;
 
 	/* Sanity checks */
@@ -299,7 +304,7 @@ mount_steed(mtmp, force)
 	}
 
 	/* Is the player impaired? */
-	if (!force && !is_floater(ptr) && !is_flyer(ptr) &&
+	if (!force && !is_floater(ptr) && !is_flyer(ptr) && !is_flying(mtmp) &&
 			Levitation && !Lev_at_will) {
 	    You("cannot reach %s.", mon_nam(mtmp));
 	    return (FALSE);
@@ -311,8 +316,11 @@ mount_steed(mtmp, force)
 			mon_nam(mtmp));
 	    return (FALSE);
 	}
+	/* A Knight should be able to ride his own horse!
+		so we get a bonus for all horse-like things */
+	role_modifier = (Role_if(PM_KNIGHT) && mtmp->data->mlet == S_UNICORN) ? 10 : 0;
 	if (!force && (Confusion || Fumbling || Glib || Wounded_legs ||
-		otmp->cursed || (u.ulevel+mtmp->mtame < rnd(MAXULEV/2+5)))) {
+		otmp->cursed || (u.ulevel+mtmp->mtame+role_modifier < rnd(MAXULEV/2+5)))) {
 	    if (Levitation) {
 		pline("%s slips away from you.", Monnam(mtmp));
 		return FALSE;
@@ -330,7 +338,7 @@ mount_steed(mtmp, force)
 
 	/* Success */
 	if (!force) {
-	    if (Levitation && !is_floater(ptr) && !is_flyer(ptr))
+	    if (Levitation && !is_floater(ptr) && !is_flyer(ptr) && !is_flying(mtmp))
 	    	/* Must have Lev_at_will at this point */
 	    	pline("%s magically floats up!", Monnam(mtmp));
 	    You("mount %s.", mon_nam(mtmp));
@@ -351,8 +359,10 @@ exercise_steed()
 	if (!u.usteed)
 		return;
 
-	/* It takes many turns of riding to exercise skill */
-	if (u.urideturns++ >= 100) {
+	/* It takes many turns of riding to exercise skill...
+	 * but for god's sake, 2,000 turns on the horse just to get to Basic?
+	 * Let's clean that up a bit. */
+	if (u.urideturns++ >= 50) {
 	    u.urideturns = 0;
 	    use_skill(P_RIDING, 1);
 	}
@@ -546,20 +556,20 @@ dismount_steed(reason)
 		struct permonst *mdat = mtmp->data;
 
 		/* The steed may drop into water/lava */
-		if (!is_flyer(mdat) && !is_floater(mdat) && !is_clinger(mdat)) {
+		if (!is_flyer(mdat) && !is_floater(mdat) && !is_clinger(mdat) && !is_flying(mtmp)) {
 		    if (is_pool(u.ux, u.uy)) {
 			if (!Underwater)
 			    pline("%s falls into the %s!", Monnam(mtmp),
 							surface(u.ux, u.uy));
 			if (!is_swimmer(mdat) && !amphibious(mdat)) {
 			    killed(mtmp);
-			    adjalign(-1);
+				 major_sin();
 			}
 		    } else if (is_lava(u.ux, u.uy)) {
 			pline("%s is pulled into the lava!", Monnam(mtmp));
 			if (!likes_lava(mdat)) {
 			    killed(mtmp);
-			    adjalign(-1);
+				 major_sin();
 			}
 		    }
 		}
@@ -601,7 +611,7 @@ dismount_steed(reason)
 	    /* Otherwise, kill the steed */
 	    } else {
 		killed(mtmp);
-		adjalign(-1);
+		major_sin();
 	    }
 	}
 
@@ -628,8 +638,8 @@ int x, y;
     if (mon == u.usteed ||
 	    /* special case is for convoluted vault guard handling */
 	    (DEADMONSTER(mon) && !(mon->isgd && x == 0 && y == 0))) {
-	impossible("placing %s onto map?",
-		   (mon == u.usteed) ? "steed" : "defunct monster");
+	/*impossible("placing %s onto map?",
+		   (mon == u.usteed) ? "steed" : "defunct monster");*/
 	return;
     }
     mon->mx = x, mon->my = y;

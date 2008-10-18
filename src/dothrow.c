@@ -127,6 +127,11 @@ int shotlimit;
 	    case PM_SAMURAI:
 		if (obj->otyp == YA && uwep && uwep->otyp == YUMI) multishot++;
 		break;
+		 case PM_CAVEMAN:
+		if (uslinging()) {		/* give an extra rock to cavies */
+			multishot++;
+		}
+		break;
 	    default:
 		break;	/* No bonus */
 	    }
@@ -293,6 +298,16 @@ dofire()
 	if (notake(youmonst.data)) {
 	    You("are physically incapable of doing that.");
 	    return 0;
+	}
+
+	/* If they've got something already picked, wield it;
+	 * wield_tool() will return error messages if they couldn't,
+	 * but go ahead and let them throw whatever even if it fails
+	 *
+	 * Must do this before autoquiver gets called since autoquiver
+	 * tries to be smart based on what you've got wielded */
+	if (ulauncher && ulauncher != uwep) {
+		wield_tool(ulauncher,"fire");
 	}
 
 	if(check_capacity((char *)0)) return(0);
@@ -469,7 +484,7 @@ hurtle_step(arg, x, y)
 
 	    pline("Ouch!");
 	    if (IS_TREE(levl[x][y].typ))
-		s = "bumping into a tree";
+		s = christmas() ? "bumping into a christmas tree" : "bumping into a tree";
 	    else if (IS_ROCK(levl[x][y].typ))
 		s = "bumping into a wall";
 	    else
@@ -569,16 +584,20 @@ mhurtle_step(arg, x, y)
 {
 	struct monst *mon = (struct monst *)arg;
 
-	/* TODO: Treat walls, doors, iron bars, pools, lava, etc. specially
+	/* TODO: Treat walls, doors, iron bars, etc. specially
 	 * rather than just stopping before.
+	 *
+	 * DONE: pools and lava (DSR 3/2/08)
 	 */
-	if (goodpos(x, y, mon, 0) && m_in_out_region(mon, x, y)) {
+	if (goodpos(x, y, mon, MM_UNSAFEOK) && m_in_out_region(mon, x, y)) {
 	    remove_monster(mon->mx, mon->my);
 	    newsym(mon->mx, mon->my);
 	    place_monster(mon, x, y);
 	    newsym(mon->mx, mon->my);
 	    set_apparxy(mon);
 	    (void) mintrap(mon);
+		 /* TODO: we need to check minliquid here eventually to see
+		  * if monsters can properly die, but for now... */
 	    return TRUE;
 	}
 	return FALSE;
@@ -941,6 +960,12 @@ boolean twoweap; /* used to restore twoweapon mode if wielded weapon returns */
 		}
 	} else {
 		urange = (int)(ACURRSTR)/2;
+
+		/* hard limit this so crossbows will fire further
+		 * than anything except a superstrong elf wielding a
+		 * racial bow, or a samurai with his yumi */
+		if (urange > 9) { urange = 9; }
+
 		/* balls are easy to throw or at least roll */
 		/* also, this insures the maximum range of a ball is greater
 		 * than 1, so the effects from throwing attached balls are
@@ -957,10 +982,35 @@ boolean twoweap; /* used to restore twoweapon mode if wielded weapon returns */
 		if (range < 1) range = 1;
 
 		if (is_ammo(obj)) {
-		    if (ammo_and_launcher(obj, uwep))
-			range++;
-		    else if (obj->oclass != GEM_CLASS)
+			/* stuff that's fired from a proper launcher should have
+			 * a noticeably longer range than stuff that was just
+			 * flung (like daggers, darts, etc.) */
+		    if (ammo_and_launcher(obj, uwep)) {
+				 switch (uwep->otyp) {
+					 case ELVEN_BOW:
+					 case YUMI:
+						 range += urange + 2;	/* better workmanship... */
+						 break;
+					 case ORCISH_BOW:
+						 range += urange - 2;	/* orcish gear sucks */
+						 break;
+					 case BOW:
+						 range += urange;
+						 break;
+					 case CROSSBOW:
+						 range += 10;	 /* not strength dependent! */
+						 break;
+					 case SLING:
+						 range += (int)urange/2;
+						 break;
+					 /* case BLOWGUN: maaaybe? */
+					 default:
+						 break;
+				 }
+			 } else if (obj->oclass != GEM_CLASS) {
 			range /= 2;
+		}
+
 		}
 
 		if (Is_airlevel(&u.uz) || Levitation) {
@@ -1195,8 +1245,9 @@ register struct obj   *obj;
 	 * Certain items which don't in themselves do damage ignore tmp.
 	 * Distance and monster size affect chance to hit.
 	 */
-	tmp = -1 + Luck + find_mac(mon) + u.uhitinc +
+	tmp = -1 + (Luck/2) + find_mac(mon) + u.uhitinc + 
 			maybe_polyd(youmonst.data->mlevel, u.ulevel);
+
 	if (ACURR(A_DEX) < 4) tmp -= 3;
 	else if (ACURR(A_DEX) < 6) tmp -= 2;
 	else if (ACURR(A_DEX) < 8) tmp -= 1;
@@ -1221,6 +1272,8 @@ register struct obj   *obj;
 		break;
 	    case LEATHER_GLOVES:
 	    case GAUNTLETS_OF_DEXTERITY:
+		 case GAUNTLETS_OF_FORTUNE:
+		 case GAUNTLETS_OF_FORCE:
 		break;
 	    default:
 		impossible("Unknown type of gloves (%d)", uarmg->otyp);
@@ -1405,6 +1458,17 @@ register struct obj   *obj;
 		Tobjnam(obj, "vanish"), s_suffix(mon_nam(mon)),
 		is_animal(u.ustuck->data) ? "entrails" : "currents");
 	} else {
+		struct monst* montmp;
+		/* Oz reference: Nomes ('gnomes') are afraid of eggs
+		 * ... this is both here and in uhitm because of the odd structure
+		 * related to 'hit' and 'not hit' with the huge pile of elseifs */
+		if (obj->otyp == EGG) {
+			for (montmp = fmon; montmp; montmp = montmp->nmon) {
+				if (is_gnome(montmp->data) && m_canseeu(montmp)) {
+					monflee(montmp,rnd(6)+4,TRUE,TRUE);
+				}
+			}
+		}
 	    tmiss(obj, mon);
 	}
 

@@ -111,9 +111,22 @@ fightm(mtmp)		/* have monsters fight each other */
 #ifdef LINT
 	nmon = 0;
 #endif
+
 	/* perhaps the monster will resist Conflict */
-	if(resist(mtmp, RING_CLASS, 0, 0))
-	    return(0);
+
+	/* In practice, this should be suffixed with "... but probably not".  
+	 * The old MR check was just letting too many monsters avoid being hit with
+	 * conflict in the first place; the ones that didn't resist basically swarmed under
+	 * the ones that did, allowing the player to blithely walk through a street brawl
+	 * almost totally untouched.  Not so anymore.
+	 *
+	 * Resistance is based on the player's (mostly-useless) Charisma.  High-CHA players
+	 * will be able to 'convince' monsters (through the magic of the ring, of course) to fight
+	 * for them much more easily than low-CHA players. */
+
+	/*if(resist(mtmp, RING_CLASS, 0, 0)) return(0);*/
+
+	if (resist_conflict(mtmp)) return 0;
 
 	if(u.ustuck == mtmp) {
 	    /* perhaps we're holding it... */
@@ -168,6 +181,19 @@ fightm(mtmp)		/* have monsters fight each other */
 	    }
 	}
 	return 0;
+}
+
+
+boolean
+resist_conflict(mtmp)
+struct monst* mtmp;
+{
+	int resist_chance;
+
+	resist_chance = ACURR(A_CHA) - mtmp->m_lev + u.ulevel;
+	if (resist_chance > 19) resist_chance = 19;		/* always a small chance */
+	return (rnd(20) > resist_chance);
+
 }
 
 /*
@@ -788,7 +814,7 @@ mdamagem(magr, mdef, mattk)
 		    pline("It burns %s!", mon_nam(mdef));
 		}
 		if (!rn2(30)) erode_armor(mdef, TRUE);
-		if (!rn2(6)) erode_obj(MON_WEP(mdef), TRUE, TRUE);
+		if (!rn2(6)) _erode_obj(MON_WEP(mdef),AD_ACID);
 		break;
 	    case AD_RUST:
 		if (magr->mcan) break;
@@ -851,6 +877,10 @@ mdamagem(magr, mdef, mattk)
 	    case AD_TLPT:
 		if (!cancelled && tmp < mdef->mhp && !tele_restrict(mdef)) {
 		    char mdef_Monnam[BUFSZ];
+			/* works on other critters too.. */
+			if (magr->mnum == PM_BOOJUM) {
+				mdef->perminvis = mdef->minvis = TRUE;
+			}
 		    /* save the name before monster teleports, otherwise
 		       we'll get "it" in the suddenly disappears message */
 		    if (vis) Strcpy(mdef_Monnam, Monnam(mdef));
@@ -989,7 +1019,11 @@ mdamagem(magr, mdef, mattk)
 		}
 		break;
 	    case AD_DRLI:
-		if (!cancelled && !rn2(3) && !resists_drli(mdef)) {
+		 case AD_DETH:
+		/* Closest match; save us having to do a lot of silliness 
+		 * just to handle one critter on Astral */
+		if (mattk->adtyp == AD_DETH || 
+				(!cancelled && !rn2(3) && !resists_drli(mdef))) {
 			tmp = d(2,6);
 			if (vis)
 			    pline("%s suddenly seems weaker!", Monnam(mdef));
@@ -1131,7 +1165,7 @@ mdamagem(magr, mdef, mattk)
 	}
 	if(!tmp) return(MM_MISS);
 
-	if((mdef->mhp -= tmp) < 1) {
+	if(damage_mon(mdef,tmp,mattk->adtyp)) {
 	    if (m_at(mdef->mx, mdef->my) == magr) {  /* see gulpmm() */
 		remove_monster(mdef->mx, mdef->my);
 		mdef->mhp = 1;	/* otherwise place_monster will complain */
@@ -1386,6 +1420,15 @@ int mdead;
 		if(canseemon(magr))
 		    pline("%s is suddenly very hot!", Monnam(magr));
 		break;
+		 case AD_DISE:
+			if (canseemon(magr)) {
+				pline("%s is covered with tiny spores!", Monnam(magr));
+			}
+			if (resists_sick(magr)) {
+				pline("%s doesn't seem to notice the spores.", Monnam(magr));
+				tmp = 0;
+			} 
+		break;
 	    case AD_ELEC:
 		if (resists_elec(magr)) {
 		    if (canseemon(magr)) {
@@ -1404,7 +1447,7 @@ int mdead;
 	else tmp = 0;
 
     assess_dmg:
-	if((magr->mhp -= tmp) <= 0) {
+	if(damage_mon(magr,tmp,(int)mddat->mattk[i].adtyp)) {
 		monkilled(magr, "", (int)mddat->mattk[i].adtyp);
 		return (mdead | mhit | MM_AGR_DIED);
 	}

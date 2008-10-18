@@ -350,7 +350,7 @@ int main()
     return 0;
   }
 
-  chdir("/NetHack");
+  chdir("/SporkHack");
 
   /* Initialize some nethack constants */
 

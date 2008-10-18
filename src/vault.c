@@ -270,7 +270,7 @@ fnd:
 	if (u.ualign.type == A_LAWFUL &&
 	    /* ignore trailing text, in case player includes character's rank */
 	    strncmpi(buf, plname, (int) strlen(plname)) != 0) {
-		adjalign(-1);		/* Liar! */
+		venial_sin();		/* Liar! */
 	}
 
 	if (!strcmpi(buf, "Croesus") || !strcmpi(buf, "Kroisos")

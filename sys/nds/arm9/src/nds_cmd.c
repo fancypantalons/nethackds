@@ -1491,15 +1491,16 @@ void _nds_insert_choice(char *choices, char let)
       choices[i] = let;
     }
   } else {
-#else
+#endif
     char tmp[2];
 
     tmp[0] = let;
     tmp[1] = '\0';
 
     strcat(choices, tmp);
-#endif
+#ifdef SORTLOOT
   }
+#endif
 }
 
 char *_nds_parse_choices(const char *ques)

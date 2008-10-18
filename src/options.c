@@ -121,7 +121,6 @@ static struct Bool_Opt
 	{"hilite_pet",    &iflags.wc_hilite_pet, FALSE, SET_IN_GAME},	/*WC*/
 #ifdef NDS
         {"holdmode", &iflags.holdmode, FALSE, SET_IN_GAME},
-        {"hpmon", &iflags.hpmon, TRUE, SET_IN_GAME},
 #else
         {"holdmode", (boolean *)0, FALSE, SET_IN_GAME},
         {"hpmon", (boolean *)0, TRUE, SET_IN_GAME},

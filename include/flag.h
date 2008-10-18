@@ -284,7 +284,6 @@ struct instance_flags {
         boolean cmdwindow;
         boolean doubletap;
         boolean holdmode;
-        boolean hpmon;
         boolean lefthanded;
         int compassmode;
         char *chordkeys;

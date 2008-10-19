@@ -7,6 +7,8 @@ endif
 
 include $(DEVKITARM)/base_rules
 
+CCMAKE=$(MAKE) CC=cc
+
 #export TARGET		:=	$(shell basename $(CURDIR))
 export TARGET		:=	NetHackDS
 export TARGETDIR	:=	build
@@ -21,10 +23,20 @@ export PATH		:=	$(DEVKITARM)/bin:$(PATH)
 
 .PHONY: $(TARGET).arm7 $(TARGET).arm9
 
+all: dat image
+
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-all: binary/$(TARGET).ds.gba
+dat::
+	cd dat; $(CCMAKE)
+	cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h
+	@if egrep -s librarian dat/options ; then $(CCMAKE) dlb ; else true ; fi
+	#$(CCMAKE) clean
+	#rm build/*
+#	cd util; $(CCMAKE) recover
+
+image: binary/$(TARGET).ds.gba
 
 binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@echo Copying files...
@@ -83,9 +95,9 @@ build/$(TARGET).arm9.elf::
 
 #---------------------------------------------------------------------------------
 clean:
+	$(CCMAKE) spotless
 	$(MAKE) -f sys/nds/Makefile.arm7 clean
 	$(MAKE) -f sys/nds/Makefile.src clean
 	$(MAKE) -f sys/nds/Makefile.arm9 clean
-	rm -f build/$(TARGET).ds.gba build/$(TARGET).nds build/$(TARGET).arm7 build/$(TARGET).arm9
-	rm -f build/$(TARGET).arm7.elf build/$(TARGET).arm9.elf
+	rm -rf build/*
 	rm -rf binary/*

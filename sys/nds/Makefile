@@ -32,9 +32,6 @@ dat::
 	cd dat; $(CCMAKE)
 	cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h
 	@if egrep -s librarian dat/options ; then $(CCMAKE) dlb ; else true ; fi
-	#$(CCMAKE) clean
-	#rm build/*
-#	cd util; $(CCMAKE) recover
 
 image: binary/$(TARGET).ds.gba
 
@@ -56,15 +53,6 @@ binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 install: binary/$(TARGET).ds.gba
 	cp binary/$(TARGET).nds /media/flash/default.nds
 	umount /media/flash
-
-#all: build/$(TARGET).ds.gba
-#	@echo Copying files...
-#	@rm -rf binary/*
-#	@cp build/$(TARGET).nds build/$(TARGET).ds.gba binary
-#	@mkdir binary/NetHack
-#	@cp dat/nhdat dat/license doc/Guidebook.txt doc/NetHack.txt binary/NetHack
-#	@cp sys/nds/NetHack/* binary/NetHack
-#	@echo Done!  Copy everything in the 'binary' directory to your CF card.
 
 build/$(TARGET).ds.gba	: build/$(TARGET).nds
 	@dsbuild $<

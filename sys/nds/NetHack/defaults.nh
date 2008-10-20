@@ -8,7 +8,8 @@
 # uncomment the configuration you want.
 
 # *** OPTIONS ***
-OPTIONS=tile_file:tiles.bmp,tile_width:16,tile_height:16
+# TILES DO NOT WORK
+#OPTIONS=tile_file:tiles.bmp,tile_width:16,tile_height:16
 OPTIONS=color,ibmgraphics
 OPTIONS=toptenwin
 OPTIONS=autopickup,pickup_types:$

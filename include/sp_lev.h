@@ -168,14 +168,14 @@ typedef struct NDS_PACKED {
 	xchar rtype, rlit, rirreg;
 } region;
 
-typedef struct {
+typedef struct NDS_PACKED {
     xchar chance;
     xchar areatyp;
     xchar x1,y1,x2,y2;
     xchar ter, tlit;
 } terrain;
 
-typedef struct {
+typedef struct NDS_PACKED {
     xchar chance;
     xchar x1,y1,x2,y2;
     xchar fromter, toter, tolit;

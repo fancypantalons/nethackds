@@ -22,7 +22,7 @@
 # endif
 
 # ifdef SCREEN_DJGPPFAST
-/*# define MONO_CHECK 		/* djgpp should be able to do check  */
+/*# define MONO_CHECK 		*//* djgpp should be able to do check  */
 # endif
 
 /*
@@ -67,14 +67,14 @@
  * VGA Specific Stuff
  */
 # ifdef SCREEN_VGA
-/* #define HW_PANNING		/* Hardware panning enabled */
+/* #define HW_PANNING		*//* Hardware panning enabled */
 #define USHORT		unsigned short
 #define MODE640x480	0x0012  /* Switch to VGA 640 x 480 Graphics mode */
 #define MODETEXT	0x0003  /* Switch to Text mode 3 */
 
 #ifdef HW_PANNING
 #define PIXELINC 16	/* How much to increment by when panning */
-/*#define PIXELINC 1	/* How much to increment by when panning */
+/*#define PIXELINC 1	*//* How much to increment by when panning */
 #define SCREENBYTES   128
 #define CharRows  30
 #define VERT_RETRACE	  {while (!(inportb(crt_status) & 0x08)); }
@@ -168,6 +168,10 @@ struct overview_planar_cell_struct {
 #define ATTRIB_VGA_NORMAL     CLR_GRAY	/* Normal attribute */
 #define ATTRIB_VGA_INTENSE    13	/* Intense White 94/06/07 palette chg*/
 # endif /*SCREEN_VGA || SCREEN_8514*/
+# ifdef ALLEG_FX
+long colorpal[16];
+#  define BACKGROUND_ALLEGRO_COLOR    colorpal[8]
+# endif
 
 # if defined(PC9800)
 static unsigned char attr98[CLR_MAX] = {
@@ -275,6 +279,39 @@ E void FDECL(vga_overview, (BOOLEAN_P));
 E void FDECL(vga_traditional, (BOOLEAN_P));
 E void NDECL(vga_refresh);
 #  endif /* SCREEN_VGA */
+
+#  ifdef ALLEG_FX
+E void NDECL(alleg_backsp);
+E void FDECL(alleg_clear_screen,(int));
+E void FDECL(alleg_cl_end,(int,int));
+E void FDECL(alleg_cl_eos,(int));
+E int  NDECL(alleg_detect);
+#   ifdef SIMULATE_CURSOR
+E void NDECL(alleg_DrawCursor);
+#   endif
+E void NDECL(alleg_Finish);
+E void NDECL(alleg_get_scr_size);
+E void FDECL(alleg_gotoloc,(int,int)); /* This should be made a macro */
+#   ifdef POSITIONBAR
+E void FDECL(alleg_update_positionbar, (char *));
+#   endif
+#   ifdef SIMULATE_CURSOR
+E void NDECL(alleg_HideCursor);
+#   endif
+E void NDECL(alleg_Init);
+E void NDECL(alleg_tty_end_screen);
+E void FDECL(alleg_tty_startup,(int*,int*));
+E void FDECL(alleg_WriteChar, (int, int, int, int));
+E void FDECL(alleg_xputs, (char *, int, int));
+E void FDECL(alleg_xputc, (CHAR_P, int));
+E void FDECL(alleg_xputg, (int, int));
+E void FDECL(alleg_userpan, (BOOLEAN_P));
+E void FDECL(alleg_overview, (BOOLEAN_P));
+E void FDECL(alleg_traditional, (BOOLEAN_P));
+E void NDECL(alleg_refresh);
+E void NDECL(alleg_screenshot);
+
+#  endif /* ALLEG_FX */
 # endif /* NO_TERMS   */
 
 #undef E

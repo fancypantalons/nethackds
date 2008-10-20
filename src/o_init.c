@@ -10,7 +10,6 @@ STATIC_DCL void FDECL(shuffle,(int,int,BOOLEAN_P));
 STATIC_DCL void NDECL(shuffle_all);
 STATIC_DCL boolean FDECL(interesting_to_discover,(int));
 
-
 static NEARDATA short disco[NUM_OBJECTS] = DUMMY;
 
 #ifdef USE_TILES
@@ -41,6 +40,29 @@ shuffle_tiles()
 }
 #endif	/* USE_TILES */
 
+#ifdef PROXY_GRAPHICS
+STATIC_DCL void NDECL(shuffle_proxy_glyphs);
+extern short glyph2proxy[];	/* from glyphmap.c */
+
+/* Shuffle proxy glyph assignments for the same reason as tiles
+ * (internal glyphs are based on object numbers, proxy glyphs
+ * are based on object descriptions).
+ */
+STATIC_OVL void
+shuffle_proxy_glyphs()
+{
+	int i;
+	short tmp_glyphmap[NUM_OBJECTS];
+
+	for (i = 0; i < NUM_OBJECTS; i++)
+		tmp_glyphmap[i] =
+			glyph2proxy[objects[i].oc_descr_idx + GLYPH_OBJ_OFF];
+
+	for (i = 0; i < NUM_OBJECTS; i++)
+		glyph2proxy[i + GLYPH_OBJ_OFF] = tmp_glyphmap[i];
+}
+#endif	/* USE_TILES */
+
 STATIC_OVL void
 setgemprobs(dlev)
 d_level *dlev;
@@ -64,6 +86,7 @@ d_level *dlev;
 		wait_synch();
 	    }
 	for (j = first; j <= LAST_GEM; j++)
+		/* KMH, balance patch -- valuable gems now sum to 171 */
 		objects[j].oc_prob = (171+j-first)/(LAST_GEM+1-first);
 }
 
@@ -165,7 +188,7 @@ register char oclass;
 			    objects[i].oc_prob = (1000+i-first)/(last-first);
 			goto check;
 		}
-		if(sum != 1000)
+		if(sum != sum)
 			error("init-prob error for class %d (%d%%)", oclass, sum);
 		first = last;
 	}
@@ -173,6 +196,9 @@ register char oclass;
 	shuffle_all();
 #ifdef USE_TILES
 	shuffle_tiles();
+#endif
+#ifdef PROXY_GRAPHICS
+	shuffle_proxy_glyphs();
 #endif
 }
 
@@ -195,7 +221,8 @@ shuffle_all()
 			int j = last-1;
 
 			if (oclass == POTION_CLASS)
-			    j -= 1;  /* only water has a fixed description */
+			    /* water and following have fixed descriptions */
+			    j = POT_WATER - 1;
 			else if (oclass == AMULET_CLASS ||
 				 oclass == SCROLL_CLASS ||
 				 oclass == SPBOOK_CLASS) {
@@ -217,6 +244,9 @@ shuffle_all()
 
 	/* shuffle the gloves */
 	shuffle(LEATHER_GLOVES, GAUNTLETS_OF_DEXTERITY, FALSE);
+
+    /* shuffle the robes */
+    shuffle(ROBE, ROBE_OF_WEAKNESS, FALSE);
 
 	/* shuffle the cloaks */
 	shuffle(CLOAK_OF_PROTECTION, CLOAK_OF_DISPLACEMENT, FALSE);
@@ -295,6 +325,9 @@ register int fd;
 #ifdef USE_TILES
 	shuffle_tiles();
 #endif
+#ifdef PROXY_GRAPHICS
+	shuffle_proxy_glyphs();
+#endif
 }
 
 void
@@ -303,6 +336,9 @@ register int oindx;
 boolean mark_as_known;
 boolean credit_hero;
 {
+	/* KMH -- If we are hallucinating, we aren't sure of the object description */
+	if (Hallucination) return;
+
     if (!objects[oindx].oc_name_known) {
 	register int dindx, acls = objects[oindx].oc_class;
 
@@ -370,21 +406,34 @@ dodiscovered()				/* free after Robert Viduya */
     register int i, dis;
     int	ct = 0;
     char *s, oclass, prev_class, classes[MAXOCLASSES];
+    char buf[BUFSZ];    /* WAC */
     winid tmpwin;
-	char buf[BUFSZ];
+    anything any;
+    menu_item *selected;
 
     tmpwin = create_nhwindow(NHW_MENU);
-    putstr(tmpwin, 0, "Discoveries");
-    putstr(tmpwin, 0, "");
+    /*
+     * Use the add_menu() interface so that eg., GTK windowing port
+     * can display the relevant glyphs --ALI
+     */
+    start_menu(tmpwin);
+
+    any.a_void = 0;
+    add_menu(tmpwin, NO_GLYPH, &any, 0, 0, ATR_BOLD, "Discoveries",
+      MENU_UNSELECTED);
+    add_menu(tmpwin, NO_GLYPH, &any, 0, 0, ATR_NONE, "",
+      MENU_UNSELECTED);
 
     /* gather "unique objects" into a pseudo-class; note that they'll
        also be displayed individually within their regular class */
     for (i = dis = 0; i < SIZE(uniq_objs); i++)
 	if (objects[uniq_objs[i]].oc_name_known) {
 	    if (!dis++)
-		putstr(tmpwin, iflags.menu_headings, "Unique Items");
+		add_menu(tmpwin, NO_GLYPH, &any, 0, 0, iflags.menu_headings,
+		  "Unique Items", MENU_UNSELECTED);
 		Sprintf(buf, "  %s", OBJ_NAME(objects[uniq_objs[i]]));
-	    putstr(tmpwin, 0, buf);
+	    add_menu(tmpwin, objnum_to_glyph(uniq_objs[i]), &any,
+	      0, 0, ATR_NONE, buf, MENU_UNSELECTED);
 	    ++ct;
 	}
     /* display any known artifacts as another pseudo-class */
@@ -406,19 +455,22 @@ dodiscovered()				/* free after Robert Viduya */
 	    if ((dis = disco[i]) && interesting_to_discover(dis)) {
 		ct++;
 		if (oclass != prev_class) {
-		    putstr(tmpwin, iflags.menu_headings, let_to_name(oclass, FALSE));
+		    add_menu(tmpwin, NO_GLYPH, &any, 0, 0, iflags.menu_headings,
+		      let_to_name(oclass, FALSE), MENU_UNSELECTED);
 		    prev_class = oclass;
 		}
 		Sprintf(buf, "%s %s",(objects[dis].oc_pre_discovered ? "*" : " "),
 				obj_typename(dis));
-		putstr(tmpwin, 0, buf);
+		add_menu(tmpwin, objnum_to_glyph(dis), &any, 0, 0,
+		  ATR_NONE, buf, MENU_UNSELECTED);
 	    }
 	}
     }
+    end_menu(tmpwin, (char *) 0);
     if (ct == 0) {
 	You("haven't discovered anything yet...");
     } else
-	display_nhwindow(tmpwin, TRUE);
+	(void) select_menu(tmpwin, PICK_NONE, &selected);
     destroy_nhwindow(tmpwin);
 
     return 0;

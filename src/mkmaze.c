@@ -113,12 +113,51 @@ extend_spine(locale, wall_there, dx, dy)
 
 
 /*
+ * Walls to surprise jaded Gehennom-haters :)
+ *
+ * Wall cleanup. This function turns all wall squares into 'floortype' squares.
+ */
+STATIC_OVL
+void
+wallify_special(x1, y1, x2, y2, floortype)
+int x1, y1, x2, y2;
+int floortype;		/* The 'wall' floortype */
+{
+	uchar type;
+	register int x,y;
+	struct rm *lev;
+
+	/* sanity check on incoming variables */
+	if (x1<0 || x2>=COLNO || x1>x2 || y1<0 || y2>=ROWNO || y1>y2)
+	    panic("wallify_fire: bad bounds (%d,%d) to (%d,%d)",x1,y1,x2,y2);
+
+	/* Translate the maze... */
+	for(x = x1; x <= x2; x++)
+	    for(y = y1; y <= y2; y++) {
+		lev = &levl[x][y];
+		type = lev->typ;
+		if IS_WALL(type)
+		    lev->typ = floortype;
+		/* Doors become room squares. Does this make sense? */
+		else if (IS_DOOR(type))
+		    lev->typ = ROOM;
+		else if (type == SDOOR)
+		    lev->typ = ROOM;
+		else if (type == SCORR)
+		    lev->typ = ROOM;
+	    }
+
+	return;
+}
+
+/*
  * Wall cleanup.  This function has two purposes: (1) remove walls that
  * are totally surrounded by stone - they are redundant.  (2) correct
  * the types so that they extend and connect to each other.
  */
+STATIC_OVL
 void
-wallification(x1, y1, x2, y2)
+wallify_stone(x1, y1, x2, y2)	/* [Lethe] Classic stone walls */
 int x1, y1, x2, y2;
 {
 	uchar type;
@@ -140,7 +179,7 @@ int x1, y1, x2, y2;
 
 	/* sanity check on incoming variables */
 	if (x1<0 || x2>=COLNO || x1>x2 || y1<0 || y2>=ROWNO || y1>y2)
-	    panic("wallification: bad bounds (%d,%d) to (%d,%d)",x1,y1,x2,y2);
+	    panic("wallify_stone: bad bounds (%d,%d) to (%d,%d)",x1,y1,x2,y2);
 
 	/* Step 1: change walls surrounded by rock to rock. */
 	for(x = x1; x <= x2; x++)
@@ -192,6 +231,41 @@ int x1, y1, x2, y2;
 		/* don't change typ if wall is free-standing */
 		if (bits) lev->typ = spine_array[bits];
 	    }
+}
+
+/*
+ * Wall cleanup.  This selects an appropriate function to sort out the 
+ * dungeon walls.                                                    
+ */
+void
+wallification(x1, y1, x2, y2, initial)
+int x1, y1, x2, y2;
+boolean initial;
+{
+	/* Wallify normally unless creating a full maze level */
+	if (!initial) {
+		wallify_stone(x1, y1, x2, y2);
+		return;
+	}
+
+	/* Put in the walls... */
+	{
+	    int wallchoice = rn2(20);
+
+	    if (wallchoice < 4)
+		wallify_stone(x1, y1, x2, y2);
+	    else if (wallchoice < 6)
+		wallify_special(x1, y1, x2, y2, CLOUD);
+	    else if (wallchoice < 10)
+		wallify_special(x1, y1, x2, y2, MOAT);
+	    else if (wallchoice < 14)
+		wallify_special(x1, y1, x2, y2, ICE);
+	    else if (wallchoice < 17)
+		wallify_special(x1, y1, x2, y2, LAVAPOOL);
+	    else
+		wallify_special(x1, y1, x2, y2, IRONBARS);
+	}
+	return;
 }
 
 STATIC_OVL boolean
@@ -405,6 +479,13 @@ fixup_special()
 	place_lregion(0,0,0,0,0,0,0,0,LR_BRANCH,(d_level *)0);
     }
 
+	/* KMH -- arboreal levels */
+/*	if (level.flags.arboreal)
+		for(x = 2; x < x_maze_max; x++)
+			for(y = 2; y < y_maze_max; y++)
+				if (levl[x][y].typ == STONE)
+					levl[x][y].typ = TREE;*/
+
 	/* KMH -- Sokoban levels */
 	if(In_sokoban(&u.uz))
 		sokoban_detect();
@@ -574,7 +655,7 @@ register const char *s;
 	(void) mksobj_at(BOULDER, (int) mm.x, (int) mm.y, TRUE, FALSE);
 
 #ifdef WALLIFIED_MAZE
-	wallification(2, 2, x_maze_max, y_maze_max);
+	wallification(2, 2, x_maze_max, y_maze_max, TRUE);
 #endif
 	mazexy(&mm);
 	mkstairs(mm.x, mm.y, 1, (struct mkroom *)0);		/* up */
@@ -938,14 +1019,17 @@ movebubbles()
 	register int x, y, i, j;
 	struct trap *btrap;
 	static const struct rm water_pos =
-		{ cmap_to_glyph(S_water), WATER, 0, 0, 0, 0, 0, 0, 0 };
+#ifdef DISPLAY_LAYERS
+		{ S_water, 0, 0, 0, 0, 0,
+#else
+		{ cmap_to_glyph(S_water),
+#endif
+		WATER, 0, 0, 0, 0, 0, 0, 0 };
 
 	/* set up the portal the first time bubbles are moved */
 	if (!wportal) set_wportal();
 
 	vision_recalc(2);
-	/* keep attached ball&chain separate from bubble objects */
-	if (Punished) unplacebc();
 
 	/*
 	 * Pick up everything inside of a bubble then fill all bubble
@@ -1186,7 +1270,6 @@ setup_waterlevel()
 {
 	register int x, y;
 	register int xskip, yskip;
-	register int water_glyph = cmap_to_glyph(S_water);
 
 	/* ouch, hardcoded... */
 
@@ -1199,7 +1282,7 @@ setup_waterlevel()
 
 	for (x = xmin; x <= xmax; x++)
 		for (y = ymin; y <= ymax; y++)
-			levl[x][y].glyph = water_glyph;
+			clear_memory_glyph(x, y, S_water);
 
 	/* make bubbles */
 
@@ -1378,6 +1461,12 @@ register boolean ini;
 		    if (MON_AT(cons->x, cons->y)) {
 				mnexto(m_at(cons->x,cons->y));
 			}
+                        /* WAC removed this.  The ball and chain is moved
+                         * as a CONS_OBJECT by the bubble
+                         */
+#if 0
+                    if (Punished) placebc();    /* do this for now */
+#endif
 		    break;
 		}
 

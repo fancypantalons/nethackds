@@ -95,9 +95,7 @@ dosh()
 #   endif
 		suspend_nhwindows((char *)0);
 #  endif /* TOS */
-#  ifndef NOCWD_ASSUMPTIONS
 		chdirx(orgdir, 0);
-#  endif
 #  ifdef __GO32__
 		if (system(comspec) < 0) {  /* wsu@eecs.umich.edu */
 #  else
@@ -122,9 +120,7 @@ dosh()
 		if (iflags.BIOS)
 			(void)Cursconf(1, -1);
 #  endif
-#  ifndef NOCWD_ASSUMPTIONS
 		chdirx(hackdir, 0);
-#  endif
 		get_scr_size(); /* maybe the screen mode changed (TH) */
 #  if defined(MSDOS) && defined(NO_TERMS)
 		if (grmode) gr_init();
@@ -311,7 +307,7 @@ record_exists()
 {
 	FILE *fp;
 
-	fp = fopen_datafile(RECORD, "r", TRUE);
+	fp = fopen_datafile(NH_RECORD, "r", TRUE);
 	if (fp) {
 		fclose(fp);
 		return TRUE;
@@ -360,7 +356,7 @@ gameDiskPrompt()
 	if (!comspec_exists())
 		msmsg("\n\nWARNING: can't find command processor \"%s\"!\n", getcomspec());
 	if (!record_exists())
-		msmsg("\n\nWARNING: can't find record file \"%s\"!\n", RECORD);
+		msmsg("\n\nWARNING: can't find record file \"%s\"!\n", NH_RECORD);
 	msmsg("If the game disk is not in, insert it now.\n");
 	getreturn("to continue");
 	return;
@@ -514,9 +510,11 @@ static void msexit()
 #ifdef MFLOPPY
 	if (ramdisk) copybones(TOPERM);
 #endif
-#if defined(CHDIR) && !defined(NOCWD_ASSUMPTIONS)
+#ifdef CHDIR
 	chdir(orgdir);		/* chdir, not chdirx */
+# ifndef __CYGWIN__
 	chdrive(orgdir);
+# endif
 #endif
 #ifdef TOS
 	if (run_from_desktop)
@@ -538,4 +536,25 @@ static void msexit()
 #endif
 	return;
 }
+#ifdef WIN32
+/*
+ * This is a kludge.  Just before the release of 3.3.0 the latest
+ * version of a popular MAPI mail product was found to exhibit
+ * a strange result where the current directory was changed out
+ * from under NetHack resulting in a failure of all subsequent
+ * file operations in NetHack.  This routine is called prior
+ * to all file open/renames/deletes in file.c.
+ *
+ * A more elegant solution will be sought after 3.3.0 is released.
+ */
+void dircheck()
+{
+	char dirbuf[BUFSZ];
+	dirbuf[0] = '\0';
+	if (getcwd(dirbuf, sizeof dirbuf) != (char *)0)
+		/* pline("%s,%s",dirbuf,hackdir); */
+		if (strcmp(dirbuf,hackdir) != 0)
+			chdir(hackdir);		/* chdir, not chdirx */
+}
+#endif
 #endif /* MICRO || WIN32 || OS2 */

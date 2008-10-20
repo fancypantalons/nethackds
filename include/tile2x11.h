@@ -16,7 +16,4 @@ typedef struct {
     unsigned long per_row;
 } x11_header;
 
-/* how wide each row in the tile file is, in tiles */
-#define TILES_PER_ROW (40)
-
 #endif	/* TILE2X11_H */

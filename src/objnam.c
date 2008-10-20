@@ -4,6 +4,7 @@
 
 #include "hack.h"
 
+
 /* "an uncursed greased partly eaten guardian naga hatchling [corpse]" */
 #define PREFIX	80	/* (56) */
 #define SCHAR_LIM 127
@@ -15,6 +16,8 @@ static boolean FDECL(wishymatch, (const char *,const char *,BOOLEAN_P));
 #endif
 static char *NDECL(nextobuf);
 static void FDECL(add_erosion_words, (struct obj *, char *));
+
+STATIC_DCL char *FDECL(xname2, (struct obj *));
 
 struct Jitem {
 	int item;
@@ -152,6 +155,9 @@ register int otyp;
 	if(nn) {
 	    if (ocl->oc_unique)
 		Strcpy(buf, actualn); /* avoid spellbook of Book of the Dead */
+	    /* KMH -- "mood ring" instead of "ring of mood" */
+	    else if (otyp == RIN_MOOD)
+		Sprintf(buf, "%s ring", actualn);
 	    else
 		Sprintf(eos(buf), " of %s", actualn);
 	}
@@ -231,9 +237,9 @@ boolean juice;	/* whether or not to append " juice" to the name */
 #ifdef OVL1
 
 char *
-xname(obj)
+xname2(obj)
 register struct obj *obj;
-{
+{	/* Hallu */
 	register char *buf;
 	register int typ = obj->otyp;
 	register struct objclass *ocl = &objects[typ];
@@ -254,8 +260,17 @@ register struct obj *obj;
 	 * and printing the wrong article gives away information.
 	 */
 	if (!nn && ocl->oc_uses_known && ocl->oc_unique) obj->known = 0;
+#ifndef INVISIBLE_OBJECTS
 	if (!Blind) obj->dknown = TRUE;
-	if (Role_if(PM_PRIEST)) obj->bknown = TRUE;
+#else
+	if (!Blind && (!obj->oinvis || See_invisible)) obj->dknown = TRUE;
+#endif
+	if (Role_if(PM_PRIEST) || Role_if(PM_NECROMANCER)) obj->bknown = TRUE;
+
+	/* We could put a switch(obj->oclass) here but currently only this one case exists */
+	if (obj->oclass == WEAPON_CLASS && is_poisonable(obj) && obj->opoisoned)
+		Strcpy(buf, "poisoned ");
+
 	if (obj_is_pname(obj))
 	    goto nameit;
 	switch (obj->oclass) {
@@ -274,8 +289,6 @@ register struct obj *obj;
 			Sprintf(buf,"%s amulet", dn);
 		break;
 	    case WEAPON_CLASS:
-		if (is_poisonable(obj) && obj->opoisoned)
-			Strcpy(buf, "poisoned ");
 	    case VENOM_CLASS:
 	    case TOOL_CLASS:
 		if (typ == LENSES)
@@ -444,9 +457,13 @@ register struct obj *obj;
 	case RING_CLASS:
 		if(!obj->dknown)
 			Strcpy(buf, "ring");
-		else if(nn)
+		else if(nn) {
+			/* KMH -- "mood ring" instead of "ring of mood" */
+			if (typ == RIN_MOOD)
+				Sprintf(buf, "%s ring", actualn);
+			else
 			Sprintf(buf, "ring of %s", actualn);
-		else if(un)
+		} else if(un)
 			Sprintf(buf, "ring called %s", un);
 		else
 			Sprintf(buf, "%s ring", dn);
@@ -479,6 +496,32 @@ nameit:
 
 	if (!strncmpi(buf, "the ", 4)) buf += 4;
 	return(buf);
+} /* end Hallu */
+
+/* WAC calls the above xname2 */
+char *
+xname(obj)
+register struct obj *obj;
+{
+/* WAC moved hallucination here */
+	register struct obj *hobj;
+#ifdef LINT     /* lint may handle static decl poorly -- static char bufr[]; */
+	char bufr[BUFSZ];
+#else
+	static char bufr[BUFSZ];
+#endif
+	register char *buf = &(bufr[PREFIX]);   /* leave room for "17 -3 " */
+
+	if (Hallucination && !program_state.gameover) {
+		hobj = mkobj(obj->oclass, 0);
+		hobj->quan = obj->quan;
+		/* WAC clean up */
+		buf = xname2(hobj);
+		obj_extract_self(hobj);                
+		dealloc_obj(hobj);
+
+		return (buf);
+	} else return xname2(obj);
 }
 
 /* xname() output augmented for multishot missile feedback */
@@ -525,7 +568,7 @@ char *prefix;
 	boolean iscrys = (obj->otyp == CRYSKNIFE);
 
 
-	if (!is_damageable(obj) && !iscrys) return;
+	if (!is_damageable(obj) && !iscrys || Hallucination) return;
 
 	/* The only cases where any of these bits do double duty are for
 	 * rotted food and diluted potions, which are all not is_damageable().
@@ -578,27 +621,30 @@ register struct obj *obj;
 
 	if(obj->quan != 1L)
 		Sprintf(prefix, "%ld ", obj->quan);
-	else if (obj_is_pname(obj) || the_unique_obj(obj)) {
+	else if (!Hallucination && (obj_is_pname(obj) || the_unique_obj(obj))) {
 		if (!strncmpi(bp, "the ", 4))
 		    bp += 4;
 		Strcpy(prefix, "the ");
-	} else
-		Strcpy(prefix, "a ");
+	} else Strcpy(prefix, "a ");
 
 #ifdef INVISIBLE_OBJECTS
 	if (obj->oinvis) Strcat(prefix,"invisible ");
 #endif
+#if defined(WIZARD) && defined(UNPOLYPILE)
+	if (wizard && is_hazy(obj)) Strcat(prefix,"hazy ");
+#endif
 
-	if (obj->bknown &&
+	if ((!Hallucination || Role_if(PM_PRIEST) || Role_if(PM_NECROMANCER)) &&
+	    obj->bknown &&
 	    obj->oclass != COIN_CLASS &&
 	    (obj->otyp != POT_WATER || !objects[POT_WATER].oc_name_known
-		|| (!obj->cursed && !obj->blessed))) {
+		|| (!obj->cursed && !obj->blessed) || Hallucination)) {
 	    /* allow 'blessed clear potion' if we don't know it's holy water;
 	     * always allow "uncursed potion of water"
 	     */
-	    if (obj->cursed)
+	    if (Hallucination ? !rn2(10) : obj->cursed)
 		Strcat(prefix, "cursed ");
-	    else if (obj->blessed)
+	    else if (Hallucination ? !rn2(10) : obj->blessed)
 		Strcat(prefix, "blessed ");
 	    else if ((!obj->known || !objects[obj->otyp].oc_charged ||
 		      (obj->oclass == ARMOR_CLASS ||
@@ -618,14 +664,15 @@ register struct obj *obj;
 #endif
 			&& obj->otyp != FAKE_AMULET_OF_YENDOR
 			&& obj->otyp != AMULET_OF_YENDOR
-			&& !Role_if(PM_PRIEST))
+			&& !Role_if(PM_PRIEST) && !Role_if(PM_NECROMANCER))
 		Strcat(prefix, "uncursed ");
 	}
 
-	if (obj->greased) Strcat(prefix, "greased ");
+	if (Hallucination ? !rn2(100) : obj->greased) Strcat(prefix, "greased ");
 
 	switch(obj->oclass) {
 	case AMULET_CLASS:
+		add_erosion_words(obj, prefix);
 		if(obj->owornmask & W_AMUL)
 			Strcat(bp, " (being worn)");
 		break;
@@ -634,10 +681,34 @@ register struct obj *obj;
 			Strcat(prefix, "poisoned ");
 plus:
 		add_erosion_words(obj, prefix);
+		if (Hallucination)
+			break;
 		if(obj->known) {
 			Strcat(prefix, sitoa(obj->spe));
 			Strcat(prefix, " ");
 		}
+#ifdef FIREARMS
+		if (
+# ifdef LIGHTSABERS
+			is_lightsaber(obj) ||
+# endif
+			obj->otyp == STICK_OF_DYNAMITE) {
+		    if (obj->lamplit) Strcat(bp, " (lit)");
+#  ifdef DEBUG
+		    Sprintf(eos(bp), " (%d)", obj->age);		
+#  endif
+		} else if (is_grenade(obj))
+		    if (obj->oarmed) Strcat(bp, " (armed)");
+#else	/* FIREARMS */
+# ifdef LIGHTSABERS
+		if (is_lightsaber(obj)) {
+		    if (obj->lamplit) Strcat(bp, " (lit)");
+#  ifdef DEBUG
+		    Sprintf(eos(bp), " (%d)", obj->age);		
+#  endif
+		}
+# endif
+#endif	/* FIREARMS */
 		break;
 	case ARMOR_CLASS:
 		if(obj->owornmask & W_ARMOR)
@@ -648,6 +719,8 @@ plus:
 		/* weptools already get this done when we go to the +n code */
 		if (!is_weptool(obj))
 		    add_erosion_words(obj, prefix);
+		if (Hallucination)
+			break;
 		if(obj->owornmask & (W_TOOL /* blindfold */
 #ifdef STEED
 				| W_SADDLE
@@ -660,8 +733,6 @@ plus:
 			Strcat(bp, " (in use)");
 			break;
 		}
-		if (is_weptool(obj))
-			goto plus;
 		if (obj->otyp == CANDELABRUM_OF_INVOCATION) {
 			if (!obj->spe)
 			    Strcpy(tmpbuf, "no");
@@ -672,24 +743,44 @@ plus:
 				!obj->lamplit ? " attached" : ", lit");
 			break;
 		} else if (obj->otyp == OIL_LAMP || obj->otyp == MAGIC_LAMP ||
-			obj->otyp == BRASS_LANTERN || Is_candle(obj)) {
+			obj->otyp == BRASS_LANTERN || obj->otyp == TORCH ||
+			   Is_candle(obj)) {
 			if (Is_candle(obj) &&
+			    /* WAC - magic candles are never "partly used" */
+			    obj->otyp != MAGIC_CANDLE &&
 			    obj->age < 20L * (long)objects[obj->otyp].oc_cost)
 				Strcat(prefix, "partly used ");
 			if(obj->lamplit)
 				Strcat(bp, " (lit)");
-			break;
 		}
+		if (is_weptool(obj))
+			goto plus;
 		if(objects[obj->otyp].oc_charged)
 		    goto charges;
 		break;
+	case SPBOOK_CLASS: /* WAC spellbooks have charges now */
+#ifdef WIZARD
+		if (wizard) {
+		    if (Hallucination)
+			break;
+		    if (obj->known)
+			Sprintf(eos(bp), " (%d:%d,%d)",
+			  (int)obj->recharged, obj->spe, obj->spestudied);
+		    break;
+		} else
+#endif
+		goto charges;
 	case WAND_CLASS:
 		add_erosion_words(obj, prefix);
 charges:
+		if (Hallucination)
+			break;
 		if(obj->known)
 		    Sprintf(eos(bp), " (%d:%d)", (int)obj->recharged, obj->spe);
 		break;
 	case POTION_CLASS:
+		if (Hallucination)
+			break;
 		if (obj->otyp == POT_OIL && obj->lamplit)
 		    Strcat(bp, " (lit)");
 		break;
@@ -702,21 +793,35 @@ ring:
 		    Strcat(bp, body_part(HAND));
 		    Strcat(bp, ")");
 		}
+		if (Hallucination)
+			break;
 		if(obj->known && objects[obj->otyp].oc_charged) {
 			Strcat(prefix, sitoa(obj->spe));
 			Strcat(prefix, " ");
 		}
 		break;
 	case FOOD_CLASS:
-		if (obj->oeaten)
-		    Strcat(prefix, "partly eaten ");
-		if (obj->otyp == CORPSE) {
+		if (obj->otyp == CORPSE && obj->odrained) {
+#ifdef WIZARD
+		    if (wizard && obj->oeaten < drainlevel(obj))
+			Strcpy(tmpbuf, "over-drained ");
+		    else
+#endif
+		    Sprintf(tmpbuf, "%sdrained ",
+		      (obj->oeaten > drainlevel(obj)) ? "partly " : "");
+		}
+		else if (obj->oeaten)
+		    Strcpy(tmpbuf, "partly eaten ");
+		else
+		    tmpbuf[0] = '\0';
+		Strcat(prefix, tmpbuf);
+		if (obj->otyp == CORPSE && !Hallucination) {
 		    if (mons[obj->corpsenm].geno & G_UNIQ) {
 			Sprintf(prefix, "%s%s ",
 				(type_is_pname(&mons[obj->corpsenm]) ?
 					"" : "the "),
 				s_suffix(mons[obj->corpsenm].mname));
-			if (obj->oeaten) Strcat(prefix, "partly eaten ");
+			Strcat(prefix, tmpbuf);
 		    } else {
 			Strcat(prefix, mons[obj->corpsenm].mname);
 			Strcat(prefix, " ");
@@ -731,7 +836,9 @@ ring:
 			    mvitals[obj->corpsenm].mvflags & MV_KNOWS_EGG)) {
 			Strcat(prefix, mons[obj->corpsenm].mname);
 			Strcat(prefix, " ");
-			if (obj->spe)
+			if (obj->spe == 2)
+			    Strcat(bp, " (with your markings)");
+			else if (obj->spe)
 			    Strcat(bp, " (laid by you)");
 		    }
 		}
@@ -744,7 +851,6 @@ ring:
 			Strcat(bp, " (chained to you)");
 			break;
 	}
-
 	if((obj->owornmask & W_WEP) && !mrg_to_wielded) {
 		if (obj->quan != 1L) {
 			Strcat(bp, " (wielded)");
@@ -763,7 +869,7 @@ ring:
 			Strcat(bp, " (alternate weapon; not wielded)");
 	}
 	if(obj->owornmask & W_QUIVER) Strcat(bp, " (in quiver)");
-	if(obj->unpaid) {
+	if (!Hallucination && obj->unpaid) {
 		xchar ox, oy; 
 		long quotedprice = unpaid_cost(obj);
 		struct monst *shkp = (struct monst *)0;
@@ -776,6 +882,10 @@ ring:
 		Sprintf(eos(bp), " (unpaid, %ld %s)",
 			quotedprice, currency(quotedprice));
 	}
+#ifdef WIZARD
+	if (wizard && obj->in_use)	/* Can't use "(in use)", see leashes */
+		Strcat(bp, " (finishing)");	/* always a bug */
+#endif
 	if (!strncmp(prefix, "a ", 2) &&
 			index(vowels, *(prefix+2) ? *(prefix+2) : *bp)
 			&& (*(prefix+2) || (strncmp(bp, "uranium", 7)
@@ -785,6 +895,15 @@ ring:
 		Strcpy(prefix, "an ");
 		Strcpy(prefix+3, tmpbuf+2);
 	}
+
+#ifdef SHOW_WEIGHT
+	  /* [max] weight inventory */
+	if ((obj->otyp != BOULDER) || !throws_rocks (youmonst.data))
+	  if ((obj->otyp < LUCKSTONE) && (obj->otyp != CHEST) && (obj->otyp != LARGE_BOX) &&
+	      (obj->otyp != ICE_BOX) && (!Hallucination && flags.invweight))
+		        Sprintf (eos(bp), " {%d}", obj->owt);
+#endif
+
 	bp = strprepend(bp, prefix);
 	return(bp);
 }
@@ -836,7 +955,8 @@ boolean ignore_oquan;	/* to force singular */
 {
 	char *nambuf = nextobuf();
 
-	Sprintf(nambuf, "%s corpse", mons[otmp->corpsenm].mname);
+	Sprintf(nambuf, "%s corpse",
+		mons[Hallucination ? rndmonnum() : otmp->corpsenm].mname);
 
 	if (ignore_oquan || otmp->quan < 2)
 	    return nambuf;
@@ -885,13 +1005,33 @@ struct obj *obj;
     save_ocuname = objects[obj->otyp].oc_uname;
     objects[obj->otyp].oc_uname = 0;	/* avoid "foo called bar" */
 
-    buf = xname(obj);
+    buf = xname2(obj);
     if (obj->quan == 1L) buf = obj_is_pname(obj) ? the(buf) : an(buf);
 
     objects[obj->otyp].oc_name_known = save_ocknown;
     objects[obj->otyp].oc_uname = save_ocuname;
     *obj = save_obj;	/* restore object's core settings */
 
+    return buf;
+}
+
+char *
+killer_cxname(obj, ignore_oquan)
+struct obj *obj;
+boolean ignore_oquan;	/* to force singular */
+{
+    char *buf;
+    if (obj->otyp == CORPSE) {
+	buf = nextobuf();
+
+	Sprintf(buf, "%s%s corpse",
+		Hallucination ? "hallucinogen-distorted " : "",
+		mons[obj->corpsenm].mname);
+
+	if (!ignore_oquan && obj->quan >= 2)
+	    buf = makeplural(buf);
+    } else
+	buf = killer_xname(obj);
     return buf;
 }
 
@@ -904,16 +1044,26 @@ register struct obj *otmp;
 char *FDECL((*func), (OBJ_P));
 {
 	long savequan;
+#ifdef SHOW_WEIGHT
+	unsigned saveowt;
+#endif
 	char *nam;
 
 	/* Note: using xname for corpses will not give the monster type */
-	if (otmp->otyp == CORPSE && func == xname)
+	if (otmp->otyp == CORPSE && func == xname && !Hallucination)
 		return corpse_xname(otmp, TRUE);
 
 	savequan = otmp->quan;
 	otmp->quan = 1L;
+#ifdef SHOW_WEIGHT
+	saveowt = otmp->owt;
+	otmp->owt = weight(otmp);
+#endif
 	nam = (*func)(otmp);
 	otmp->quan = savequan;
+#ifdef SHOW_WEIGHT
+	otmp->owt = saveowt;
+#endif
 	return nam;
 }
 
@@ -1331,15 +1481,16 @@ const char *oldstr;
 	    (len >= 3 && !strcmp(spot-2, " ya")) ||
 	    (len >= 4 &&
 	     (!strcmp(spot-3, "fish") || !strcmp(spot-3, "tuna") ||
-	      !strcmp(spot-3, "deer") || !strcmp(spot-3, "yaki"))) ||
+	      !strcmp(spot-3, "deer") || !strcmp(spot-3, "yaki") ||
+	      !strcmp(spot-3, "drow"))) ||
 	    (len >= 5 && (!strcmp(spot-4, "sheep") ||
 			!strcmp(spot-4, "ninja") ||
-			!strcmp(spot-4, "ronin") ||
 			!strcmp(spot-4, "shito") ||
 			!strcmp(spot-7, "shuriken") ||
 			!strcmp(spot-4, "tengu") ||
 			!strcmp(spot-4, "manes"))) ||
-	    (len >= 6 && !strcmp(spot-5, "ki-rin")) ||
+	    (len >= 6 && (!strcmp(spot-5, "ki-rin") ||
+			!strcmp(spot-5, "Nazgul"))) ||
 	    (len >= 7 && !strcmp(spot-6, "gunyoki")))
 		goto bottom;
 
@@ -1495,10 +1646,11 @@ STATIC_DCL const struct o_range o_ranges[];
 #else /* OVLB */
 
 /* wishable subranges of objects */
+/* KMH, balance patch -- fixed */
 STATIC_OVL NEARDATA const struct o_range o_ranges[] = {
 	{ "bag",	TOOL_CLASS,   SACK,	      BAG_OF_TRICKS },
 	{ "lamp",	TOOL_CLASS,   OIL_LAMP,	      MAGIC_LAMP },
-	{ "candle",	TOOL_CLASS,   TALLOW_CANDLE,  WAX_CANDLE },
+	{ "candle",     TOOL_CLASS,   TALLOW_CANDLE,  MAGIC_CANDLE },
 	{ "horn",	TOOL_CLASS,   TOOLED_HORN,    HORN_OF_PLENTY },
 	{ "shield",	ARMOR_CLASS,  SMALL_SHIELD,   SHIELD_OF_REFLECTION },
 	{ "helm",	ARMOR_CLASS,  ELVEN_LEATHER_HELM, HELM_OF_TELEPATHY },
@@ -1514,7 +1666,16 @@ STATIC_OVL NEARDATA const struct o_range o_ranges[] = {
 			ARMOR_CLASS,  GRAY_DRAGON_SCALES, YELLOW_DRAGON_SCALES },
 	{ "dragon scale mail",
 			ARMOR_CLASS,  GRAY_DRAGON_SCALE_MAIL, YELLOW_DRAGON_SCALE_MAIL },
-	{ "sword",	WEAPON_CLASS, SHORT_SWORD,    KATANA },
+	{ "sword",      WEAPON_CLASS, ORCISH_SHORT_SWORD,    TSURUGI },
+	{ "polearm",    WEAPON_CLASS, PARTISAN, LANCE },
+#ifdef LIGHTSABERS
+	{ "lightsaber", WEAPON_CLASS, GREEN_LIGHTSABER, RED_DOUBLE_LIGHTSABER },
+#endif
+#ifdef FIREARMS
+	{ "firearm", 	WEAPON_CLASS, PISTOL, AUTO_SHOTGUN },
+	{ "gun", 	WEAPON_CLASS, PISTOL, AUTO_SHOTGUN },
+	{ "grenade", 	WEAPON_CLASS, FRAG_GRENADE, GAS_GRENADE },
+#endif
 #ifdef WIZARD
 	{ "venom",	VENOM_CLASS,  BLINDING_VENOM, ACID_VENOM },
 #endif
@@ -1531,6 +1692,8 @@ STATIC_OVL NEARDATA const struct o_range o_ranges[] = {
  * Singularize a string the user typed in; this helps reduce the complexity
  * of readobjnam, and is also used in pager.c to singularize the string
  * for which help is sought.
+ * WAC made most of the STRCMP ==> STRCMPI so that they are case insensitive
+ * catching things like "bag of Tricks"
  */
 char *
 makesingular(oldstr)
@@ -1563,19 +1726,19 @@ const char *oldstr;
 	if (p >= bp+1 && p[-1] == 's') {
 		if (p >= bp+2 && p[-2] == 'e') {
 			if (p >= bp+3 && p[-3] == 'i') {
-				if(!BSTRCMP(bp, p-7, "cookies") ||
-				   !BSTRCMP(bp, p-4, "pies"))
+				if(!BSTRCMPI(bp, p-7, "cookies") ||
+				   !BSTRCMPI(bp, p-4, "pies"))
 					goto mins;
 				Strcpy(p-3, "y");
 				return bp;
 			}
 
 			/* note: cloves / knives from clove / knife */
-			if(!BSTRCMP(bp, p-6, "knives")) {
+			if(!BSTRCMPI(bp, p-6, "knives")) {
 				Strcpy(p-3, "fe");
 				return bp;
 			}
-			if(!BSTRCMP(bp, p-6, "staves")) {
+			if(!BSTRCMPI(bp, p-6, "staves")) {
 				Strcpy(p-3, "ff");
 				return bp;
 			}
@@ -1590,25 +1753,31 @@ const char *oldstr;
 
 			/* note: nurses, axes but boxes */
 			if (!BSTRCMP(bp, p-5, "boxes") ||
-			    !BSTRCMP(bp, p-4, "ches")) {
-				p[-2] = '\0';
+			    !BSTRCMP(bp, p-4, "ches") ) {
+				p[-2] = 0;
 				return bp;
 			}
 
-			if (!BSTRCMP(bp, p-6, "gloves") ||
+			if (!BSTRCMPI(bp, p-6, "gloves") ||
 			    !BSTRCMP(bp, p-6, "lenses") ||
-			    !BSTRCMP(bp, p-5, "shoes") ||
-			    !BSTRCMP(bp, p-6, "scales"))
+                            !BSTRCMPI(bp, p-5, "shoes") ||
+                            !BSTRCMPI(bp, p-6, "scales"))
 				return bp;
 
-		} else if (!BSTRCMP(bp, p-5, "boots") ||
+		} else if (!BSTRCMPI(bp, p-5, "boots") ||
 			   !BSTRCMP(bp, p-9, "gauntlets") ||
-			   !BSTRCMP(bp, p-6, "tricks") ||
-			   !BSTRCMP(bp, p-9, "paralysis") ||
-			   !BSTRCMP(bp, p-5, "glass") ||
-			   !BSTRCMP(bp, p-4, "ness") ||
-			   !BSTRCMP(bp, p-14, "shape changers") ||
-			   !BSTRCMP(bp, p-15, "detect monsters") ||
+                           !BSTRCMPI(bp, p-6, "tricks") ||
+                           !BSTRCMPI(bp, p-9, "paralysis") ||
+                           !BSTRCMPI(bp, p-5, "glass") ||
+                           !BSTRCMPI(bp, p-4, "ness") ||
+                           !BSTRCMPI(bp, p-14, "shape changers") ||
+                           !BSTRCMPI(bp, p-15, "detect monsters") ||
+                           !BSTRCMPI(bp, p-21, "Medallion of Shifters") ||
+                                /* WAC added */
+                           !BSTRCMPI(bp, p-12, "Key of Chaos") ||
+#ifdef WALLET_O_P
+                           !BSTRCMPI(bp, p-7, "Perseus") || /* WAC added */
+#endif
 			   !BSTRCMPI(bp, p-11, "Aesculapius") || /* staff */
 			   !BSTRCMP(bp, p-10, "eucalyptus") ||
 #ifdef WIZARD
@@ -1618,11 +1787,11 @@ const char *oldstr;
 			   !BSTRCMP(bp, p-6, "fungus"))
 				return bp;
 	mins:
-		p[-1] = '\0';
+		p[-1] = 0;
 
 	} else {
 
-		if(!BSTRCMP(bp, p-5, "teeth")) {
+                if(!BSTRCMPI(bp, p-5, "teeth")) {
 			Strcpy(p-5, "tooth");
 			return bp;
 		}
@@ -1726,15 +1895,82 @@ struct alt_spellings {
 	{ "mattock", DWARVISH_MATTOCK },
 	{ "amulet of poison resistance", AMULET_VERSUS_POISON },
 	{ "stone", ROCK },
-#ifdef TOURIST
-	{ "camera", EXPENSIVE_CAMERA },
-	{ "tee shirt", T_SHIRT },
-#endif
 	{ "can", TIN },
 	{ "can opener", TIN_OPENER },
 	{ "kelp", KELP_FROND },
 	{ "eucalyptus", EUCALYPTUS_LEAF },
 	{ "grapple", GRAPPLING_HOOK },
+	/* KMH, balance patch -- new items */
+	{ "amulet versus stoning", AMULET_VERSUS_STONE },
+	{ "amulet of stone resistance", AMULET_VERSUS_STONE },
+	{ "health stone", HEALTHSTONE },
+#ifdef FIREARMS
+	{ "handgun", PISTOL },
+	{ "hand gun", PISTOL },
+	{ "revolver", PISTOL },
+	{ "bazooka", ROCKET_LAUNCHER },
+	{ "hand grenade", FRAG_GRENADE },
+	{ "dynamite", STICK_OF_DYNAMITE },
+#endif
+#ifdef ZOUTHERN
+	{ "kiwifruit", APPLE },
+	{ "kiwi fruit", APPLE },
+	{ "kiwi", APPLE }, /* Actually refers to the bird */
+#endif
+#ifdef WIZARD
+/* KMH, balance patch -- How lazy are we going to let the players get? */
+/* WAC Added Abbreviations */
+/* Tools */
+    { "BoH", BAG_OF_HOLDING },
+    { "BoO", BELL_OF_OPENING },
+    { "ML", MAGIC_LAMP },
+    { "MM", MAGIC_MARKER },
+    { "UH", UNICORN_HORN },
+/* Rings */
+    { "RoC", RIN_CONFLICT },
+    { "RoPC", RIN_POLYMORPH_CONTROL },
+    { "RoTC", RIN_TELEPORT_CONTROL },
+/* Scrolls */
+    { "SoC", SCR_CHARGING },
+    { "SoEA", SCR_ENCHANT_ARMOR },
+    { "SoEW", SCR_ENCHANT_WEAPON },
+    { "SoG", SCR_GENOCIDE },
+    { "SoI", SCR_IDENTIFY },
+    { "SoRC", SCR_REMOVE_CURSE },
+/* Potions */
+    { "PoEH",  POT_EXTRA_HEALING},
+    { "PoGL",  POT_GAIN_LEVEL},
+    { "PoW",  POT_WATER},
+/* Amulet */
+    { "AoESP",  AMULET_OF_ESP},
+    { "AoLS",  AMULET_OF_LIFE_SAVING},
+    { "AoY",  AMULET_OF_YENDOR},
+/* Wands */
+    { "WoW",  WAN_WISHING},
+    { "WoCM",  WAN_CREATE_MONSTER},
+    { "WoT",  WAN_TELEPORTATION},
+    { "WoUT",  WAN_UNDEAD_TURNING},
+/* Armour */
+    { "BoL",  LEVITATION_BOOTS},
+    { "BoS",  SPEED_BOOTS},
+    { "SB",  SPEED_BOOTS},
+    { "BoWW",  WATER_WALKING_BOOTS},
+    { "WWB",  WATER_WALKING_BOOTS},
+    { "CoD",  CLOAK_OF_DISPLACEMENT},
+    { "CoI",  CLOAK_OF_INVISIBILITY},
+    { "CoMR",  CLOAK_OF_MAGIC_RESISTANCE},
+    { "GoD",  GAUNTLETS_OF_DEXTERITY},
+    { "GoP",  GAUNTLETS_OF_POWER},
+    { "HoB",  HELM_OF_BRILLIANCE},
+    { "HoOA",  HELM_OF_OPPOSITE_ALIGNMENT},
+    { "HoT",  HELM_OF_TELEPATHY},
+    { "SoR",  SHIELD_OF_REFLECTION},
+#endif
+#ifdef TOURIST
+	{ "camera", EXPENSIVE_CAMERA },
+	{ "T shirt", T_SHIRT },
+	{ "tee shirt", T_SHIRT },
+#endif
 	{ (const char *)0, 0 },
 };
 
@@ -1756,12 +1992,12 @@ boolean from_user;
 	register int i;
 	register struct obj *otmp;
 	int cnt, spe, spesgn, typ, very, rechrg;
-	int blessed, uncursed, iscursed, ispoisoned, isgreased;
+	int blessed, uncursed, iscursed, ispoisoned, isgreased, isdrained;
 	int eroded, eroded2, erodeproof;
 #ifdef INVISIBLE_OBJECTS
 	int isinvisible;
 #endif
-	int halfeaten, mntmp, contents;
+	int halfeaten, halfdrained, mntmp, contents;
 	int islit, unlabeled, ishistoric, isdiluted;
 	struct fruit *f;
 	int ftype = current_fruit;
@@ -1785,8 +2021,9 @@ boolean from_user;
 	char *un, *dn, *actualn;
 	const char *name=0;
 
+
 	cnt = spe = spesgn = typ = very = rechrg =
-		blessed = uncursed = iscursed =
+		blessed = uncursed = iscursed = isdrained = halfdrained =
 #ifdef INVISIBLE_OBJECTS
 		isinvisible =
 #endif
@@ -1830,8 +2067,11 @@ boolean from_user;
 			while(digit(*bp)) bp++;
 			while(*bp == ' ') bp++;
 			l = 0;
-		} else if (!strncmpi(bp, "blessed ", l=8) ||
-			   !strncmpi(bp, "holy ", l=5)) {
+		} else if (!strncmpi(bp, "blessed ", l=8)
+/*WAC removed this.  Holy is in some artifact weapon names
+                || !strncmpi(bp, "holy ", l=5)
+*/
+                           ) {
 			blessed = 1;
 		} else if (!strncmpi(bp, "cursed ", l=7) ||
 			   !strncmpi(bp, "unholy ", l=7)) {
@@ -1839,6 +2079,8 @@ boolean from_user;
 		} else if (!strncmpi(bp, "uncursed ", l=9)) {
 			uncursed = 1;
 #ifdef INVISIBLE_OBJECTS
+		} else if (!strncmpi(bp, "visible ", l=8)) {
+			isinvisible = -1;
 		} else if (!strncmpi(bp, "invisible ", l=10)) {
 			isinvisible = 1;
 #endif
@@ -1883,6 +2125,12 @@ boolean from_user;
 			   !strncmpi(bp, "rotted ", l=7)) {
 			eroded2 = 1 + very;
 			very = 0;
+		} else if (!strncmpi(bp, "partly drained ", l=15)) {
+			isdrained = 1;
+			halfdrained = 1;
+		} else if (!strncmpi(bp, "drained ", l=8)) {
+			isdrained = 1;
+			halfdrained = 0;
 		} else if (!strncmpi(bp, "partly eaten ", l=13)) {
 			halfeaten = 1;
 		} else if (!strncmpi(bp, "historic ", l=9)) {
@@ -1904,7 +2152,7 @@ boolean from_user;
 		    islit = 1;
 		} else {
 		    spe = atoi(p);
-		    while (digit(*p)) p++;
+		    while(digit(*p)) p++;
 		    if (*p == ':') {
 			p++;
 			rechrg = spe;
@@ -2000,20 +2248,34 @@ boolean from_user;
 	 * Find corpse type using "of" (figurine of an orc, tin of orc meat)
 	 * Don't check if it's a wand or spellbook.
 	 * (avoid "wand/finger of death" confusion).
+	 * (WAC avoid "hand/eye of vecna", "wallet of perseus" 
+	 *  "medallion of shifters", "stake of van helsing" similarly
+	 *  ALI "potion of vampire blood" also).
 	 */
 	if (!strstri(bp, "wand ")
 	 && !strstri(bp, "spellbook ")
+         && !strstri(bp, "hand ")
+         && !strstri(bp, "eye ")
+         && !strstri(bp, "medallion ")
+         && !strstri(bp, "stake ")
+         && !strstri(bp, "potion ")
+         && !strstri(bp, "potions ")
 	 && !strstri(bp, "finger ")) {
 	    if ((p = strstri(bp, " of ")) != 0
 		&& (mntmp = name_to_mon(p+4)) >= LOW_PM)
 		*p = 0;
 	}
+
 	/* Find corpse type w/o "of" (red dragon scale mail, yeti corpse) */
 	if (strncmpi(bp, "samurai sword", 13)) /* not the "samurai" monster! */
 	if (strncmpi(bp, "wizard lock", 11)) /* not the "wizard" monster! */
 	if (strncmpi(bp, "ninja-to", 8)) /* not the "ninja" rank */
 	if (strncmpi(bp, "master key", 10)) /* not the "master" rank */
 	if (strncmpi(bp, "magenta", 7)) /* not the "mage" rank */
+        if (strncmpi(bp, "Thiefbane", 9)) /* not the "thief" rank */
+        if (strncmpi(bp, "Ogresmasher", 11)) /* not the "ogre" monster */
+        if (strncmpi(bp, "Bat from Hell", 13)) /* not the "bat" monster */
+        if (strncmpi(bp, "vampire blood", 13)) /* not the "vampire" monster */
 	if (mntmp < LOW_PM && strlen(bp) > 2 &&
 	    (mntmp = name_to_mon(bp)) >= LOW_PM) {
 		int mntmptoo, mntmplen;	/* double check for rank title */
@@ -2043,7 +2305,7 @@ boolean from_user;
     {
 	struct alt_spellings *as = spellings;
 
-	while (as->sp) {
+		while(as->sp) {
 		if (fuzzymatch(bp, as->sp, " -", TRUE)) {
 			typ = as->ob;
 			goto typfnd;
@@ -2122,6 +2384,7 @@ boolean from_user;
 
 	/* Search for class names: XXXXX potion, scroll of XXXXX.  Avoid */
 	/* false hits on, e.g., rings for "ring mail". */
+    /* false hits on "GrayWAND", "Staff of WitheRING"  -- WAC */
 	if(strncmpi(bp, "enchant ", 8) &&
 	   strncmpi(bp, "destroy ", 8) &&
 	   strncmpi(bp, "food detection", 14) &&
@@ -2129,6 +2392,9 @@ boolean from_user;
 	   strncmpi(bp, "studded leather arm", 19) &&
 	   strncmpi(bp, "leather arm", 11) &&
 	   strncmpi(bp, "tooled horn", 11) &&
+       strncmpi(bp, "graywand", 8) &&
+       strncmpi(bp, "staff of withering", 18) &&
+       strncmpi(bp, "one ring", 8) &&
 	   strncmpi(bp, "food ration", 11) &&
 	   strncmpi(bp, "meat ring", 9)
 	)
@@ -2338,11 +2604,31 @@ srch:
 			newsym(u.ux, u.uy);
 			return(&zeroobj);
 		}
+		if(!BSTRCMP(bp, p-9, "headstone") || !BSTRCMP(bp, p-5, "grave")) {
+			levl[u.ux][u.uy].typ = GRAVE;
+			make_grave(u.ux, u.uy, (char *) 0);
+			pline("A grave.");
+			newsym(u.ux, u.uy);
+			return(&zeroobj);
+		}
+		if(!BSTRCMP(bp, p-4, "tree")) {
+			levl[u.ux][u.uy].typ = TREE;
+			pline("A tree.");
+			newsym(u.ux, u.uy);
+			return &zeroobj;
+		}
 # ifdef SINKS
 		if(!BSTRCMP(bp, p-4, "sink")) {
 			levl[u.ux][u.uy].typ = SINK;
 			level.flags.nsinks++;
 			pline("A sink.");
+			newsym(u.ux, u.uy);
+			return &zeroobj;
+		}
+		if(!BSTRCMP(bp, p-6, "toilet")) {
+			levl[u.ux][u.uy].typ = TOILET;
+			level.flags.nsinks++;
+			pline("A toilet.");
 			newsym(u.ux, u.uy);
 			return &zeroobj;
 		}
@@ -2462,7 +2748,8 @@ typfnd:
 	}
 
 	if (islit &&
-		(typ == OIL_LAMP || typ == MAGIC_LAMP || typ == BRASS_LANTERN ||
+		(typ == OIL_LAMP || typ == MAGIC_LAMP || 
+		 typ == BRASS_LANTERN || typ == TORCH || 
 		 Is_candle(otmp) || typ == POT_OIL)) {
 	    place_object(otmp, u.ux, u.uy);  /* make it viable light source */
 	    begin_burn(otmp, FALSE);
@@ -2470,6 +2757,7 @@ typfnd:
 	}
 
 	if(cnt > 0 && objects[typ].oc_merge && oclass != SPBOOK_CLASS &&
+		(typ != CORPSE || !is_reviver(&mons[mntmp])) &&
 		(cnt < rnd(6) ||
 #ifdef WIZARD
 		wizard ||
@@ -2552,8 +2840,16 @@ typfnd:
 			}
 			break;
 		case CORPSE:
-			if (!(mons[mntmp].geno & G_UNIQ) &&
-				   !(mvitals[mntmp].mvflags & G_NOCORPSE)) {
+                        if
+# ifdef WIZARD
+                                ((wizard) ||
+# endif /* WIZARD */
+                                (!(mons[mntmp].geno & G_UNIQ) &&
+                                !(mvitals[mntmp].mvflags & G_NOCORPSE))
+# ifdef WIZARD
+                                )
+# endif /* WIZARD */
+                                {
 			    /* beware of random troll or lizard corpse,
 			       or of ordinary one being forced to such */
 			    if (otmp->timed) obj_stop_timers(otmp);
@@ -2565,12 +2861,19 @@ typfnd:
 			}
 			break;
 		case FIGURINE:
-			if (!(mons[mntmp].geno & G_UNIQ)
+                        if
+# ifdef WIZARD
+                                ((wizard) ||
+# endif /* WIZARD */
+                                ((!(mons[mntmp].geno & G_UNIQ)
 			    && !is_human(&mons[mntmp])
+# ifdef WIZARD
+                                )
+# endif /* WIZARD */
 #ifdef MAIL
 			    && mntmp != PM_MAIL_DAEMON
 #endif
-							)
+							))
 				otmp->corpsenm = mntmp;
 			break;
 		case EGG:
@@ -2627,7 +2930,8 @@ typfnd:
 	}
 
 #ifdef INVISIBLE_OBJECTS
-	if (isinvisible) otmp->oinvis = 1;
+	if (isinvisible)
+	    otmp->oinvis = isinvisible > 0 && !always_visible(otmp);
 #endif
 
 	/* set eroded */
@@ -2677,12 +2981,26 @@ typfnd:
 	if (name) {
 		const char *aname;
 		short objtyp;
+		char nname[256];
+		strcpy(nname,name);
 
 		/* an artifact name might need capitalization fixing */
 		aname = artifact_name(name, &objtyp);
 		if (aname && objtyp == otmp->otyp) name = aname;
 
-		otmp = oname(otmp, name);
+# ifdef NOARTIFACTWISH
+		/* Tom -- not always getting what you're wishing for... */                
+		if (restrict_name(otmp, nname) && !rn2(3) && !wizard) {
+		    int n = rn2((int)strlen(nname));
+		    register char c1, c2;
+		    c1 = lowc(nname[n]);
+		    do c2 = 'a' + rn2('z'-'a'); while (c1 == c2);
+		    nname[n] = (nname[n] == c1) ? c2 : highc(c2);  /* keep same case */
+		}
+# endif
+		place_object(otmp, u.ux, u.uy);/* make it viable light source */
+		otmp = oname(otmp, nname);
+		obj_extract_self(otmp);	 /* now release it for caller's use */
 		if (otmp->oartifact) {
 			otmp->quan = 1L;
 			u.uconduct.wisharti++;	/* KMH, conduct */
@@ -2692,12 +3010,39 @@ typfnd:
 	/* more wishing abuse: don't allow wishing for certain artifacts */
 	/* and make them pay; charge them for the wish anyway! */
 	if ((is_quest_artifact(otmp) ||
+	    /* [ALI] Can't wish for artifacts which have a set location */
+	    (otmp->oartifact &&
+	       (otmp->oartifact == ART_KEY_OF_CHAOS ||
+	        otmp->oartifact == ART_KEY_OF_NEUTRALITY ||
+	        otmp->oartifact == ART_KEY_OF_LAW ||
+	        otmp->oartifact == ART_HAND_OF_VECNA ||
+	        otmp->oartifact == ART_EYE_OF_THE_BEHOLDER ||
+	        otmp->oartifact == ART_NIGHTHORN ||
+	        otmp->oartifact == ART_THIEFBANE)) ||
+# ifdef NOARTIFACTWISH
+/* Wishing for a "weak" artifact is easier than for a stronger one */
+	(otmp->oartifact &&
+	       (otmp->oartifact != ART_STING &&
+		otmp->oartifact != ART_ELFRIST &&
+		otmp->oartifact != ART_ORCRIST &&
+		otmp->oartifact != ART_WEREBANE &&
+		otmp->oartifact != ART_GRIMTOOTH &&
+		otmp->oartifact != ART_DISRUPTER &&
+		otmp->oartifact != ART_DEMONBANE &&
+		otmp->oartifact != ART_DRAGONBANE &&
+		otmp->oartifact != ART_TROLLSBANE &&
+		otmp->oartifact != ART_GIANTKILLER &&
+		otmp->oartifact != ART_OGRESMASHER &&
+		otmp->oartifact != ART_SWORD_OF_BALANCE)) ||
+# endif
 	     (otmp->oartifact && rn2(nartifact_exist()) > 1))
 #ifdef WIZARD
 	    && !wizard
 #endif
 	    ) {
 	    artifact_exists(otmp, ONAME(otmp), FALSE);
+	    if (Has_contents(otmp))
+		delete_contents(otmp);
 	    obfree(otmp, (struct obj *) 0);
 	    otmp = &zeroobj;
 	    pline("For a moment, you feel %s in your %s, but it disappears!",
@@ -2711,6 +3056,18 @@ typfnd:
 		else otmp->oeaten = objects[otmp->otyp].oc_nutrition;
 		/* (do this adjustment before setting up object's weight) */
 		consume_oeaten(otmp, 1);
+	}
+	if (isdrained && otmp->otyp == CORPSE && mons[otmp->corpsenm].cnutrit) {
+		int amt;
+		otmp->odrained = 1;
+		amt = mons[otmp->corpsenm].cnutrit - drainlevel(otmp);
+		if (halfdrained) {
+		    amt /= 2;
+		    if (amt == 0)
+			amt++;
+		}
+		/* (do this adjustment before setting up object's weight) */
+		consume_oeaten(otmp, -amt);
 	}
 	otmp->owt = weight(otmp);
 	if (very && otmp->otyp == HEAVY_IRON_BALL) otmp->owt += 160;
@@ -2761,9 +3118,13 @@ struct obj *cloak;
 	    return "robe";
 	case MUMMY_WRAPPING:
 	    return "wrapping";
+	case LAB_COAT:
+	    return "coat";
+#ifdef ALCHEMY_SMOCK
 	case ALCHEMY_SMOCK:
 	    return (objects[cloak->otyp].oc_name_known &&
 			cloak->dknown) ? "smock" : "apron";
+#endif
 	default:
 	    break;
 	}

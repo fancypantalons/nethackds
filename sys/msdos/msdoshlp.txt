@@ -166,12 +166,14 @@ to pressing a # key sequence:
 
 Alt-2    twoweapon      - toggle two-weapon combat
 Alt-a    adjust         - adjust inventory letters.
+Alt-b    bereave        - steal
 Alt-c    chat           - talk to someone or something.
 Alt-d    dip            - dip an object into something.
-Alt-e    enhance        - enhance your skill with a weapon.
+Alt-e    effect         - special class ability
 Alt-f    force          - force a lock.
 Alt-i    invoke         - invoke an object's powers.
 Alt-j    jump           - jump to a location.
+Alt-k    enhance        - advance skills
 Alt-l    loot           - loot a box on the floor.
 Alt-m    monster        - use a monster's special ability.
 Alt-n    name           - name an item or type of object.
@@ -182,6 +184,7 @@ Alt-r    rub            - rub a lamp.
 Alt-s    sit            - sit down.
 Alt-t    turn           - turn undead.
 Alt-u    untrap         - untrap something.
+Alt-y    youpoly        - polymorph yourself
 Alt-v    version        - list compile time options for this version of NetHack.
 Alt-w    wipe           - wipe off your face.
 

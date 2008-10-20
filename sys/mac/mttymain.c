@@ -283,7 +283,7 @@ int ret = 0;
 			sleepTime = 0;
 		}
 		ret = GetFromKeyQueue ();
-		if (ret == CHAR_CR) ret = CHAR_LF;
+		if (ret == '\r') ret = '\n';
 	}
 	return ret;
 }
@@ -299,7 +299,7 @@ getreturn (char *str) {
 
 int
 has_color (int color) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(color)
 #endif
 	Rect r;
@@ -367,7 +367,7 @@ short err;
 
 void
 term_end_attr (int attr) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused (attr)
 #endif
 	_mt_set_colors (_mt_attrs [0]);
@@ -535,7 +535,7 @@ settty (const char *str)
 
 void
 tty_number_pad (int arg) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(arg)
 #endif
 }

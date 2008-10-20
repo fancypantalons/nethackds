@@ -55,6 +55,7 @@ extern "C" {
 #include "hack.h"
 #include "func_tab.h"
 #include "dlb.h"
+#include "date.h"
 #include "patchlevel.h"
 #include "tile2x11.h"
 #undef Invisible
@@ -136,29 +137,28 @@ extern "C" void play_sound_for_message(const char* str);
 // Warwick prefers it this way...
 #define QT_CHOOSE_RACE_FIRST
 
-static const char nh_attribution[] = "<center><big>NetHack</big>"
-	"<br><small>by the NetHack DevTeam</small></center>";
+static const char nh_attribution[] = "<center><big>" DEF_GAME_NAME "</big>"
+      "<br><small>by the " DEF_GAME_NAME " DevTeam</small></center>";
 
 static QString
 aboutMsg()
 {
     QString msg;
     msg.sprintf(
-    "Qt NetHack is a version of NetHack built\n"
+    "Qt " DEF_GAME_NAME " is a version of " DEF_GAME_NAME " built\n"
 #ifdef KDE
     "using KDE and the Qt GUI toolkit.\n"
 #else
     "using the Qt GUI toolkit.\n"
 #endif
-    "This is version %d.%d.%d\n\n"
-    "Homepage:\n     http://trolls.troll.no/warwick/nethack/\n\n"
+    "This is version " VERSION_STRING "\n\n"
+    "Homepage:\n     http://avrc.city.ac.uk/slashem.html\n\n"
+    "Qt NetHack:\n     http://trolls.troll.no/warwick/nethack\n"
 #ifdef KDE
 	  "KDE:\n     http://www.kde.org\n"
 #endif
-	  "Qt:\n     http://www.troll.no",
-	VERSION_MAJOR,
-	VERSION_MINOR,
-	PATCHLEVEL);
+	  "Qt:\n     http://www.troll.no\n"
+    "Slash'EM:\n     http://www.slashem.org/");
     return msg;
 }
 
@@ -202,6 +202,8 @@ extern const char *enc_stat[]; /* from botl.c */
 extern const char *hu_stat[]; /* from eat.c */
 extern const char *killed_by_prefix[];
 extern int total_tiles_used; // from tile.c
+extern int tiles_per_row; // from tile.c
+extern int tiles_per_col; // from tile.c
 extern short glyph2tile[]; // from tile.c
 }
 
@@ -218,8 +220,8 @@ static const char * nh_icon[] = {
 " 	s None c none",
 ".	c #ffffff",
 "X	c #dadab6",
-"o	c #6c91b6",
-"O	c #476c6c",
+"o	c #916cb6",
+"O	c #6c476c",
 "+	c #000000",
 "                                        ",
 "                                        ",
@@ -757,6 +759,16 @@ const QFont& NetHackQtSettings::largeFont()
 bool NetHackQtSettings::ynInMessages()
 {
     return !qt_compact_mode;
+}
+
+// Check to see if tile set has changed and update tiles if necessary.  --ALI
+void NetHackQtSettings::updateTiles()
+{
+    if (strcmp(theglyphs->tileSet(),tileset)) {
+	delete theglyphs;
+	theglyphs=new NetHackQtGlyphs();
+	resizeTiles();
+    }
 }
 
 
@@ -1559,6 +1571,11 @@ void NetHackQtMapWindow::Clear()
 {
     unsigned short stone=cmap_to_glyph(S_stone);
 
+    /*
+     * Tile set may have changed if tileset option changed via doset().  --ALI
+     */
+    qt_settings->updateTiles();
+
     for (int j=0; j<ROWNO; j++) {
 	for (int i=0; i<COLNO; i++) {
 	    Glyph(i,j)=stone;
@@ -2174,11 +2191,19 @@ void NetHackQtLabelledIcon::setAlignments()
 static void
 tryload(QPixmap& pm, const char* fn)
 {
-    if (!pm.load(fn)) {
+#ifndef FILE_AREAS
+    const char *filename = fn;
+#else
+    char *filename = make_file_name(FILE_AREA_SHARE, fn);
+#endif
+    if (!pm.load(filename)) {
 	QString msg;
 	msg.sprintf("Cannot load \"%s\"", fn);
 	QMessageBox::warning(qApp->mainWidget(), "IO Error", msg);
     }
+#ifdef FILE_AREAS
+    free(filename);
+#endif
 }
 
 NetHackQtStatusWindow::NetHackQtStatusWindow() :
@@ -2203,6 +2228,7 @@ NetHackQtStatusWindow::NetHackQtStatusWindow() :
     align(this,"Alignment"),
     time(this,"Time"),
     score(this,"Score"),
+    weight(this,"Weight"),
     hunger(this,""),
     confused(this,"Confused"),
     sick_fp(this,"Sick"),
@@ -2296,6 +2322,7 @@ void NetHackQtStatusWindow::doUpdate()
     align.setFont(normal);
     time.setFont(normal);
     score.setFont(normal);
+    weight.setFont(normal);
     hunger.setFont(normal);
     confused.setFont(normal);
     sick_fp.setFont(normal);
@@ -2334,7 +2361,7 @@ void NetHackQtStatusWindow::resizeEvent(QResizeEvent*)
     const float SP_hln1=0.02; // ---
     const float SP_atr2=0.09; //  Au    HP    PW    AC    LVL   EXP
     const float SP_hln2=0.02; // ---
-    const float SP_time=0.09; //      time    score
+    const float SP_time=0.09; //      time    score    weight
     const float SP_hln3=0.02; // ---
     const float SP_stat=0.25; // Alignment, Poisoned, Hungry, Sick, etc.
 
@@ -2379,9 +2406,10 @@ void NetHackQtStatusWindow::resizeEvent(QResizeEvent*)
     hline3.setGeometry(0,y,width(),lh); y+=lh;
 
     lh=int(h*SP_time);
-    iw=width()/3; x+=iw/2;
+    iw=width()/4; x+=iw/2;
     time.setGeometry(x,y,iw,lh); x+=iw;
     score.setGeometry(x,y,iw,lh); x+=iw;
+    weight.setGeometry(x,y,iw,lh); x+=iw;
     x=0; y+=lh;
 
     lh=int(h*SP_stat);
@@ -2430,6 +2458,7 @@ void NetHackQtStatusWindow::fadeHighlighting()
 
     time.dissipateHighlight();
     score.dissipateHighlight();
+    weight.dissipateHighlight();
 
     hunger.dissipateHighlight();
     confused.dissipateHighlight();
@@ -2451,7 +2480,7 @@ void NetHackQtStatusWindow::fadeHighlighting()
  *
  * Information on the second line:
  *    dlvl, gold, hp, power, ac, {level & exp or HD **}
- *    status (hunger, conf, halu, stun, sick, blind), time, encumbrance
+ *    status (hunger, conf, halu, stun, sick, blind), time, weight, encumbrance
  *
  * [**] HD is shown instead of level and exp if mtimedone is non-zero.
  */
@@ -2536,7 +2565,7 @@ void NetHackQtStatusWindow::updateStats()
     }
     name.setLabel(buf,NetHackQtLabelledIcon::NoNum,u.ulevel);
 
-    if (describe_level(buf)) {
+    if (describe_level(buf, FALSE)) {
 	dlevel.setLabel(buf,(bool)TRUE);
     } else {
 	Sprintf(buf, "%s, level ", dungeons[u.uz.dnum].dname);
@@ -2593,6 +2622,15 @@ void NetHackQtStatusWindow::updateStats()
     {
 	score.setLabel("");
     }
+#ifdef SHOW_WEIGHT
+    if (::flags.showweight) {
+	Sprintf(buf, "/%ld", (long)weight_cap());
+	weight.setLabel("Weight:",(long)(inv_weight()+weight_cap()),buf);
+    } else
+#endif
+    {
+	weight.setLabel("");
+    }
 
     if (first_set)
     {
@@ -2618,6 +2656,7 @@ void NetHackQtStatusWindow::updateStats()
 
 	//time.highlightWhenChanging();
 	score.highlightWhenChanging();
+	weight.highlightWhenChanging();
 
 	hunger.highlightWhenChanging();
 	confused.highlightWhenChanging();
@@ -3547,7 +3586,7 @@ NetHackQtMainWindow::NetHackQtMainWindow(NetHackQtKeyBuffer& ks) :
     addToolBar(toolbar);
     menubar = menuBar();
 
-    setCaption("Qt NetHack");
+    setCaption("Qt " DEF_GAME_NAME);
     if ( qt_compact_mode )
 	setIcon(QPixmap(nh_icon_small));
     else
@@ -3624,6 +3663,7 @@ NetHackQtMainWindow::NetHackQtMainWindow(NetHackQtKeyBuffer& ks) :
 	{ act2,	"Ride\t#ri",            "#ri", 3},
 	{ act2,	"Search\ts",            "s", 3},
 	{ act2,	"Sit\tAlt+S",             "\363", 3},
+	{ act2,	"Steal\tAlt+B",             "\342", 3},
 	{ act2,	"Throw\tt",             "t", 2},
 	{ act2,	"Untrap\t#u",             "#u", 3},
 	{ act2,	"Up\t<",                "<", 3},
@@ -3641,8 +3681,10 @@ NetHackQtMainWindow::NetHackQtMainWindow(NetHackQtKeyBuffer& ks) :
 	{ magic,	"Pray\tAlt+P",            "\360", 3},
 	{ magic,	0, 0, 3},
 	{ magic,	"Teleport\tCtrl+T",        "\024", 3},
+	{ magic,	"Poly self\tAlt+Y",        "\371", 3},
 	{ magic,	"Monster action\tAlt+M",  "\355", 3},
-	{ magic,	"Turn undead\tAlt+T",     "\364", 3},
+	{ magic,	"Technique\tAlt+T",       "\364", 3},
+	{ magic,	"Turn undead\t#tu",       "#tu", 3},
 
 	{ help,		"Help\t?",              "?", 3},
 	{ help,		0, 0, 3},
@@ -3652,7 +3694,7 @@ NetHackQtMainWindow::NetHackQtMainWindow(NetHackQtKeyBuffer& ks) :
 	{ help,		0, 0, 1},
 
 	{ info,		"Inventory\ti",         "i", 3},
-#ifdef SLASHEM
+#if 0
 	{ info,		"Angbandish inventory\t*",    "*", 3},
 #endif
 	{ info,		"Conduct\t#co",         "#co", 3},
@@ -3677,8 +3719,8 @@ NetHackQtMainWindow::NetHackQtMainWindow(NetHackQtKeyBuffer& ks) :
     macro=new const char* [count];
 
     game->insertItem("Qt settings...",1000);
-    help->insertItem("About Qt NetHack...",2000);
-    //help->insertItem("NetHack Guidebook...",3000);
+    help->insertItem("About Qt " DEF_GAME_NAME "...",2000);
+    //help->insertItem(DEF_GAME_NAME " Guidebook...",3000);
     help->insertSeparator();
 
     count=0;
@@ -3851,7 +3893,7 @@ void NetHackQtMainWindow::doMenuItem(int id)
 	qt_settings->show();
 	break;
       case 2000:
-	QMessageBox::about(this,  "About Qt NetHack", aboutMsg());
+	QMessageBox::about(this,  "About Qt " DEF_GAME_NAME, aboutMsg());
 	break;
       case 3000: {
 	    QDialog dlg(this,0,TRUE);
@@ -4031,8 +4073,8 @@ void NetHackQtMainWindow::keyPressEvent(QKeyEvent* event)
 void NetHackQtMainWindow::closeEvent(QCloseEvent* e)
 {
     if ( program_state.something_worth_saving ) {
-	switch ( QMessageBox::information( this, "NetHack",
-	    "This will end your NetHack session",
+	switch ( QMessageBox::information( this, DEF_GAME_NAME,
+	    "This will end your " DEF_GAME_NAME " session",
 	    "&Save", "&Cancel", 0, 1 ) )
 	{
 	    case 0:
@@ -4080,7 +4122,7 @@ NetHackQtYnDialog::NetHackQtYnDialog(NetHackQtKeyBuffer& keysrc,const char* q,co
     question(q), choices(ch), def(df),
     keysource(keysrc)
 {
-    setCaption("NetHack: Question");
+    setCaption(DEF_GAME_NAME ": Question");
 }
 
 char NetHackQtYnDialog::Exec()
@@ -4276,28 +4318,20 @@ void NetHackQtYnDialog::done(int i)
     qApp->exit_loop();
 }
 
-NetHackQtGlyphs::NetHackQtGlyphs()
+int NetHackQtGlyphs::loadTiles(const char *file)
 {
-    const char* tile_file = "nhtiles.bmp";
-    if ( iflags.wc_tile_file )
-	tile_file = iflags.wc_tile_file;
-
-    if (!img.load(tile_file)) {
-	tile_file = "x11tiles";
-	if (!img.load(tile_file)) {
-	    QString msg;
-	    msg.sprintf("Cannot load x11tiles or nhtiles.bmp");
-	    QMessageBox::warning(0, "IO Error", msg);
-	} else {
-	    tiles_per_row = TILES_PER_ROW;
-	    if (img.width()%tiles_per_row) {
-		impossible("Tile file \"%s\" has %d columns, not multiple of row count (%d)",
-		   tile_file, img.width(), tiles_per_row);
-	    }
-	}
-    } else {
-	tiles_per_row = 40;
-    }
+    int retval;
+#ifndef FILE_AREAS
+    const char *tile_file = file;
+#else
+    char *tile_file = make_file_name(FILE_AREA_SHARE, file);
+#endif
+    retval = img.load(tile_file);
+#ifdef FILE_AREAS
+    free(tile_file);
+#endif
+    if (!retval)
+	return 0;
 
     if ( iflags.wc_tile_width )
 	tilefile_tile_W = iflags.wc_tile_width;
@@ -4306,9 +4340,57 @@ NetHackQtGlyphs::NetHackQtGlyphs()
     if ( iflags.wc_tile_height )
 	tilefile_tile_H = iflags.wc_tile_height;
     else
-	tilefile_tile_H = tilefile_tile_W;
+	tilefile_tile_H = img.height() / tiles_per_col;
 
     setSize(tilefile_tile_W, tilefile_tile_H);
+    return 1;
+}
+
+NetHackQtGlyphs::NetHackQtGlyphs()
+{
+    int i;
+    int tw, th;
+    const char* tile_file;
+    QString msg;
+
+    // Try user specified tile set first
+    if (tileset[0] == '\0')
+	pline("ASCII mode not supported in Qt port.");
+    else {
+	for(i = 0; i < no_tilesets; i++)
+	    if (!strcmp(tileset, tilesets[i].name))
+		break;
+	tileset_index = i;
+	// We don't really support transparency, but such
+	// tile sets are still useable with the Qt port.
+	if ((tilesets[i].flags & ~TILESET_TRANSPARENT) != 0) {
+	    msg.sprintf("Tile set %s has an unsupported flag set.", tileset);
+	    QMessageBox::warning(0, "IO Error", msg);
+	}
+	else if (i >= no_tilesets)
+	    impossible("Tile set %s not defined?", tileset);
+	else if (loadTiles(tilesets[i].file))
+	    return;
+	else {
+	    msg.sprintf("Failed to load tile set %s.", tileset);
+	    QMessageBox::warning(0, "IO Error", msg);
+        }
+    }
+
+    // Else choose first valid tile set
+    for(i = 0; i < no_tilesets; i++) {
+	if ((tilesets[i].flags & ~TILESET_TRANSPARENT) != 0)
+	    continue;
+	if (loadTiles(tilesets[i].file)) {
+	    tileset_index = i;
+	    strcpy(tileset, tilesets[i].name);
+	    return;
+	}
+    }
+
+    msg.sprintf("Cannot find a valid tile set");
+    QMessageBox::warning(0, "IO Error", msg);
+    panic("No valid tiles found");
 }
 
 void NetHackQtGlyphs::drawGlyph(QPainter& painter, int glyph, int x, int y)
@@ -4744,7 +4826,11 @@ void NetHackQtBind::qt_putstr(winid wid, int attr, const char *text)
     window->PutStr(attr,text);
 }
 
+#ifdef FILE_AREAS
+void NetHackQtBind::qt_display_file(const char *filearea, const char *filename, BOOLEAN_P must_exist)
+#else
 void NetHackQtBind::qt_display_file(const char *filename, BOOLEAN_P must_exist)
+#endif
 {
     NetHackQtTextWindow* window=new NetHackQtTextWindow(keybuffer);
     bool complain = FALSE;
@@ -4756,7 +4842,11 @@ void NetHackQtBind::qt_display_file(const char *filename, BOOLEAN_P must_exist)
 	char *cr;
 
 	window->Clear();
+#ifdef FILE_AREAS
+	f = dlb_fopen_area(filearea, filename, "r");
+#else
 	f = dlb_fopen(filename, "r");
+#endif
 	if (!f) {
 	    complain = must_exist;
 	} else {
@@ -4773,7 +4863,13 @@ void NetHackQtBind::qt_display_file(const char *filename, BOOLEAN_P must_exist)
 	}
     }
 #else
+#ifndef FILE_AREAS
     QFile file(filename);
+#else
+    char *path;
+    path = make_file_name(filearea, filename);
+    QFile file(path);
+#endif
 
     if (file.open(IO_ReadOnly)) {
 	char line[128];
@@ -4785,6 +4881,9 @@ void NetHackQtBind::qt_display_file(const char *filename, BOOLEAN_P must_exist)
     } else {
 	complain = must_exist;
     }
+#ifdef FILE_AREAS
+    free(path);
+#endif
 #endif
 
     if (complain) {
@@ -4944,7 +5043,8 @@ char NetHackQtBind::qt_yn_function(const char *question, const char *choices, CH
 #ifdef USE_POPUPS
 	// Improve some special-cases (DIRKS 08/02/23)
 	if (strcmp (choices,"ynq") == 0) {
-	    switch (QMessageBox::information (qApp->mainWidget(),"NetHack",question,"&Yes","&No","&Quit",0,2))
+	    switch (QMessageBox::information (qApp->mainWidget(),DEF_GAME_NAME,
+	      question,"&Yes","&No","&Quit",0,2))
 	    {
 	      case 0: return 'y'; 
 	      case 1: return 'n'; 
@@ -4953,7 +5053,8 @@ char NetHackQtBind::qt_yn_function(const char *question, const char *choices, CH
 	}
 
 	if (strcmp (choices,"yn") == 0) {
-	    switch (QMessageBox::information(qApp->mainWidget(),"NetHack",question,"&Yes", "&No",0,1))
+	    switch (QMessageBox::information(qApp->mainWidget(),DEF_GAME_NAME,
+	      question,"&Yes", "&No",0,1))
 	    {
 	      case 0: return 'y';
 	      case 1: return 'n'; 

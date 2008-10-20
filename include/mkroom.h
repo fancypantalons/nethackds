@@ -30,7 +30,7 @@ struct shclass {
 	struct itp {
 	    int iprob;		/* probability of an item type */
 	    int itype;	/* item type: if >=0 a class, if < 0 a specific item */
-	} iprobs[5];
+	} iprobs[8];
 	const char * const *shknms;	/* list of shopkeeper names for this type */
 };
 
@@ -45,7 +45,12 @@ extern NEARDATA struct mkroom* subrooms;
 
 extern struct mkroom *dnstairs_room, *upstairs_room, *sstairs_room;
 
-extern NEARDATA coord doors[DOORMAX];
+struct door {
+	xchar x,y;
+	short arti_key;		/* Index (ART_) of key for this door */
+};
+
+extern NEARDATA struct door doors[DOORMAX];
 
 /* values for rtype in the room definition structure */
 #define OROOM		 0	/* ordinary room */
@@ -58,22 +63,38 @@ extern NEARDATA coord doors[DOORMAX];
 #define ZOO		 8	/* floor covered with treasure and monsters */
 #define DELPHI		 9	/* contains Oracle and peripherals */
 #define TEMPLE		10	/* contains a shrine */
-#define LEPREHALL	11	/* leprechaun hall (Tom Proudfoot) */
-#define COCKNEST	12	/* cockatrice nest (Tom Proudfoot) */
-#define ANTHOLE		13	/* ants (Tom Proudfoot) */
-#define SHOPBASE	14	/* everything above this is a shop */
-#define ARMORSHOP	15	/* specific shop defines for level compiler */
-#define SCROLLSHOP	16
-#define POTIONSHOP	17
-#define WEAPONSHOP	18
-#define FOODSHOP	19
-#define RINGSHOP	20
-#define WANDSHOP	21
-#define TOOLSHOP	22
-#define BOOKSHOP	23
-#define UNIQUESHOP	24	/* shops here & above not randomly gen'd. */
-#define CANDLESHOP	24
-#define MAXRTYPE	24	/* maximum valid room type */
+/* [Tom] new rooms... */
+#define REALZOO         11      /* zoo-like monsters (monkeys, etc.) */
+#define GIANTCOURT      12      /* a giant courtroom */
+#define LEPREHALL       13      /* leprechaun hall (Tom Proudfoot) */
+#define DRAGONLAIR      14      /* dragons and $$$ */
+#define BADFOODSHOP     15      /* bad food! */
+#define COCKNEST        16      /* cockatrice nest! */
+#define ANTHOLE         17      /* ants! */
+#define LEMUREPIT       18      /* lemures */
+#define MIGOHIVE        19      /* Mi-Go */
+#define FUNGUSFARM      20      /* molds, puddings, and slime */
+
+#define SHOPBASE        21      	/* everything above this is a shop */
+#define ARMORSHOP       (SHOPBASE+ 1)   /* specific shop defines for level compiler */
+#define SCROLLSHOP      (SHOPBASE+ 2)
+#define POTIONSHOP      (SHOPBASE+ 3)
+#define WEAPONSHOP      (SHOPBASE+ 4)
+#define FOODSHOP        (SHOPBASE+ 5)
+#define RINGSHOP        (SHOPBASE+ 6)
+#define WANDSHOP        (SHOPBASE+ 7)
+#define TOOLSHOP        (SHOPBASE+ 8)
+#define PETSHOP         (SHOPBASE+ 9)		/* Stephen White */
+#define TINSHOP         (SHOPBASE+10)		/* Robin Johnson */
+#define BOOKSHOP        (SHOPBASE+11)
+#define UNIQUESHOP      (SHOPBASE+12)      /* shops here & above not randomly gen'd. */
+#define CANDLESHOP      (UNIQUESHOP)
+#ifdef BLACKMARKET
+#define BLACKSHOP       (UNIQUESHOP+1)
+#define MAXRTYPE        (UNIQUESHOP+1)      /* maximum valid room type */
+#else /* BLACKMARKET */
+#define MAXRTYPE        (UNIQUESHOP)      /* maximum valid room type */
+#endif /* BLACKMARKET */
 
 /* Special type for search_special() */
 #define ANY_TYPE	(-1)

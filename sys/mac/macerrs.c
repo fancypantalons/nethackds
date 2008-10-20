@@ -2,7 +2,7 @@
 /* Copyright (c) Michael Hamel, 1991 */
 /* NetHack may be freely redistributed.  See license for details. */
 
-#if defined(macintosh) && defined(__SC__) && !defined(__FAR_CODE__)
+#if defined(__SC__) && !defined(__FAR_CODE__)
 /* this needs to be resident always */
 #pragma segment Main
 #endif

@@ -20,6 +20,7 @@ const char	* const plusattr[] = {
 };
 
 
+/* KMH, intrinsics patch -- many of these are updated */
 static
 const struct innate {
 	schar	ulevel;
@@ -39,9 +40,17 @@ const struct innate {
 		     {	15, &(HWarning), "sensitive", "" },
 		     {	 0, 0, 0, 0 } },
 
+	fla_abil[] = { {   1, &(HFire_resistance), "", "" },
+		     {  13, &(HCold_resistance), "warm", "cooler" },
+		     {   0, 0, 0, 0 } },
+
 	hea_abil[] = { {	 1, &(HPoison_resistance), "", "" },
 		     {	15, &(HWarning), "sensitive", "" },
 		     {	 0, 0, 0, 0 } },
+
+	ice_abil[] = { {   1, &(HCold_resistance), "", "" },
+		     {  13, &(HFire_resistance), "cool", "warmer" },
+		     {   0, 0, 0, 0 } },
 
 	kni_abil[] = { {	 7, &(HFast), "quick", "slow" },
 		     {	 0, 0, 0, 0 } },
@@ -53,10 +62,18 @@ const struct innate {
 		     {   5, &(HStealth), "stealthy", "" },
 		     {   7, &(HWarning), "sensitive", "" },
 		     {   9, &(HSearching), "perceptive", "unaware" },
+#if 0
 		     {  11, &(HFire_resistance), "cool", "warmer" },
 		     {  13, &(HCold_resistance), "warm", "cooler" },
 		     {  15, &(HShock_resistance), "insulated", "conductive" },
+		     /* WAC -- made the above three attribs techs */
+#endif
 		     {  17, &(HTeleport_control), "controlled","uncontrolled" },
+		     {   0, 0, 0, 0 } },
+
+	nec_abil[] = { {   1, &(HDrain_resistance), "", "" },
+		     {   1, &(HSick_resistance), "", "" },
+		     {   3, &(HUndead_warning), "sensitive", "" },
 		     {   0, 0, 0, 0 } },
 
 	pri_abil[] = { {	15, &(HWarning), "sensitive", "" },
@@ -80,18 +97,58 @@ const struct innate {
 		     {	20, &(HPoison_resistance), "hardy", "" },
 		     {	 0, 0, 0, 0 } },
 
+	und_abil[] = { {   1, &(HStealth), "", "" },
+		     {   1, &(HDrain_resistance), "", "" },
+		     {   1, &(HSick_resistance), "", "" },
+		     {   1, &(HUndead_warning), "", "" },
+		     {   7, &(HFast), "quick", "slow" },
+		     {   9, &(HPoison_resistance), "hardy", "less healthy" },
+		     {   0, 0, 0, 0 } },
+
 	val_abil[] = { {	 1, &(HCold_resistance), "", "" },
 		     {	 1, &(HStealth), "", "" },
 		     {   7, &(HFast), "quick", "slow" },
 		     {	 0, 0, 0, 0 } },
+
+#ifdef YEOMAN
+	yeo_abil[] = {
+		     {   7, &(HFast), "quick", "slow" },
+		     {  15, &(HSwimming), "ready to swim","afraid of the water" },
+		     {   0, 0, 0, 0 } },
+#endif
 
 	wiz_abil[] = { {	15, &(HWarning), "sensitive", "" },
 		     {  17, &(HTeleport_control), "controlled","uncontrolled" },
 		     {	 0, 0, 0, 0 } },
 
 	/* Intrinsics conferred by race */
+	dop_abil[] = {/* {   1, &(HPolymorph), "", "" },*/
+		       {   9, &(HPolymorph_control), "your choices improve", "choiceless" },
+		       {   0, 0, 0, 0 } },
+
+#ifdef DWARF
+	dwa_abil[] = { { 1, &(HSearching), "", "" },
+/*			{  10, &(HFire_resistance), "cool", "warmer" },*/
+			{   0, 0, 0, 0 } },
+#endif
+
 	elf_abil[] = { {	4, &(HSleep_resistance), "awake", "tired" },
 		     {	 0, 0, 0, 0 } },
+
+	gno_abil[] = { {   5, &(HStealth), "stealthy", "" },
+/*		     {   9, &(HFast), "quick", "slow" },
+		     {   11, &(HSearching), "perceptive", "unaware" },*/
+		     {   0, 0, 0, 0 } },
+
+	hob_abil[] = { {  1, &(HStealth), "", "" },
+		     {   7, &(HFast), "quick", "slow" },
+		     {   0, 0, 0, 0 } },
+
+
+	lyc_abil[] = { /*{   1, &(HPoison_resistance), "", "" },*/
+		     {   1, &(HRegeneration), "", "" },
+/*		     {   7, &(HStealth), "stealthy", "" },*/
+		     {   0, 0, 0, 0 } },
 
 	orc_abil[] = { {	1, &(HPoison_resistance), "", "" },
 		     {	 0, 0, 0, 0 } };
@@ -104,7 +161,8 @@ STATIC_DCL void FDECL(postadjabil, (long *));
 boolean
 adjattrib(ndx, incr, msgflg)
 	int	ndx, incr;
-	int	msgflg;	    /* positive => no message, zero => message, and */
+	int	msgflg;	    /* 2 => no message at all, 1 => no message */
+			    /* except encumber, zero => message, and */
 {			    /* negative => conditional (msg if change made) */
 	if (Fixed_abil || !incr) return FALSE;
 
@@ -155,7 +213,7 @@ adjattrib(ndx, incr, msgflg)
 		  (incr > 1 || incr < -1) ? "very ": "",
 		  (incr > 0) ? plusattr[ndx] : minusattr[ndx]);
 	flags.botl = 1;
-	if (moves > 1 && (ndx == A_STR || ndx == A_CON))
+	if (msgflg <= 1 && moves > 1 && (ndx == A_STR || ndx == A_CON))
 		(void)encumber_msg();
 	return TRUE;
 }
@@ -218,6 +276,9 @@ boolean parameter; /* So I can't think up of a good name.  So sue me. --KAA */
 		else if (parameter) bonchance += otmp->quan;
 	    }
 
+	/* STEPHEN WHITE'S NEW CODE */
+	if (uarmh && uarmh->otyp == FEDORA && !uarmh->cursed) bonchance += 2;
+	
 	return sgn((int)bonchance);
 }
 
@@ -231,6 +292,23 @@ set_moreluck()
 	else if (luckbon >= 0) u.moreluck = LUCKADD;
 	else u.moreluck = -LUCKADD;
 }
+
+
+/* KMH, balance patch -- new function for healthstones */
+void
+recalc_health()
+{
+	register struct obj *otmp;
+
+
+	u.uhealbonus = 0;
+	for(otmp = invent; otmp; otmp=otmp->nobj)
+	    if (otmp->otyp == HEALTHSTONE)
+	    	u.uhealbonus += otmp->quan *
+	    			(otmp->blessed ? 2 : otmp->cursed ? -2 : 1);
+	return;
+}
+
 
 #endif /* OVLB */
 #ifdef OVL1
@@ -349,6 +427,7 @@ exerper()
 #ifdef DEBUG
 		pline("exerper: Status checks");
 #endif
+		/* KMH, intrinsic patch */
 		if ((HClairvoyant & (INTRINSIC|TIMEOUT)) &&
 			!BClairvoyant)                      exercise(A_WIS, TRUE);
 		if (HRegeneration)			exercise(A_STR, TRUE);
@@ -387,9 +466,15 @@ exerchk()
 	     *	off over time.  Even if you *don't* get an
 	     *	increase/decrease, you lose some of the
 	     *	accumulated effects.
+	     *
+	     *  Note that if you are polymorphed then the
+	     *  effects of any physical exercise done in your
+	     *  own body will just wear off with no checking
+	     *  until you return to your natural form.
 	     */
 	    for(i = 0; i < A_MAX; AEXE(i++) /= 2) {
 
+		if(Upolyd && i != A_WIS) continue;
 		if(ABASE(i) >= 18 || !AEXE(i)) continue;
 		if(i == A_INT || i == A_CHA) continue;/* can't exercise these */
 
@@ -438,7 +523,7 @@ exerchk()
 		    }
 		}
 	    }
-	    next_check += rn1(200,800);
+	    next_check += rn1(2000,2000);
 #ifdef DEBUG
 	    pline("exerchk: next check at %ld.", next_check);
 #endif
@@ -539,14 +624,16 @@ int oldlevel, newlevel;
 	register const struct innate *abil, *rabil;
 	long mask = FROMEXPER;
 
-
 	switch (Role_switch) {
 	case PM_ARCHEOLOGIST:   abil = arc_abil;	break;
 	case PM_BARBARIAN:      abil = bar_abil;	break;
 	case PM_CAVEMAN:        abil = cav_abil;	break;
+	case PM_FLAME_MAGE:	abil = fla_abil;	break;
 	case PM_HEALER:         abil = hea_abil;	break;
+	case PM_ICE_MAGE:	abil = ice_abil;	break;
 	case PM_KNIGHT:         abil = kni_abil;	break;
 	case PM_MONK:           abil = mon_abil;	break;
+	case PM_NECROMANCER:	abil = nec_abil;	break;
 	case PM_PRIEST:         abil = pri_abil;	break;
 	case PM_RANGER:         abil = ran_abil;	break;
 	case PM_ROGUE:          abil = rog_abil;	break;
@@ -554,17 +641,28 @@ int oldlevel, newlevel;
 #ifdef TOURIST
 	case PM_TOURIST:        abil = tou_abil;	break;
 #endif
+	case PM_UNDEAD_SLAYER:	abil = und_abil;	break;
 	case PM_VALKYRIE:       abil = val_abil;	break;
 	case PM_WIZARD:         abil = wiz_abil;	break;
+#ifdef YEOMAN
+	case PM_YEOMAN:		abil = yeo_abil;	break;
+#endif
 	default:                abil = 0;		break;
 	}
 
 	switch (Race_switch) {
+	case PM_DOPPELGANGER:	rabil = dop_abil;	break;
+#ifdef DWARF
+	case PM_DWARF:		rabil = dwa_abil;	break;
+#endif
+	case PM_DROW:
 	case PM_ELF:            rabil = elf_abil;	break;
+	case PM_GNOME:		rabil = gno_abil;	break;
+	case PM_HOBBIT:		rabil = hob_abil;	break;
 	case PM_ORC:            rabil = orc_abil;	break;
+	case PM_HUMAN_WEREWOLF:	rabil = lyc_abil;	break;
 	case PM_HUMAN:
-	case PM_DWARF:
-	case PM_GNOME:
+	case PM_VAMPIRE:
 	default:                rabil = 0;		break;
 	}
 
@@ -614,16 +712,26 @@ int oldlevel, newlevel;
 	    else
 		lose_weapon_skill(oldlevel - newlevel);
 	}
+
+	/* ALI -- update Warn_of_mon */
+	HWarn_of_mon = HUndead_warning;
+	if (HUndead_warning)
+	    flags.warntype |= M2_UNDEAD;
+	else
+	    flags.warntype &= ~M2_UNDEAD;
+	
+	/* WAC -- adjust techniques */
+	adjtech(oldlevel, newlevel);
 }
 
 
+/* STEPHEN WHITE'S NEW CODE */
 int
 newhp()
 {
 	int	hp, conplus;
 
-
-	if (u.ulevel == 0) {
+	if(u.ulevel == 0) {
 	    /* Initialize hit points */
 	    hp = urole.hpadv.infix + urace.hpadv.infix;
 	    if (urole.hpadv.inrnd > 0) hp += rnd(urole.hpadv.inrnd);
@@ -632,7 +740,6 @@ newhp()
 	    /* Initialize alignment stuff */
 	    u.ualign.type = aligns[flags.initalign].value;
 	    u.ualign.record = urole.initrecord;
-
 		return hp;
 	} else {
 	    if (u.ulevel < urole.xlev) {
@@ -661,6 +768,7 @@ newhp()
 #endif /* OVLB */
 #ifdef OVL0
 
+/* STEPHEN WHITE'S NEW CODE */   
 schar
 acurr(x)
 int x;
@@ -668,16 +776,30 @@ int x;
 	register int tmp = (u.abon.a[x] + u.atemp.a[x] + u.acurr.a[x]);
 
 	if (x == A_STR) {
-		if (uarmg && uarmg->otyp == GAUNTLETS_OF_POWER) return(125);
-#ifdef WIN32_BUG
-		else return(x=((tmp >= 125) ? 125 : (tmp <= 3) ? 3 : tmp));
-#else
-		else return((schar)((tmp >= 125) ? 125 : (tmp <= 3) ? 3 : tmp));
-#endif
+                /* WAC twiddle so that wearing rings and gauntlets have
+                        a bonus */
+                /* robe of weakness and gauntlets of power will cancel */
+                int base = u.acurr.a[x];
+                int bonus = tmp - base;
+                boolean nobonus = (uarmg && uarmg->otyp == GAUNTLETS_OF_POWER
+                        && uarm && uarm->otyp == ROBE_OF_WEAKNESS);
+
+                if (uarmg && uarmg->otyp == GAUNTLETS_OF_POWER && !nobonus) {
+                        if ((uarmg->spe > 7)
+                             || ((118 + bonus + uarmg->spe) > 125)
+                             || ((tmp + uarmg->spe) > 125))
+                                return(125);
+                        else if (base > 118) return (base + uarmg->spe + bonus);
+                        else return(118 + uarmg->spe + bonus);
+                } else if (uarm && uarm->otyp == ROBE_OF_WEAKNESS && !nobonus)
+                        return(3 + bonus);
+		else return((tmp >= 125) ? 125 : (tmp <= 3) ? 3 : tmp);
 	} else if (x == A_CHA) {
 		if (tmp < 18 && (youmonst.data->mlet == S_NYMPH ||
-		    u.umonnum==PM_SUCCUBUS || u.umonnum == PM_INCUBUS))
-		    return 18;
+		    u.umonnum == PM_SUCCUBUS || u.umonnum == PM_INCUBUS))
+		    tmp = 18;
+		if (uarmh && uarmh->otyp == FEDORA) tmp += 1;        
+		return((tmp >= 25) ? 25 : (tmp <= 3) ? 3 : tmp);
 	} else if (x == A_INT || x == A_WIS) {
 		/* yes, this may raise int/wis if player is sufficiently
 		 * stupid.  there are lower levels of cognition than "dunce".
@@ -698,9 +820,9 @@ acurrstr()
 {
 	register int str = ACURR(A_STR);
 
-	if (str <= 18) return((schar)str);
-	if (str <= 121) return((schar)(19 + str / 50)); /* map to 19-21 */
-	else return((schar)(str - 100));
+	if (str <= 18) return str;
+	if (str <= 121) return (19 + str / 50); /* map to 19-21 */
+	else return str - 100;
 }
 
 #endif /* OVL0 */
@@ -715,11 +837,11 @@ register int n;
 {
 	register int newalign = u.ualign.record + n;
 
-	if(n < 0) {
-		if(newalign < u.ualign.record)
+	if (n < 0) {
+		if (newalign < u.ualign.record)
 			u.ualign.record = newalign;
 	} else
-		if(newalign > u.ualign.record) {
+		if (newalign > u.ualign.record) {
 			u.ualign.record = newalign;
 			if(u.ualign.record > ALIGNLIM)
 				u.ualign.record = ALIGNLIM;

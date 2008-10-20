@@ -1,8 +1,8 @@
 # SCCS Id: @(#)NetHack Defaults	3.4	2002/03/15
 # Copyright (c) 2002 by Dean Luick, Mark Modrall, and Kevin Hugo
-# NetHack may be freely redistributed.  See license for details.
+# Slash'EM may be freely redistributed.  See license for details.
 #
-# Default settings for the Macintosh port of NetHack.
+# Default settings for the Macintosh port of Slash'EM.
 # Lines beginning with a `#' character are "comments" and are
 # ignored all the way to the end of the line.  Using this
 # method, some of the lines below have been disabled so you

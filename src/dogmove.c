@@ -6,6 +6,18 @@
 
 #include "mfndpos.h"
 #include "edog.h"
+#include "emin.h"
+#include "epri.h"
+
+/* #define DEBUG */	/* uncomment to enable debugging */
+
+#ifdef DEBUG
+# ifdef WIZARD
+#define debugpline      if (wizard) pline
+# else
+#define debugpline      pline
+# endif
+#endif
 
 extern boolean notonhead;
 
@@ -51,7 +63,7 @@ static NEARDATA const char nofetch[] = { BALL_CLASS, CHAIN_CLASS, ROCK_CLASS, 0 
 
 #endif /* OVL0 */
 
-STATIC_OVL boolean FDECL(cursed_object_at, (int, int));
+STATIC_OVL boolean FDECL(cursed_object_at, (struct monst *, int, int));
 
 STATIC_VAR xchar gtyp, gx, gy;	/* type and position of dog's current goal */
 
@@ -59,13 +71,24 @@ STATIC_PTR void FDECL(wantdoor, (int, int, genericptr_t));
 
 #ifdef OVLB
 STATIC_OVL boolean
-cursed_object_at(x, y)
+cursed_object_at(mtmp, x, y)
+register struct monst *mtmp;
 int x, y;
 {
 	struct obj *otmp;
 
 	for(otmp = level.objects[x][y]; otmp; otmp = otmp->nexthere)
-		if (otmp->cursed) return TRUE;
+		/* [Tom] demons & undead don't care, though */
+		/* [ALI] demons & undead avoid blessed items instead */
+		if ((is_demon(mtmp->data) || is_undead(mtmp->data)) ?
+		    otmp->blessed : otmp->cursed)
+	{
+#ifdef DEBUG
+		debugpline("%s thinks %s at (%d,%d) is `cursed'",
+		  noit_Monnam(mtmp), doname(otmp), x, y);
+#endif
+		return TRUE;
+	}
 	return FALSE;
 }
 
@@ -129,6 +152,8 @@ boolean devour;
 	register struct edog *edog = EDOG(mtmp);
 	boolean poly = FALSE, grow = FALSE, heal = FALSE;
 	int nutrit;
+	boolean vis = (cansee(x, y) || cansee(mtmp->mx, mtmp->my));
+	boolean vampiric = is_vampire(mtmp->data);
 
 	if(edog->hungrytime < monstermoves)
 	    edog->hungrytime = monstermoves;
@@ -140,6 +165,13 @@ boolean devour;
 	    if (mtmp->meating > 1) mtmp->meating /= 2;
 	    if (nutrit > 1) nutrit = (nutrit * 3) / 4;
 	}
+
+	/* vampires only get 1/5 normal nutrition */
+	if (vampiric) {
+	    mtmp->meating = (mtmp->meating + 4) / 5;
+	    nutrit = (nutrit + 4) / 5;
+	}
+	
 	edog->hungrytime += nutrit;
 	mtmp->mconf = 0;
 	if (edog->mhpmax_penalty) {
@@ -160,9 +192,9 @@ boolean devour;
 	/* hack: observe the action if either new or old location is in view */
 	/* However, invisible monsters should still be "it" even though out of
 	   sight locations should not. */
-	if (cansee(x, y) || cansee(mtmp->mx, mtmp->my))
+	if (vis)
 	    pline("%s %s %s.", mon_visible(mtmp) ? noit_Monnam(mtmp) : "It",
-		  devour ? "devours" : "eats",
+		  vampiric ? "drains" : devour ? "devours" : "eats",
 		  (obj->oclass == FOOD_CLASS) ?
 			singular(obj, doname) : doname(obj));
 	/* It's a reward if it's DOGFOOD and the player dropped/threw it. */
@@ -182,6 +214,29 @@ boolean devour;
 		pline("%s spits %s out in disgust!",
 		      Monnam(mtmp), distant_name(obj,doname));
 	    }
+	} else if (vampiric) {
+		/* Split Object */
+		if (obj->quan > 1L) {
+		    if(!carried(obj)) {
+			(void) splitobj(obj, 1L);
+		    } else {
+		    	/* Carried */
+			obj = splitobj(obj, obj->quan - 1L);
+			
+			freeinv(obj);
+			if (inv_cnt() >= 52 && !merge_choice(invent, obj))
+			    dropy(obj);
+			else
+			    obj = addinv(obj); /* unlikely but a merge is possible */			
+		    }
+#ifdef DEBUG
+		    debugpline("split object,");
+#endif
+		}
+		
+		/* Take away blood nutrition */
+	    	obj->oeaten = drainlevel(obj);
+		obj->odrained = 1;
 	} else if (obj == uball) {
 	    unpunish();
 	    delobj(obj);
@@ -194,8 +249,12 @@ boolean devour;
 	    delobj(obj);
 
 	if (poly) {
+	    (void) mon_spec_poly(mtmp, (struct permonst *)0, 0L, FALSE,
+		    cansee(mtmp->mx, mtmp->my), FALSE, FALSE);
+#if 0
 	    (void) newcham(mtmp, (struct permonst *)0, FALSE,
 			   cansee(mtmp->mx, mtmp->my));
+#endif
 	}
 	/* limit "instant" growth to prevent potential abuse */
 	if (grow && (int) mtmp->m_lev < (int)mtmp->data->mlevel + 15) {
@@ -263,9 +322,14 @@ register struct monst *mtmp;
 register struct edog *edog;
 int udist;
 {
+	/* KMH, balance patch -- quantity picked up should depend on dog's level */
+	int dogquan = 10 * mtmp->m_lev;
 	register int omx, omy;
 	struct obj *obj;
-
+/*
+	struct obj *floor_obj;
+	int temp_quan;
+ */
 	if (mtmp->msleeping || !mtmp->mcanmove) return(0);
 
 	omx = mtmp->mx;
@@ -284,7 +348,7 @@ int udist;
 		    relobj(mtmp, (int)mtmp->minvis, TRUE);
 		    if(edog->apport > 1) edog->apport--;
 		    edog->dropdist = udist;		/* hpscdi!jon */
-		    edog->droptime = monstermoves;
+		    edog->droptime = moves;
 		}
 	} else {
 	    if((obj=level.objects[omx][omy]) && !index(nofetch,obj->oclass)
@@ -300,16 +364,63 @@ int udist;
 		    could_reach_item(mtmp, obj->ox, obj->oy))
 		    return dog_eat(mtmp, obj, omx, omy, FALSE);
 
-		if(can_carry(mtmp, obj) && !obj->cursed &&
-			could_reach_item(mtmp, obj->ox, obj->oy)) {
+		/* [Tom] demonic & undead pets don't mind cursed items */                
+		if(can_carry(mtmp, obj) &&
+		  could_reach_item(mtmp, obj->ox, obj->oy) &&
+		  (!obj->cursed || is_demon(mtmp->data) || is_undead(mtmp->data)) &&
+		  (!obj->blessed || (!is_demon(mtmp->data) && !is_undead(mtmp->data)))) {
 		    if(rn2(20) < edog->apport+3) {
 			if (rn2(udist) || !rn2(edog->apport)) {
+			    if ((!nohands(mtmp->data)) ||
+						/* KMH, balance patch -- 10*level */
+						(obj->quan <= dogquan))
+			    {
 			    if (cansee(omx, omy) && flags.verbose)
 				pline("%s picks up %s.", Monnam(mtmp),
 				    distant_name(obj, doname));
 			    obj_extract_self(obj);
 			    newsym(omx,omy);
 			    (void) mpickobj(mtmp,obj);
+			    }                            
+			    else /* picking up a few objects from a pile... */
+				/* KMH -- fix picking up zero quantity */
+			    if (dogquan > 0) {
+				if (obj->oclass == COIN_CLASS) {
+				    /* KMH, balance patch -- 10*level */
+#ifndef GOLDOBJ
+				    obj->quan -= dogquan;
+				    if (cansee(omx, omy) && flags.verbose)
+					pline("%s picks up %d gold pieces.", 
+							Monnam(mtmp),
+							dogquan);
+				    mtmp->mgold += dogquan;
+#else
+						if (obj->quan != dogquan)
+							obj = splitobj(obj, dogquan);
+				    if (cansee(omx, omy) && flags.verbose)
+							pline("%s picks up %s.", 
+							Monnam(mtmp),
+							doname(obj));
+							obj_extract_self(obj);
+				    	newsym(omx,omy);
+							(void) mpickobj(mtmp,obj);
+#endif
+				} else {
+/*
+                                struct obj *floor_obj;
+                                int temp_quan;
+
+                                obj->quan -= dogquan;
+				temp_quan = obj->quan;
+				floor_obj = level.objects[omx][omy];
+				mpickobj(mtmp,obj);
+				obj->quan = dogquan;
+				if (cansee(omx, omy) && flags.verbose)
+				pline("%s picks up %s.", Monnam(mtmp),
+				    distant_name(obj, doname));
+				floor_obj->quan = temp_quan;*/
+				}
+			    }
 			    if (attacktype(mtmp->data, AT_WEAP) &&
 					mtmp->weapon_check == NEED_WEAPON) {
 				mtmp->weapon_check = NEED_HTH_WEAPON;
@@ -379,7 +490,7 @@ int after, udist, whappr;
 		    if (otyp > gtyp || otyp == UNDEF)
 			continue;
 		    /* avoid cursed items unless starving */
-		    if (cursed_object_at(nx, ny) &&
+		    if (cursed_object_at(mtmp, nx, ny) &&
 			    !(edog->mhpmax_penalty && otyp < MANFOOD))
 			continue;
 		    /* skip completely unreacheable goals */
@@ -474,6 +585,77 @@ int after, udist, whappr;
 	return appr;
 }
 
+#ifdef DEBUG
+#define CHECK_ALLOW(flag,str)	if ((allowflags & (flag)) == (flag)) { \
+				    allowflags ^= (flag); \
+				    if (bp != buf) { *bp++=','; *bp++=' '; } \
+				    Strcpy(bp, str); \
+				    bp += strlen(bp); \
+				} else
+
+STATIC_OVL char *
+allow_set(allowflags)
+long allowflags;
+{
+    static char buf[500];
+    char *bp = buf;
+    if (allowflags == 0)
+	return "(none)";
+    *bp = '\0';
+    CHECK_ALLOW(ALLOW_TRAPS, "can enter traps");
+    CHECK_ALLOW(ALLOW_U, "can attack you");
+    CHECK_ALLOW(ALLOW_M, "can attack other monsters");
+    CHECK_ALLOW(ALLOW_TM, "can attack tame monsters");
+    CHECK_ALLOW(NOTONL, "avoids direct line to player");
+    CHECK_ALLOW(OPENDOOR, "opens closed doors");
+    CHECK_ALLOW(UNLOCKDOOR, "unlocks locked doors");
+    CHECK_ALLOW(BUSTDOOR, "breaks any doors");
+    CHECK_ALLOW(ALLOW_ROCK, "pushes rocks");
+    CHECK_ALLOW(ALLOW_WALL, "walks thru walls");
+    CHECK_ALLOW(ALLOW_DIG, "digs");
+    CHECK_ALLOW(ALLOW_SANCT, "enters temples");
+    CHECK_ALLOW(ALLOW_SSM, "ignores scare monster");
+    CHECK_ALLOW(NOGARLIC, "hates garlic");
+    if (allowflags) {
+	if (bp != buf) { *bp++=','; *bp++=' '; }
+	sprintf(bp, "0x%lX", allowflags);
+    }
+    return buf;
+}
+
+#undef CHECK_ALLOW
+#endif
+
+boolean
+betrayed(mtmp)
+register struct monst *mtmp;
+{
+    boolean has_edog = !mtmp->isminion;
+    struct edog *edog = EDOG(mtmp);
+    int udist = distu(mtmp->mx, mtmp->my);
+
+    if (udist < 4 && has_edog && !mtmp->isspell && !rn2(3)
+		    && can_betray(mtmp->data)
+		    && !mindless(mtmp->data)
+		    && mtmp->mhp >= u.uhp	/* Pet is buff enough */
+		    && rn2(22) > mtmp->mtame	/* Roll against tameness */
+		    && rn2(edog->abuse + 2)) {
+	/* Treason */
+	if (canseemon(mtmp))
+	    pline("%s turns on you!", Monnam(mtmp));
+	else
+	    pline("You feel uneasy about %s.", y_monnam(mtmp));
+	mtmp->mpeaceful = 0;
+	mtmp->mtame = 0;
+	mtmp->mtraitor = TRUE;
+
+	/* Do we need to call newsym() here? */
+	newsym(mtmp->mx, mtmp->my);
+	return TRUE;
+    }
+    return FALSE;
+}
+
 /* return 0 (no move), 1 (move) or 2 (dead) */
 int
 dog_move(mtmp, after)
@@ -486,7 +668,7 @@ register int after;	/* this is extra fast monster movement */
 	register struct edog *edog = EDOG(mtmp);
 	struct obj *obj = (struct obj *) 0;
 	xchar otyp;
-	boolean has_edog, cursemsg[9], do_eat = FALSE;
+	boolean has_edog, cursemsg[9], is_spell, do_eat = FALSE;
 	xchar nix, niy;		/* position mtmp is (considering) moving to */
 	register int nx, ny;	/* temporary coordinates */
 	xchar cnt, uncursedcnt, chcnt;
@@ -504,9 +686,17 @@ register int after;	/* this is extra fast monster movement */
 	 */
 	has_edog = !mtmp->isminion;
 
+	/*
+	 * Similar to Angels and Guardians are spell beings - temporary
+	 * magical manifestations of the spellcaster's mind.
+	 * They don't eat/pickup objects - only fight.
+	 * But,  they aren't dismissed by conflict.
+	 */
+	is_spell = mtmp->isspell;
+
 	omx = mtmp->mx;
 	omy = mtmp->my;
-	if (has_edog && dog_hunger(mtmp, edog)) return(2);	/* starved */
+	if (has_edog && !is_spell && dog_hunger(mtmp, edog)) return(2);      /* starved */
 
 	udist = distu(omx,omy);
 #ifdef STEED
@@ -522,12 +712,15 @@ register int after;	/* this is extra fast monster movement */
 	/* maybe we tamed him while being swallowed --jgm */
 	if (!udist) return(0);
 
+	/* Intelligent pets may rebel (apart from minions, spell beings) */
+	if (!rn2(850) && betrayed(mtmp)) return 1;
+
 	nix = omx;	/* set before newdogpos */
 	niy = omy;
 	cursemsg[0] = FALSE;	/* lint suppression */
 	info[0] = 0;		/* ditto */
 
-	if (has_edog) {
+	if (has_edog && !is_spell) {
 	    j = dog_invent(mtmp, edog, udist);
 	    if (j == 2) return 2;		/* died */
 	    else if (j == 1) goto newdogpos;	/* eating something */
@@ -536,17 +729,37 @@ register int after;	/* this is extra fast monster movement */
 	} else
 	    whappr = 0;
 
-	appr = dog_goal(mtmp, has_edog ? edog : (struct edog *)0,
+	appr = dog_goal(mtmp, (has_edog && !is_spell) ? edog : (struct edog *)0,
 							after, udist, whappr);
+#ifdef DEBUG
+	{
+	    char *goal;
+	    switch(gtyp)
+	    {
+		case DOGFOOD:	goal = "dogfood"; break;
+		case CADAVER:	goal = "cadaver"; break;
+		case ACCFOOD:	goal = "accfood"; break;
+		case MANFOOD:	goal = "manfood"; break;
+		case APPORT:	goal = "apport"; break;
+		case POISON:	goal = "poison"; break;
+		case UNDEF:	goal = "undef"; break;
+		case TABU:	goal = "tabu"; break;
+		default:	goal = "???"; break;
+	    }
+	    debugpline("G(%s): %s @ (%d,%d), appr = %d",
+	      mon_nam(mtmp), goal, gx, gy, appr);
+	}
+#endif
 	if (appr == -2) return(0);
 
 	allowflags = ALLOW_M | ALLOW_TRAPS | ALLOW_SSM | ALLOW_SANCT;
 	if (passes_walls(mtmp->data)) allowflags |= (ALLOW_ROCK | ALLOW_WALL);
-	if (passes_bars(mtmp->data)) allowflags |= ALLOW_BARS;
+	if (passes_bars(mtmp->data) && !In_sokoban(&u.uz))
+	    allowflags |= ALLOW_BARS;
 	if (throws_rocks(mtmp->data)) allowflags |= ALLOW_ROCK;
-	if (Conflict && !resist(mtmp, RING_CLASS, 0, 0)) {
+	if (Conflict && !resist(mtmp, RING_CLASS, 0, 0) && In_endgame(&u.uz)) {
 	    allowflags |= ALLOW_U;
-	    if (!has_edog) {
+	    if (!has_edog && !is_spell) {
 		coord mm;
 		/* Guardian angel refuses to be conflicted; rather,
 		 * it disappears, angrily, and sends in some nasties
@@ -568,6 +781,15 @@ register int after;	/* this is extra fast monster movement */
 
 	    }
 	}
+
+	/* ALI -- Mindless pets shouldn't attack monsters when
+	 * scared; they have no sense of allegiance to the hero,
+	 * only self-preservation. This prevents weak pets blocking
+	 * your exit from a shop by constantly missing shopkeeper.
+	 */
+	if (mindless(mtmp->data) && mtmp->mflee)
+	    allowflags &= ~ALLOW_M;
+
 	if (!Conflict && !mtmp->mconf &&
 	    mtmp == u.ustuck && !sticks(youmonst.data)) {
 	    unstuck(mtmp);	/* swallowed case handled above */
@@ -580,16 +802,25 @@ register int after;	/* this is extra fast monster movement */
 	if (is_giant(mtmp->data)) allowflags |= BUSTDOOR;
 	if (tunnels(mtmp->data)) allowflags |= ALLOW_DIG;
 	cnt = mfndpos(mtmp, poss, info, allowflags);
+#ifdef DEBUG
+	debugpline("%d positions found with allow: %s", cnt,
+	  allow_set(allowflags));
+	for (i = 0; i < cnt; i++) {
+	    debugpline("[%d] %s @ (%d, %d)", i,
+	      allow_set(info[i]), poss[i].x, poss[i].y);
+	}
+#endif
 
 	/* Normally dogs don't step on cursed items, but if they have no
 	 * other choice they will.  This requires checking ahead of time
 	 * to see how many uncursed item squares are around.
 	 */
+
 	uncursedcnt = 0;
 	for (i = 0; i < cnt; i++) {
 		nx = poss[i].x; ny = poss[i].y;
 		if (MON_AT(nx,ny) && !(info[i] & ALLOW_M)) continue;
-		if (cursed_object_at(nx, ny)) continue;
+		if (cursed_object_at(mtmp, nx, ny)) continue;
 		uncursedcnt++;
 	}
 
@@ -606,19 +837,41 @@ register int after;	/* this is extra fast monster movement */
 		if (mtmp->mleashed && distu(nx, ny) > 4) continue;
 
 		/* if a guardian, try to stay close by choice */
-		if (!has_edog &&
+		if ((!has_edog || is_spell) &&
 		    (j = distu(nx, ny)) > 16 && j >= udist) continue;
 
 		if ((info[i] & ALLOW_M) && MON_AT(nx, ny)) {
 		    int mstatus;
 		    register struct monst *mtmp2 = m_at(nx,ny);
+		    aligntyp align1, align2; /* For priests, minions etc. */
 
-		    if ((int)mtmp2->m_lev >= (int)mtmp->m_lev+2 ||
+		    if (mtmp->isminion) align1 = EMIN(mtmp)->min_align;
+		    else if (is_unicorn(mtmp->data))
+			align1 = sgn(mtmp->data->maligntyp);
+		    else if (mtmp->ispriest) align1 = EPRI(mtmp)->shralign;
+		    else align1 = A_NONE;
+		    if (mtmp2->isminion) align2 = EMIN(mtmp2)->min_align;
+		    else if (is_unicorn(mtmp2->data))
+			align2 = sgn(mtmp2->data->maligntyp);
+		    else if (mtmp2->ispriest) align2 = EPRI(mtmp2)->shralign;
+		    else align2 = A_NONE;
+
+		    /* Mindless monsters and spelled monsters have no fear of 
+		     * attacking higher level monsters 
+		     */
+		    if (((int)mtmp2->m_lev >= (int)mtmp->m_lev+2 && !is_spell && 
+			    !mindless(mtmp->data)) ||
 			(mtmp2->data == &mons[PM_FLOATING_EYE] && rn2(10) &&
 			 mtmp->mcansee && haseyes(mtmp->data) && mtmp2->mcansee
 			 && (perceives(mtmp->data) || !mtmp2->minvis)) ||
 			(mtmp2->data==&mons[PM_GELATINOUS_CUBE] && rn2(10)) ||
-			(max_passive_dmg(mtmp2, mtmp) >= mtmp->mhp) ||
+			(mtmp2->data==&mons[PM_GAS_SPORE] && rn2(16)) ||
+			(!attacktype(mtmp->data, AT_EXPL) &&
+			 max_passive_dmg(mtmp2, mtmp) >= mtmp->mhp) ||
+			/* Minions/Angels don't attack
+			 * coaligned minions/priests/angels/unicorns.
+			 */
+			(align1 == align2 && align1 != A_NONE) ||
 			((mtmp->mhp*4 < mtmp->mhpmax
 			  || mtmp2->data->msound == MS_GUARDIAN
 			  || mtmp2->data->msound == MS_LEADER) &&
@@ -668,10 +921,14 @@ register int after;	/* this is extra fast monster movement */
 		}
 
 		/* dog eschews cursed objects, but likes dog food */
+		/* [Tom] except demons & undead, who don't care */  
 		/* (minion isn't interested; `cursemsg' stays FALSE) */
-		if (has_edog)
+		if (has_edog && !is_spell) {
 		for (obj = level.objects[nx][ny]; obj; obj = obj->nexthere) {
-		    if (obj->cursed) cursemsg[i] = TRUE;
+		    if ((obj->cursed) && has_edog && !is_demon(mtmp->data) 
+		    && !is_undead(mtmp->data)) cursemsg[i] = TRUE;
+		    if (obj->blessed && has_edog && (is_demon(mtmp->data) 
+		    || is_undead(mtmp->data))) cursemsg[i] = TRUE;
 		    else if ((otyp = dogfood(mtmp, obj)) < MANFOOD &&
 			     (otyp < ACCFOOD || edog->hungrytime <= monstermoves)) {
 			/* Note: our dog likes the food so much that he
@@ -684,13 +941,14 @@ register int after;	/* this is extra fast monster movement */
 			goto newdogpos;
 		    }
 		}
+		}
 		/* didn't find something to eat; if we saw a cursed item and
 		   aren't being forced to walk on it, usually keep looking */
 		if (cursemsg[i] && !mtmp->mleashed && uncursedcnt > 0 &&
 		    rn2(13 * uncursedcnt)) continue;
 
 		/* lessen the chance of backtracking to previous position(s) */
-		k = has_edog ? uncursedcnt : cnt;
+		k = (has_edog && !is_spell) ? uncursedcnt : cnt;
 		for (j = 0; j < MTSZ && j < k - 1; j++)
 			if (nx == mtmp->mtrack[j].x && ny == mtmp->mtrack[j].y)
 				if (rn2(MTSZ * (k - j))) goto nxti;
@@ -745,7 +1003,7 @@ newdogpos:
 		/* insert a worm_move() if worms ever begin to eat things */
 		remove_monster(omx, omy);
 		place_monster(mtmp, nix, niy);
-		if (cursemsg[chi] && (cansee(omx,omy) || cansee(nix,niy)))
+		if (has_edog && !is_spell && cursemsg[chi] && (cansee(omx,omy) || cansee(nix,niy)))
 			pline("%s moves only reluctantly.", Monnam(mtmp));
 		for (j=MTSZ-1; j>0; j--) mtmp->mtrack[j] = mtmp->mtrack[j-1];
 		mtmp->mtrack[0].x = omx;

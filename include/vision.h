@@ -20,7 +20,12 @@ extern char *viz_rmax;			/* max could see indices */
  */
 #define LS_OBJECT 0
 #define LS_MONSTER 1
-
+/* WAC Added a new light source temp type
+ * This is meant to be called within a function and destroyed before
+ * control is returned to user.  They are NOT saved.  Used for light
+ * sourcing spells, explosions, etc.
+ */
+#define LS_TEMP 2
 /*
  *  cansee()	- Returns true if the hero can see the location.
  *

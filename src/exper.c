@@ -4,16 +4,59 @@
 
 #include "hack.h"
 
-STATIC_DCL long FDECL(newuexp, (int));
+/*STATIC_DCL*/ long FDECL(newuexp, (int));
 STATIC_DCL int FDECL(enermod, (int));
 
-STATIC_OVL long
+/*STATIC_OVL*/ long
 newuexp(lev)
 int lev;
 {
-	if (lev < 10) return (10L * (1L << lev));
-	if (lev < 20) return (10000L * (1L << (lev - 10)));
-	return (10000000L * ((long)(lev - 19)));
+	/* KMH, balance patch -- changed again! */
+	if (lev < 9) return (20L * (1L << lev));
+	if (lev < 13) return (10000L * (1L << (lev - 9)));
+	if (lev == 13) return (150000L);
+	return (50000L * ((long)(lev - 9)));
+	/*              Old XP routine */
+	/* if (lev < 10) return (10L * (1L << lev));            */
+	/* if (lev < 20) return (10000L * (1L << (lev - 10)));  */
+	/* return (10000000L * ((long)(lev - 19)));             */
+/*      if (lev == 1)  return (75L);
+	if (lev == 2)  return (150L);
+	if (lev == 3)  return (300L);
+	if (lev == 4)  return (600L);
+	if (lev == 5)  return (1200L); */
+#if 0
+	if (lev == 1)  return (50L);     /* need 50           */
+	if (lev == 2)  return (100L);    /* need 50           */
+	if (lev == 3)  return (200L);    /* need 100          */
+	if (lev == 4)  return (500L);    /* need 300          */
+	if (lev == 5)  return (1000L);   /* need 500          */
+	if (lev == 6)  return (1750L);   /* need 750          */
+	if (lev == 7)  return (2750L);   /* need 1000         */
+	if (lev == 8)  return (4250L);   /* need 1500         */
+	if (lev == 9)  return (6250L);   /* need 2000         */
+	if (lev == 10) return (8750L);   /* need 2500         */
+	if (lev == 11) return (11750L);  /* need 3000         */
+	if (lev == 12) return (15500L);  /* need 3750         */
+	if (lev == 13) return (20000L);  /* need 4500         */
+	if (lev == 14) return (25000L);  /* need 5000         */
+	if (lev == 15) return (31000L);  /* need 6000         */
+	if (lev == 16) return (38500L);  /* need 7500         */
+	if (lev == 17) return (48000L);  /* need 9500         */
+	if (lev == 18) return (60000L);  /* need 12000        */
+	if (lev == 19) return (76000L);  /* need 16000        */
+	if (lev == 20) return (97000L);  /* need 21000        */
+	if (lev == 21) return (125000L); /* need 28000   +7   */
+	if (lev == 22) return (163000L); /* need 38000   +10  */
+	if (lev == 23) return (213000L); /* need 50000   +12  */
+	if (lev == 24) return (279000L); /* need 66000  +16   */
+	if (lev == 25) return (365000L); /* need 86000 + 20   */
+	if (lev == 26) return (476000L); /* need 111000 + 25  */
+	if (lev == 27) return (617000L); /* need 141000+ 30   */
+	if (lev == 28) return (798000L); /* need 181000 + 40  */
+	if (lev == 29) return (1034000L); /* need 236000 + 55 */
+	return (1750000L);
+#endif
 }
 
 STATIC_OVL int
@@ -21,6 +64,9 @@ enermod(en)
 int en;
 {
 	switch (Role_switch) {
+		/* WAC 'F' and 'I' get bonus similar to 'W' */
+		case PM_FLAME_MAGE:
+		case PM_ICE_MAGE:
 	case PM_PRIEST:
 	case PM_WIZARD:
 	    return(2 * en);
@@ -39,7 +85,7 @@ int
 experience(mtmp, nk)	/* return # of exp points for mtmp after nk killed */
 	register struct	monst *mtmp;
 	register int	nk;
-#if defined(macintosh) && (defined(__SC__) || defined(__MRC__))
+#if defined(MAC_MPW)
 # pragma unused(nk)
 #endif
 {
@@ -57,7 +103,6 @@ experience(mtmp, nk)	/* return # of exp points for mtmp after nk killed */
 
 /*	For each "special" attack type give extra experience */
 	for(i = 0; i < NATTK; i++) {
-
 	    tmp2 = ptr->mattk[i].aatyp;
 	    if(tmp2 > AT_BUTT) {
 
@@ -111,19 +156,19 @@ more_experienced(exp, rexp)
 }
 
 void
-losexp(drainer)		/* e.g., hit by drain life attack */
+losexp(drainer,force)	/* e.g., hit by drain life attack */
 const char *drainer;	/* cause of death, if drain should be fatal */
+boolean force;		/* Force the loss of an experience level */
 {
 	register int num;
 
 #ifdef WIZARD
-	/* override life-drain resistance when handling an explicit
-	   wizard mode request to reduce level; never fatal though */
+	/* explicit wizard mode requests to reduce level are never fatal. */
 	if (drainer && !strcmp(drainer, "#levelchange"))
 	    drainer = 0;
-	else
 #endif
-	    if (resists_drli(&youmonst)) return;
+
+	if (!force && Drain_resistance) return;
 
 	if (u.ulevel > 1) {
 		pline("%s level %d.", Goodbye(), u.ulevel--);
@@ -177,6 +222,56 @@ newexplevel()
 	    pluslvl(TRUE);
 }
 
+#if 0 /* The old newexplevel() */
+{
+	register int tmp;
+
+	if(u.ulevel < MAXULEV && u.uexp >= newuexp(u.ulevel)) {
+
+		u.ulevel++;
+		if (u.ulevelmax < u.ulevel) u.ulevelmax = u.ulevel;	/* KMH */
+		if (u.uexp >= newuexp(u.ulevel)) u.uexp = newuexp(u.ulevel) - 1;
+		pline("Welcome to experience level %d.", u.ulevel);
+		/* give new intrinsics */
+		adjabil(u.ulevel - 1, u.ulevel);
+		reset_rndmonst(NON_PM); /* new monster selection */
+/* STEPHEN WHITE'S NEW CODE */                
+		tmp = newhp();
+		u.uhpmax += tmp;
+		u.uhp += tmp;
+		switch (Role_switch) {
+			case PM_ARCHEOLOGIST: u.uenbase += rnd(4) + 1; break;
+			case PM_BARBARIAN: u.uenbase += rnd(2); break;
+			case PM_CAVEMAN: u.uenbase += rnd(2); break;
+			case PM_DOPPELGANGER: u.uenbase += rnd(5) + 1; break;
+			case PM_ELF: case PM_DROW: u.uenbase += rnd(5) + 1; break;
+			case PM_FLAME_MAGE: u.uenbase += rnd(6) + 2; break;
+			case PM_GNOME: u.uenbase += rnd(3); break;
+			case PM_HEALER: u.uenbase += rnd(6) + 2; break;
+			case PM_ICE_MAGE: u.uenbase += rnd(6) + 2; break;
+#ifdef YEOMAN
+			case PM_YEOMAN:
+#endif
+			case PM_KNIGHT: u.uenbase += rnd(3); break;
+			case PM_HUMAN_WEREWOLF: u.uenbase += rnd(5) + 1; break;
+			case PM_MONK: u.uenbase += rnd(5) + 1; break;
+			case PM_NECROMANCER: u.uenbase += rnd(6) + 2; break;
+			case PM_PRIEST: u.uenbase += rnd(6) + 2; break;
+			case PM_ROGUE: u.uenbase += rnd(4) + 1; break;
+			case PM_SAMURAI: u.uenbase += rnd(2); break;
+#ifdef TOURIST
+			case PM_TOURIST: u.uenbase += rnd(4) + 1; break;
+#endif
+			case PM_UNDEAD_SLAYER: u.uenbase += rnd(3); break;
+			case PM_VALKYRIE: u.uenbase += rnd(2); break;
+			case PM_WIZARD: u.uenbase += rnd(6) + 2; break;
+			default: u.uenbase += rnd(2) + 1; break;
+		}
+		flags.botl = 1;
+	}
+}
+#endif /* old newexplevel() */
+
 void
 pluslvl(incr)
 boolean incr;	/* true iff via incremental experience growth */
@@ -201,7 +296,8 @@ boolean incr;	/* true iff via incremental experience growth */
 	num = enermod(num);	/* M. Stephenson */
 	u.uenmax += num;
 	u.uen += num;
-	if (u.ulevel < MAXULEV) {
+	
+	if(u.ulevel < MAXULEV) {
 	    if (incr) {
 		long tmp = newuexp(u.ulevel + 1);
 		if (u.uexp >= tmp) u.uexp = tmp - 1;

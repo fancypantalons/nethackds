@@ -34,6 +34,7 @@
 #define STR18(x)	(18+(x))	/* 18/xx */
 #define STR19(x)	(100+(x))	/* For 19 and above */
 
+
 struct	attribs {
 	schar	a[A_MAX];
 };
@@ -41,4 +42,4 @@ struct	attribs {
 #define ATTRMAX(x) ((x == A_STR && Upolyd && strongmonst(youmonst.data)) ? STR18(100) : urace.attrmax[x])
 #define ATTRMIN(x) (urace.attrmin[x])
 
-#endif /* ATTRIB_H */
+#endif /* ATTRIB.H */

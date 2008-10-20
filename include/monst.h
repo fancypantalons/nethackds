@@ -51,6 +51,7 @@ struct monst {
 #define MTSZ	4
 	coord mtrack[MTSZ];	/* monster track */
 	int mhp, mhpmax;
+	int m_en, m_enmax;	/* Power level (for spells, etc.) */
 	unsigned mappearance;	/* for undetected mimics and the wiz */
 	uchar	 m_ap_type;	/* what mappearance is describing: */
 #define M_AP_NOTHING	0	/* mappearance is unused -- monster appears
@@ -60,8 +61,9 @@ struct monst {
 #define M_AP_MONSTER	3	/* a monster */
 
 	schar mtame;		/* level of tameness, implies peaceful */
-	unsigned short mintrinsics;	/* low 8 correspond to mresists */
+	unsigned long mintrinsics;	/* initialized from mresists */
 	int mspec_used;		/* monster's special ability attack timeout */
+	int     oldmonnm;       /* Old monster number - for polymorph */
 
 	Bitfield(female,1);	/* is female */
 	Bitfield(minvis,1);	/* currently invisible */
@@ -102,10 +104,14 @@ struct monst {
 	Bitfield(mpeaceful,1);	/* does not attack unprovoked */
 	Bitfield(mtrapped,1);	/* trapped in a pit, web or bear trap */
 	Bitfield(mleashed,1);	/* monster is on a leash */
+	Bitfield(isspell,1);	/* is a temporary spell being */
+	Bitfield(uexp,1);		/* you get experience for its kills */
+
+	Bitfield(mtraitor,1);	/* Former pet that turned traitor */
 	Bitfield(isshk,1);	/* is shopkeeper */
 	Bitfield(isminion,1);	/* is a minion */
-
 	Bitfield(isgd,1);	/* is guard */
+	Bitfield(isgyp, 1);	/* is a gypsy */
 	Bitfield(ispriest,1);	/* is a priest */
 	Bitfield(iswiz,1);	/* is the Wizard of Yendor */
 	Bitfield(wormno,5);	/* at most 31 worms on any level */
@@ -139,6 +145,11 @@ struct monst {
 	long misc_worn_check;
 	xchar weapon_check;
 
+        /*
+         * NOTE: DO NOT ADD PARTS TO MONST STRUCT AFTER THIS POINT!
+         * ALL ADDITIONS SHOULD GO BEFORE!!
+         *       --WAC
+         */
 	uchar mnamelth;		/* length of name (following mxlth) */
 	short mxlth;		/* length of following data */
 	/* in order to prevent alignment problems mextra should

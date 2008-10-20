@@ -9,20 +9,22 @@
 
 
                            A Guide to the Mazes of Menace
-                               (Guidebook for NetHack)
+                              (Guidebook for SLASH'EM)
 
 
                                    Eric S. Raymond
-                      (Extensively edited and expanded for 3.4)
+                  (Extensively edited and expanded for NetHack 3.4)
+                    (Revised for SLASH'EM 0.0.3 by Warren Cheung)
+                    (Revised for SLASH'EM 0.0.6 by J. Ali Harlow)
 
 
 
           1.  Introduction
 
-          Recently, you have begun to find yourself unfulfilled and distant
-          in your daily occupation.  Strange dreams of prospecting,  steal-
-          ing,  crusading,  and  combat  have haunted you in your sleep for
-          many months, but you aren't  sure  of  the  reason.   You  wonder
+               Recently,  you  have  begun to find yourself unfulfilled and
+          distant in your daily occupation.  Strange dreams of prospecting,
+          stealing,  crusading,  and  combat have haunted you in your sleep
+          for many months, but you aren't sure of the reason.   You  wonder
           whether  you have in fact been having those dreams all your life,
           and somehow managed to forget about them until now.  Some  nights
           you awaken suddenly and cry out, terrified at the vivid recollec-
@@ -56,18 +58,19 @@
           magical creatures of your dreams along the way.   You  spend  one
           last  night  fortifying  yourself at the local inn, becoming more
           and more depressed as you watch the odds of  your  success  being
+
+
+          SLASH'EM Guidebook                                              1
+
+
+
+
+
+          SLASH'EM Guidebook                                              2
+
+
+
           posted on the inn's walls getting lower and lower.
-
-
-
-          NetHack Guidebook                                               1
-
-
-
-
-
-          NetHack Guidebook                                               2
-
 
 
                  In the morning you awake, collect your belongings, and set
@@ -81,9 +84,9 @@
 
           2.  What is going on here?
 
-               You have just begun a game of NetHack.  Your goal is to grab
-          as much treasure as you can, retrieve the Amulet of  Yendor,  and
-          escape the Mazes of Menace alive.
+               You  have  just  begun  a game of SLASH'EM.  Your goal is to
+          grab as much treasure as you can, retrieve the Amulet of  Yendor,
+          and escape the Mazes of Menace alive.
 
                Your abilities and strengths for dealing with the hazards of
           adventure will vary with your background and training:
@@ -99,6 +102,11 @@
                Cavemen  and  Cavewomen start with exceptional strength but,
           unfortunately, with neolithic weapons.
 
+               Flame Mages have managed to harness mystical  energies  into
+          the  control  of  the element of fire.  Notwithstanding their pet
+          hell hounds,  woe be unto anyone who  stands  in  the  way  of  a
+          skilled mage casting a fireball.
+
                Healers are wise in medicine and apothecary.  They know  the
           herbs  and  simples  that  can restore vitality, ease pain, anes-
           thetize, and neutralize poisons; and with their instruments, they
@@ -106,14 +114,35 @@
           practice earns them quite reasonable amounts of money, with which
           they enter the dungeon.
 
+               Ice Mages command the forces of cold.  An  experienced  Mage
+          can  summon  great blizzards yet remain unaffected by the turmoil
+          of the elements.
+
                Knights  are  distinguished  from  the  common skirmisher by
           their devotion to the ideals of chivalry and  by  the  surpassing
           excellence of their armor.
 
                Monks are ascetics, who by rigorous practice of physical and
           mental disciplines have become capable of fighting as effectively
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                              3
+
+
+
           without  weapons  as with.  They wear no armor but make up for it
           with increased mobility.
+
+               Necromancers  have  delved  into  the darkest of the magical
+          lore, and mastered some of the  most  forbidden  of  the  magical
+          lore.  Many have fallen to the armies of the undead that they are
+          capable of bringing forth and controlling.
 
                Priests and Priestesses are clerics militant, crusaders  ad-
           vancing  the  cause  of  righteousness with arms, armor, and arts
@@ -125,28 +154,23 @@
           out of place in a dungeon.  They are, however, experts in archery
           as well as tracking and stealthy movement.
 
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                               3
-
-
-
                Rogues are agile and stealthy  thieves,  with  knowledge  of
-          locks,  traps,  and  poisons.   Their advantage lies in surprise,
-          which they employ to great advantage.
+          locks,  traps,  and  poisons.  They specialize in surprise, which
+          they employ to great advantage.
 
                Samurai are the elite warriors of feudal Nippon.   They  are
-          lightly  armored  and  quick, and wear the dai-sho, two swords of
+          heavily  armored  but  quick, and wear the dai-sho, two swords of
           the deadliest keenness.
 
                Tourists start out with lots of gold (suitable for  shopping
           with),  a  credit card, lots of food, some maps, and an expensive
           camera.  Most monsters don't like being photographed.
+
+               Undead Slayers are specialists,  trained to hunt the  undead
+          as  well  as  other incarnations of evil.  They are well aware of
+          the weaknesses of their foes and come prepared.  Few denizens  of
+          darkness  ever  encounter such warriors of light and live to tell
+          of it.
 
                Valkyries are hardy warrior women.  Their upbringing in  the
           harsh  Northlands  makes  them strong, inures them to extremes of
@@ -157,26 +181,60 @@
           though seemingly weak and easy to overcome at first sight, an ex-
           perienced Wizard is a deadly foe.
 
+               Yeomen are sturdy fighters. They are famed for their ability
+          to stand doing nothing for hours. It is said that this is because
+          they  are  none  too bright. Yeomen can both take a lot of damage
+          and inflict it on others.
+
                You may also choose the race of your character:
+
+               Doppelgangers have the anviable ability to  change  form  at
+          will,   at  a  cost  of some mystic energy (mana),  although what
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                              4
+
+
+
+          they become may be a bit of a surprise,  even for them.
 
                Dwarves are smaller than humans or elves, but are stocky and
           solid individuals.  Dwarves' most notable trait  is  their  great
           expertise  in mining and metalwork.  Dwarvish armor is said to be
           second in quality not even to the mithril armor of the Elves.
 
-               Elves are agile, quick, and perceptive; very little of  what
-          goes  on  will escape an Elf.  The quality of Elven craftsmanship
-          often gives them an advantage in arms and armor.
+               Elves  and Drows are agile, quick, and perceptive; very lit-
+          tle of what goes on will escape an Elf.   The  quality  of  Elven
+          craftsmanship often gives them an advantage in arms and armor.
 
                Gnomes are smaller than but generally  similar  to  dwarves.
           Gnomes  are known to be expert miners, and it is known that a se-
           cret underground mine complex built by this  race  exists  within
           the Mazes of Menace, filled with both riches and danger.
 
+               Hobbits are quick of hearing and sharp-eyed, and though they
+          are  inclined  to be fat and do not hurry unnecessarily, they are
+          nonetheless nimble and deft in their movements. A love of  learn-
+          ing  (other  than  genealogical  lore)  is far from general among
+          them. Hobbits are difficult to daunt, or to kill, and at need can
+          still handle arms.
+
                Humans are by far the most common race of the surface world,
           and are thus the norm by which other races  are  often  compared.
           Although  they have no special abilities, they can succeed in any
           role.
+
+               Lycanthropes are wild beasts who draw  their  strength  from
+          the  phases of the moon,  and can transform into wolves when they
+          channel their magical energies.  Even unarmed,  a Lycanthrope  is
+          a  savage fighter,  as many scarred by their deadly claws can at-
+          test.
 
                Orcs are a cruel and barbaric race that  hate  every  living
           thing  (including other orcs).  Above all others, Orcs hate Elves
@@ -184,45 +242,51 @@
           one  at  any opportunity.  The armor and weapons fashioned by the
           Orcs are typically of inferior quality.
 
+               Vampires strike fear into the heart of many. Their super-hu-
+          man strength, notorious dexterity and resiliance make them diffi-
+          cult to defeat while their almost hypnotic charm makes them  dan-
+          gerous  opponents.  Even  their own Gods treat vampires with some
+          distaste.
+
           3.  What do all those things on the screen mean?
 
                On the screen is kept a map of where you have been and  what
           you  have  seen on the current dungeon level; as you explore more
           of the level, it appears on the screen in front of you.
 
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                               4
-
-
-
-               When NetHack's ancestor rogue  first  appeared,  its  screen
+               When SLASH'EM's ancestor rogue first  appeared,  its  screen
           orientation  was  almost  unique  among  computer  fantasy games.
-          Since then, screen orientation has become the  norm  rather  than
-          the  exception;  NetHack  continues  this fine tradition.  Unlike
-          text adventure games that accept commands in pseudo-English  sen-
-          tences and explain the results in words, NetHack commands are all
-          one or two keystrokes and the results are  displayed  graphically
-          on  the  screen.  A minimum screen size of 24 lines by 80 columns
-          is recommended; if the screen is larger,  only  a  21x80  section
-          will be used for the map.
 
-               NetHack can even be played by blind players, with the assis-
-          tance of Braille readers or  speech  synthesisers.   Instructions
-          for  configuring NetHack for the blind are included later in this
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                              5
+
+
+
+          Since then, screen orientation has become the  norm  rather  than
+          the  exception;  SLASH'EM  continues this fine tradition.  Unlike
+          text adventure games that accept commands in pseudo-English  sen-
+          tences  and  explain  the results in words, SLASH'EM commands are
+          all one or two keystrokes and the results are  displayed  graphi-
+          cally  on  the  screen.   A minimum screen size of 24 lines by 80
+          columns is recommended; if the screen is  larger,  only  a  21x80
+          section will be used for the map.
+
+               SLASH'EM  can  even be played by blind players, with the as-
+          sistance of Braille readers or speech synthesisers.  Instructions
+          for configuring SLASH'EM for the blind are included later in this
           document.
 
-               NetHack generates a new dungeon every time you play it; even
-          the  authors  still find it an entertaining and exciting game de-
-          spite having won several times.
+               SLASH'EM generates a new dungeon every  time  you  play  it;
+          even  the authors still find it an entertaining and exciting game
+          despite having won several times.
 
-               NetHack offers a variety of display  options.   The  options
+               SLASH'EM offers a variety of display options.   The  options
           available  to  you  will vary from port to port, depending on the
           capabilities of your hardware and software, and  whether  various
           compile-time options were enabled when your executable was creat-
@@ -238,10 +302,10 @@
           the  monochrome  character  display  when referring to things you
           might see on the screen during your game.
 
-               In order to understand what is going on  in  NetHack,  first
-          you  must  understand what NetHack is doing with the screen.  The
-          NetHack screen replaces the ``You see ...'' descriptions of  text
-          adventure  games.   Figure 1 is a sample of what a NetHack screen
+               In order to understand what is going on in  SLASH'EM,  first
+          you  must understand what SLASH'EM is doing with the screen.  The
+          SLASH'EM screen replaces the ``You see ...'' descriptions of text
+          adventure  games.  Figure 1 is a sample of what a SLASH'EM screen
           might look like.  The way the screen looks  for  you  depends  on
           your platform.
 
@@ -258,15 +322,15 @@
 
 
 
-          NetHack 3.4                                      December 2, 2003
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 
 
 
-          NetHack Guidebook                                               5
-
-
+          SLASH'EM Guidebook                                              6
 
 
 
@@ -322,20 +386,20 @@
                Charisma affects how certain creatures react toward you.  In
                particular,  it can affect the prices shopkeepers offer you.
 
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                               6
-
-
-
           Alignment
                Lawful, Neutral, or Chaotic.  Often, Lawful is taken as good
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                              7
+
+
+
                and Chaotic as evil, but legal and ethical do not always co-
                incide.  Your alignment influences how other monsters  react
                toward you.  Monsters of a like alignment are more likely to
@@ -380,25 +444,32 @@
                ical attacks.  Many dungeons show only your experience level
                here.
 
+          Weight
+               The  total  weight of all items in your inventory, displayed
+               if you have the showweight option set. The number after  the
+               slash is your carrying capacity.
+
           Time
                The  number  of  turns elapsed so far, displayed if you have
                the time option set.
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                              8
+
+
 
           Hunger status
                Your current hunger status, ranging from  Satiated  down  to
                Fainting.   If  your hunger status is normal, it is not dis-
                played.
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                               7
-
-
 
                Additional status flags may appear after the hunger  status:
           Conf  when you're confused, FoodPois or Ill when sick, Blind when
@@ -408,7 +479,7 @@
 
                The top line of the screen is reserved for messages that de-
           scribe  things that are impossible to represent visually.  If you
-          see a ``--More--'' on the top line, this means that  NetHack  has
+          see a ``--More--'' on the top line, this means that SLASH'EM  has
           another  message  to  display on the screen, but it wants to make
           certain that you've read the one that is there  first.   To  read
           the next message, just press the space bar.
@@ -448,23 +519,24 @@
 
           %    Something edible (not necessarily healthy).
 
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                              9
+
+
+
           ?    A scroll.
 
           /    A wand.
 
           =    A ring.
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                               8
-
-
 
           !    A potion.
 
@@ -504,37 +576,46 @@
 
                Commands are initiated by  typing  one  or  two  characters.
           Some  commands, like ``search'', do not require that any more in-
-          formation be collected by NetHack.  Other commands might  require
+          formation be collected by SLASH'EM.  Other commands might require
           additional  information, for example a direction, or an object to
           be used.  For those commands that require additional information,
-          NetHack  will present you with either a menu of choices or with a
+          SLASH'EM will present you with either a menu of choices or with a
           command line prompt requesting information.  Which you  are  pre-
           sented with will depend chiefly on how you have set the menustyle
           option.
 
                For example, a common question, in the form  ``What  do  you
           want  to use? [a-zA-Z ?*]'', asks you to choose an object you are
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             10
+
+
+
           carrying.  Here, ``a-zA-Z'' are the  inventory  letters  of  your
           possible  choices.   Typing  `?'  gives  you an inventory list of
           these items, so you can see what each letter refers to.  In  this
           example,  there  is  also a `*' indicating that you may choose an
           object not on the list, if you wanted to use something  unexpect-
           ed.  Typing a `*' lists your entire inventory, so you can see the
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                               9
-
-
-
           inventory letters of every object you're carrying.   Finally,  if
           you change your mind and decide you don't want to do this command
           after all, you can press the ESC key to abort the command.
+
+               Some commands allow you to choose an object that you are not
+          currently  carrying. Such commands have an extra option available
+          as in ``What do you want to drink? [fgh or  ?*,.]''.  Typing  `,'
+          gives  you  a  list  of the applicable objects on the floor, from
+          which you may make your choice.  For commands where it is  possi-
+          ble  to  choose  your current location rather than an object, the
+          `.' option will be displayed. This can be used to read an engrav-
+          ing or drink from a dungeon feature.
 
                You can put a number before some  commands  to  repeat  them
           that  many times; for example, ``10s'' will search ten times.  If
@@ -546,10 +627,19 @@
 
                The list of commands is rather long, but it can be  read  at
           any  time during the game through the `?' command, which accesses
-          a menu of helpful texts.  Here are the commands for  your  refer-
-          ence:
+          a  menu  of  helpful  texts.  As well,  there is now a menusystem
+          available through the '`' command for those who would rather page
+          through  menus than hunt and peck for keys. Here are the commands
+          for your reference:
+
+          ESC  Cancel the current operation (where applicable) or skip mes-
+               sages.  If the menu_on_esc option is set, then this key will
+               access the menusystem when  pressed  while  the  program  is
+               waiting for a command.
 
           ?    Help menu:  display one of several help texts available.
+
+          `    Main menu:  access the menusystem.
 
           /    Tell  what a symbol represents.  You may choose to specify a
                location or type a symbol (or even a whole word) to explain.
@@ -562,6 +652,18 @@
                skip  any  additional  information; `;' will skip additional
                info and also not bother asking you to choose another  loca-
                tion  to  examine;  `:'  will  show additional info, if any,
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             11
+
+
+
                without asking for confirmation.  When picking  a  location,
                pressing  the ESC key will terminate this command, or press-
                ing `?'  will give a brief reminder about how it works.
@@ -583,20 +685,6 @@
                monster  instead.   Only  these  one-step  movement commands
                cause  you  to  fight  monsters;  the  others  (below)   are
                ``safe.''
-
-
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              10
-
-
 
                                     y  k  u          7  8  9
                                      \ | /            \ | /
@@ -630,6 +718,18 @@
                Prefix:  same as `g', but forking of corridors is  not  con-
                sidered interesting.
 
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             12
+
+
+
           _    Travel to a map location via a shortest-path algorithm.  The
                shortest path is computed over map locations the hero  knows
                about  (e.g.  seen or previously traversed).  If there is no
@@ -649,20 +749,9 @@
 
           ^A   Redo the previous command.
 
+          ^B   Borrow (steal) money from an adjacent monster.
+
           c    Close a door.
-
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              11
-
-
 
           C    Call (name) an individual monster.
 
@@ -689,10 +778,24 @@
 
           ^D   Kick something (usually a door).
 
-          e    Eat food.
+          e    Eat  food.  Vampires  cannot  eat as such. However, they can
+               gain nutrition by draining blood from  fresh  corpses  using
+               this command.
 
           E    Engrave   a  message  on  the  floor.   Engraving  the  word
                ``Elbereth'' will cause most  monsters  to  not  attack  you
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             13
+
+
+
                hand-to-hand  (but if you attack, you will rub it out); this
                is often useful to give yourself a breather.  (This  feature
                may  be  compiled out of the game, so your version might not
@@ -718,18 +821,6 @@
           O    Set options.  A menu showing the current option values  will
                be  displayed.  You can change most values simply by select-
                ing the menu entry for the given option (ie, by  typing  its
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              12
-
-
-
                letter  or  clicking  upon it, depending on your user inter-
                face).  For the  non-boolean  choices,  a  further  menu  or
                prompt will appear once you've closed this menu.  The avail-
@@ -737,7 +828,7 @@
                are  usually  set  before  the game rather than with the `O'
                command; see the section on options below.
 
-          p    Pay your shopping bill.
+          p    Pay your shopping bill/Shopkeeper services.
 
           P    Put on a ring or other accessory (amulet, blindfold).
 
@@ -748,15 +839,28 @@
           q    Quaff (drink) something (potion, water, etc).
 
           Q    Select an object for your quiver.  You can then  throw  this
-               using  the  `f' command.  (In versions prior to 3.3 this was
-               the command to quit the game, which has now  been  moved  to
-               `#quit'.)
+               using the `f' command.  (In SLASH'EM versions prior to 0.0.6
+               this was the command to quit the game, which  has  now  been
+               moved to `#quit'.)
 
           r    Read a scroll or spellbook.
 
           R    Remove an accessory (ring, amulet, etc).
 
           ^R   Redraw the screen.
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             14
+
+
 
           s    Search  for  secret  doors and traps around you.  It usually
                takes several tries to find something.
@@ -785,22 +889,13 @@
                when  engaging  in  two-weapon  combat.  Note that if one of
                these slots is empty, the exchange still takes place.
 
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              13
-
-
-
           X    Enter explore (discovery) mode, explained in its own section
                later.
 
           ^X   Display your name, role, race, gender, and alignment as well
                as the various deities in your game.
+
+          ^Y   Polymorph yourself, if you have the ability.
 
           z    Zap a wand.  To aim at yourself, use `.' for the  direction.
 
@@ -817,6 +912,21 @@
                lection menu.
 
           @    Toggle the autopickup option on and off.
+
+
+          __________
+          (R)UNIX is a registered trademark of AT&T.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             15
+
+
 
           ^    Ask for the type of a trap you found earlier.
 
@@ -846,22 +956,6 @@
 
           !    Escape to a shell.
 
-
-
-          __________
-          (R)UNIX is a registered trademark of AT&T.
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              14
-
-
-
           #    Perform an extended command.  As you can see, the authors of
                NetHack used up all the letters, so this is a way to  intro-
                duce  the less frequently used commands.  What extended com-
@@ -871,6 +965,10 @@
           #adjust
                Adjust inventory letters (most useful when the fixinv option
                is ``on'').
+
+          #borrow
+               Borrow (steal) money from an adjacent monster, if  you  have
+               the ability.
 
           #chat
                Talk to someone.
@@ -883,6 +981,18 @@
 
           #enhance
                Advance or check weapons and spell skills.
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             16
+
+
 
           #force
                Force a lock.
@@ -916,21 +1026,14 @@
           #ride
                Ride (or stop riding) a monster.
 
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              15
-
-
-
           #rub Rub a lamp or a stone.
 
           #sit Sit down.
+
+          #technique
+               Perform a role or race specific technique.  A  menu  showing
+               the  techniques  available  to  your  character will be dis-
+               played.
 
           #turn
                Turn undead.
@@ -943,8 +1046,25 @@
           #untrap
                Untrap something (trap, door, or chest).
 
+          #vanquished
+               List vanquished monsters (whether by you or not).
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             17
+
+
+
+          #youpoly
+               Polymorph yourself, if you have the ability.
+
           #version
-               Print compile time options for this version of NetHack.
+               Print compile time options for this version of SLASH'EM.
 
           #wipe
                Wipe off your face.
@@ -955,13 +1075,15 @@
           bination with another key, modifies  it  by  setting  the  `meta'
           [8th,  or  `high'] bit), you can invoke many extended commands by
           meta-ing the first letter of the command.  In NT,  OS/2,  and  PC
-          NetHack, the `Alt' key can be used in this fashion.
+          SLASH'EM, the `Alt' key can be used in this fashion.
 
           M-?  #? (not supported by all platforms)
 
           M-2  #twoweapon (unless the number_pad option is enabled)
 
           M-a  #adjust
+
+          M-b  #borrow
 
           M-c  #chat
 
@@ -981,19 +1103,6 @@
 
           M-n  #name
 
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              16
-
-
-
           M-o  #offer
 
           M-p  #pray
@@ -1004,13 +1113,28 @@
 
           M-s  #sit
 
-          M-t  #turn
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             18
+
+
+
+          M-t  #technique
 
           M-u  #untrap
 
           M-v  #version
 
           M-w  #wipe
+
+          M-y  #youpoly
 
                If  the number_pad option is on, some additional letter com-
           mands are available:
@@ -1021,6 +1145,9 @@
           j    Jump to another location.  Same as ``#jump'' or ``M-j''.
 
           k    Kick something (usually a door).  Same as `^D'.
+
+          K    List vanquished monsters (whether by you or not).   Same  as
+               ``#vanquished''.
 
           l    Loot  a  box  or bag on the floor beneath you, or the saddle
                from a horse standing next to you.   Same  as  ``#loot''  or
@@ -1048,23 +1175,23 @@
                Doorways connect rooms and corridors.  Some doorways have no
           doors; you can walk right through.  Others have  doors  in  them,
           which may be open, closed, or locked.  To open a closed door, use
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              17
-
-
-
           the `o' (open) command; to close it again, use  the  `c'  (close)
           command.
 
                You  can  get  through a locked door by using a tool to pick
           the lock with the `a' (apply) command, or by kicking it open with
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             19
+
+
+
           the `^D' (kick) command.
 
                Open  doors  cannot be entered diagonally; you must approach
@@ -1114,23 +1241,22 @@
           previously visited level, it will be loaded from its file on disk
           and reactivated.  If you're moving to a level which has  not  yet
           been  visited,  it  will be created (from scratch for most random
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              18
-
-
-
           levels, from a template for some ``special''  levels,  or  loaded
           from  the  remains  of  an  earlier game for a ``bones'' level as
           briefly described below).  Monsters are only active on  the  cur-
           rent  level;  those  on  other levels are essentially placed into
           stasis.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             20
+
+
 
                Ordinarily when you climb a set of stairs, you  will  arrive
           on  the  corresponding  staircase  at your destination.  However,
@@ -1179,22 +1305,24 @@
                The `$' command, which reports the amount of  gold  you  are
           carrying (in inventory, not inside bags or boxes), will also show
           current shop debt or credit, if any.  The `Iu' command lists  un-
-          paid  items  (those  which  still  belong to the shop) if you are
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              19
+          paid items (those which still belong to the shop) if you are car-
+          rying any.  The `Ix' command shows an inventory-like  display  of
+          any  unpaid  items which have been used up, along with other shop
+          fees, if any.
 
 
 
-          carrying any.  The `Ix' command shows an  inventory-like  display
-          of  any  unpaid  items  which have been used up, along with other
-          shop fees, if any.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             21
+
+
 
           5.5.1.  Shop idiosyncracies
 
@@ -1245,34 +1373,35 @@
                If  you  can't  see a monster (if it is invisible, or if you
           are blinded), the symbol `I' will be shown when you learn of  its
           presence.   If you attempt to walk into it, you will try to fight
-          it just like a monster that  you  can  see;  of  course,  if  the
+          it  just  like a monster that you can see; of course, if the mon-
+          ster has moved, you will attack empty air.  If you guess that the
+          monster  has  moved  and you don't wish to fight, you can use the
+          `m' command to move without fighting; likewise, if you don't  re-
+          member a monster but want to try fighting anyway, you can use the
 
 
-          NetHack 3.4                                      December 2, 2003
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 
 
 
-          NetHack Guidebook                                              20
+          SLASH'EM Guidebook                                             22
 
 
 
-          monster  has moved, you will attack empty air.  If you guess that
-          the monster has moved and you don't wish to fight,  you  can  use
-          the  `m' command to move without fighting; likewise, if you don't
-          remember a monster but want to try fighting anyway, you  can  use
-          the `F' command.
+          `F' command.
 
           6.2.  Your pet
 
-               You  start  the  game with a little dog (`d'), cat (`f'), or
-          pony (`u'), which follows you about the dungeon and  fights  mon-
-          sters  with  you.   Like you, your pet needs food to survive.  It
-          usually feeds itself on fresh carrion and other meats.  If you're
-          worried  about  it  or want to train it, you can feed it, too, by
-          throwing it food.  A properly trained pet can be very useful  un-
-          der certain circumstances.
+               You start the game with a little dog (`d'), cat (`f'),  hell
+          hound  pup  ('d'),  winter  wolf  cub ('d'), ghoul ('Z'), or pony
+          (`u'), which follows you about the dungeon  and  fights  monsters
+          with  you.   With the exception of ghouls, your pet needs food to
+          survive.  It usually feeds itself  on  fresh  carrion  and  other
+          meats.   If  you're worried about it or want to train it, you can
+          feed it, too, by throwing it food.  A properly trained pet can be
+          very useful under certain circumstances.
 
                Your  pet  also  gains experience from killing monsters, and
           can grow over time, gaining hit points  and  doing  more  damage.
@@ -1314,25 +1443,28 @@
           lurking around, gloating over its last victory.
 
 
-          NetHack 3.4                                      December 2, 2003
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 
 
 
-          NetHack Guidebook                                              21
+          SLASH'EM Guidebook                                             23
 
 
 
           7.  Objects
 
                When you find something in the dungeon, it is common to want
-          to pick it up.  In NetHack, this is accomplished automatically by
-          walking over the object (unless you turn off the  autopickup  op-
-          tion  (see  below),  or move with the `m' prefix (see above)), or
+          to  pick  it up.  In SLASH'EM, this is accomplished automatically
+          by walking over the object (unless you turn  off  the  autopickup
+          option  (see below), or move with the `m' prefix (see above)), or
           manually by using the `,' command.
 
-               If you're carrying too many items, NetHack will tell you  so
+               If you're carrying too many items, SLASH'EM will tell you so
           and  you  won't  be able to pick up anything more.  Otherwise, it
           will add the object(s) to your pack and tell you  what  you  just
           picked up.
@@ -1348,14 +1480,14 @@
           you'll  be  so overloaded that you'll either have to discard some
           of what you're carrying or collapse under its weight.
 
-               NetHack will tell you how badly you  have  loaded  yourself.
+               SLASH'EM will tell you how badly you have  loaded  yourself.
           The  symbols  `Burdened', `Stressed', `Strained', `Overtaxed' and
           `Overloaded' are displayed on the bottom line display to indicate
           your condition.
 
                When you pick up an object, it is assigned an inventory let-
           ter.  Many commands that operate on objects must ask you to  find
-          out  which  object  you  want  to  use.  When NetHack asks you to
+          out  which  object  you  want  to use.  When SLASH'EM asks you to
           choose a particular object you are carrying, you are usually pre-
           sented  with a list of inventory letters to choose from (see Com-
           mands, above).
@@ -1367,7 +1499,7 @@
           will vary from game to game.
 
                When you use one of these objects, if its effect is obvious,
-          NetHack  will  remember  what it is for you.  If its effect isn't
+          SLASH'EM  will  remember what it is for you.  If its effect isn't
           extremely obvious, you will be asked what you want to  call  this
           type  of object so you will recognize it later.  You can also use
           the ``#name'' command for the same purpose at any time,  to  name
@@ -1380,13 +1512,13 @@
 
 
 
-          NetHack 3.4                                      December 2, 2003
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 
 
 
-          NetHack Guidebook                                              22
+          SLASH'EM Guidebook                                             24
 
 
 
@@ -1430,12 +1562,32 @@
                There are wielded weapons, like maces and swords, and thrown
           weapons, like arrows and spears.  To hit monsters with a  weapon,
           you  must wield it and attack them, or throw it at them.  You can
-          simply elect to throw a spear.  To shoot  an  arrow,  you  should
-          first  wield a bow, then throw the arrow.  Crossbows shoot cross-
-          bow bolts.  Slings hurl rocks and (other) stones (like gems).
+          simply elect to throw a spear.
+
+               To shoot an arrow, you should first wield a bow, then  throw
+          the  arrow.  An alternative method would be wield a bow and place
+          the arrows in your Quiver, after which you fire  the  ammunition.
+          Rangers  and  the  like  may find that having a bow as their sec-
+          ondary weapon is a useful combination. In order  to  use  a  sec-
+          ondary  weapon to fire ammunition however, it must first be moved
+          to the primary weapon slot. The ``x'' command  is  available  for
+          this use.  Crossbows shoot crossbow bolts.  Slings hurl rocks and
+          (other) stones (like gems).
 
                Enchanted weapons have a ``plus'' (or ``to hit enhancement''
           which  can  be  either  positive  or  negative) that adds to your
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             25
+
+
+
           chance to hit and the damage you do to a monster.  The  only  way
           to determine a weapon's enchantment is to have it magically iden-
           tified somehow.  Most weapons are subject to some type of  damage
@@ -1443,24 +1595,12 @@
 
                The  chance  that an attack will successfully hit a monster,
           and the amount of damage such a hit will do,  depends  upon  many
-          factors.   Among  them  are:  type  of  weapon, quality of weapon
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              23
-
-
-
-          (enchantment and/or erosion), experience level, strength, dexter-
-          ity, encumbrance, and proficiency (see below).  The monster's ar-
-          mor class - a general defense  rating,  not  necessarily  due  to
-          wearing  of armor - is a factor too; also, some monsters are par-
-          ticularly vulnerable to certain types of weapons.
+          factors.   Among them are: type of weapon, quality of weapon (en-
+          chantment and/or erosion), experience level, strength, dexterity,
+          encumbrance,  and  proficiency  (see below).  The monster's armor
+          class - a general defense rating, not necessarily due to  wearing
+          of  armor - is a factor too; also, some monsters are particularly
+          vulnerable to certain types of weapons.
 
                Many weapons can be wielded in one hand; some  require  both
           hands.   When  wielding  a  two-handed weapon, you can not wear a
@@ -1483,7 +1623,7 @@
 
                Those  of you in the audience who are AD&D players, be aware
           that each weapon which existed in AD&D does roughly the same dam-
-          age  to  monsters  in  NetHack.  Some of the more obscure weapons
+          age  to  monsters  in SLASH'EM.  Some of the more obscure weapons
           (such as the aklys, lucern hammer, and bec-de-corbin) are defined
           in an appendix to Unearthed Arcana, an AD&D supplement.
 
@@ -1503,24 +1643,24 @@
           be thrown by hand, but can be thrown much  farther  and  will  be
           more likely to hit when thrown while you are wielding a bow.
 
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             26
+
+
+
                You  can  simplify  the  throwing operation by using the `Q'
           command to select your preferred ``missile'', then using the  `f'
           command  to  throw  it.   You'll  be  prompted for a direction as
           above, but you don't have to specify which  item  to  throw  each
           time you use `f'.  There is also an option, autoquiver, which has
-          NetHack choose another item to  automatically  fill  your  quiver
+          SLASH'EM choose another item to automatically  fill  your  quiver
           when the inventory slot used for `Q' runs out.
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              24
-
-
 
                Some  characters have the ability to fire a volley of multi-
           ple items in a single turn.  Knowing how to load  several  rounds
@@ -1568,6 +1708,18 @@
           particular skill, in which case it will start at unskilled and be
           limited  to basic.)  Some characters can enhance their barehanded
           combat or martial arts  skill  beyond  expert  to  ``master''  or
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             27
+
+
+
           ``grand master''.
 
                Use of a weapon in which you're restricted or unskilled will
@@ -1576,18 +1728,6 @@
           is no penalty or bonus; at skilled level, you  receive  a  modest
           bonus  in  the chance to hit and amount of damage done; at expert
           level, the bonus is higher.  A successful hit  has  a  chance  to
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              25
-
-
-
           boost  your  training towards the next skill level (unless you've
           already reached the limit for this skill).   Once  such  training
           reaches  the  threshold  for that next level, you'll be told that
@@ -1605,8 +1745,8 @@
           protection.  Armor class (AC) is measured as in AD&D, with 10 be-
           ing the equivalent of no armor, and lower numbers meaning  better
           armor.   Each  suit  of armor which exists in AD&D gives the same
-          protection in NetHack.  Here is an (incomplete) list of the armor
-          classes provided by various suits of armor:
+          protection in SLASH'EM.  Here is an (incomplete) list of the  ar-
+          mor classes provided by various suits of armor:
 
                              dragon scale mail         1
                              plate mail                3
@@ -1634,6 +1774,18 @@
                If a piece of armor is enchanted, its armor protection  will
           be  better  (or  worse)  than normal, and its ``plus'' (or minus)
           will subtract from your armor class.  For  example,  a  +1  chain
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             28
+
+
+
           mail  would  give  you  better protection than normal chain mail,
           lowering your armor class one unit further to 4.  When you put on
           a  piece  of  armor, you immediately find out the armor class and
@@ -1641,20 +1793,8 @@
           negative enchantments (minuses) in addition to being unremovable.
 
                Many types of armor are subject to some kind of damage  like
-          rust.   Such  damage  can  be  repaired.  Some types of armor may
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              26
-
-
-
-          inhibit spell casting.
+          rust.   Such damage can be repaired.  Some types of armor may in-
+          hibit spell casting.
 
                The commands to use armor are `W' (wear) and `T' (take off).
           The  `A'  command  can  also be used to take off armor as well as
@@ -1699,27 +1839,27 @@
 
                A mail daemon may run up and deliver mail to you as a scroll
           of mail (on versions compiled with this feature).   To  use  this
-          feature  on  versions where NetHack mail delivery is triggered by
+          feature  on versions where SLASH'EM mail delivery is triggered by
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             29
+
+
+
           electronic mail appearing in your system mailbox,  you  must  let
-          NetHack  know  where to look for new mail by setting the ``MAIL''
+          SLASH'EM  know where to look for new mail by setting the ``MAIL''
           environment variable to the file name of your mailbox.   You  may
           also  want  to set the ``MAILREADER'' environment variable to the
-          file name of your favorite reader, so NetHack  can  shell  to  it
-          when  you  read the scroll.  On versions of NetHack where mail is
+          file name of your favorite reader, so SLASH'EM can  shell  to  it
+          when  you read the scroll.  On versions of SLASH'EM where mail is
           randomly generated internal to the game, these environment  vari-
           ables  are  ignored.   You can disable the mail daemon by turning
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              27
-
-
-
           off the mail option.
 
                The command to read a scroll is `r'.
@@ -1767,6 +1907,17 @@
           then by its current number of charges.  A current charge count of
           -1 is a special case indicating that the wand has been cancelled.
 
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             30
+
+
+
                The command to use a wand is `z' (zap).  To break  one,  use
           the `a' (apply) command.
 
@@ -1774,18 +1925,6 @@
 
                Rings  are very useful items, since they are relatively per-
           manent magic, unlike the usually  fleeting  effects  of  potions,
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              28
-
-
-
           scrolls, and wands.
 
                Putting  on  a  ring activates its magic.  You can wear only
@@ -1816,8 +1955,10 @@
           comes  from  within  you, and casting several spells in a row may
           tire you.  Casting of spells also requires practice.  With  prac-
           tice,  your skill in each category of spell casting will improve.
-          Over time, however, your memory of each spell will dim,  and  you
-          will need to relearn it.
+          Over time, however, your memory of each spell will dim if you  do
+          not  use it, and you will need to relearn it. Casting a spell re-
+          inforces your memory of it, so you may never need  to  relearn  a
+          frequently used spell.
 
                Some  spells  are  directional--you must give a direction in
           which to cast them.  You can also cast  them  at  yourself  (just
@@ -1832,25 +1973,25 @@
           the  risk  of spell failure.  Skill slots are shared with weapons
           skills.  (See also the section on ``Weapon proficiency''.)
 
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             31
+
+
+
                Casting a spell also requires flexible movement, and wearing
           various types of armor may interfere with that.
 
                The  command to read a spellbook is the same as for scrolls,
           `r' (read).  The `+' command lists  your  current  spells,  their
           levels, categories, and chances for failure.  The `Z' (cast) com-
-          mand casts a spell.
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              29
-
-
+          mand casts a spell.  The ``#enhance'' extended  command  advances
+          your spellcasting skills.
 
           7.10.  Tools (`(')
 
@@ -1896,27 +2037,27 @@
           you exit.
 
                Other small rocks are also categorized as gems, but they are
-          much less valuable.  All rocks, however, can be used  as  projec-
-          tile  weapons  (if  you  have a sling).  In the most desperate of
-          cases, you can still throw them by hand.
+          much   less  valuable.   All  rocks,  however,  can  be  used  as
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             32
+
+
+
+          projectile weapons (if you have a sling).  In the most  desperate
+          of cases, you can still throw them by hand.
 
           7.13.  Large rocks (``')
 
-               Statues and boulders are not particularly  useful,  and  are
-          generally  heavy.   It  is rumored that some statues are not what
+               Statues  and  boulders  are not particularly useful, and are
+          generally heavy.  It is rumored that some statues  are  not  what
           they seem.
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              30
-
-
 
                Very large humanoids (giants and their ilk) have been  known
           to use boulders as weapons.
@@ -1931,7 +2072,7 @@
 
           8.  Conduct
 
-               As if winning NetHack were  not  difficult  enough,  certain
+               As  if  winning  SLASH'EM were not difficult enough, certain
           players  seek to challenge themselves by imposing restrictions on
           the way they play the game.  The game automatically  tracks  some
           of  these  challenges,  which can be checked at any time with the
@@ -1962,28 +2103,29 @@
           sidered vegan food.  Note however that eating  such  items  still
           counts against foodless conduct.
 
-               Vegetarians  do  not eat animals; however, they are less se-
-          lective about eating animal byproducts than vegans.  In  addition
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             33
+
+
+
+               Vegetarians do not eat animals; however, they are  less  se-
+          lective  about eating animal byproducts than vegans.  In addition
           to the vegan items listed above, they may eat any kind of pudding
           (`P') other than the black puddings, eggs and food made from eggs
-          (fortune  cookies  and pancakes), food made with milk (cream pies
+          (fortune cookies and pancakes), food made with milk  (cream  pies
           and candy bars), and lumps of royal jelly.  Monks are expected to
           observe a vegetarian diet.
 
-               Eating  any kind of meat violates the vegetarian, vegan, and
-          foodless conducts.  This includes tripe rations, the  corpses  or
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              31
-
-
-
+               Eating any kind of meat violates the vegetarian, vegan,  and
+          foodless  conducts.   This includes tripe rations, the corpses or
           tins  of  any monsters not mentioned above, and the various other
           chunks of meat found in the dungeon.  Swallowing and digesting  a
           monster while polymorphed is treated as if you ate the creature's
@@ -2022,33 +2164,33 @@
           throw, fire, and kick weapons; use a wand, spell, or  other  type
           of item; or fight with your hands and feet.
 
-               In  NetHack,  a  pacifist  refuses to cause the death of any
+               In SLASH'EM, a pacifist refuses to cause the  death  of  any
           other monster (i.e. if you would get experience for  the  death).
           This  is a particularly difficult challenge, although it is still
           possible to gain experience by other means.
 
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             34
+
+
+
                An illiterate character cannot read or write.  This includes
-          reading  a scroll, spellbook, fortune cookie message, or t-shirt;
-          writing a scroll; or making an engraving of anything other than a
-          single ``x'' (the traditional signature of an illiterate person).
-          Reading an engraving, or any item that is absolutely necessary to
-          win  the game, is not counted against this conduct.  The identity
-          of scrolls and spellbooks  (and  knowledge  of  spells)  in  your
-          starting  inventory  is  assumed to be learned from your teachers
+          reading a scroll, spellbook, fortune cookie message, or  t-shirt;
+          writing a scroll; or reading (or making) an engraving of anything
+          other than a single ``x'' (the traditional signature of an illit-
+          erate  person).  Reading any item that is absolutely necessary to
+          win the game is not counted against this conduct.   The  identity
+          of  scrolls  and  spellbooks  (and  knowledge  of spells) in your
+          starting inventory is assumed to be learned  from  your  teachers
           prior to the start of the game and isn't counted.
-
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              32
-
-
 
                There are several other challenges tracked by the game.   It
           is possible to eliminate one or more species of monsters by geno-
@@ -2071,21 +2213,21 @@
           9.  Options
 
                Due  to variations in personal tastes and conceptions of how
-          NetHack should do things, there are options you can set to change
-          how NetHack behaves.
+          SLASH'EM  should  do  things,  there  are  options you can set to
+          change how SLASH'EM behaves.
 
           9.1.  Setting the options
 
                Options  may  be  set in a number of ways.  Within the game,
           the `O' command allows you to view all options and change most of
           them.   You can also set options automatically by placing them in
-          the NETHACKOPTIONS environment variable  or  in  a  configuration
-          file.  Some versions of NetHack also have front-end programs that
-          allow you to set options before starting the game.
+          the  SLASHEMOPTIONS  environment  variable  or in a configuration
+          file.  Some versions of SLASH'EM  also  have  front-end  programs
+          that allow you to set options before starting the game.
 
-          9.2.  Using the NETHACKOPTIONS environment variable
+          9.2.  Using the SLASHEMOPTIONS environment variable
 
-               The NETHACKOPTIONS variable is  a  comma-separated  list  of
+               The  SLASHEMOPTIONS  variable  is  a comma-separated list of
           initial  values for the various options.  Some can only be turned
           on or off.  You turn one of these on by adding the  name  of  the
           option to the list, and turn it off by typing a `!' or ``no'' be-
@@ -2094,30 +2236,30 @@
           equals sign, and then the value of the string.  The value is ter-
           minated by the next comma or the end of string.
 
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             35
+
+
+
                For example, to set up an environment variable so that ``au-
-          toquiver'' is on, ``autopickup'' is  off,  the  name  is  set  to
-          ``Blue  Meanie'',  and  the fruit is set to ``papaya'', you would
+          toquiver''  is  on,  ``autopickup''  is  off,  the name is set to
+          ``Blue Meanie'', and the fruit is set to  ``papaya'',  you  would
           enter the command
 
-               % setenv NETHACKOPTIONS "autoquiver,\!autopickup,name:Blue Meanie,fruit:papaya"
+               % setenv SLASHEMOPTIONS "autoquiver,\!autopickup,name:Blue Meanie,fruit:papaya"
 
-          in csh (note the need to escape the ! since it's special  to  the
+          in  csh  (note the need to escape the ! since it's special to the
           shell), or
 
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              33
-
-
-
-               $ NETHACKOPTIONS="autoquiver,!autopickup,name:Blue Meanie,fruit:papaya"
-               $ export NETHACKOPTIONS
+               $ SLASHEMOPTIONS="autoquiver,!autopickup,name:Blue Meanie,fruit:papaya"
+               $ export SLASHEMOPTIONS
 
           in sh or ksh.
 
@@ -2126,7 +2268,7 @@
                Any  line  in  the  configuration  file starting with `#' is
           treated as a comment.  Any line in the configuration file  start-
           ing  with ``OPTIONS='' may be filled out with options in the same
-          syntax as in  NETHACKOPTIONS.   Any  line  starting  with  ``DUN-
+          syntax as in  SLASHEMOPTIONS.   Any  line  starting  with  ``DUN-
           GEON='',  ``EFFECTS='',  ``MONSTERS='', ``OBJECTS='', ``TRAPS='',
           or ``BOULDER='' is taken as defining the  corresponding  dungeon,
           effects, monsters, objects traps or boulder option in a different
@@ -2135,7 +2277,10 @@
           zero in any entry in such a sequence leaves the display  of  that
           entry  unchanged;  this feature is not available using the option
           syntax.  Such a sequence can be continued to  multiple  lines  by
-          putting a `\' at the end of each line to be continued.
+          putting  a `\' at the end of each line to be continued.  Any line
+          starting with ``TILESET='' defines a tile set in the same  syntax
+          as  in  SLASHEMOPTIONS  (although the options are different). See
+          the section on tile sets, below, for more information.
 
                If your copy of the game included the compile time AUTOPICK-
           UP_EXCEPTIONS option, then any  line  starting  with  ``AUTOPICK-
@@ -2144,7 +2289,7 @@
           cusses that.
 
                The default name of the configuration file varies on differ-
-          ent operating systems, but NETHACKOPTIONS can also be set to  the
+          ent operating systems, but SLASHEMOPTIONS can also be set to  the
           full  name  of  a  file  you want to use (possibly preceded by an
           `@').
 
@@ -2157,7 +2302,19 @@
           align
             Your  starting  alignment  (align:lawful,   align:neutral,   or
             align:chaotic).   You  may  specify just the first letter.  The
-            default is to randomly pick an appropriate  alignment.   Cannot
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             36
+
+
+
+            default  is  to randomly pick an appropriate alignment.  Cannot
             be set with the `O' command.
 
           autodig
@@ -2165,23 +2322,11 @@
             into a place that can be dug (default false).
 
           autopickup
-            Automatically pick up things onto which you move (default  on).
+            Automatically  pick up things onto which you move (default on).
             See pickup_types to refine the behavior.
 
           autoquiver
-            This  option  controls  what  happens  when you attempt the `f'
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              34
-
-
-
+               This  option  controls what happens when you attempt the `f'
             (fire) command with an empty quiver.  When true,  the  computer
             will  fill your quiver with some suitable weapon.  Note that it
             will not take into account the blessed/cursed status,  enchant-
@@ -2223,6 +2368,18 @@
             Have  user  confirm  attacks  on  pets,  shopkeepers, and other
             peaceable creatures (default on).
 
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             37
+
+
+
           DECgraphics
             Use a predefined selection  of  characters  from  the  DEC  VT-
             xxx/DEC  Rainbow/ANSI line-drawing character set to display the
@@ -2237,17 +2394,6 @@
             game ends (defaults to all possibilities being disclosed).  The
             possibilities are:
 
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              35
-
-
-
                  i - disclose your inventory.
                  a - disclose your attributes.
                  v - summarize monsters that have been vanquished.
@@ -2260,7 +2406,7 @@
 
                  y - prompt you and default to yes on the prompt.
                  n - prompt you and default to no on the prompt.
-                 + - disclose it without prompting.
+                    - disclose it without prompting.
                  - - do not disclose it and do not prompt.
 
             (ex. ``disclose:yi na +v -g -c'') The example sets inventory to
@@ -2276,43 +2422,44 @@
 
           dungeon
             Set the graphics symbols for displaying  the  dungeon  (default
-            `` |--------||.-|++##.##<><>_|\\#{}.}..## #}'').   The  dungeon
-            option should be followed by a string of 1-41 characters to  be
+            `` |--------||.-|++##.##<><>_|\\##{}.}..## #}'').  The  dungeon
+            option  should be followed by a string of 1-42 characters to be
             used  instead  of the default map-drawing characters.  The dun-
             geon map will use the characters you specify instead of the de-
             fault  symbols, and default symbols for any you do not specify.
             Remember that you may need to escape some of  these  characters
             on a command line if they are special to your shell.
 
-            Note  that  NetHack escape-processes this option string in con-
+            Note that SLASH'EM escape-processes this option string in  con-
             ventional C fashion.  This means that `\' is a prefix  to  take
             the following character literally.  Thus `\' needs to be repre-
             sented as `\\'.  The special escape form `\m' switches  on  the
-            meta  bit in the following character, and the `^' prefix causes
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             38
+
+
+
+            meta bit in the following character, and the `^' prefix  causes
             the following character to be treated as a control character.
 
-            The order of the symbols is:  solid rock, vertical wall,  hori-
-            zontal  wall, upper left corner, upper right corner, lower left
+            The  order of the symbols is:  solid rock, vertical wall, hori-
+            zontal wall, upper left corner, upper right corner, lower  left
             corner, lower right corner, cross wall, upward T wall, downward
-            T  wall,  leftward  T wall, rightward T wall, no door, vertical
+            T wall, leftward T wall, rightward T wall,  no  door,  vertical
             open door, horizontal open door, vertical closed door, horizon-
-            tal  closed door, iron bars, tree, floor of a room, dark corri-
-            dor, lit corridor, stairs up, stairs down,  ladder  up,  ladder
-            down,  altar,  grave,  throne,  kitchen sink, fountain, pool or
-            moat, ice, lava, vertical lowered drawbridge,  horizontal  low-
-            ered  drawbridge, vertical raised drawbridge, horizontal raised
-            drawbridge, air, cloud, under water.
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              36
-
-
+            tal closed door, iron bars, tree, floor of a room, dark  corri-
+            dor,  lit  corridor,  stairs up, stairs down, ladder up, ladder
+            down, altar, grave, throne,  kitchen  sink,  toilet,  fountain,
+            pool  or moat, ice, lava, vertical lowered drawbridge, horizon-
+            tal lowered drawbridge, vertical raised drawbridge,  horizontal
+            raised drawbridge, air, cloud, under water.
 
             You might want to use `+' for the corners and  T  walls  for  a
             more aesthetic, boxier display.  Note that in the next release,
@@ -2322,17 +2469,19 @@
 
           effects
             Set the graphics symbols for displaying  special  effects  (de-
-            fault ``|-\\/*!)(0#@*/-\\||\\-//-\\| |\\-/'').  The effects op-
-            tion should be followed by a string of 1-29  characters  to  be
-            used  instead  of the default special-effects characters.  This
-            string is subjected to the same processing as the  dungeon  op-
-            tion.
+               fault
+               ``|-\\/*!)(0#@*/-\\||\\-//-\\| |\\-//-\\| |\\-//-\\| |\\-//-\\| |\\-//-\\| |\\-//-\\| |\\-//-\\| |\\-/'').
+            The effects option should be followed by a string of 1-83 char-
+            acters  to be used instead of the default special-effects char-
+            acters.  This string is subjected to the same processing as the
+            dungeon option.
 
             The  order  of the symbols is:  vertical beam, horizontal beam,
             left slant, right slant, digging beam, camera flash beam,  left
             boomerang, right boomerang, four glyphs giving the sequence for
             magic resistance displays, the  eight  surrounding  glyphs  for
-            swallowed  display,  nine  glyphs for explosions.  An explosion
+            swallowed  display,  nine  glyphs each for magical, fire, cold,
+            death, lightning, poison and  acid  explosions.   An  explosion
             consists of three rows (top, middle, and bottom) of three char-
             acters.  The explosion is centered in the center of this 3 by 3
             array.
@@ -2351,6 +2500,18 @@
 
           female
             An  obsolete synonym for ``gender:female''.  Cannot be set with
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             39
+
+
+
             the `O' command.
 
           fixinv
@@ -2361,30 +2522,22 @@
           fruit
             Name a fruit after something you enjoy eating (ex. ``fruit:man-
             go'')  (default  ``slime mold'').  Basically a nostalgic whimsy
-            that NetHack uses from time to time.  You should  set  this  to
+            that  SLASH'EM  uses from time to time.  You should set this to
             something  you  find  more appetizing than slime mold.  Apples,
-            oranges, pears, bananas, and melons already exist  in  NetHack,
+            oranges,  pears, bananas, and melons already exist in SLASH'EM,
             so don't use those.
 
           gender
             Your  starting  gender (gender:male or gender:female).  You may
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              37
-
-
-
             specify just the first letter.  Although you can  still  denote
             your  gender  using  the  ``male''  and ``female'' options, the
             ``gender'' option will take precedence.  The default is to ran-
             domly  pick  an appropriate gender.  Cannot be set with the `O'
             command.
+
+          ghoulname
+            Name your starting ghoul (ex. ``ghoulname:Casper'').  Cannot be
+            set with the `O' command.
 
           help
             If more information is available for an object looked  at  with
@@ -2408,6 +2561,28 @@
 
           ignintr
             Ignore interrupt signals, including breaks (default off).
+
+          invweight
+               Display the weights of items in your inventory (and at other
+               times) in braces (default off).
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             40
+
+
+
+          keep_savefile
+               Keeps the save file after restore.  SLASH'EM usually deletes
+            your savefile after you restore,  making death permanent.  This
+            option can allow you to restore from the  last  save.  (default
+            off).
 
           legacy
             Display an introductory message when starting the game (default
@@ -2434,18 +2609,6 @@
             value  specified  should be the first letter of one of the fol-
             lowing:  traditional, combination, partial,  or  full.   Tradi-
             tional  was  the only interface available for earlier versions;
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              38
-
-
-
             it consists of a prompt for object class  characters,  followed
             by  an  object-by-object  prompt for all items matching the se-
             lected object class(es).  Combination starts with a prompt  for
@@ -2458,7 +2621,8 @@
 
           menu_deselect_all
             Menu character accelerator to deselect all  items  in  a  menu.
-            Implemented by the Amiga, Gem, X11 and tty ports.  Default '-'.
+            Implemented by the Amiga, Gem, X11, GTK and tty ports.  Default
+            '-'.
 
           menu_deselect_page
             Menu character accelerator to deselect all items on  this  page
@@ -2469,6 +2633,17 @@
             Menu character accelerator to jump to the first page in a menu.
             Implemented by the Amiga, Gem and tty ports.  Default '^'.
 
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             41
+
+
+
           menu_headings
             Controls  how  the  headings in a menu are highlighted.  Values
             are 'bold', 'inverse', or 'underline'.  Not all ports can actu-
@@ -2476,7 +2651,8 @@
 
           menu_invert_all
             Menu  character accelerator to invert all items in a menu.  Im-
-            plemented by the Amiga, Gem, X11 and tty ports.  Default '@'.
+            plemented by the Amiga, Gem, X11, GTK and tty  ports.   Default
+            '@'.
 
           menu_invert_page
             Menu character accelerator to invert all items on this page  of
@@ -2491,6 +2667,10 @@
             Menu  character accelerator to goto the next menu page.  Imple-
             mented by the Amiga, Gem and tty ports.  Default '>'.
 
+          menu_on_esc
+            Make the ESC key a synonym for the ``' (main menu) command (de-
+            fault on).
+
           menu_previous_page
             Menu character accelerator to goto the previous menu page.  Im-
             plemented by the Amiga, Gem and tty ports.  Default '<'.
@@ -2499,22 +2679,10 @@
             Menu  character  accelerator to search for a menu item.  Imple-
             mented by the Amiga, Gem and X11 ports.  Default ':'.
 
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              39
-
-
-
           menu_select_all
             Menu character accelerator to select all items in a menu.   Im-
-            plemented by the Amiga, Gem, X11 and tty ports.  Default '.'.
+            plemented  by  the Amiga, Gem, X11, GTK and tty ports.  Default
+            '.'.
 
           menu_select_page
             Menu  character accelerator to select all items on this page of
@@ -2530,14 +2698,26 @@
             sphere, feline, gremlin, humanoid, imp or minor  demon,  jelly,
             kobold,  leprechaun, mimic, nymph, orc, piercer, quadruped, ro-
             dent, arachnid or centipede, trapper or lurker above, horse  or
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             42
+
+
+
             unicorn,  vortex, worm, xan or other mythical/fantastic insect,
-            light, zruty, angelic being, bat or bird, centaur, dragon, ele-
-            mental,  fungus  or mold, gnome, giant humanoid, invisible mon-
-            ster, jabberwock, Keystone Kop, lich, mummy, naga,  ogre,  pud-
-            ding or ooze, quantum mechanic, rust monster, snake, troll, um-
-            ber hulk, vampire, wraith, xorn, apelike creature, zombie,  hu-
-            man,  ghost, golem, demon, sea monster, lizard, long worm tail,
-            and mimic.  Cannot be set with the `O' command.
+            light,  Zouthern  aminal,  angelic being, bat or bird, centaur,
+            dragon, elemental, fungus or mold, gnome, giant  humanoid,  in-
+            visible  monster,  jabberwock, Keystone Kop, lich, mummy, naga,
+            ogre, pudding or ooze, quantum mechanic, rust  monster,  snake,
+            troll,  umber  hulk,  vampire,  wraith, xorn, apelike creature,
+            zombie, human, ghost, golem, demon, sea monster,  lizard,  long
+            worm tail, and mimic.  Cannot be set with the `O' command.
 
           msghistory
             The number of top line messages to save (and  recall  with  ^P)
@@ -2561,27 +2741,14 @@
             Set  your  character's  name (defaults to your user name).  You
             can also set your character's role by appending a dash and  one
             or more letters of the role (that is, by suffixing one of -A -B
-            -C -H -K -M -P -Ra -Ro -S -T -V -W).  If -@  is  used  for  the
-            role,  then  a random one will be automatically chosen.  Cannot
-            be set with the `O' command.
-
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              40
-
-
+            -C  -F  -H -I -K -M -N -P -Ra -Ro -S -T -U -V -W -Y).  If -@ is
+            used for the role, then a random one will be automatically cho-
+            sen.  Cannot be set with the `O' command.
 
           news
-            Read the NetHack news file, if present (default on).  Since the
-            news is shown at the beginning of the game, there's no point in
-            setting this with the `O' command.
+               Read the SLASH'EM news file, if present (default on).  Since
+               the news is shown at the beginning of the game,  there's  no
+               point in setting this with the `O' command.
 
           null
             Send padding nulls to the terminal (default off).
@@ -2597,6 +2764,18 @@
             processing as the dungeon option.  The order of the symbols  is
             illegal-object  (should  never  be  seen), weapon, armor, ring,
             amulet, tool, food, potion, scroll, spellbook, wand, gold,  gem
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             43
+
+
+
             or  rock, boulder or statue, iron ball, chain, and venom.  Can-
             not be set with the `O' command.
 
@@ -2624,25 +2803,17 @@
             overLoaded),  you  will be asked if you want to continue.  (De-
             fault `S').
 
+          pickup_thrown
+               If this boolean option is true and autopickup is on, try  to
+               pick  up things that you threw, even if they aren't in pick-
+               up_types.  Default is on.
+
           pickup_types
             Specify the object types to be picked up when autopickup is on.
             Default is all types.  If your copy of the game has the experi-
             mental compile time option AUTOPICKUP_EXCEPTIONS included,  you
             may  be  able  to  use  autopickup_exception configuration file
             lines to further refine autopickup behavior.
-
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              41
-
-
 
           prayconfirm
             Prompt for confirmation before praying (default on).
@@ -2659,6 +2830,17 @@
           rest_on_space
             Make  the  space  bar a synonym for the `.' (rest) command (de-
             fault off).
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             44
+
+
 
           role
             Pick your type of character (ex. ``role:Samurai''); synonym for
@@ -2697,28 +2879,34 @@
             Show your accumulated experience points on bottom line (default
             off).
 
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              42
-
-
-
           showrace
-            Display yourself as the glyph for your race,  rather  than  the
-            glyph  for your role (default off).  Note that this setting af-
-            fects only the appearance of the display, not the way the  game
+               Display yourself as the glyph for your race, rather than the
+            glyph for your role (default off).  Note that this setting  af-
+            fects  only the appearance of the display, not the way the game
             treats you.
 
           showscore
             Show your approximate accumulated score on bottom line (default
             off).
+
+          showdmg
+            Show damage inflicted/damage received (default off).  Inflicted
+            damage is only shown to characters who have become  experienced
+            enough to quantify their damage.
+
+          showweight
+               Show total weight in inventory on bottom line (default off).
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             45
+
+
 
           silent
             Suppress terminal beeps (default on).
@@ -2742,9 +2930,16 @@
             Boldface monsters and ``--More--'' (default off).
 
           suppress_alert
-            This option may be set to a NetHack version level  to  suppress
+            This  option may be set to a SLASH'EM version level to suppress
             alert  notification messages about feature changes for that and
-            prior versions (ex. ``suppress_alert:3.3.1'').
+            prior versions (ex. ``suppress_alert:0.0.6'').
+
+          tiles
+               This option may be set to the name of a tile set to use,  or
+            specified as ``notiles'' to disable the use of tiles.  Not  all
+            windowing  interfaces  support  this option. The tile set named
+            must also be defined. See the section on tile sets for more in-
+            formation on that.
 
           time
             Show the elapsed game time in turns  on  bottom  line  (default
@@ -2754,30 +2949,30 @@
             When  pausing  momentarily for display effect, such as with ex-
             plosions and moving objects, use a timer  rather  than  sending
             extra  characters to the screen.  (Applies to ``tty'' interface
-            only; ``X11'' interface always uses a timer based  delay.   The
-            default is on if configured into the program.)
+            only;  ``X11'' and ``GTK'' interfaces always uses a timer based
+            delay.  The default is on if configured into the program.)
 
           tombstone
             Draw a tombstone graphic upon your death (default on).
 
           toptenwin
-            Put the ending display in a NetHack window instead of on stdout
-            (default off).  Setting this option makes the score list  visi-
-            ble  when  a  windowing version of NetHack is started without a
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              43
-
-
-
-            parent window, but it no longer leaves the  score  list  around
+            Put the ending display in a SLASH'EM window instead of on  std-
+            out  (default  off).   Setting this option makes the score list
+            visible when a windowing version of SLASH'EM is started without
+            a  parent window, but it no longer leaves the score list around
             after game end on a terminal or emulating window.
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             46
+
+
 
           traps
             Set   the   graphics  symbols  for  displaying  traps  (default
@@ -2808,7 +3003,63 @@
             ``X11''  (default  depends on version).  Cannot be set with the
             `O' command.
 
-          9.5.  Window Port Customization options
+          wolfname
+               Name your starting wolf (ex. ``wolfname:Beast'').  Cannot be
+               set with the `O' command.
+
+          9.5.  Tile sets
+
+               For  those windowing ports which support tiles (multicolored
+          pictures instead of the traditional characters), tile sets can be
+          defined  using  a  line  in  the  configuration  file that begins
+          ``TILESET=''. There should be one tile set  definition  line  for
+          each  available tile set. Once defined, tile sets can be selected
+          for initial display (using the tiles option) or  dynamically  se-
+          lected  during  the  game (for those windowing ports that support
+          this).
+
+               A ``TILESET'' line has the same syntax as an ``OPTION'' line
+          but with the following options available:
+
+          name
+            The name of the tile set  (for  selection).  This  can  be  any
+            string of characters excluding the comma. It must be specified.
+
+          file
+            The name of the file which contains the tile set. This must  be
+            specified.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             47
+
+
+
+          transparent
+            Marks  a  tile set as being transparent (as opposed to opaque).
+            Transparent tile sets allow eg., monsters to  be  displayed  on
+            top  of  the background.  Tile sets must be designed to be used
+            in this way in order to achieve meaningful results. This option
+            is  ignored by windowing ports which do not support transparen-
+            cy.
+
+          pseudo3D
+               Marks  a  tile  set as being designed for use with Mitsuhiro
+            Itakura's pseudo-3D display algorithm. They are assumed to have
+            an offset-X value equal to one third of the  total  tile  width
+            and  an  offset-Y  value  equal  to  one half of the total tile
+            height. Such tile sets are not compatible  with  standard  tile
+            sets  and  while amusing effects can be created by setting this
+            option incorrectly, nothing useful can be  achieved.  Windowing
+            ports  that  do  not support pseudo-3D display will ignore tile
+            sets with this option set.
+
+          9.6.  Window Port Customization options
 
                Here are explanations of the various options that  are  used
           to  customize  and  change  the characteristics of the windowtype
@@ -2831,114 +3082,116 @@
             Where to align or place the status window (top,  bottom,  left,
             or right).
 
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              44
-
-
-
           ascii_map
-            NetHack should display an ascii character map if it can.
+               SLASH'EM should display an ascii character map if it can.
 
           color
-            NetHack  should display color if it can for different monsters,
+            SLASH'EM should display color if it can for different monsters,
             objects, and dungeon features
 
           eight_bit_tty
-            NetHack should pass eight-bit character  values  (for  example,
+            SLASH'EM should pass eight-bit character values  (for  example,
             specified  with the traps option) straight through to your ter-
             minal (default off).
 
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             48
+
+
+
           font_map
-            NetHack should use a font by the chosen name for the  map  win-
+            SLASH'EM should use a font by the chosen name for the map  win-
             dow.
 
           font_menu
-            NetHack  should use a font by the chosen name for menu windows.
+            SLASH'EM should use a font by the chosen name for menu windows.
 
           font_message
-            NetHack should use a font by the chosen name  for  the  message
+            SLASH'EM should use a font by the chosen name for  the  message
             window.
 
           font_status
-            NetHack  should  use  a  font by the chosen name for the status
+               SLASH'EM should use a font by the chosen name for the status
             window.
 
           font_text
-            NetHack should use a font by the chosen name for text  windows.
+            SLASH'EM should use a font by the chosen name for text windows.
 
           font_size_map
-            NetHack should use this size font for the map window.
+               SLASH'EM should use this size font for the map window.
 
           font_size_menu
-            NetHack should use this size font for menu windows.
+               SLASH'EM should use this size font for menu windows.
 
           font_size_message
-            NetHack should use this size font for the message window.
+               SLASH'EM should use this size font for the message window.
 
           font_size_status
-            NetHack should use this size font for the status window.
+               SLASH'EM should use this size font for the status window.
 
           font_size_text
-            NetHack should use this size font for text windows.
+               SLASH'EM should use this size font for text windows.
 
           fullscreen
-            NetHack should try and display on the entire screen rather than
-            in a window.
+               SLASH'EM should try and display on the entire screen  rather
+               than in a window.
 
           hilite_pet
             Visually distinguish pets from similar animals  (default  off).
             The  behavior  of  this option depends on the type of windowing
             you use.  In text windowing, text highlighting or inverse video
             is  often  used;  with tiles, generally displays a heart symbol
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              45
-
-
-
-            near pets.
+            near pets or a red box around the pet.
 
           large_font
-            NetHack should use a large font.
+               SLASH'EM should use a large font.
 
           map_mode
-            NetHack should display the map in the manner specified.
+               SLASH'EM should display the map in the manner specified.
 
           mouse_support
-            Allow use of the mouse for input and travel.
+               Allow use of the mouse for input and travel.
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             49
+
+
 
           player_selection
-            NetHack should pop up dialog boxes, or use prompts for  charac-
+            SLASH'EM should pop up dialog boxes, or use prompts for charac-
             ter selection.
 
           popup_dialog
-            NetHack should pop up dialog boxes for input.
+               SLASH'EM should pop up dialog boxes for input.
 
           preload_tiles
-            NetHack  should preload tiles into memory.  For example, in the
+            SLASH'EM should preload tiles into memory.  For example, in the
             protected mode MSDOS version, control whether  tiles  get  pre-
             loaded  into  RAM  at the start of the game.  Doing so enhances
             performance of the tile graphics, but uses  more  memory.  (de-
             fault on).  Cannot be set with the `O' command.
 
           scroll_amount
-            NetHack  should scroll the display by this number of cells when
+            SLASH'EM should scroll the display by this number of cells when
             the hero reaches the scroll_margin.
 
           scroll_margin
-            NetHack should scroll the display when the hero  or  cursor  is
+            SLASH'EM should scroll the display when the hero or  cursor  is
             this number of cells away from the edge of the window.
 
           softkeyboard
@@ -2946,11 +3199,11 @@
             support this option.
 
           splash_screen
-            NetHack should display an opening splash screen when it  starts
+            SLASH'EM should display an opening splash screen when it starts
             up (default yes).
 
           tiled_map
-            NetHack should display a tiled map if it can.
+               SLASH'EM should display a tiled map if it can.
 
           tile_file
             Specify  the  name  of an alternative tile file to override the
@@ -2963,101 +3216,103 @@
           tile_width
             Specify the preferred width of each tile in a tile capable port
 
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              46
-
-
-
           use_inverse
-            NetHack should display inverse when the game specifies it.
+               SLASH'EM  should display inverse when the game specifies it.
 
           vary_msgcount
-            NetHack should display this number of messages at a time in the
-            message window.
+               SLASH'EM should display this number of messages at a time in
+               the message window.
 
           windowcolors
-            NetHack   should  display  windows  with  the  specified  fore-
+            SLASH'EM  should  display  windows  with  the  specified  fore-
             ground/background colors if it can.
 
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             50
+
+
+
           wraptext
-            NetHack port should wrap long lines of text if they  don't  fit
+            SLASH'EM port should wrap long lines of text if they don't  fit
             in the visible area of the window.
 
-          9.6.  Platform-specific Customization options
+          9.7.  Platform-specific Customization options
 
                Here  are  explanations of options that are used by specific
           platforms or ports to customize and change the port behavior.
 
           altkeyhandler
             Select an alternate keystroke handler dll to  load  (Win32  tty
-            NetHack  only).   The  name of the handler is specified without
+            SLASH'EM  only).   The name of the handler is specified without
             the .dll extension and without any path information.  Cannot be
             set with the `O' command.
 
           altmeta
-            (default on, AMIGA NetHack only).
+               (default on, AMIGA SLASH'EM only).
 
           BIOS
             Use BIOS calls to update the screen display quickly and to read
             the keyboard (allowing the use of arrow keys to  move)  on  ma-
             chines  with  an IBM PC compatible BIOS ROM (default off, OS/2,
-            PC, and ST NetHack only).
+            PC, and ST SLASH'EM only).
 
           flush
-            (default off, AMIGA NetHack only).
+               (default off, AMIGA SLASH'EM only).
 
           MACgraphics
-            (default on, Mac NetHack only).
+               (default on, Mac SLASH'EM only).
 
           page_wait
-            (default on, Mac NetHack only).
+               (default on, Mac SLASH'EM only).
 
           rawio
             Force raw (non-cbreak) mode for faster output and more  bullet-
             proof  input  (MS-DOS sometimes treats `^P' as a printer toggle
-            without it) (default off,  OS/2,  PC,  and  ST  NetHack  only).
+            without it) (default off, OS/2,  PC,  and  ST  SLASH'EM  only).
             Note:   DEC  Rainbows hang if this is turned on.  Cannot be set
             with the `O' command.
 
           soundcard
-            (default on, PC NetHack only).  Cannot be set with the `O' com-
-            mand.
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              47
-
-
+               (default on, PC SLASH'EM only).  Cannot be set with the  `O'
+               command.
 
           subkeyvalue
-            (Win32  tty  NetHack  only).  May be used to alter the value of
-            keystrokes that the operating system returns to NetHack to help
-            compensate  for international keyboard issues.  OPTIONS=subkey-
-            value:171/92 will return 92 to NetHack, if 171  was  originally
-            going  to be returned.  You can use multiple subkeyvalue state-
-            ments in the config file if needed.  Cannot be set with the `O'
-            command.
+            (Win32  tty  SLASH'EM only).  May be used to alter the value of
+            keystrokes that the operating system  returns  to  SLASH'EM  to
+            help   compensate   for  international  keyboard  issues.   OP-
+            TIONS=subkeyvalue:171/92 will return 92 to SLASH'EM, if 171 was
+            originally  going to be returned.  You can use multiple subkey-
+            value statements in the config file if needed.  Cannot  be  set
+            with the `O' command.
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             51
+
+
 
           video
-            Set the video mode used (PC NetHack only).  Values are `autode-
-            tect', `default', or `vga'.   Setting  `vga'  (or  `autodetect'
+               Set the video mode used (PC SLASH'EM only).  Values are `au-
+            todetect', `default', or `vga'.  Setting `vga' (or `autodetect'
             with  vga  hardware  present)  will  cause  the game to display
             tiles.  Cannot be set with the `O' command.
 
           videocolors
             Set the color palette for PC systems  using  NO_TERMS  (default
-            4-2-6-1-5-3-15-12-10-14-9-13-11,  (PC NetHack only).  The order
+            4-2-6-1-5-3-15-12-10-14-9-13-11, (PC SLASH'EM only).  The order
             of  colors  is  red,  green,  brown,   blue,   magenta,   cyan,
             bright.white,  bright.red,  bright.green,  yellow, bright.blue,
             bright.magenta, and bright.cyan.  Cannot be set  with  the  `O'
@@ -3065,12 +3320,12 @@
 
           videoshades
             Set the intensity level of the three gray scales available (de-
-            fault dark normal light, PC NetHack only).  If the game display
-            is  difficult to read, try adjusting these scales; if this does
-            not correct the problem, try !color.  Cannot be  set  with  the
-            `O' command.
+            fault dark normal light, PC SLASH'EM only).  If the  game  dis-
+            play  is difficult to read, try adjusting these scales; if this
+            does not correct the problem, try !color.  Cannot be  set  with
+            the `O' command.
 
-          9.7.  Configuring autopickup exceptions
+          9.8.  Configuring autopickup exceptions
 
                There  is  an  experimental  compile  time option called AU-
           TOPICKUP_EXCEPTIONS.  If your copy of the  game  was  built  with
@@ -3093,19 +3348,6 @@
                  *--- matches 0 or more characters.
                  ?--- matches any single character.
 
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              48
-
-
-
                In addition, some characters are treated specially  if  they
           occur as the first character in the string pattern, specifically:
 
@@ -3114,6 +3356,19 @@
 
                Can be set with the `O' command, but the setting is not pre-
           served across saves and restores.
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             52
+
+
 
                Here's a couple of examples of autopickup_exceptions:
 
@@ -3127,7 +3382,7 @@
           items known to be cursed from autopickup.  A `never pickup'  rule
           takes precedence over an `always pickup' rule if both match.
 
-          9.8.  Configuring User Sounds
+          9.9.  Configuring User Sounds
 
                Some  platforms allow you to define sound files to be played
           when a message that matches a user-defined pattern  is  delivered
@@ -3151,35 +3406,35 @@
                  volume     - the volume to be set while playing the sound file.
 
                The  exact  format  for  the  pattern depends on whether the
-          platform is built to use ``regular expressions'' or NetHack's own
-          internal  pattern  matching facility. The ``regular expressions''
-          matching can be much more sophisticated than the internal NetHack
-          pattern  matching, but requires 3rd party libraries on some plat-
-          forms.  There are plenty of references  available  elsewhere  for
-          explaining  ``regular expressions''. You can verify which pattern
-          matching is used by your port with the #version command.
+          platform is built to use ``regular  expressions''  or  SLASH'EM's
+          own  internal  pattern  matching  facility. The ``regular expres-
+          sions'' matching can be much more sophisticated than the internal
+          SLASH'EM  pattern  matching,  but requires 3rd party libraries on
+          some platforms.  There are plenty of references  available  else-
+          where  for  explaining  ``regular  expressions''.  You can verify
+          which pattern matching is used by your  port  with  the  #version
+          command.
 
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              49
-
-
-
-               NetHack's internal pattern matching routine uses the follow-
-          ing special characters in its pattern matching:
+               SLASH'EM's  internal  pattern matching routine uses the fol-
+          lowing special characters in its pattern matching:
 
                  *--- matches 0 or more characters.
                  ?--- matches any single character.
 
-               Here's  an example of a sound mapping using NetHack's inter-
+               Here's an example of a sound mapping using SLASH'EM's inter-
           nal pattern matching facility:
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             53
+
+
 
                    SOUND=MESG "*chime of a cash register*" "gong.wav" 50
 
@@ -3187,11 +3442,11 @@
           tained  in  it  will  trigger the playing of "gong.wav".  You can
           have multiple SOUND entries in your config file.
 
-          9.9.  Configuring NetHack for Play by the Blind
+          9.10.  Configuring SLASH'EM for Play by the Blind
 
-               NetHack can be set up to use only standard ASCII  characters
+               SLASH'EM can be set up to use only standard ASCII characters
           for  making  maps of the dungeons. This makes the MS-DOS versions
-          of NetHack completely accessible to  the  blind  who  use  speech
+          of  SLASH'EM  completely  accessible  to the blind who use speech
           and/or  Braille access technologies.  Players will require a good
           working knowledge of their screen-reader's review  features,  and
           will  have  to  know  how to navigate horizontally and vertically
@@ -3210,9 +3465,9 @@
                While it is not difficult for experienced users to edit  the
           defaults.nh  file  to accomplish this, novices may find this task
           somewhat daunting.  Included in  all  official  distributions  of
-          NetHack is a file called NHAccess.nh.  Replacing defaults.nh with
-          this file will cause the game to run in a  manner  accessible  to
-          the  blind.  After  you have gained some experience with the game
+          SLASH'EM is a file  called  NHAccess.nh.   Replacing  defaults.nh
+          with  this file will cause the game to run in a manner accessible
+          to the blind. After you have gained some experience with the game
           and with editing files, you may want to alter settings to  better
           suit your preferences. Instructions on how to do this are includ-
           ed in the NHAccess.nh file itself. The most crucial  settings  to
@@ -3226,37 +3481,36 @@
 
           number_pad
             A  lot  of  speech access programs use the number-pad to review
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              50
-
-
-
             the screen.  If this is the case, disable the number_pad option
             and use the traditional Rogue-like commands.
 
           Character graphics
-            Comment  out  all character graphics sets found near the bottom
-            of the defaults.nh file.  Most of these replace  NetHack's  de-
-            fault  representation of the dungeon using standard ASCII char-
-            acters with fancier characters from  extended  character  sets,
+            Comment out all character graphics sets found near  the  bottom
+            of  the defaults.nh file.  Most of these replace SLASH'EM's de-
+            fault representation of the dungeon using standard ASCII  char-
+            acters  with  fancier  characters from extended character sets,
             and these fancier characters can annoy screen-readers.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             54
+
+
 
           10.  Scoring
 
-               NetHack  maintains  a  list  of the top scores or scorers on
+               SLASH'EM  maintains  a  list of the top scores or scorers on
           your machine, depending on how it is set up.  In the latter case,
           each  account  on the machine can post only one non-winning score
           on this list.  If you score higher  than  someone  else  on  this
           list,  or better your previous score, you will be inserted in the
           proper place under your current name.  How many scores  are  kept
-          can also be set up when NetHack is compiled.
+          can also be set up when SLASH'EM is compiled.
 
                Your  score  is  chiefly  based upon how much experience you
           gained, how much loot you accumulated, how deep you explored, and
@@ -3270,12 +3524,12 @@
           you swing and live, you might find more.
 
                If you just want to see what the current  top  players/games
-          list is, you can type nethack -s all on most versions.
+          list is, you can type slashem -s all on most versions.
 
 
           11.  Explore mode
 
-               NetHack  is  an intricate and difficult game.  Novices might
+               SLASH'EM  is an intricate and difficult game.  Novices might
           falter in fear, aware of their ignorance of the means to survive.
           Well,  fear  not.   Your  dungeon may come equipped with an ``ex-
           plore'' or ``discovery'' mode that enables you to keep  old  save
@@ -3292,25 +3546,26 @@
 
                The  original  hack  game  was  modeled on the Berkeley UNIX
           rogue game.   Large  portions  of  this  paper  were  shamelessly
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              51
-
-
-
-          cribbed  from  A Guide to the Dungeons of Doom, by Michael C. Toy
-          and Kenneth C. R. C. Arnold.  Small portions  were  adapted  from
+          cribbed from A Guide to the Dungeons of Doom, by Michael  C.  Toy
+          and  Kenneth  C.  R. C. Arnold.  Small portions were adapted from
           Further Exploration of the Dungeons of Doom, by Ken Arromdee.
 
-               NetHack is the product of literally dozens of people's work.
-          Main events in the course of the game development  are  described
-          below:
+               SLASH'EM is the product  of  literally  dozens  of  people's
+          work.   Main events in the course of the game development are de-
+          scribed below:
+
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             55
+
 
 
                Jay  Fenlason  wrote the original Hack, with help from Kenny
@@ -3350,6 +3605,12 @@
           to enhance the PC, Macintosh, and Amiga ports through  the  later
           revisions of 3.0.
 
+               A  scant  one month before the next major version release of
+          NetHack, two adventurous souls undertook their  own  modification
+          to  the  sacred NetHack formula. Tom Proudfoot and Yuval released
+          Nethack++,  which was rapidly renamed Nethack--,   contained  new
+          monsters,  items and other miscellaneous modifications.
+
                Headed  by  Mike Stephenson and coordinated by Izchak Miller
           and Janet Walz, the development team which now included  Ken  Ar-
           romdee,  David  Cohrs,  Jean-Christophe Collet, Kevin Darcy, Matt
@@ -3358,19 +3619,20 @@
           They re-structured the game's design, and re-wrote major parts of
           the  code.   They added multiple dungeons, a new display, special
           individual character quests, a new endgame  and  many  other  new
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              52
-
-
-
           features, and produced NetHack 3.1.
+
+
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             56
+
+
 
                Ken  Lorber,  Gregg  Wonderly and Greg Olson, with help from
           Richard Addison, Mike Passaretti,  and  Olaf  Seibert,  developed
@@ -3396,6 +3658,21 @@
           for the Atari; he later contributed the tiles to the DevTeam  and
           tile support was then added to other platforms.
 
+               Time passed,  and Nethack-- was ported to 3.11 by Chris.
+
+               Stephen  White  then  released his own modification known as
+          Nethack Plus,  which  contained  new  character  classes.   Unbe-
+          knownst  to  the  world at large,  Tom Proudfoot took this source
+          and combined it with his Nethack--.  Stephen White went on to add
+          weapon  skills,   which  were eventually integrated into the next
+          version of Nethack,  and other features.
+
+               In February 1996,  Tom Proudfoot released SLASH V1.  Includ-
+          ing  part  of Stephen White's Nethack Plus and his own Nethack--,
+          leaving unmentioned his own slew of further modifications,   this
+          is perhaps the best known of the Nethack modifications.  Six ver-
+          sions of this,  ending with SLASH V6,  are known to exist.
+
                The  3.2 development team, comprised of Michael Allison, Ken
           Arromdee, David Cohrs, Jessie Collet, Steve Creps,  Kevin  Darcy,
           Timo  Hakulinen,  Steve  Linhart,  Dean  Luick,  Pat Rankin, Eric
@@ -3411,39 +3688,83 @@
           diagnosed  with cancer and passed away.  That release of the game
           was dedicated to him by the development and porting teams.
 
-               During the lifespan of NetHack 3.1 and 3.2, several enthusi-
-          asts  of  the  game added their own modifications to the game and
-          made these ``variants'' publicly available:
-
-               Tom Proudfoot and Yuval Oren created  NetHack++,  which  was
-          quickly  renamed NetHack--.  Working independently, Stephen White
-          wrote NetHack Plus.  Tom Proudfoot later merged NetHack Plus  and
-          his own NetHack-- to produce SLASH.  Larry Stewart-Zerba and War-
-          wick Allison improved the spell casting system  with  the  Wizard
-          Patch.   Warwick Allison also ported NetHack to use the Qt inter-
-          face.
 
 
-
-
-          NetHack 3.4                                      December 2, 2003
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 
 
 
-          NetHack Guidebook                                              53
+          SLASH'EM Guidebook                                             57
 
 
 
-               Warren Cheung combined SLASH with the Wizard Patch  to  pro-
-          duce  Slash'em,  and with the help of Kevin Hugo, added more fea-
-          tures.  Kevin later joined the DevTeam and incorporated the  best
-          of these ideas in NetHack 3.3.
+               Larry Stewart-Zerba set along a different track - to enhance
+          the spellcasting abilities of the Wizard.   Thus, in April  1996,
+          he  released  version  0.1 of the Wizard Patch.  By July,  he was
+          joined by Warwick Allison and version 0.4 of the Wizard Patch was
+          released.  The final update came in April 1997,  with the release
+          of Wizard Patch 1.0.
+
+               Warwick Allison also ported NetHack to use the Qt interface.
+
+               SLASH  V6  was picked up by Enrico Horn, who managed to syn-
+          chronize it with the 3.2 source.  The new  SLASH  4.1.2  was  re-
+          leased  as  far back as November 1996 went through at least 4 ed-
+          itlevels (E5, E6, E7) with  the  latest  version  being  4.1.2E8,
+          synchronized with Nethack 3.2.2 and the Blackmarket option avail-
+          able,  released in June 1997.
+
+               Nathan La began the arduous task of drawing  tiles  for  the
+          SLASH monsters.
+
+               Kentaro Shirakata ported SLASH 4.1.2E8 to Unix.
+
+               Lief Clennon ported SLASH 4.1.2E8 to OS/2 EMX.
+
+               Romain Dolbeau ported SLASH 4.1.2E8 to Macintosh.
+
+               Warren  Cheung combined SLASH 4.1.2 and Wizard Patch to cre-
+          ate SLASH'EM 0.1 in November 1997.  Several  revisions  including
+          new  spells  and  other  additions  led  eventually  to  SLASH'EM
+          0.0.5E7F1. Steven Uy generously made additional modifications.
+
+               Dirk Schoenberger continued updating the SLASH/SLASH'EM mon-
+          ster tiles.  He also ported SLASH'EM to Linux.
+
+               Lief Clennon ported SLASH'EM to OS/2 EMX.
+
+               Kevin  Hugo  ported  SLASH'EM  to  Macintosh,  and also con-
+          tributed additional changes and improvements.
+
+               Robin Johnson finished the arduous task of drawing tiles for
+          the  SLASH'EM monsters.  He also contributed many more new tiles.
+
+               Kevin later joined the DevTeam and incorporated the best  of
+          these ideas in NetHack 3.3.
+
+               JNetHack  (the  Japanese version of NetHack) has been around
+          since at least 1994, developed by Issei Numata  and  others.  The
+          GTK  interface was written for this variant and released in 1999.
+
+               Mitsuhiro Itakura headed a team which began the  process  of
+          redrawing the NetHack tiles in 8-bit color at 32x32 pixels.
 
                The final update to 3.2 was the bug fix release 3.2.3, which
           was released simultaneously with 3.3.0 in December 1999  just  in
           time for the Year 2000.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             58
+
+
 
                The 3.3 development team, consisting of Michael Allison, Ken
           Arromdee, David Cohrs, Jessie Collet, Steve Creps,  Kevin  Darcy,
@@ -3487,32 +3808,40 @@
           and Yitzhak Sapir maintained and enhanced 3.4 for  the  Microsoft
           Windows platform.  Alex Kompel contributed a new graphical inter-
           face for the Windows port.  Alex Kompel also contributed  a  Win-
-          dows CE port for 3.4.1.
+          dows  CE  port  for  3.4.1.   Ron Van Iwaarden maintained 3.4 for
+          OS/2.
 
-
-
-
-          NetHack 3.4                                      December 2, 2003
-
-
-
-
-
-          NetHack Guidebook                                              54
-
-
-
-               Ron Van Iwaarden maintained 3.4 for OS/2.
-
-               Janne  Salmijarvi  and  Teemu Suikki maintained and enhanced
-          the Amiga port of 3.4 after Janne Salmijarvi resurrected  it  for
+               Janne Salmijarvi and Teemu Suikki  maintained  and  enhanced
+          the  Amiga  port of 3.4 after Janne Salmijarvi resurrected it for
           3.3.1.
 
-               Christian  ``Marvin''  Bressler maintained 3.4 for the Atari
+               Christian ``Marvin'' Bressler maintained 3.4 for  the  Atari
           after he resurrected it for 3.3.1.
 
-               There is a NetHack web site  maintained  by  Ken  Lorber  at
+               There  is  a  NetHack  web  site maintained by Ken Lorber at
           http://www.nethack.org/.
+
+
+          SLASH'EM 0.0.7                                  December 10, 2003
+
+
+
+
+
+          SLASH'EM Guidebook                                             59
+
+
+
+               Warren Cheung combined SLASH'EM 0.0.5E7F1 and NetHack 3.3 to
+          create  SLASH'EM  0.0.6 and continues to maintain the DOS and Mi-
+          crosoft Windows ports.
+
+               J. Ali Harlow incorporated the GTK interface  and  Mitsuhiro
+          Itakura's  32x32  tileset  into  SLASH'EM 0.0.6 and maintains the
+          UNIX port of SLASH'EM.  Peter Makholm maintains the Debian  pack-
+          age.
+
+               Paul Hurtley maintains the MAC port of SLASH'EM.
 
                     - - - - - - - - - -
 
@@ -3558,13 +3887,14 @@
 
 
 
-          NetHack 3.4                                      December 2, 2003
+
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 
 
 
-          NetHack Guidebook                                              55
+          SLASH'EM Guidebook                                             60
 
 
 
@@ -3624,7 +3954,7 @@
 
 
 
-          NetHack 3.4                                      December 2, 2003
+          SLASH'EM 0.0.7                                  December 10, 2003
 
 
 

@@ -29,7 +29,7 @@ struct termios termio;
 #   ifdef LINUX
 #    include <bsd/sgtty.h>
 #   else
-#    include <sgtty.h>
+#    include <bsd/sgtty.h> 
 #   endif
 #  endif
 # endif
@@ -77,6 +77,11 @@ extern void NDECL(linux_mapon);
 extern void NDECL(linux_mapoff);
 #endif
 
+#ifdef LINUX
+extern void NDECL(linux_mapon);
+extern void NDECL(linux_mapoff);
+#endif
+
 #ifdef AUX
 void
 catch_stp()
@@ -89,6 +94,7 @@ catch_stp()
 void
 getwindowsz()
 {
+#undef USW_WIN_IOCTL
 #ifdef USE_WIN_IOCTL
     /*
      * ttysize is found on Suns and BSD
@@ -112,6 +118,7 @@ getwindowsz()
 void
 getioctls()
 {
+#define POSIX_TYPES
 #ifdef BSD_JOB_CONTROL
 	(void) ioctl(fileno(stdin), (int) TIOCGLTC, (char *) &ltchars);
 	(void) ioctl(fileno(stdin), (int) TIOCSLTC, (char *) &ltchars0);
@@ -154,11 +161,15 @@ setioctls()
 int
 dosuspend()
 {
+
 # ifdef SIGTSTP
 	if(signal(SIGTSTP, SIG_IGN) == SIG_DFL) {
 		suspend_nhwindows((char *)0);
 #  ifdef _M_UNIX
 		sco_mapon();
+#  endif
+#  ifdef LINUX
+		linux_mapon();
 #  endif
 #  ifdef __linux__
 		linux_mapon();
@@ -168,6 +179,9 @@ dosuspend()
 		( void ) kill ( 0 , SIGSTOP ) ;
 #  else
 		(void) kill(0, SIGTSTP);
+#  endif
+#  ifdef LINUX
+		linux_mapoff();
 #  endif
 #  ifdef _M_UNIX
 		sco_mapoff();

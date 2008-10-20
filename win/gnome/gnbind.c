@@ -16,8 +16,10 @@
 GNHWinData gnome_windowlist[MAXWINDOWS];
 winid WIN_WORN = WIN_ERR;
 
+#ifdef TTY_GRAPHICS
 extern void tty_raw_print(const char *);
 extern void tty_raw_print_bold(const char *);
+#endif
 
 
 /* Interface definition, for windows.c */
@@ -92,17 +94,32 @@ init_nhwindows(int* argcp, char** argv)
 */
 void gnome_init_nhwindows(int* argc, char** argv)
 {
+    int i;
+    char *path;
+
     /* Main window */
     ghack_init_main_window( *argc, argv);
     ghack_init_signals( );
 
-#ifdef HACKDIR
-    //if (ghack_init_glyphs(HACKDIR "/t32-1024.xpm"))
-    if (ghack_init_glyphs(HACKDIR "/x11tiles"))
+    for(i = 0; i < no_tilesets; i++)
+	if (!strcmp(tileset, tilesets[i].name))
+	    break;
+    if ((tilesets[i].flags & ~TILESET_TRANSPARENT) != 0) {
+	g_warning("Can't use tile set \"%s\"; unsupported flag set\n", tileset);
+	i = no_tilesets;		/* Use a default tile set */
+    }
+    if (i == no_tilesets) {
+	for(i = 0; i < no_tilesets; i++)
+	    if ((tilesets[i].flags & ~TILESET_TRANSPARENT) == 0)
+		break;
+	if (i == no_tilesets)
+	    g_error("ERROR: No valid tiles found\n");
+    }
+    path = (char *)alloc(strlen(TILESETDIR) + strlen(tilesets[i].file) + 2);
+    sprintf(path, TILESETDIR "/%s", tilesets[i].file);
+    if (ghack_init_glyphs(path))
       g_error ("ERROR:  Could not initialize glyphs.\n");
-#else
-#   error HACKDIR is not defined!
-#endif
+    free(path);
   
     // gnome/gtk is not reentrant
     set_option_mod_status("ignintr", DISP_IN_GAME);
@@ -583,7 +600,12 @@ void gnome_putstr(winid wid, int attr, const char *text)
 /* Display the file named str.  Complain about missing files
                    iff complain is TRUE.
 */
+#ifdef FILE_AREAS
+void gnome_display_file(const char *filearea,const char *filename,
+		BOOLEAN_P must_exist)
+#else
 void gnome_display_file(const char *filename,BOOLEAN_P must_exist)
+#endif
 {
 	/* Strange -- for some reason it makes us create a new text window
 	 * instead of reusing any existing ones -- perhaps we can work out
@@ -592,7 +614,11 @@ void gnome_display_file(const char *filename,BOOLEAN_P must_exist)
         
 	dlb *f;
        
+#ifdef FILE_AREAS
+        f = dlb_fopen_area(filearea, filename, "r");
+#else
         f = dlb_fopen(filename, "r");
+#endif
         if (!f) {
 	  if (must_exist) {
 	    GtkWidget *box;
@@ -645,7 +671,11 @@ void gnome_display_file(const char *filename,BOOLEAN_P must_exist)
 	   */
 	  textlines = (char *) alloc((unsigned int) charcount);
 	  textlines[0] = '\0';
+#ifdef FILE_AREAS
+	  f = dlb_fopen_area(filearea, filename, "r");
+#else
 	  f = dlb_fopen( filename, RDTMODE);
+#endif
 
 	  while (dlb_fgets(line, LLEN, f)) {
 	    (void) strcat(textlines, line);
@@ -884,7 +914,11 @@ raw_print(str)  -- Print directly to a screen, or otherwise guarantee that
 */
 void gnome_raw_print(const char *str)
 {
+#ifdef TTY_GRAPHICS
     tty_raw_print(str);
+#else
+    puts(str); (void) fflush(stdout);
+#endif
 }
 
 /*
@@ -894,7 +928,11 @@ possible).
 */
 void gnome_raw_print_bold(const char *str)
 {
+#ifdef TTY_GRAPHICS
     tty_raw_print_bold(str);
+#else
+    puts(str); (void) fflush(stdout);
+#endif
 }
 
 /*
@@ -1168,6 +1206,7 @@ void gnome_outrip(winid wid, int how)
 #else
 		done_money);
 #endif
+
     Strcat(ripString, buf);
 
     /* Put together death description */

@@ -9,9 +9,11 @@ STATIC_DCL void NDECL(stoned_dialogue);
 STATIC_DCL void NDECL(vomiting_dialogue);
 STATIC_DCL void NDECL(choke_dialogue);
 STATIC_DCL void NDECL(slime_dialogue);
+STATIC_DCL void NDECL(slime_dialogue);
 STATIC_DCL void NDECL(slip_or_trip);
 STATIC_DCL void FDECL(see_lamp_flicker, (struct obj *, const char *));
 STATIC_DCL void FDECL(lantern_message, (struct obj *));
+STATIC_DCL void FDECL(accelerate_timer, (SHORT_P, genericptr_t, long));
 STATIC_DCL void FDECL(cleanup_burn, (genericptr_t,long));
 
 #ifdef OVLB
@@ -34,10 +36,13 @@ stoned_dialogue()
 		pline(stoned_texts[SIZE(stoned_texts) - i]);
 	if (i == 5L)
 		HFast = 0L;
-	if (i == 3L)
+	if (i == 3L) {
 		nomul(-3);
+		nomovemsg = 0;
+	}
 	exercise(A_DEX, FALSE);
 }
+
 
 /* He is getting sicker and sicker prior to vomiting */
 static NEARDATA const char * const vomiting_texts[] = {
@@ -161,6 +166,9 @@ void
 nh_timeout()
 {
 	register struct prop *upp;
+/*
+	char c;
+ */
 	int sleeptime;
 	int m_idx;
 	int baseluck = (flags.moonphase == FULL_MOON) ? 1 : 0;
@@ -182,6 +190,10 @@ nh_timeout()
 	    else if(u.uluck < baseluck && (nostone || time_luck > 0))
 		u.uluck++;
 	}
+
+	/* WAC -- check for timeout of specials */
+	tech_timeout();
+
 	if(u.uinvulnerable) return; /* things past this point could kill you */
 	if(Stoned) stoned_dialogue();
 	if(Slimed) slime_dialogue();
@@ -264,6 +276,54 @@ nh_timeout()
 			if (!Very_fast)
 				You_feel("yourself slowing down%s.",
 							Fast ? " a bit" : "");
+			break;
+		case FIRE_RES:
+			if (!Fire_resistance)
+				You("feel a little warmer.");
+			break;
+		case COLD_RES:
+			if (!Cold_resistance)
+				You("feel a little cooler.");
+			break;
+		case SLEEP_RES:
+			if (!Sleep_resistance)
+				You("feel a little sleepy.");
+			break;
+		case SHOCK_RES:
+			if (!Shock_resistance)
+				You("feel a little static cling.");
+			break;
+		case POISON_RES:
+			if (!Poison_resistance)
+				You("feel a little less healthy.");
+			break;
+		case DISINT_RES:
+			if (!Disint_resistance)
+				You("feel a little less firm.");
+			break;
+		case TELEPORT:
+			if (!Teleportation)
+				You("feel a little less jumpy.");
+			break;
+		case TELEPORT_CONTROL:
+			if (!Teleport_control)
+				You("feel a little less in control of yourself.");
+			break;
+		case TELEPAT:
+			if (!HTelepat)
+				You("feel a little less mentally acute.");
+			break;
+		case FREE_ACTION:
+			if (!Free_action)
+				You("feel a little stiffer.");
+			break;
+		case PASSES_WALLS:
+			if (!Passes_walls)
+				You("feel a little more solid.");
+			break;
+		case INVULNERABLE:
+			if (!Invulnerable)
+				You("are no longer invulnerable.");
 			break;
 		case CONFUSION:
 			HConfusion = 1; /* So make_confused works properly */
@@ -374,6 +434,334 @@ boolean wakeup_msg;
 	u.usleep = monstermoves;
 	nomovemsg = wakeup_msg ? "You wake up." : You_can_move_again;
 }
+
+
+#ifdef UNPOLYPILE
+/* WAC polymorph an object
+ * Unlike monsters,  this function is called after the polymorph
+ */
+void
+set_obj_poly(obj, old)
+struct obj *obj, *old;
+{
+	/* Same unpolytime (500,500) as for player */
+	if (is_hazy(old))
+	    obj->oldtyp = old->oldtyp;
+	else
+	    obj->oldtyp = old->otyp;
+	if (obj->oldtyp == obj->otyp)
+	    obj->oldtyp = STRANGE_OBJECT;
+	else
+	    (void) start_timer(rn1(500,500), TIMER_OBJECT,
+			UNPOLY_OBJ, (genericptr_t) obj);
+	return;
+}
+
+/* timer callback routine: undo polymorph on an object */
+void
+unpoly_obj(arg, timeout)
+	genericptr_t arg;
+	long timeout;
+{
+	struct obj *obj, *otmp, *otmp2;
+	int oldobj, depthin;
+	boolean silent = (timeout != monstermoves),     /* unpoly'ed while away */
+		explodes;
+
+	obj = (struct obj *) arg;
+	if (!is_hazy(obj)) return;
+	oldobj = obj->oldtyp;
+
+	if (carried(obj) && !silent) /* silent == TRUE is a strange case... */
+		pline("Suddenly, your %s!", aobjnam(obj, "transmute"));
+
+	(void) stop_timer(UNPOLY_OBJ, (genericptr_t) obj);
+
+	obj = poly_obj(obj, oldobj);
+
+	if (obj->otyp == WAN_CANCELLATION || Is_mbag(obj)) {
+	    otmp = obj;
+	    depthin = 0;
+	    explodes = FALSE;
+
+	    while (otmp->where == OBJ_CONTAINED) {
+		otmp = otmp->ocontainer;
+		if (otmp->otyp == BAG_OF_HOLDING) {
+		    explodes = mbag_explodes(obj, depthin);
+		    break;
+		}
+		depthin++;
+	    }
+
+	    if (explodes) {
+		otmp2 = otmp;
+		while (otmp2->where == OBJ_CONTAINED) {
+		    otmp2 = otmp2->ocontainer;
+
+		    if (otmp2->otyp == BAG_OF_HOLDING) 
+			otmp = otmp2;
+		}
+		destroy_mbag(otmp, silent);
+	    }
+	}	
+	return;
+}
+#endif /* UNPOLYPILE */
+#endif /* OVL1 */
+#ifdef OVL0
+
+#ifdef UNPOLYPILE
+/*
+ * Cleanup a hazy object if timer stopped.
+ */
+/*ARGSUSED*/
+static void
+cleanup_unpoly(arg, timeout)
+    genericptr_t arg;
+    long timeout;
+{
+#if defined(MAC_MPW) || defined(__MWERKS__)
+# pragma unused(timeout)
+#endif
+    struct obj *obj = (struct obj *)arg;
+    obj->oldtyp = STRANGE_OBJECT;
+#ifdef WIZARD
+    if (wizard && obj->where == OBJ_INVENT)
+	update_inventory();
+#endif
+}
+#endif /* UNPOLYPILE */
+
+#endif /* OVL0 */
+#ifdef OVL1
+
+/* WAC polymorph a monster
+ * returns 0 if no change, 1 if polymorphed and -1 if died.
+ * This handles system shock for monsters so DON'T do system shock elsewhere
+ * when polymorphing.
+ * (except in unpolymorph code,  which is a special case)
+ */
+int
+mon_poly(mtmp, your_fault, change_fmt)
+struct monst *mtmp;
+boolean your_fault;
+const char *change_fmt;
+{
+	if (change_fmt && canseemon(mtmp)) pline(change_fmt, Monnam(mtmp));
+	return mon_spec_poly(mtmp, (struct permonst *)0, 0L,
+		FALSE, canseemon(mtmp), TRUE, your_fault);
+}
+
+
+/* WAC Muscle function - for more control over polying
+ * returns 0 if no change, 1 if polymorphed and -1 if died.
+ * cancels/sets up timers if polymorph is successful
+ * lets receiver handle failures
+ */
+
+int
+mon_spec_poly(mtmp, type, when, polyspot, transform_msg, system_shock,
+	your_fault)
+struct monst *mtmp;
+struct permonst *type;
+long when;
+boolean polyspot;
+boolean transform_msg;
+boolean system_shock;
+boolean your_fault;
+{
+	int i;
+
+	i = newcham(mtmp, type, polyspot, transform_msg);
+	if (system_shock && (!i || !rn2(25))) {
+	    /* Uhoh.  !i == newcham wasn't able to make the polymorph...*/
+	    if (transform_msg) pline("%s shudders.", Monnam(mtmp));
+	    if (i) mtmp->mhp -= rnd(30);
+	    if (!i || (mtmp->mhp <= 0)) {
+		if (your_fault) xkilled(mtmp, 3);
+		else mondead(mtmp);
+		i = -1;
+	    }
+	}
+	if (i > 0) {
+	    /* Stop any old timers.   */
+	    (void) stop_timer(UNPOLY_MON, (genericptr_t) mtmp);
+	    /* Lengthen unpolytime - was 500,500  for player */
+	    (void) start_timer(when ? when : rn1(1000, 1000), TIMER_MONSTER,
+		    UNPOLY_MON, (genericptr_t) mtmp);
+	}
+	return i;
+}
+
+
+/* timer callback routine: undo polymorph on a monster */
+void
+unpoly_mon(arg, timeout)
+	genericptr_t arg;
+	long timeout;
+{
+	struct monst *mtmp;
+	int oldmon;
+	char oldname[BUFSZ];  /* DON'T use char * since this will change! */
+	boolean silent = (timeout != monstermoves);     /* unpoly'ed while away */
+
+	mtmp = (struct monst *) arg;
+	oldmon = mtmp->oldmonnm;
+
+	strcpy(oldname, Monnam(mtmp));
+
+	(void) stop_timer(UNPOLY_MON, (genericptr_t) mtmp);
+
+	if (!newcham(mtmp, &mons[oldmon], FALSE, (canseemon(mtmp) && !silent))) {
+	    /* Wasn't able to unpolymorph */
+	    if (canseemon(mtmp) && !silent) pline("%s shudders.", oldname);
+	    mondead(mtmp);
+	    return;
+	}
+
+	/* Check if current form is genocided */
+	if (mvitals[oldmon].mvflags & G_GENOD) {
+	    mtmp->mhp = 0;
+	    if (canseemon(mtmp) && !silent) pline("%s shudders.", oldname);
+	    /*  Since only player can read scrolls of genocide... */
+	    xkilled(mtmp, 3);
+	    return;
+	}
+
+#if 0
+	if (canseemon(mtmp)) pline ("%s changes into %s!", 
+		oldname, an(mtmp->data->mname));
+#endif
+	return;
+}
+
+#ifdef FIREARMS
+/* Attach an explosion timeout to a given explosive device */
+void
+attach_bomb_blow_timeout(bomb, fuse, yours)
+struct obj *bomb;
+int fuse;
+boolean yours;
+{
+	long expiretime;	
+
+	if (bomb->cursed && !rn2(2)) return; /* doesn't arm if not armed */
+
+	/* Now if you play with other people's property... */
+	if (yours && (!carried(bomb) && costly_spot(bomb->ox, bomb->oy) &&
+		!bomb->no_charge || bomb->unpaid)) {
+	    verbalize("You play with it, you pay for it!");
+	    bill_dummy_object(bomb);
+	}
+
+	expiretime = stop_timer(BOMB_BLOW, (genericptr_t) bomb);
+	if (expiretime > 0L) fuse = fuse - (expiretime - monstermoves);
+	bomb->yours = yours;
+	bomb->oarmed = TRUE;
+
+	(void) start_timer((long)fuse, TIMER_OBJECT, BOMB_BLOW, (genericptr_t)bomb);
+}
+
+/* timer callback routine: detonate the explosives */
+void
+bomb_blow(arg, timeout)
+genericptr_t arg;
+long timeout;
+{
+	struct obj *bomb;
+	xchar x,y;
+	boolean silent, underwater;
+	struct monst *mtmp = (struct monst *)0;
+
+	bomb = (struct obj *) arg;
+
+	silent = (timeout != monstermoves);     /* exploded while away */
+
+	if (get_obj_location(bomb, &x, &y, BURIED_TOO | CONTAINED_TOO)) {
+		switch(bomb->where) {		
+		    case OBJ_MINVENT:
+		    	mtmp = bomb->ocarry;
+			if (bomb == MON_WEP(mtmp)) {
+			    bomb->owornmask &= ~W_WEP;
+			    MON_NOWEP(mtmp);
+			}
+			if (!silent) {
+			    if (canseemon(mtmp))
+				You("see %s engulfed in an explosion!", mon_nam(mtmp));
+			}
+		    	mtmp->mhp -= d(2,5);
+			if(mtmp->mhp < 1) {
+				if(!bomb->yours) 
+					monkilled(mtmp, 
+						  (silent ? "" : "explosion"),
+						  AD_PHYS);
+				else xkilled(mtmp, !silent);
+			}
+			break;
+		    case OBJ_INVENT:
+		    	/* This shouldn't be silent! */
+			pline("Something explodes inside your knapsack!");
+			if (bomb == uwep) {
+			    uwepgone();
+			    stop_occupation();
+			} else if (bomb == uswapwep) {
+			    uswapwepgone();
+			    stop_occupation();
+			} else if (bomb == uquiver) {
+			    uqwepgone();
+			    stop_occupation();
+			}
+		    	losehp(d(2,5), "carrying live explosives", KILLED_BY);
+		    	break;
+		    case OBJ_FLOOR:
+			underwater = is_pool(x, y);
+			if (!silent) {
+			    if (x == u.ux && y == u.uy) {
+				if (underwater && (Flying || Levitation))
+				    pline_The("water boils beneath you.");
+				else if (underwater && Wwalking)
+				    pline_The("water erupts around you.");
+				else pline("A bomb explodes under your %s!",
+				  makeplural(body_part(FOOT)));
+			    } else if (cansee(x, y))
+				You(underwater ?
+				    "see a plume of water shoot up." :
+				    "see a bomb explode.");
+			}
+			if (underwater && (Flying || Levitation || Wwalking)) {
+			    if (Wwalking && x == u.ux && y == u.uy) {
+				struct trap trap;
+				trap.ntrap = NULL;
+				trap.tx = x;
+				trap.ty = y;
+				trap.launch.x = -1;
+				trap.launch.y = -1;
+				trap.ttyp = RUST_TRAP;
+				trap.tseen = 0;
+				trap.once = 0;
+				trap.madeby_u = 0;
+				trap.dst.dnum = -1;
+				trap.dst.dlevel = -1;
+				dotrap(&trap, 0);
+			    }
+			    goto free_bomb;
+			}
+		    	break;
+		    default:	/* Buried, contained, etc. */
+			if (!silent)
+			    You_hear("a muffled explosion.");
+			goto free_bomb;
+			break;
+		}
+		grenade_explode(bomb, x, y, bomb->yours, silent ? 2 : 0);
+		return;
+	} /* Migrating grenades "blow up in midair" */
+
+free_bomb:
+	obj_extract_self(bomb);
+	obfree(bomb, (struct obj *)0);
+}
+#endif
 
 /* Attach an egg hatch timeout to the given egg. */
 void
@@ -768,6 +1156,11 @@ long timeout;
 		    obj_extract_self(obj);
 		    obfree(obj, (struct obj *)0);
 		    obj = (struct obj *) 0;
+#ifdef FIREARMS
+		} else if (obj->otyp == STICK_OF_DYNAMITE) {
+			bomb_blow((genericptr_t) obj, timeout);
+			return;
+#endif
 		}
 
 	    } else {
@@ -810,6 +1203,7 @@ long timeout;
 		    obj = (struct obj *) 0;
 		    break;
 
+	    case TORCH:
 	    case BRASS_LANTERN:
 	    case OIL_LAMP:
 		switch((int)obj->age) {
@@ -866,6 +1260,16 @@ long timeout;
 					    an(xname(obj)));
 				    break;
 			    }
+			}
+			
+			/* MRKR: Burnt out torches are considered worthless */
+			
+			if (obj->otyp == TORCH) {
+			  if (obj->unpaid && costly_spot(u.ux, u.uy)) {
+			    const char *ithem = obj->quan > 1L ? "them" : "it";
+			    verbalize("You burn %s, you bought %s!", ithem, ithem);
+			    bill_dummy_object(obj);
+			  }
 			}
 			end_burn(obj, FALSE);
 			break;
@@ -1001,12 +1405,108 @@ long timeout;
 
 		break;
 
+#ifdef LIGHTSABERS
+	    case RED_DOUBLE_LIGHTSABER:
+	    	if (obj->altmode && obj->cursed && !rn2(25)) {
+		    obj->altmode = FALSE;
+		    pline("%s %s reverts to single blade mode!",
+			    whose, xname(obj));
+	    	}
+	    case GREEN_LIGHTSABER: 
+#ifdef D_SABER
+	    case BLUE_LIGHTSABER:
+#endif
+	    case RED_LIGHTSABER:
+	        /* Callback is checked every 5 turns - 
+	        	lightsaber automatically deactivates if not wielded */
+	        if ((obj->cursed && !rn2(50)) ||
+	            (obj->where == OBJ_FLOOR) || 
+		    (obj->where == OBJ_MINVENT && 
+		    	(!MON_WEP(obj->ocarry) || MON_WEP(obj->ocarry) != obj)) ||
+		    (obj->where == OBJ_INVENT &&
+		    	((!uwep || uwep != obj) &&
+		    	 (!u.twoweap || !uswapwep || obj != uswapwep))))
+	            lightsaber_deactivate(obj, FALSE);
+		switch (obj->age) {			
+		    case 100:
+			/* Single warning time */
+			if (canseeit) {
+			    switch (obj->where) {
+				case OBJ_INVENT:
+				case OBJ_MINVENT:
+				    pline("%s %s dims!",whose, xname(obj));
+				    break;
+				case OBJ_FLOOR:
+				    You("see %s dim!", an(xname(obj)));
+				    break;
+			    }
+			} else {
+			    You("hear the hum of %s change!", an(xname(obj)));
+			}
+			break;
+		    case 0:
+			lightsaber_deactivate(obj, FALSE);
+			break;
+
+		    default:
+			/*
+			 * Someone added fuel to the lightsaber while it was
+			 * lit.  Just fall through and let begin burn
+			 * handle the new age.
+			 */
+			break;
+		}
+		if (obj && obj->age && obj->lamplit) /* might be deactivated */
+		    begin_burn(obj, TRUE);
+		break;
+#endif
+
+#ifdef FIREARMS
+	    case STICK_OF_DYNAMITE:
+		end_burn(obj, FALSE);
+		bomb_blow((genericptr_t) obj, timeout);
+		return;
+#endif
 	    default:
 		impossible("burn_object: unexpeced obj %s", xname(obj));
 		break;
 	}
 	if (need_newsym) newsym(x, y);
 }
+
+#ifdef LIGHTSABERS
+/* lightsabers deactivate when they hit the ground/not wielded */
+/* assumes caller checks for correct conditions */
+void
+lightsaber_deactivate (obj, timer_attached)
+	struct obj *obj;
+	boolean timer_attached;
+{
+	xchar x,y;
+	char whose[BUFSZ];
+
+	(void) Shk_Your(whose, obj);
+		
+	if (get_obj_location(obj, &x, &y, 0)) {
+	    if (cansee(x, y)) {
+		switch (obj->where) {
+			case OBJ_INVENT:
+			case OBJ_MINVENT:
+			    pline("%s %s deactivates.",whose, xname(obj));
+			    break;
+			case OBJ_FLOOR:
+			    You("see %s deactivate.", an(xname(obj)));
+			    break;
+		}
+	    } else {
+		You("hear a lightsaber deactivate.");
+	    }
+	}
+	if (obj->otyp == RED_DOUBLE_LIGHTSABER) obj->altmode = FALSE;
+	if ((obj == uwep) || (u.twoweap && obj != uswapwep)) unweapon = TRUE;
+	end_burn(obj, timer_attached);
+}
+#endif
 
 /*
  * Start a burn timeout on the given object. If not "already lit" then
@@ -1017,6 +1517,10 @@ long timeout;
  * a timer.
  *
  * Burn rules:
+ *      torches
+ *		age = # of turns of fuel left
+ *		spe = <weapon plus of torch, not used here>
+ *
  *	potions of oil, lamps & candles:
  *		age = # of turns of fuel left
  *		spe = <unused>
@@ -1048,22 +1552,44 @@ begin_burn(obj, already_lit)
 	long turns = 0;
 	boolean do_timer = TRUE;
 
-	if (obj->age == 0 && obj->otyp != MAGIC_LAMP && !artifact_light(obj))
+	if (obj->age == 0 && obj->otyp != MAGIC_LAMP &&
+		obj->otyp != MAGIC_CANDLE && !artifact_light(obj))
 	    return;
 
 	switch (obj->otyp) {
 	    case MAGIC_LAMP:
+	    case MAGIC_CANDLE:
 		obj->lamplit = 1;
 		do_timer = FALSE;
+		if (obj->otyp == MAGIC_CANDLE) obj->age = 300L;
 		break;
-
+#ifdef LIGHTSABERS
+	    case RED_DOUBLE_LIGHTSABER:
+	    	if (obj->altmode && obj->age > 1) 
+		    obj->age--; /* Double power usage */
+	    case RED_LIGHTSABER:
+#ifdef D_SABER
+	    case BLUE_LIGHTSABER:
+#endif
+	    case GREEN_LIGHTSABER:
+	    	turns = 1;
+    	    	radius = 1;
+		break;
+#endif
 	    case POT_OIL:
 		turns = obj->age;
 		radius = 1;	/* very dim light */
 		break;
+#ifdef FIREARMS
+	    case STICK_OF_DYNAMITE:
+		turns = obj->age;
+		radius = 1;     /* very dim light */
+		break;
+#endif
 
 	    case BRASS_LANTERN:
 	    case OIL_LAMP:
+	    case TORCH:
 		/* magic times are 150, 100, 50, 25, and 0 */
 		if (obj->age > 150L)
 		    turns = obj->age - 150L;
@@ -1092,11 +1618,12 @@ begin_burn(obj, already_lit)
 
 	    default:
                 /* [ALI] Support artifact light sources */
-                if (artifact_light(obj)) {
+		if (obj->oartifact && artifact_light(obj)) {
 		    obj->lamplit = 1;
 		    do_timer = FALSE;
 		    radius = 2;
-		} else {
+		}
+		else {
 		    impossible("begin burn: unexpected %s", xname(obj));
 		    turns = obj->age;
 		}
@@ -1142,7 +1669,8 @@ end_burn(obj, timer_attached)
 	    return;
 	}
 
-	if (obj->otyp == MAGIC_LAMP || artifact_light(obj))
+	if (obj->otyp == MAGIC_LAMP || obj->otyp == MAGIC_CANDLE ||
+		artifact_light(obj))
 	    timer_attached = FALSE;
 
 	if (!timer_attached) {
@@ -1186,6 +1714,25 @@ cleanup_burn(arg, expire_time)
 #endif /* OVL0 */
 #ifdef OVL1
 
+/* 
+ * MRKR: Use up some fuel quickly, eg: when hitting a monster with 
+ *       a torch.
+ */
+
+void 
+burn_faster(obj, adj) 
+struct obj *obj;
+long adj;
+{
+
+  if (!obj->lamplit) {
+    impossible("burn_faster: obj %s not lit", xname(obj));
+    return;
+  }
+
+  accelerate_timer(BURN_OBJECT, obj, adj);
+}
+
 void
 do_storms()
 {
@@ -1221,6 +1768,7 @@ do_storms()
 	if(!u.uinvulnerable) {
 	    stop_occupation();
 	    nomul(-3);
+	    nomovemsg = 0;
 	}
     } else
 	You_hear("a rumbling noise.");
@@ -1280,6 +1828,10 @@ do_storms()
  *
  *	void obj_stop_timers(struct obj *obj)
  *		Stop all timers attached to obj.
+ *
+ * Monster Specific:
+ *	void mon_stop_timers(struct monst *mon)
+ *		Stop all timers attached to mon.
  */
 
 #ifdef WIZARD
@@ -1293,6 +1845,7 @@ STATIC_DCL void FDECL(write_timer, (int, timer_element *));
 STATIC_DCL boolean FDECL(mon_is_local, (struct monst *));
 STATIC_DCL boolean FDECL(timer_is_local, (timer_element *));
 STATIC_DCL int FDECL(maybe_write_timer, (int, int, BOOLEAN_P));
+static void FDECL(write_timer, (int, timer_element *)); /* Damn typedef write_timer is in the middle */
 
 /* ordered timer list */
 static timer_element *timer_base;		/* "active" */
@@ -1315,10 +1868,18 @@ typedef struct {
 static const ttable timeout_funcs[NUM_TIME_FUNCS] = {
     TTAB(rot_organic,	(timeout_proc)0,	"rot_organic"),
     TTAB(rot_corpse,	(timeout_proc)0,	"rot_corpse"),
+    TTAB(moldy_corpse,  (timeout_proc)0,	"moldy_corpse"),
     TTAB(revive_mon,	(timeout_proc)0,	"revive_mon"),
     TTAB(burn_object,	cleanup_burn,		"burn_object"),
     TTAB(hatch_egg,	(timeout_proc)0,	"hatch_egg"),
-    TTAB(fig_transform,	(timeout_proc)0,	"fig_transform")
+    TTAB(fig_transform, (timeout_proc)0,	"fig_transform"),
+    TTAB(unpoly_mon,    (timeout_proc)0,	"unpoly_mon"),
+#ifdef FIREARMS
+    TTAB(bomb_blow,     (timeout_proc)0,	"bomb_blow"),
+#endif
+#ifdef UNPOLYPILE
+    TTAB(unpoly_obj,    cleanup_unpoly,		"unpoly_obj"),
+#endif
 };
 #undef TTAB
 
@@ -1564,6 +2125,34 @@ obj_stop_timers(obj)
 }
 
 
+/*
+ * Stop all timers attached to this monster.  We can get away with this because
+ * all monster pointers are unique.
+ */
+void
+mon_stop_timers(mon)
+    struct monst *mon;
+{
+    timer_element *curr, *prev, *next_timer=0;
+
+    for (prev = 0, curr = timer_base; curr; curr = next_timer) {
+	next_timer = curr->next;
+	if (curr->kind == TIMER_MONSTER && curr->arg == (genericptr_t)mon) {
+	    if (prev)
+		prev->next = curr->next;
+	    else
+		timer_base = curr->next;
+	    if (timeout_funcs[curr->func_index].cleanup)
+		(*timeout_funcs[curr->func_index].cleanup)(curr->arg,
+			curr->timeout);
+	    free((genericptr_t) curr);
+	} else {
+	    prev = curr;
+	}
+    }
+}
+
+
 /* Insert timer into the global queue */
 STATIC_OVL void
 insert_timer(gnu)
@@ -1602,7 +2191,6 @@ genericptr_t arg;
 
     return curr;
 }
-
 
 STATIC_OVL void
 write_timer(fd, timer)
@@ -1652,6 +2240,38 @@ write_timer(fd, timer)
     }
 }
 
+/*
+ * MRKR: Run one particular timer faster for a number of steps
+ *       Needed for burn_faster above.
+ */
+
+STATIC_OVL void
+accelerate_timer(func_index, arg, adj) 
+short func_index;
+genericptr_t arg;
+long adj;
+{ 
+    timer_element *timer;
+
+    /* This will effect the ordering, so we remove it from the list */
+    /* and add it back in afterwards (if warranted) */
+
+    timer = remove_timer(&timer_base, func_index, arg);    
+
+    for (; adj > 0; adj--) {
+      timer->timeout--;
+
+      if (timer->timeout <= monstermoves) {
+	if (timer->kind == TIMER_OBJECT) ((struct obj *)arg)->timed--;
+	(*timeout_funcs[func_index].f)(arg, timer->timeout);
+	free((genericptr_t) timer);
+	break;
+      }
+    }
+
+    if (adj == 0)
+      insert_timer(timer);
+}
 
 /*
  * Return TRUE if the object will stay on the level when the level is
@@ -1844,7 +2464,18 @@ relink_timers(ghostly)
 		if (!curr->arg) panic("cant find o_id %d", nid);
 		curr->needs_fixup = 0;
 	    } else if (curr->kind == TIMER_MONSTER) {
-		panic("relink_timers: no monster timer implemented");
+/*                panic("relink_timers: no monster timer implemented");*/
+                /* WAC attempt to relink monster timers based on above
+                 * and light source code
+                 */
+		if (ghostly) {
+		    if (!lookup_id_mapping((unsigned)curr->arg, &nid))
+                        panic("relink_timers 1b");
+		} else
+		    nid = (unsigned) curr->arg;
+                curr->arg = (genericptr_t) find_mid(nid, FM_EVERYWHERE);
+		if (!curr->arg) panic("cant find m_id %d", nid);
+		curr->needs_fixup = 0;
 	    } else
 		panic("relink_timers 2");
 	}

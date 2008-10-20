@@ -293,12 +293,14 @@ boolean ghostly;
 			if (obj) mtmp->mw = obj;
 			else {
 				MON_NOWEP(mtmp);
-				impossible("bad monster weapon restore");
+				/* KMH -- this is more an annoyance than a bug */
+/*				impossible("bad monster weapon restore"); */
 			}
 		}
 
 		if (mtmp->isshk) restshk(mtmp, ghostly);
 		if (mtmp->ispriest) restpriest(mtmp, ghostly);
+		if (mtmp->isgyp && ghostly) gypsy_init(mtmp);
 
 		mtmp2 = mtmp;
 	}
@@ -369,7 +371,7 @@ unsigned int *stuckid, *steedid;	/* STEED */
 	       as an attempt to cheat and refuse to restore this file */
 	    pline("Saved game was not yours.");
 #ifdef WIZARD
-	    if (!wizard)
+	if(!wizard)
 #endif
 		return FALSE;
 	}
@@ -378,12 +380,13 @@ unsigned int *stuckid, *steedid;	/* STEED */
 	flags.bypasses = 0;	/* never use the saved value of bypasses */
 	if (remember_discover) discover = remember_discover;
 
-	role_init();	/* Reset the initial role, race, gender, and alignment */
+	role_init();	/* Reset the initial role, gender, and alignment */
+
 #ifdef AMII_GRAPHICS
 	amii_setpens(amii_numcolors);	/* use colors from save file */
 #endif
 	mread(fd, (genericptr_t) &u, sizeof(struct you));
-	set_uasmon();
+	init_uasmon();
 #ifdef CLIPPING
 	cliparound(u.ux, u.uy);
 #endif
@@ -407,27 +410,46 @@ unsigned int *stuckid, *steedid;	/* STEED */
 	migrating_mons = restmonchn(fd, FALSE);
 	mread(fd, (genericptr_t) mvitals, sizeof(mvitals));
 
+	/*
+	 * There are some things after this that can have unintended display
+	 * side-effects too early in the game.
+	 * Disable see_monsters() here, re-enable it at the top of moveloop()
+	 */
+	defer_see_monsters = TRUE;
+
 	/* this comes after inventory has been loaded */
 	for(otmp = invent; otmp; otmp = otmp->nobj)
 		if(otmp->owornmask)
+#ifdef DEBUG
+		{
+			pline ("obj(%s),", xname(otmp));
+#endif
 			setworn(otmp, otmp->owornmask);
+#ifdef DEBUG
+		}
+#endif
 	/* reset weapon so that player will get a reminder about "bashing"
 	   during next fight when bare-handed or wielding an unconventional
 	   item; for pick-axe, we aren't able to distinguish between having
 	   applied or wielded it, so be conservative and assume the former */
 	otmp = uwep;	/* `uwep' usually init'd by setworn() in loop above */
 	uwep = 0;	/* clear it and have setuwep() reinit */
-	setuwep(otmp);	/* (don't need any null check here) */
-	if (!uwep || uwep->otyp == PICK_AXE || uwep->otyp == GRAPPLING_HOOK)
+	setuwep(otmp,FALSE);	/* (don't need any null check here) */
+	/* KMH, balance patch -- added fishing pole */
+	if (!uwep || uwep->otyp == PICK_AXE || uwep->otyp == GRAPPLING_HOOK ||
+		     uwep->otyp == FISHING_POLE)
 	    unweapon = TRUE;
 
 	restore_dungeon(fd);
+
 	restlevchn(fd);
 	mread(fd, (genericptr_t) &moves, sizeof moves);
 	mread(fd, (genericptr_t) &monstermoves, sizeof monstermoves);
 	mread(fd, (genericptr_t) &quest_status, sizeof(struct q_score));
 	mread(fd, (genericptr_t) spl_book,
 				sizeof(struct spell) * (MAXSPELL + 1));
+	mread(fd, (genericptr_t) tech_list,
+			sizeof(struct tech) * (MAXTECH + 1));
 	restore_artifacts(fd);
 	restore_oracles(fd);
 	if (u.ustuck)
@@ -436,7 +458,7 @@ unsigned int *stuckid, *steedid;	/* STEED */
 	if (u.usteed)
 		mread(fd, (genericptr_t) steedid, sizeof (*steedid));
 #endif
-	mread(fd, (genericptr_t) pl_character, sizeof pl_character);
+	mread(fd, (genericptr_t) pl_character, sizeof (pl_character));
 
 	mread(fd, (genericptr_t) pl_fruit, sizeof pl_fruit);
 	mread(fd, (genericptr_t) &current_fruit, sizeof current_fruit);
@@ -464,7 +486,7 @@ unsigned int stuckid, steedid;	/* STEED */
 		for (mtmp = fmon; mtmp; mtmp = mtmp->nmon)
 			if (mtmp->m_id == stuckid) break;
 		if (!mtmp) panic("Cannot find the monster ustuck.");
-		u.ustuck = mtmp;
+		setustuck(mtmp);
 	}
 #ifdef STEED
 	if (steedid) {
@@ -482,10 +504,10 @@ STATIC_OVL int
 restlevelfile(fd, ltmp)
 register int fd;
 xchar ltmp;
-#if defined(macintosh) && (defined(__SC__) || defined(__MRC__))
+{
+#ifdef MAC_MPW
 # pragma unused(fd)
 #endif
-{
 	register int nfd;
 	char whynot[BUFSZ];
 
@@ -516,6 +538,8 @@ xchar ltmp;
 		/* Perhaps the person would like to play without a
 		 * RAMdisk.
 		 */
+		/* Maybe not [Tom] */                
+#if 0
 		if (ramdisk) {
 			/* PlaywoRAMdisk may not return, but if it does
 			 * it is certain that ramdisk will be 0.
@@ -525,7 +549,9 @@ xchar ltmp;
 			(void) lseek(fd, (off_t)0, 0);
 			(void) uptodate(fd, (char *)0);	/* skip version */
 			return dorecover(fd);	/* 0 or 1 */
-		} else {
+		} else
+#endif
+		{
 # endif
 			pline("Be seeing you...");
 			terminate(EXIT_SUCCESS);
@@ -575,7 +601,7 @@ register int fd;
 	 * afterwards, and in the meantime at least u.usteed may mislead
 	 * place_monster() on other levels
 	 */
-	u.ustuck = (struct monst *)0;
+	setustuck((struct monst *)0);
 #ifdef STEED
 	u.usteed = (struct monst *)0;
 #endif
@@ -593,15 +619,14 @@ register int fd;
 	clear_nhwindow(WIN_MAP);
 # endif
 	clear_nhwindow(WIN_MESSAGE);
-	You("return to level %d in %s%s.",
-		depth(&u.uz), dungeons[u.uz.dnum].dname,
-		flags.debug ? " while in debug mode" :
-		flags.explore ? " while in explore mode" : "");
+	/* moved lower */
 	curs(WIN_MAP, 1, 1);
 	dotcnt = 0;
 	dotrow = 2;
-	if (strncmpi("X11", windowprocs.name, 3))
+# ifdef TTY_GRAPHICS
+	if (!strncmpi("tty", windowprocs.name, 3))
     	  putstr(WIN_MAP, 0, "Restoring:");
+# endif
 #endif
 	while(1) {
 #ifdef ZEROCOMP
@@ -611,16 +636,16 @@ register int fd;
 #endif
 			break;
 		getlev(fd, 0, ltmp, FALSE);
-#ifdef MICRO
+#if defined(MICRO) && defined(TTY_GRAPHICS)
+		if (!strncmpi("tty", windowprocs.name, 3)) {
 		curs(WIN_MAP, 1+dotcnt++, dotrow);
 		if (dotcnt >= (COLNO - 1)) {
 			dotrow++;
 			dotcnt = 0;
 		}
-		if (strncmpi("X11", windowprocs.name, 3)){
 		  putstr(WIN_MAP, 0, ".");
-		}
 		mark_synch();
+		}
 #endif
 		rtmp = restlevelfile(fd, ltmp);
 		if (rtmp < 2) return(rtmp);  /* dorecover called recursively */
@@ -629,7 +654,8 @@ register int fd;
 #ifdef BSD
 	(void) lseek(fd, 0L, 0);
 #else
-	(void) lseek(fd, (off_t)0, 0);
+	(void) lseek(fd, 0L, 0);
+/*      (void) lseek(fd, (off_t)0, 0); */
 #endif
 	(void) uptodate(fd, (char *)0);		/* skip version info */
 #ifdef STORE_PLNAME_IN_FILE
@@ -647,6 +673,20 @@ register int fd;
 	substitute_tiles(&u.uz);
 #endif
 	restlevelstate(stuckid, steedid);
+
+	/* WAC -- This needs to be after the second restlevelstate
+	 * You() writes to the message line,  which also updates the 
+	 * status line.  However,  u.usteed needs to be corrected or else
+	 * weight/carrying capacities will be calculated by dereferencing
+	 * garbage pointers.
+	 * Side effect of this is that you don't see this message until after the
+	 * all the levels are loaded
+	 */
+	You("return to level %d in %s%s.",
+		depth(&u.uz), dungeons[u.uz.dnum].dname,
+		flags.debug ? " while in debug mode" :
+		flags.explore ? " while in explore mode" : "");
+
 #ifdef MFLOPPY
 	gameDiskPrompt();
 #endif
@@ -783,10 +823,16 @@ boolean ghostly;
 	mread(fd, (genericptr_t)&level.flags, sizeof(level.flags));
 	mread(fd, (genericptr_t)doors, sizeof(doors));
 	rest_rooms(fd);		/* No joke :-) */
+	/* ALI - regenerate doorindex */
 	if (nroom)
 	    doorindex = rooms[nroom - 1].fdoor + rooms[nroom - 1].doorct;
-	else
+	else {
 	    doorindex = 0;
+	    for (y = 0; y < ROWNO; y++)
+		for (x = 0; x < COLNO; x++)
+		    if (IS_DOOR(levl[x][y].typ))
+			doorindex++;
+	}
 
 	restore_timers(fd, RANGE_LEVEL, ghostly, monstermoves - omoves);
 	restore_light_sources(fd);
@@ -796,7 +842,7 @@ boolean ghostly;
 	if (u.uz.dlevel) {
 	    register struct monst *mtmp2;
 
-	    for (mtmp = fmon; mtmp; mtmp = mtmp2) {
+	  for(mtmp = fmon; mtmp; mtmp = mtmp2) {
 		mtmp2 = mtmp->nmon;
 		if (ghostly) {
 			/* reset peaceful/malign relative to new character */
@@ -898,7 +944,9 @@ boolean ghostly;
 	relink_timers(ghostly);
 	relink_light_sources(ghostly);
 	reset_oattached_mids(ghostly);
-
+#ifdef DUNGEON_GROWTH
+	if (!ghostly) catchup_dgn_growths((monstermoves - omoves) / 5);
+#endif
 	if (ghostly)
 	    clear_id_mapping();
 }

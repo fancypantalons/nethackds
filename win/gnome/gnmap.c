@@ -92,6 +92,7 @@ ghack_init_map_window ( )
   GnomeCanvasImage  *bg;
   double width, height, x, y;
   int i;
+  char *path;
 
   width = COLNO * ghack_glyph_width();
   height = ROWNO * ghack_glyph_height();
@@ -179,12 +180,21 @@ ghack_init_map_window ( )
 		    NULL) );
 
   /* Tile the map background with a pretty image */ 
-  background = gdk_imlib_load_image((char *) "mapbg.xpm");
+#ifdef FILE_AREAS
+  path = (char *)alloc(strlen(FILE_AREA_SHARE) + 11);
+  strcpy(path, FILE_AREA_SHARE "/mapbg.xpm");
+#else
+  path = "mapbg.xpm";
+#endif
+  background = gdk_imlib_load_image(path);
+#ifdef FILE_AREAS
+  free(path);
+#endif
   if (background == NULL) {
       g_warning("Bummer! Failed to load the map background image (mapbg.xpm)!");
   }
   else {
-    gdk_imlib_render(background, background->rgb_width,
+    gdk_imlib_render( background, background->rgb_width,
 	  background->rgb_height);
 
     /* Tile the map background */
@@ -614,6 +624,7 @@ ghack_reinit_map_window ( )
   ghack_map_cursor_to(NULL, u.ux, u.uy, NULL);
   gnome_canvas_update_now ( ghack_map.canvas);
   doredraw();
+  flush_screen(1);
 }
 
 

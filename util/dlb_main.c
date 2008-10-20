@@ -22,7 +22,7 @@ static void FDECL(xexit, (int));
 #define LIBLISTFILE "dlb.lst"		/* default list file */
 
 /* library functions (from dlb.c) */
-extern boolean FDECL(open_library,(const char *,library *));
+extern boolean FDECL(open_library,(const char *,const char *,library *));
 extern void FDECL(close_library,(library *));
 
 char *FDECL(eos, (char *));	/* also used by dlb.c */
@@ -53,7 +53,7 @@ static char origdir[255]="";
 #define O_BINARY 0
 #endif
 
-#define MAX_DLB_FILES 200	/* max # of files we'll handle */
+#define MAX_DLB_FILES 300	/* max # of files we'll handle */
 #define DLB_VERS 1		/* version of dlb file we will write */
 
 /*
@@ -138,38 +138,6 @@ Write(out,buf,len)
 	printf("Write Error in '%s'\n",library_file);
 	xexit(EXIT_FAILURE);
     }
-}
-
-
-char *
-eos(s)
-    char *s;
-{
-    while (*s) s++;
-    return s;
-}
-
-
-#ifdef VMS	/* essential to have punctuation, to avoid logical names */
-static FILE *
-vms_fopen(filename, mode)
-const char *filename, *mode;
-{
-    char tmp[BUFSIZ];
-
-    if (!index(filename, '.') && !index(filename, ';'))
-	filename = strcat(strcpy(tmp, filename), ";0");
-    return fopen(filename, mode, "mbc=16");
-}
-#define fopen vms_fopen
-#endif	/* VMS */
-
-/* open_library(dlb.c) needs this (which normally comes from src/files.c) */
-FILE *
-fopen_datafile(filename, mode)
-const char *filename, *mode;
-{
-    return fopen(filename, mode);
 }
 
 #endif	/* DLBLIB */
@@ -262,7 +230,7 @@ main(argc, argv)
 	xexit(EXIT_FAILURE);
 	break;
     case 't':			/* list archive */
-	if (!open_library(library_file, &lib)) {
+	if (!open_library(NULL, library_file, &lib)) {
 	    printf("Can't open dlb file\n");
 	    xexit(EXIT_FAILURE);
 	}
@@ -287,7 +255,7 @@ main(argc, argv)
 	long remainder, total_read;
 	char buf[BUFSIZ];
 
-	if (!open_library(library_file, &lib)) {
+	if (!open_library(NULL, library_file, &lib)) {
 	    printf("Can't open dlb file\n");
 	    xexit(EXIT_FAILURE);
 	}
@@ -534,6 +502,72 @@ xexit(retcd)
     exit(retcd);
 }
 
+
+#ifdef DLB
+
+char *
+eos(s)
+    char *s;
+{
+    while (*s) s++;
+    return s;
+}
+
+
+#ifdef VMS	/* essential to have punctuation, to avoid logical names */
+static FILE *
+vms_fopen(filename, mode)
+const char *filename, *mode;
+{
+    char tmp[BUFSIZ];
+
+    if (!index(filename, '.') && !index(filename, ';'))
+	filename = strcat(strcpy(tmp, filename), ";0");
+    return fopen(filename, mode, "mbc=16");
+}
+#define fopen vms_fopen
+#endif	/* VMS */
+
+/*
+ * open_library(dlb.c) needs this (which normally comes from src/files.c,
+ * or sys/unix/unixunix.c if file areas are enabled). As yet only the UNIX
+ * port supports file areas so this works. We might need access to the
+ * actual port functions, rather than duplicating them here, if other ports
+ * follow suit.
+ */
+#ifdef FILE_AREAS
+#ifdef UNIX
+FILE *
+fopen_datafile_area(filearea, filename, mode)
+const char *filearea, *filename, *mode;
+{
+    FILE *fp;
+    char *buf;
+    int lenarea;
+    if (filearea && filename[0]!='/')
+    {
+	lenarea = strlen(filearea);
+	buf = (char *)alloc(lenarea+strlen(filename)+1);
+	strcpy(buf, filearea);
+	strcpy(buf+lenarea, filename);
+	fp = fopen(buf, mode);
+	free(buf);
+    }
+    else
+	fp = fopen(filename, mode);
+    return fp;
+}
+#endif
+#else	/* FILE_AREAS */
+FILE *
+fopen_datafile(filename, mode)
+const char *filename, *mode;
+{
+    return fopen(filename, mode);
+}
+#endif	/* FILE_AREAS */
+
+#endif	/* DLB */
 
 #ifdef AMIGA
 #include "date.h"

@@ -15,6 +15,12 @@ NEARDATA struct instance_flags iflags;	/* provide linkage */
 #include <ctype.h>
 #endif
 
+#if defined(GL_GRAPHICS) || defined(SDL_GRAPHICS)
+#include "winGL.h"  /* Sdlgl_parse_options */
+#endif
+
+#include "filename.h"
+
 #define WINTYPELEN 16
 
 #ifdef DEFAULT_WC_TILED_MAP
@@ -56,7 +62,7 @@ static struct Bool_Opt
 #ifdef MFLOPPY
 	{"asksavedisk", &flags.asksavedisk, FALSE, SET_IN_GAME},
 #else
-	{"asksavedisk", (boolean *)0, FALSE, SET_IN_FILE},
+	{"asksavedisk", (boolean *)0, FALSE, SET_IN_GAME},
 #endif
 	{"autodig", &flags.autodig, FALSE, SET_IN_GAME},
 	{"autopickup", &flags.pickup, TRUE, SET_IN_GAME},
@@ -119,6 +125,17 @@ static struct Bool_Opt
 #else
 	{"ignintr", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
+#ifdef SHOW_WEIGHT
+	{"invweight", &flags.invweight, FALSE, SET_IN_GAME},
+#else
+	{"invweight", (boolean *)0, FALSE, SET_IN_FILE},
+#endif
+/*WAC the keep savefile option...*/
+#ifdef KEEP_SAVE
+	{"keep_savefile", &flags.keep_savefile, FALSE, SET_IN_FILE},
+#else
+	{"keep_savefile", (boolean *)0, FALSE, DISP_IN_GAME},
+#endif
 	{"large_font", &iflags.obsolete, FALSE, SET_IN_FILE},	/* OBSOLETE */
 	{"legacy", &flags.legacy, TRUE, DISP_IN_GAME},
 	{"lit_corridor", &flags.lit_corridor, FALSE, SET_IN_GAME},
@@ -133,11 +150,26 @@ static struct Bool_Opt
 #else
 	{"mail", (boolean *)0, TRUE, SET_IN_FILE},
 #endif
+#ifdef MENU_COLOR
+# ifdef MICRO
+	{"menucolors", &iflags.use_menu_color, TRUE,  SET_IN_GAME},
+# else
+	{"menucolors", &iflags.use_menu_color, FALSE, SET_IN_GAME},
+# endif
+#else
+	{"menucolors", (boolean *)0, FALSE, SET_IN_GAME},
+#endif
+	{"menu_on_esc", &flags.menu_on_esc, TRUE, SET_IN_GAME},
 #ifdef WIZARD
 	/* for menu debugging only*/
 	{"menu_tab_sep", &iflags.menu_tab_sep, FALSE, SET_IN_GAME},
 #else
 	{"menu_tab_sep", (boolean *)0, FALSE, SET_IN_FILE},
+#endif
+#ifdef WIZARD
+	{"mon_polycontrol", &iflags.mon_polycontrol, FALSE, SET_IN_GAME},
+#else
+	{"mon_polycontrol", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 	{"mouse_support", &iflags.wc_mouse_support, TRUE, DISP_IN_GAME},	/*WC*/
 #ifdef NEWS
@@ -152,10 +184,12 @@ static struct Bool_Opt
 	{"page_wait", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 	{"perm_invent", &flags.perm_invent, FALSE, SET_IN_GAME},
+	{"pickup_thrown", &flags.pickup_thrown, TRUE, SET_IN_GAME},
 	{"popup_dialog",  &iflags.wc_popup_dialog, FALSE, SET_IN_GAME},	/*WC*/
 	{"prayconfirm", &flags.prayconfirm, TRUE, SET_IN_GAME},
 	{"preload_tiles", &iflags.wc_preload_tiles, TRUE, DISP_IN_GAME},	/*WC*/
 	{"pushweapon", &flags.pushweapon, FALSE, SET_IN_GAME},
+	{"radar", (boolean *)0, FALSE, SET_IN_FILE},	/* OBSOLETE */
 #if defined(MICRO) && !defined(AMIGA)
 	{"rawio", &iflags.rawio, FALSE, DISP_IN_GAME},
 #else
@@ -163,7 +197,9 @@ static struct Bool_Opt
 #endif
 	{"rest_on_space", &flags.rest_on_space, FALSE, SET_IN_GAME},
 	{"safe_pet", &flags.safe_dog, TRUE, SET_IN_GAME},
-#ifdef WIZARD
+#if defined(OBJ_SANITY)
+	{"sanity_check", &iflags.sanity_check, TRUE, SET_IN_GAME},
+#elif defined(WIZARD)
 	{"sanity_check", &iflags.sanity_check, FALSE, SET_IN_GAME},
 #else
 	{"sanity_check", (boolean *)0, FALSE, SET_IN_FILE},
@@ -178,6 +214,17 @@ static struct Bool_Opt
 	{"showscore", &flags.showscore, FALSE, SET_IN_GAME},
 #else
 	{"showscore", (boolean *)0, FALSE, SET_IN_FILE},
+#endif
+/* WAC made the [ xx pts]  dmg display optional */
+#ifdef SHOW_DMG
+	{"showdmg", &flags.showdmg, FALSE, SET_IN_GAME},
+#else
+	{"showdmg", (boolean *)0, FALSE, SET_IN_FILE},
+#endif
+#ifdef SHOW_WEIGHT
+	{"showweight", &flags.showweight, FALSE, SET_IN_GAME},
+#else
+	{"showweight", (boolean *)0, FALSE, SET_IN_FILE},
 #endif
 	{"silent", &flags.silent, TRUE, SET_IN_GAME},
 	{"softkeyboard", &iflags.wc2_softkeyboard, FALSE, SET_IN_FILE},
@@ -220,6 +267,11 @@ static struct Bool_Opt
 #endif
 	{(char *)0, (boolean *)0, FALSE, 0}
 };
+
+genericptr_t nh_option_get_boolopt()
+{
+    return (genericptr_t)boolopt;
+}
 
 /* compound options, for option_help() and external programs like Amiga
  * frontend */
@@ -266,9 +318,12 @@ static struct Comp_Opt
 						PL_FSIZ, SET_IN_GAME },
 	{ "gender",   "your starting gender (male or female)",
 						8, DISP_IN_GAME },
+	{ "ghoulname",  "the name of your (first) ghoul (e.g., ghoulname:Casper)",
+						PL_PSIZ, DISP_IN_GAME },
 	{ "horsename", "the name of your (first) horse (e.g., horsename:Silver)",
 						PL_PSIZ, DISP_IN_GAME },
 	{ "map_mode", "map display mode under Windows", 20, DISP_IN_GAME },	/*WC*/
+        { "menucolor", "set menu colors", PL_PSIZ, SET_IN_FILE },
 	{ "menustyle", "user interface for object selection",
 						MENUTYPELEN, SET_IN_GAME },
 	{ "menu_deselect_all", "deselect all items in a menu", 4, SET_IN_FILE },
@@ -337,6 +392,8 @@ static struct Comp_Opt
 	{ "tile_width", "width of tiles", 20, DISP_IN_GAME},	/*WC*/
 	{ "tile_height", "height of tiles", 20, DISP_IN_GAME},	/*WC*/
 	{ "tile_file", "name of tile file", 70, DISP_IN_GAME},	/*WC*/
+	{ "tileset",  "name of predefined tileset to use",
+						PL_PSIZ, SET_IN_GAME },
 	{ "traps",    "the symbols to use in drawing traps",
 	  					MAXTCHARS+1, SET_IN_FILE },
 	{ "vary_msgcount", "show more old messages at a time", 20, DISP_IN_GAME }, /*WC*/
@@ -346,8 +403,10 @@ static struct Comp_Opt
 #ifdef VIDEOSHADES
 	{ "videocolors", "color mappings for internal screen routines",
 						40, DISP_IN_GAME },
+#ifdef MSDOS
 	{ "videoshades", "gray shades to map to black/gray/white",
 						32, DISP_IN_GAME },
+#endif
 #endif
 #ifdef WIN32CON
 	{"subkeyvalue", "override keystroke value", 7, SET_IN_FILE},
@@ -355,6 +414,8 @@ static struct Comp_Opt
 	{ "windowcolors",  "the foreground/background colors of windows",	/*WC*/
 						80, DISP_IN_GAME },
 	{ "windowtype", "windowing system to use", WINTYPELEN, DISP_IN_GAME },
+	{ "wolfname",  "the name of your (first) wolf (e.g., wolfname:Beast)",
+						PL_PSIZ, DISP_IN_GAME },
 #ifdef NDS
         { "chordkeys", "the keys which can be used to make chorded commands", 4, DISP_IN_GAME },
         { "compassmode", "movement compass mode", 1, DISP_IN_GAME },
@@ -362,6 +423,17 @@ static struct Comp_Opt
         { "cursor", "cursor display mode", 4, DISP_IN_GAME },
 #endif
 	{ (char *)0, (char *)0, 0, 0 }
+};
+  
+static struct Bool_Tile_Opt
+{
+	const char *name;
+	unsigned long flag;
+	unsigned long initvalue;
+} booltileopt[] = {
+	{"transparent", TILESET_TRANSPARENT, 0},
+	{"pseudo3D", TILESET_PSEUDO3D, 0},
+	{(char *)0, 0, 0}
 };
 
 #ifdef OPTION_LISTS_ONLY
@@ -377,7 +449,7 @@ extern boolean colors_changed;	/* in tos.c */
 
 #ifdef VIDEOSHADES
 extern char *shade[3];		  /* in sys/msdos/video.c */
-extern char ttycolors[CLR_MAX];	  /* in sys/msdos/video.c */
+extern char ttycolors[CLR_MAX];	  /* in sys/msdos/video.c, win/tty/termcap.c*/
 #endif
 
 static char def_inv_order[MAXOCLASSES] = {
@@ -441,7 +513,6 @@ static const menu_cmd_t default_menu_cmd_info[NUM_MENU_CMDS] = {
 static char mapped_menu_op[MAX_MENU_MAPPED_CMDS+1];
 static short n_menu_mapped = 0;
 
-
 static boolean initial, from_file;
 
 STATIC_DCL void FDECL(doset_add_menu, (winid,const char *,int));
@@ -449,7 +520,9 @@ STATIC_DCL void FDECL(nmcpy, (char *, const char *, int));
 STATIC_DCL void FDECL(escapes, (const char *, char *));
 STATIC_DCL void FDECL(rejectoption, (const char *));
 STATIC_DCL void FDECL(badoption, (const char *));
+STATIC_OVL void FDECL(badtileoption, (const char *));
 STATIC_DCL char *FDECL(string_for_opt, (char *,BOOLEAN_P));
+STATIC_OVL char *FDECL(string_for_tile_opt, (char *, BOOLEAN_P));
 STATIC_DCL char *FDECL(string_for_env_opt, (const char *, char *,BOOLEAN_P));
 STATIC_DCL void FDECL(bad_negation, (const char *,BOOLEAN_P));
 STATIC_DCL int FDECL(change_inv_order, (char *));
@@ -614,7 +687,8 @@ initoptions()
 	objects[SLIME_MOLD].oc_name_idx = SLIME_MOLD;
 	nmcpy(pl_fruit, OBJ_NAME(objects[SLIME_MOLD]), PL_FSIZ);
 #ifndef MAC
-	opts = getenv("NETHACKOPTIONS");
+	opts = getenv(NETHACK_ENV_OPTIONS);
+	if (!opts) opts = getenv("NETHACKOPTIONS");
 	if (!opts) opts = getenv("HACKOPTIONS");
 	if (opts) {
 		if (*opts == '/' || *opts == '\\' || *opts == '@') {
@@ -639,6 +713,15 @@ initoptions()
 	/* as a named (or default) fruit.  Wishing for "fruit" will	*/
 	/* result in the player's preferred fruit [better than "\033"].	*/
 	obj_descr[SLIME_MOLD].oc_name = "fruit";
+
+#if defined(GL_GRAPHICS) || defined(SDL_GRAPHICS)
+	/* -AJA- SDL/GL support.  Needs to happen after main config
+	 *       file has been read.
+	 */
+	opts = getenv(SDLGL_ENV_VAR);
+	if (opts)
+		Sdlgl_parse_options(opts, TRUE, FALSE);
+#endif
 
 	return;
 }
@@ -728,8 +811,8 @@ const char *optname;
 #ifdef MICRO
 	pline("\"%s\" settable only from %s.", optname, configfile);
 #else
-	pline("%s can be set only from NETHACKOPTIONS or %s.", optname,
-			configfile);
+	pline("%s can be set only from %s or %s.", optname,
+			NETHACK_ENV_OPTIONS, configfile);
 #endif
 }
 
@@ -751,8 +834,24 @@ const char *opts;
 	if(from_file)
 	    raw_printf("Bad syntax in OPTIONS in %s: %s.", configfile, opts);
 	else
-	    raw_printf("Bad syntax in NETHACKOPTIONS: %s.", opts);
+	    raw_printf("Bad syntax in %s: %s.", NETHACK_ENV_OPTIONS, opts);
 
+	wait_synch();
+}
+
+STATIC_OVL void
+badauthoption(opts)
+const char *opts;
+{
+	raw_printf("Bad syntax in AUTHENTICATION in %s: %s.", configfile, opts);
+	wait_synch();
+}
+
+STATIC_OVL void
+badtileoption(opts)
+const char *opts;
+{
+	raw_printf("Bad syntax in TILESET in %s: %s.", configfile, opts);
 	wait_synch();
 }
 
@@ -771,6 +870,26 @@ boolean val_optional;
 		if (!val_optional) badoption(opts);
 		return (char *)0;
 	}
+	return colon;
+}
+
+STATIC_OVL char *
+string_for_auth_opt(opts, val_optional)
+char *opts;
+boolean val_optional;
+{
+	char *colon = string_for_opt(opts, TRUE);
+	if (!colon && !val_optional) badauthoption(opts);
+	return colon;
+}
+
+STATIC_OVL char *
+string_for_tile_opt(opts, val_optional)
+char *opts;
+boolean val_optional;
+{
+	char *colon = string_for_opt(opts, TRUE);
+	if (!colon && !val_optional) badtileoption(opts);
 	return colon;
 }
 
@@ -922,7 +1041,7 @@ const char *optn;
 	if (!initial) {
 		Sprintf(buf, "%lu.%lu.%lu", FEATURE_NOTICE_VER_MAJ,
 			FEATURE_NOTICE_VER_MIN, FEATURE_NOTICE_VER_PATCH);
-		pline("Feature change alerts disabled for NetHack %s features and prior.",
+		pline("Feature change alerts disabled for Slash'EM %s features and prior.",
 			buf);
 	}
 	return 1;
@@ -1001,6 +1120,134 @@ int bool_or_comp;	/* 0 == boolean option, 1 == compound */
 	}
 }
 
+#ifdef MENU_COLOR
+extern struct menucoloring *menu_colorings;
+
+static const struct {
+   const char *name;
+   const int color;
+} colornames[] = {
+   {"black", CLR_BLACK},
+   {"red", CLR_RED},
+   {"green", CLR_GREEN},
+   {"brown", CLR_BROWN},
+   {"blue", CLR_BLUE},
+   {"magenta", CLR_MAGENTA},
+   {"cyan", CLR_CYAN},
+   {"gray", CLR_GRAY},
+   {"orange", CLR_ORANGE},
+   {"lightgreen", CLR_BRIGHT_GREEN},
+   {"yellow", CLR_YELLOW},
+   {"lightblue", CLR_BRIGHT_BLUE},
+   {"lightmagenta", CLR_BRIGHT_MAGENTA},
+   {"lightcyan", CLR_BRIGHT_CYAN},
+   {"white", CLR_WHITE}
+};
+
+static const struct {
+   const char *name;
+   const int attr;
+} attrnames[] = {
+     {"none", ATR_NONE},
+     {"bold", ATR_BOLD},
+     {"dim", ATR_DIM},
+     {"underline", ATR_ULINE},
+     {"blink", ATR_BLINK},
+     {"inverse", ATR_INVERSE}
+
+};
+
+/* parse '"regex_string"=color' and add it to menucoloring */
+boolean
+add_menu_coloring(str)
+char *str;
+{
+   int i, c = NO_COLOR, a = ATR_NONE;
+   struct menucoloring *tmp;
+   char *tmps, *cs = strchr(str, '=');
+#ifdef POSIX_REGEX
+   int errnum;
+   char errbuf[80];
+#endif
+   const char *err = (char *)0;
+   
+   if (!cs || !str) return FALSE;
+   
+   tmps = cs;
+   tmps++;
+   while (*tmps && isspace(*tmps)) tmps++;
+
+   for (i = 0; i < SIZE(colornames); i++)
+     if (strstri(tmps, colornames[i].name) == tmps) {
+	c = colornames[i].color;
+	break;
+     }
+   if ((i == SIZE(colornames)) && (*tmps >= '0' && *tmps <='9'))
+     c = atoi(tmps);
+   
+   if (c > 15) return FALSE;
+   
+   tmps = strchr(str, '&');
+   if (tmps) {
+      tmps++;
+      while (*tmps && isspace(*tmps)) tmps++;
+      for (i = 0; i < SIZE(attrnames); i++)
+	if (strstri(tmps, attrnames[i].name) == tmps) {
+	   a = attrnames[i].attr;
+	   break;
+	}
+      if ((i == SIZE(attrnames)) && (*tmps >= '0' && *tmps <='9'))
+	a = atoi(tmps);
+   }
+   
+   *cs = '\0';
+   tmps = str;
+   if ((*tmps == '"') || (*tmps == '\'')) {
+      cs--;
+      while (isspace(*cs)) cs--;
+      if (*cs == *tmps) {
+	 *cs = '\0';
+	 tmps++;
+      }
+   }
+   
+   tmp = (struct menucoloring *)alloc(sizeof(struct menucoloring));
+#ifdef USE_REGEX_MATCH
+# ifdef GNU_REGEX
+   tmp->match.translate = 0;
+   tmp->match.fastmap = 0;
+   tmp->match.buffer = 0;
+   tmp->match.allocated = 0;
+   tmp->match.regs_allocated = REGS_FIXED;
+   err = re_compile_pattern(tmps, strlen(tmps), &tmp->match);
+# else
+#  ifdef POSIX_REGEX
+   errnum = regcomp(&tmp->match, tmps, REG_EXTENDED | REG_NOSUB);
+   if (errnum != 0) {                                                                                                                                                                                                               
+      regerror(errnum, &tmp->match, errbuf, sizeof(errbuf));
+      err = errbuf;
+   }
+#  endif  
+# endif  
+#else
+   tmp->match = (char *)alloc(strlen(tmps)+1);
+   (void) memcpy((genericptr_t)tmp->match, (genericptr_t)tmps, strlen(tmps)+1);
+#endif
+   if (err) {
+      raw_printf("\nMenucolor regex error: %s\n", err);
+      wait_synch();
+      free(tmp);
+      return FALSE;
+   } else {
+      tmp->next = menu_colorings;
+      tmp->color = c;
+      tmp->attr = a;
+      menu_colorings = tmp;
+      return TRUE;
+   }
+}
+#endif /* MENU_COLOR */
+
 void
 parseoptions(opts, tinitial, tfrom_file)
 register char *opts;
@@ -1024,9 +1271,9 @@ boolean tinitial, tfrom_file;
 	}
 
 	/* strip leading and trailing white space */
-	while (isspace(*opts)) opts++;
+	while (isspace((int)*opts)) opts++;
 	op = eos(opts);
-	while (--op >= opts && isspace(*op)) *op = '\0';
+	while (--op >= opts && isspace((int)*op)) *op = '\0';
 
 	if (!*opts) return;
 	negated = FALSE;
@@ -1098,6 +1345,22 @@ boolean tinitial, tfrom_file;
 		return;
 	}
 
+        fullname = "ghoulname";
+	if (match_optname(opts, fullname, 3, TRUE)) {
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_env_opt(fullname, opts, FALSE)) != 0)
+                        nmcpy(ghoulname, op, PL_PSIZ);
+		return;
+	}
+
+        fullname = "wolfname";
+	if (match_optname(opts, fullname, 3, TRUE)) {
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_env_opt(fullname, opts, FALSE)) != 0)
+                        nmcpy(wolfname, op, PL_PSIZ);
+		return;
+	}
+
 	fullname = "catname";
 	if (match_optname(opts, fullname, 3, TRUE)) {
 		if (negated) bad_negation(fullname, FALSE);
@@ -1122,10 +1385,21 @@ boolean tinitial, tfrom_file;
 		return;
 	}
 
+	/* menucolor:"regex_string"=color */
+	fullname = "menucolor";
+	if (match_optname(opts, fullname, 9, TRUE)) {
+#ifdef MENU_COLOR
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_env_opt(fullname, opts, FALSE)) != 0)
+			if (!add_menu_coloring(op))
+				badoption(opts);
+#endif
+ 		return;
+ 	}
+
 	fullname = "number_pad";
 	if (match_optname(opts, fullname, 10, TRUE)) {
 		boolean compat = (strlen(opts) <= 10);
-		number_pad(iflags.num_pad ? 1 : 0);
 		op = string_for_opt(opts, (compat || !initial));
 		if (!op) {
 		    if (compat || negated || initial) {
@@ -1133,6 +1407,7 @@ boolean tinitial, tfrom_file;
 			   value is a synonym for number_pad:1 */
 			iflags.num_pad = !negated;
 			if (iflags.num_pad) iflags.num_pad_mode = 0;
+			number_pad(iflags.num_pad);
 		    }
 		    return;
 		}
@@ -1144,9 +1419,11 @@ boolean tinitial, tfrom_file;
 			iflags.num_pad = 1;
 			if (*op == '2') iflags.num_pad_mode = 1;
 			else iflags.num_pad_mode = 0;
+			number_pad(1);
 		} else if (*op == '0') {
 			iflags.num_pad = 0;
 			iflags.num_pad_mode = 0;
+			number_pad(0);
 		} else badoption(opts);
 		return;
 	}
@@ -1524,6 +1801,12 @@ goodfruit:
 	if (match_optname(opts, fullname, 4, TRUE)) {
 		if (negated) bad_negation(fullname, FALSE);
 		else if ((op = string_for_env_opt(fullname, opts, FALSE)) != 0)
+#ifdef PROXY_GRAPHICS
+		    /*
+		     * Can't change player name if authentication required.
+		     */
+		    if (!getenv("HACKAUTHENTICATION"))
+#endif
 			nmcpy(plname, op, PL_NSIZ);
 		return;
 	}
@@ -1884,7 +2167,37 @@ goodfruit:
 		return;
 	}
 	
-#ifdef VIDEOSHADES
+	fullname = "tileset";
+	if (match_optname(opts, fullname, 4, TRUE)) {
+		if (negated || (op = string_for_opt(opts, TRUE)) == 0)
+			tileset[0] = '\0';
+		else {
+			/*
+			 * The tileset may not be defined (yet) if we're
+			 * in initial mode, otherwise it must exist.
+			 */
+			if (!initial) {
+				int len = strlen(op);
+				for(i = 0; i < no_tilesets; i++)
+				    if (len == strlen(tilesets[i].name) &&
+				      !strncmpi(tilesets[i].name, op, len))
+					break;
+				if (i == no_tilesets) {
+				    pline("Tileset %s not defined.", op);
+				    return;
+				}
+				else	/* Use canonical case */
+				    strcpy(tileset, tilesets[i].name);
+			}
+			else
+				nmcpy(tileset, op, PL_PSIZ);
+		}
+		if (!initial)
+		    need_redraw = TRUE;
+		return;
+	}
+	
+#if defined(VIDEOSHADES) && !defined(NO_TERMS)
 	/* videocolors:string */
 	fullname = "videocolors";
 	if (match_optname(opts, fullname, 6, TRUE) ||
@@ -1900,6 +2213,7 @@ goodfruit:
 			badoption(opts);
 		return;
 	}
+# ifdef MSDOS
 	/* videoshades:string */
 	fullname = "videoshades";
 	if (match_optname(opts, fullname, 6, TRUE)) {
@@ -1914,6 +2228,7 @@ goodfruit:
 			badoption(opts);
 		return;
 	}
+# endif
 #endif /* VIDEOSHADES */
 #ifdef MSDOS
 # ifdef NO_TERMS
@@ -2232,7 +2547,11 @@ goodfruit:
 # endif
 				) {
 # ifdef REINCARNATION
-			    if (!initial && Is_rogue_level(&u.uz))
+			    /* [ALI] GTK port may call doset() after initial
+			     * but before we start a game. Prevent false match.
+			     */
+			    if (!initial && u.uz.dlevel &&
+			      Is_rogue_level(&u.uz))
 				assign_rogue_graphics(FALSE);
 # endif
 			    need_redraw = TRUE;
@@ -2252,7 +2571,8 @@ goodfruit:
 						MAC_GRAPHICS : ASCII_GRAPHICS);
 # endif
 # ifdef REINCARNATION
-			    if (!initial && Is_rogue_level(&u.uz))
+			    if (!initial && u.uz.dlevel &&
+			      Is_rogue_level(&u.uz))
 				assign_rogue_graphics(TRUE);
 # endif
 			}
@@ -2268,8 +2588,11 @@ goodfruit:
 #ifdef SCORE_ON_BOTL
 			 || (boolopt[i].addr) == &flags.showscore
 #endif
+#ifdef SHOW_WEIGHT
+			 || (boolopt[i].addr) == &flags.showweight
+#endif
 			    )
-			    flags.botl = TRUE;
+			    bot_reconfig();
 
 			else if ((boolopt[i].addr) == &flags.invlet_constant) {
 			    if (flags.invlet_constant) reassign();
@@ -2288,8 +2611,11 @@ goodfruit:
 			     * initializing the options --- the vision system
 			     * isn't set up yet.
 			     */
+			    if (u.uz.dlevel)
+			    {
 			    vision_recalc(2);		/* shut down vision */
 			    vision_full_recalc = 1;	/* delayed recalc */
+			}
 			}
 			else if ((boolopt[i].addr) == &iflags.use_inverse ||
 					(boolopt[i].addr) == &iflags.showrace ||
@@ -2310,6 +2636,8 @@ goodfruit:
 # endif
 			}
 #endif
+                        else if ((boolopt[i].addr) == &flags.perm_invent)
+                            update_inventory();
 
 			return;
 		}
@@ -2317,6 +2645,170 @@ goodfruit:
 
 	/* out of valid options */
 	badoption(opts);
+}
+
+static void
+parseauthopt(opts)
+register char *opts;
+{
+	register char *op;
+	boolean negated;
+	const char *fullname;
+
+	if (strlen(opts) > BUFSZ/2) {
+		badauthoption("option too long");
+		return;
+	}
+
+	/* strip leading and trailing white space */
+	while (isspace((int)*opts)) opts++;
+	op = eos(opts);
+	while (--op >= opts && isspace((int)*op)) *op = '\0';
+
+	if (!*opts) return;
+	negated = FALSE;
+	while ((*opts == '!') || !strncmpi(opts, "no", 2)) {
+		if (*opts == '!') opts++; else opts += 2;
+		negated = !negated;
+	}
+
+	/* compound options */
+
+        fullname = "prog";
+	if (match_optname(opts, fullname, 4, TRUE)) {
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_auth_opt(opts, FALSE)) != 0)
+                        nmcpy(authentication.prog, op, BUFSZ);
+		return;
+	}
+
+        fullname = "args";
+	if (match_optname(opts, fullname, 4, TRUE)) {
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_auth_opt(opts, FALSE)) != 0)
+                        nmcpy(authentication.args, op, BUFSZ);
+		return;
+	}
+
+	/* out of valid options */
+	badauthoption(opts);
+}
+
+void
+parseauthentication(opts)
+register char *opts;
+{
+	register char *op;
+
+	/* Initial values */
+	authentication.prog[0] = '\0';
+	authentication.args[0] = '\0';
+
+	while ((op = index(opts, ',')) != 0) {
+		*op++ = 0;
+		parseauthopt(opts);
+		opts = op;
+	}
+	parseauthopt(opts);
+
+	if (!authentication.prog[0] && authentication.args[0])
+		badauthoption("Arguments given but no program specified.");
+}
+
+static void
+parsetilesetopt(opts)
+register char *opts;
+{
+	register char *op;
+	boolean negated;
+	int i;
+	const char *fullname;
+
+	if (strlen(opts) > BUFSZ/2) {
+		badtileoption("option too long");
+		return;
+	}
+
+	/* strip leading and trailing white space */
+	while (isspace((int)*opts)) opts++;
+	op = eos(opts);
+	while (--op >= opts && isspace((int)*op)) *op = '\0';
+
+	if (!*opts) return;
+	negated = FALSE;
+	while ((*opts == '!') || !strncmpi(opts, "no", 2)) {
+		if (*opts == '!') opts++; else opts += 2;
+		negated = !negated;
+	}
+
+	/* compound options */
+
+        fullname = "name";
+	if (match_optname(opts, fullname, 4, TRUE)) {
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_tile_opt(opts, FALSE)) != 0)
+                        nmcpy(tilesets[no_tilesets].name, op, PL_PSIZ);
+		return;
+	}
+
+        fullname = "filename";
+	if (match_optname(opts, fullname, 4, TRUE)) {
+		if (negated) bad_negation(fullname, FALSE);
+		else if ((op = string_for_tile_opt(opts, FALSE)) != 0)
+                        nmcpy(tilesets[no_tilesets].file, op,
+			  TILESET_MAX_FILENAME);
+		return;
+	}
+
+	/* OK, if we still haven't recognized the option, check the boolean
+	 * options list
+	 */
+	for (i = 0; booltileopt[i].name; i++) {
+		if (match_optname(opts, booltileopt[i].name, 3, FALSE)) {
+			if (negated)
+			    tilesets[no_tilesets].flags &= ~booltileopt[i].flag;
+			else
+			    tilesets[no_tilesets].flags |= booltileopt[i].flag;
+			return;
+		}
+	}
+
+	/* out of valid options */
+	badtileoption(opts);
+}
+
+void
+parsetileset(opts)
+register char *opts;
+{
+	register char *op;
+	int i;
+
+	if (no_tilesets >= MAXNOTILESETS) {
+		badtileoption("too many tilesets");
+		return;
+	}
+
+	/* Initial values */
+	tilesets[no_tilesets].name[0] = '\0';
+	tilesets[no_tilesets].file[0] = '\0';
+	tilesets[no_tilesets].flags = 0;
+	for (i = 0; booltileopt[i].name; i++)
+		tilesets[no_tilesets].flags |= booltileopt[i].initvalue;
+
+	while ((op = index(opts, ',')) != 0) {
+		*op++ = 0;
+		parsetilesetopt(opts);
+		opts = op;
+	}
+	parsetilesetopt(opts);
+
+	if (tilesets[no_tilesets].name[0] == '\0' ||
+	  tilesets[no_tilesets].file[0] == '\0') {
+		badtileoption("Incomplete tileset definition.");
+	}
+	else
+		no_tilesets++;
 }
 
 
@@ -2391,7 +2883,7 @@ map_menu_cmd(ch)
 #if defined(MICRO) || defined(MAC) || defined(WIN32)
 # define OPTIONS_HEADING "OPTIONS"
 #else
-# define OPTIONS_HEADING "NETHACKOPTIONS"
+# define OPTIONS_HEADING NETHACK_ENV_OPTIONS
 #endif
 
 static char fmtstr_doset_add_menu[] = "%s%-15s [%s]   "; 
@@ -2464,7 +2956,9 @@ doset()
 			 (boolopt[i].optflags == SET_IN_GAME && pass == 1))) {
 		    if (bool_p == &flags.female) continue;  /* obsolete */
 #ifdef WIZARD
+#ifndef OBJ_SANITY
 		    if (bool_p == &iflags.sanity_check && !wizard) continue;
+#endif
 		    if (bool_p == &iflags.menu_tab_sep && !wizard) continue;
 #endif
 		    if (is_wc_option(boolopt[i].name) &&
@@ -2828,6 +3322,7 @@ boolean setinitial,setfromfile;
 				iflags.num_pad_mode = 0;
 		}
 		free((genericptr_t)mode_pick);
+		number_pad(iflags.num_pad);
         }
 	destroy_nhwindow(tmpwin);
         retval = TRUE;
@@ -3042,6 +3537,8 @@ char *buf;
 		Sprintf(buf, "%s", pl_fruit);
 	else if (!strcmp(optname, "gender"))
 		Sprintf(buf, "%s", rolestring(flags.initgend, genders, adj));
+	else if (!strcmp(optname, "ghoulname")) 
+		Sprintf(buf, "%s", ghoulname[0] ? ghoulname : none );
 	else if (!strcmp(optname, "horsename")) 
 		Sprintf(buf, "%s", horsename[0] ? horsename : none);
 	else if (!strcmp(optname, "map_mode"))
@@ -3167,6 +3664,8 @@ char *buf;
 		if (iflags.wc_tile_width) Sprintf(buf, "%d",iflags.wc_tile_width);
 		else Strcpy(buf, defopt);
 	}
+	else if (!strcmp(optname, "tileset")) 
+		Sprintf(buf, "%s", tileset[0] ? tileset : none );
 	else if (!strcmp(optname, "traps"))
 		Sprintf(buf, "%s", to_be_done);
 	else if (!strcmp(optname, "vary_msgcount")) {
@@ -3178,6 +3677,7 @@ char *buf;
 		Sprintf(buf, "%s", to_be_done);
 #endif
 #ifdef VIDEOSHADES
+# ifdef MSDOS
 	else if (!strcmp(optname, "videoshades"))
 		Sprintf(buf, "%s-%s-%s", shade[0],shade[1],shade[2]);
 	else if (!strcmp(optname, "videocolors"))
@@ -3189,6 +3689,18 @@ char *buf;
 			ttycolors[CLR_YELLOW], ttycolors[CLR_BRIGHT_BLUE],
 			ttycolors[CLR_BRIGHT_MAGENTA],
 			ttycolors[CLR_BRIGHT_CYAN]);
+# else
+	else if (!strcmp(optname, "videocolors"))
+		Sprintf(buf, "%d-%d-%d-%d-%d-%d-%d-%d-%d-%d-%d-%d-%d-%d-%d",
+			ttycolors[CLR_RED], ttycolors[CLR_GREEN],
+			ttycolors[CLR_BROWN], ttycolors[CLR_BLUE],
+			ttycolors[CLR_MAGENTA], ttycolors[CLR_CYAN], 
+			ttycolors[CLR_GRAY], ttycolors[CLR_BLACK],
+			ttycolors[CLR_ORANGE], ttycolors[CLR_BRIGHT_GREEN],
+			ttycolors[CLR_YELLOW], ttycolors[CLR_BRIGHT_BLUE],
+			ttycolors[CLR_BRIGHT_MAGENTA], 
+			ttycolors[CLR_BRIGHT_CYAN], ttycolors[CLR_WHITE]);
+# endif /* MSDOS */
 #endif /* VIDEOSHADES */
 	else if (!strcmp(optname, "windowtype"))
 		Sprintf(buf, "%s", windowprocs.name);
@@ -3202,6 +3714,8 @@ char *buf;
 			iflags.wc_backgrnd_status  ? iflags.wc_backgrnd_status : defbrief,
 			iflags.wc_foregrnd_text    ? iflags.wc_foregrnd_text : defbrief,
 			iflags.wc_backgrnd_text    ? iflags.wc_backgrnd_text : defbrief);
+	else if (!strcmp(optname, "wolfname")) 
+		Sprintf(buf, "%s", wolfname[0] ? wolfname : none );
 #ifdef NDS
         else if (!strcmp(optname, "compassmode"))
                 Sprintf(buf, "%d", iflags.compassmode);
@@ -3339,16 +3853,17 @@ free_autopickup_exceptions()
 /* data for option_help() */
 static const char *opt_intro[] = {
 	"",
-	"                 NetHack Options Help:",
+	"                 SlashEM Options Help:",
 	"",
 #define CONFIG_SLOT 3	/* fill in next value at run-time */
 	(char *)0,
+#define ENV_SLOT 4	/* substitute variable name in next value at run-time */
 #if !defined(MICRO) && !defined(MAC)
-	"or use `NETHACKOPTIONS=\"<options>\"' in your environment",
+	"or use `%s=\"<options>\"' in your environment",
 #endif
 	"(<options> is a list of options separated by commas)",
 #ifdef VMS
-	"-- for example, $ DEFINE NETHACKOPTIONS \"noautopickup,fruit:kumquat\"",
+  	"-- for example, $ DEFINE %s \"noautopickup,fruit:kumquat\"",
 #endif
 	"or press \"O\" while playing and use the menu.",
 	"",
@@ -3374,13 +3889,21 @@ option_help()
     Sprintf(buf, "Set options as OPTIONS=<options> in %s", configfile);
     opt_intro[CONFIG_SLOT] = (const char *) buf;
     for (i = 0; opt_intro[i]; i++)
+	if (i==ENV_SLOT)
+	{
+	    Sprintf(buf2, opt_intro[ENV_SLOT], NETHACK_ENV_OPTIONS);
+	    putstr(datawin, 0, buf2);;
+	}
+	else
 	putstr(datawin, 0, opt_intro[i]);
 
     /* Boolean options */
     for (i = 0; boolopt[i].name; i++) {
 	if (boolopt[i].addr) {
 #ifdef WIZARD
+#ifndef OBJ_SANITY
 	    if (boolopt[i].addr == &iflags.sanity_check && !wizard) continue;
+#endif
 	    if (boolopt[i].addr == &iflags.menu_tab_sep && !wizard) continue;
 #endif
 	    next_opt(datawin, boolopt[i].name);
@@ -3932,5 +4455,4 @@ char *op;
 }
 
 #endif	/* OPTION_LISTS_ONLY */
-
 /*options.c*/

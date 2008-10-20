@@ -154,6 +154,7 @@ room_detail	: room_name
 		| room_door
 		| monster_detail
 		| object_detail
+		| object_flags
 		| trap_detail
 		| altar_detail
 		| fountain_detail
@@ -220,7 +221,9 @@ reg_init	: /* nothing */
 
 init_reg	: RANDOM_OBJECTS_ID ':' object_list
 		| RANDOM_PLACES_ID ':' place_list
+		| RANDOM_PLACES_ID '[' INTEGER ']' ':' place_list
 		| RANDOM_MONSTERS_ID ':' monster_list
+		| rndlevregion
 		;
 
 object_list	: object
@@ -241,6 +244,7 @@ map_details	: /* nothing */
 
 map_detail	: monster_detail
 		| object_detail
+		| object_flags
 		| door_detail
 		| trap_detail
 		| drawbridge_detail
@@ -293,6 +297,12 @@ object_infos	: /* nothing */
 		| ',' monster_id ',' enchantment optional_name
 		;
 
+object_flags	: OBJFLAGS_ID ':' obj_flag_list
+
+obj_flag_list	: obj_flag_list ',' OBJFLAG_TYPE
+		| OBJFLAG_TYPE
+		;
+
 curse_state	: RANDOM_TYPE
 		| CURSE_TYPE
 		;
@@ -331,6 +341,9 @@ stair_detail	: STAIR_ID ':' coordinate ',' UP_OR_DOWN
 		;
 
 stair_region	: STAIR_ID ':' lev_region ',' lev_region ',' UP_OR_DOWN
+		;
+
+rndlevregion	: RANDOMREGION_ID '[' INTEGER ']' ':' lev_region ',' lev_region
 		;
 
 portal_region	: PORTAL_ID ':' lev_region ',' lev_region ',' string
@@ -410,6 +423,7 @@ prefilled	: /* empty */
 
 coordinate	: coord
 		| p_register
+		| r_register
 		| RANDOM_TYPE
 		;
 
@@ -431,6 +445,10 @@ altar_type	: ALTAR_TYPE
 		;
 
 p_register	: P_REGISTER '[' INTEGER ']'
+		| P_REGISTER '[' INTEGER ']' '[' INTEGER ']'
+		;
+
+r_register	: R_REGISTER '[' INTEGER ']'
 		;
 
 o_register	: O_REGISTER '[' INTEGER ']'
@@ -443,6 +461,7 @@ a_register	: A_REGISTER '[' INTEGER ']'
 		;
 
 place		: coord
+		| NONE
 		;
 
 monster		: CHAR
@@ -477,6 +496,16 @@ region		: '(' INTEGER ',' INTEGER ',' INTEGER ',' INTEGER ')'
 .br
 Lines beginning with '#' are considered comments.
 .PP
+Each region in a special level may use either single or multiple random
+placement list commands but these commands should not be mixed within a
+region. Single random placement list commands are "RANDOM_PLACES:" and
+"place[n]"; multiple random placement list commands are "RANDOM_PLACES[l]:"
+and "place[l][n]". Where multiple random placement lists are used they
+must be specified in increasing order with no gaps. The first number in
+"place[l][n]" specifies the list number and the second number the index
+into the shuffled list. Lists may be of varying lengths and are shuffled
+independently.
+.PP
 The contents of a "MAP" description of a maze is a rectangle showing the exact
 level map that should be used for the given part of a maze.
 Each character in the map corresponds to a location on the screen.
@@ -499,6 +528,7 @@ The maximum size of a map is normally 76 columns by 21 rows.
 \&'{'	a fountain
 \&'\\'	a throne
 \&'K'	a sink (if SINKS is defined, else a room location)
+\&'Z'	a toilet (if SINKS is defined, else a room location)
 \&'}'	a part of a moat or other deep water
 \&'P'	a pool
 \&'L'	lava

@@ -36,9 +36,12 @@ FNR == 1	{ output_dep()			#finish previous file
 /^\#[ \t]*include[ \t]+\"/  {			#find `#include "X"'
 		  incl = $2;
 		  #[3.4.0: gnomehack headers currently aren't in include]
+		  #[0.0.7: gtkhack internal headers aren't in include]
 		  if (incl ~ /\.h$/) {
 		    if (incl ~ /^gn/)	# gnomehack special case
 		      incl = "../win/gnome/" incl
+		    else if (incl ~ /^gtk/)	# gtkhack special case
+		      incl = "../win/gtk/" incl
 		    else
 		      incl = "../include/" incl
 		  }
@@ -111,6 +114,12 @@ function format_dep(target, source,		n, i, list)
   if (source ~ /\// && substr(source, 1, 11) != "../include/") {
     if (source ~ /\.cpp$/ )
       print "\t$(CXX) $(CXXFLAGS) -c " source
+    else if (source ~ /^..\/win\/gtk\// )
+      print "\t$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c " source
+    else if (source ~ /^..\/win\/gtk2\// )
+      print "\t$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c " source
+    else if (source ~ /^..\/win\/gl\// )
+      print "\t$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c " source
     else if (source ~ /\/gnome\//)	# "../win/gnome/foo.c"
       print "\t$(CC) $(CFLAGS) $(GNOMEINC) -c " source
     else

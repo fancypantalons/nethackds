@@ -202,7 +202,7 @@ flood_fill_rm(sx, sy, rmno, lit, anyroom)
     nx = i;
 
     if(isok(sx,sy-1)) {
-	for(i=sx; i<nx; i++)
+	for(i=sx; i<nx; i++) {
 	    if(levl[i][sy-1].typ == fg_typ) {
 		if ((int) levl[i][sy-1].roomno != rmno)
 		    flood_fill_rm(i,sy-1,rmno,lit,anyroom);
@@ -219,8 +219,9 @@ flood_fill_rm(sx, sy, rmno, lit, anyroom)
 		}
 	    }
     }
+    }
     if(isok(sx,sy+1)) {
-	for(i=sx; i<nx; i++)
+	for(i=sx; i<nx; i++) {
 	    if(levl[i][sy+1].typ == fg_typ) {
 		if ((int) levl[i][sy+1].roomno != rmno)
 		    flood_fill_rm(i,sy+1,rmno,lit,anyroom);
@@ -237,7 +238,7 @@ flood_fill_rm(sx, sy, rmno, lit, anyroom)
 		}
 	    }
     }
-
+    }
     if(nx > max_rx) max_rx = nx - 1; /* nx is just past valid region */
     if(sy > max_ry) max_ry = sy;
 }
@@ -426,7 +427,6 @@ remove_room(roomno)
 		    levl[i][j].roomno = roomno;
 	    }
     }
-
     maxroom->hx = -1;			/* just like add_room */
 }
 

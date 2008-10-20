@@ -39,6 +39,11 @@
 #include "hack.h"
 #include "dlb.h"
 #include "winX.h"
+#ifdef SHORT_FILENAMES
+#include "patchlev.h"
+#else
+#include "patchlevel.h"
+#endif
 
 #ifdef USE_XPM
 #include <X11/xpm.h>
@@ -48,6 +53,8 @@
 /* from tile.c */
 extern short glyph2tile[];
 extern int total_tiles_used;
+extern int tiles_per_row;
+extern int tiles_per_col;
 
 /* Define these if you really want a lot of junk on your screen. */
 /* #define VERBOSE */		/* print various info & events as they happen */
@@ -158,6 +165,7 @@ static int tile_width;
 static int tile_height;
 static int tile_count;
 static XImage *tile_image = 0;
+static int tile_index = -1;
 
 /*
  * This structure is used for small bitmaps that are used for annotating
@@ -205,16 +213,19 @@ post_process_tiles()
 {
     Display *dpy = XtDisplay(toplevel);
     unsigned int width, height;
+    char *pet_mark_file;
 
     if (tile_image == 0) return;	/* no tiles */
 
-    height = tile_image->height;
-    width  = tile_image->width;
+    height = tile_height * tiles_per_col;
+    width  = tile_width * tiles_per_row;
 
     tile_pixmap = XCreatePixmap(dpy, XtWindow(toplevel),
 			width,
     			height,
 			DefaultDepth(dpy, DefaultScreen(dpy)));
+    if (!tile_pixmap)
+	impossible("post_process_tiles: insufficient memory to create pixmap");
 
     XPutImage(dpy, tile_pixmap,
 	DefaultGC(dpy, DefaultScreen(dpy)),
@@ -226,10 +237,60 @@ post_process_tiles()
     XDestroyImage(tile_image);	/* data bytes free'd also */
     tile_image = 0;
 
-    init_annotation(&pet_annotation,
-	appResources.pet_mark_bitmap, appResources.pet_mark_color);
+#ifndef FILE_AREAS
+    pet_mark_file = appResources.pet_mark_bitmap;
+#else
+    pet_mark_file = make_file_name(FILE_AREA_SHARE, appResources.pet_mark_bitmap);
+#endif
+    init_annotation(&pet_annotation, pet_mark_file, appResources.pet_mark_color);
+#ifdef FILE_AREAS
+    free(pet_mark_file);
+#endif
 }
 
+#ifndef USE_XPM
+/*
+ * ALI
+ *
+ * Architecture independent tile file so that x11tiles can always be
+ * stored in FILE_AREA_SHARE, thus simplifying the configuration.
+ */
+
+static boolean
+fread_tile_header_item(item, fp)
+long *item;
+FILE *fp;
+{
+    *item = (long)getc(fp)<<24;
+    *item |= (long)getc(fp)<<16;
+    *item |= (long)getc(fp)<<8;
+    *item |= (long)getc(fp);
+#ifdef VERBOSE
+    fprintf(stderr, "fread_tile_header_item: 0x%lX\n",*item);
+#endif
+    return !feof(fp) && !ferror(fp);
+}
+
+static boolean
+fread_tile_header(header, fp)
+x11_header *header;
+FILE *fp;
+{
+    int retval;
+    retval = fread_tile_header_item(&header->version,fp) &&
+      fread_tile_header_item(&header->ncolors,fp) &&
+      fread_tile_header_item(&header->tile_width,fp) &&
+      fread_tile_header_item(&header->tile_height,fp) &&
+      fread_tile_header_item(&header->ntiles,fp);
+    if (retval) {
+	if (header->version == 1)
+	    header->per_row = 1;
+	else
+	    retval = fread_tile_header_item(&header->per_row,fp);
+    }
+    return retval;
+}
+#endif
 
 /*
  * Open and read the tile file.  Return TRUE if there were no problems.
@@ -242,6 +303,7 @@ init_tiles(wp)
 #ifdef USE_XPM
     XpmAttributes attributes;
     int errorcode;
+    char *tile_file;
 #else
     FILE *fp = (FILE *)0;
     x11_header header;
@@ -264,11 +326,20 @@ init_tiles(wp)
     XtGCMask mask;
 
     /* already have tile information */
-    if (tile_pixmap != None) goto tiledone;
+    if (tile_pixmap != None) {
+	XFreePixmap(dpy, tile_pixmap);
+	tile_pixmap = None;
+    }
 
     map_info = wp->map_information;
-    tile_info = map_info->mtype.tile_map =
+    if (map_info->mtype.text_map) {
+	free(map_info->mtype.text_map);
+	map_info->mtype.text_map = 0;
+    }
+    if (!map_info->mtype.tile_map)
+	map_info->mtype.tile_map =
 	    (struct tile_map_info_t *) alloc(sizeof(struct tile_map_info_t));
+    tile_info = map_info->mtype.tile_map;
     (void) memset((genericptr_t) tile_info, 0,
 				sizeof(struct tile_map_info_t));
 
@@ -276,27 +347,34 @@ init_tiles(wp)
     attributes.valuemask = XpmCloseness;
     attributes.closeness = 25000;
 
-    errorcode = XpmReadFileToImage(dpy, appResources.tile_file,
-				   &tile_image, 0, &attributes);
+#ifndef FILE_AREAS
+    tile_file = tilesets[tile_index].file;
+#else
+    tile_file = make_file_name(FILE_AREA_SHARE, tilesets[tile_index].file);
+#endif
+    errorcode = XpmReadFileToImage(dpy, tile_file, &tile_image, 0, &attributes);
 
     if (errorcode == XpmColorFailed) {
 	Sprintf(buf, "Insufficient colors available to load %s.",
-		appResources.tile_file);
+		tilesets[tile_index].file);
 	X11_raw_print(buf);
 	X11_raw_print("Try closing other colorful applications and restart.");
 	X11_raw_print("Attempting to load with inferior colors.");
 	attributes.closeness = 50000;
-	errorcode = XpmReadFileToImage(dpy, appResources.tile_file,
+	errorcode = XpmReadFileToImage(dpy, tile_file,
 				       &tile_image, 0, &attributes);
     }
+#ifdef FILE_AREAS
+    free(tile_file);
+#endif
 
-    if (errorcode != XpmSuccess) {
+    if (errorcode!=XpmSuccess) {
 	if (errorcode == XpmColorFailed) {
 	    Sprintf(buf, "Insufficient colors available to load %s.",
-		    appResources.tile_file);
+		    tilesets[tile_index].file);
 	    X11_raw_print(buf);
 	} else {
-	    Sprintf(buf, "Failed to load %s: %s", appResources.tile_file,
+	    Sprintf(buf, "Failed to load %s: %s",tilesets[tile_index].file,
 		    XpmGetErrorString(errorcode));
 	    X11_raw_print(buf);
 	}
@@ -305,12 +383,17 @@ init_tiles(wp)
 	goto tiledone;
     }
 
-    /* assume a fixed number of tiles per row */
-    if (tile_image->width % TILES_PER_ROW != 0 ||
-	tile_image->width <= TILES_PER_ROW) {
+    if (tile_image->height % tiles_per_col != 0 ||
+	tile_image->height <= tiles_per_col ||
+	tile_image->width % tiles_per_row != 0 ||
+	tile_image->width <= tiles_per_row) {
+	char buf[BUFSIZ];
 	Sprintf(buf,
-		"%s is not a multiple of %d (number of tiles/row) pixels wide",
-		appResources.tile_file, TILES_PER_ROW);
+		"%s appears to have a non-integer tile size.\n"
+		"Its size (%dx%d) should be a multiple of %dx%d",
+		tilesets[tile_index].file,
+		tile_image->width, tile_image->height,
+		tiles_per_row, tiles_per_col);
 	X11_raw_print(buf);
 	XDestroyImage(tile_image);
 	tile_image = 0;
@@ -318,16 +401,10 @@ init_tiles(wp)
 	goto tiledone;
     }
 
-    /* infer tile dimensions from image size and TILES_PER_ROW */
-    image_width = tile_image->width;
-    image_height = tile_image->height;
-
+    /* infer tile dimensions from image size */
     tile_count = total_tiles_used;
-    if ((tile_count % TILES_PER_ROW) != 0) {
-	tile_count += TILES_PER_ROW - (tile_count % TILES_PER_ROW);
-    }
-    tile_width = image_width / TILES_PER_ROW;
-    tile_height = image_height / (tile_count / TILES_PER_ROW);
+    tile_width = tile_image->width / tiles_per_row;
+    tile_height = tile_image->height / tiles_per_col;
 #else
     /* any less than 16 colours makes tiles useless */
     ddepth = DefaultDepthOfScreen(screen);
@@ -337,21 +414,23 @@ init_tiles(wp)
 	goto tiledone;
     }
 
-    fp = fopen_datafile(appResources.tile_file, RDBMODE, FALSE);
+    fp = fopen_datafile_area(FILE_AREA_SHARE, tilesets[tile_index].file,
+	    RDBMODE, FALSE);
     if (!fp) {
 	X11_raw_print("can't open tile file");
+	perror(tilesets[tile_index].file);
 	result = FALSE;
 	goto tiledone;
     }
 
-    if (fread((char *) &header, sizeof(header), 1, fp) != 1) {
+    if (!fread_tile_header(&header, fp)) {
 	X11_raw_print("read of header failed");
 	result = FALSE;
 	goto tiledone;
     }
 
-    if (header.version != 2) {
-	Sprintf(buf, "Wrong tile file version, expected 2, got %lu",
+    if (header.version != 1 && header.version != 2) {
+	Sprintf(buf, "Wrong tile file version, expected 1 or 2, got %lu",
 		header.version);
 	X11_raw_print(buf);
 	result = FALSE;
@@ -434,8 +513,13 @@ init_tiles(wp)
 	tile_height = header.tile_height;
     }
 
-    image_height = tile_height * tile_count / header.per_row;
-    image_width  = tile_width * header.per_row;
+    /*
+     * Arrange the tiles in the image (and subsequently on the pixmap)
+     * so that we avoid dimensions larger than 32767 which trigger a
+     * bug in XPutImage (at least on Solaris 2.5.1).
+     */
+    image_width  = tile_width * tiles_per_row;
+    image_height = tile_height * tiles_per_col;
 
     /* calculate bitmap_pad */
     if (ddepth > 16)
@@ -463,29 +547,56 @@ init_tiles(wp)
 	(char *) alloc((unsigned)tile_image->bytes_per_line * image_height);
 
     if (appResources.double_tile_size) {
-	unsigned long *expanded_row =
-	    (unsigned long *)alloc(sizeof(unsigned long)*(unsigned)image_width);
-
-	tb = tile_bytes;
-	for (y = 0; y < image_height; y++) {
-	    for (x = 0; x < image_width/2; x++)
-		expanded_row[2*x] =
-			    expanded_row[(2*x)+1] = colors[*tb++].pixel;
-
-	    for (x = 0; x < image_width; x++)
-		XPutPixel(tile_image, x, y, expanded_row[x]);
-
-	    y++;	/* duplicate row */
-	    for (x = 0; x < image_width; x++)
-		XPutPixel(tile_image, x, y, expanded_row[x]);
+	unsigned long pixel;
+	for (i = 0; i < tile_count; i++)
+	{
+	    /* point at the upper-left corner of the next tile */
+	    y = i / header.per_row;
+	    x = i - y * header.per_row;
+	    tb = tile_bytes + header.tile_width *
+		    (x + y * header.tile_height * header.per_row);
+	    for (y = 0; y < header.tile_height; y++) {
+		for (x = 0; x < header.tile_width; x++)
+		{
+		    pixel = colors[tb[x]].pixel;
+		    XPutPixel(tile_image,
+		      (i % tiles_per_row) * tile_width + 2*x,
+		      (i / tiles_per_row) * tile_height + 2*y,
+		      pixel);
+		    XPutPixel(tile_image,
+		      (i % tiles_per_row) * tile_width + 2*x,
+		      (i / tiles_per_row) * tile_height + 2*y+1,
+		      pixel);
+		    XPutPixel(tile_image,
+		      (i % tiles_per_row) * tile_width + 2*x+1,
+		      (i / tiles_per_row) * tile_height + 2*y,
+		      pixel);
+		    XPutPixel(tile_image,
+		      (i % tiles_per_row) * tile_width + 2*x+1,
+		      (i / tiles_per_row) * tile_height + 2*y+1,
+		      pixel);
+		}
+		tb += header.tile_width * header.per_row;
+	    }
 	}
-	free((genericptr_t)expanded_row);
 
     } else {
-
-	for (tb = tile_bytes, y = 0; y < image_height; y++)
-	    for (x = 0; x < image_width; x++, tb++)
-		XPutPixel(tile_image, x, y, colors[*tb].pixel);
+	for (i = 0; i < tile_count; i++)
+	{
+	    /* point at the upper-left corner of the next tile */
+	    y = i / header.per_row;
+	    x = i - y * header.per_row;
+	    tb = tile_bytes + header.tile_width *
+		    (x + y * header.tile_height * header.per_row);
+	    for (y = 0; y < header.tile_height; y++) {
+		for (x = 0; x < header.tile_width; x++)
+		    XPutPixel(tile_image,
+		      (i % tiles_per_row) * tile_width + x,
+		      (i / tiles_per_row) * tile_height + y,
+		      colors[tb[x]].pixel);
+		tb += header.tile_width * header.per_row;
+	    }
+	}
     }
 #endif /* USE_XPM */
 
@@ -533,11 +644,9 @@ tiledone:
 	map_info->square_width = tile_width;
 	map_info->square_ascent = 0;
 	map_info->square_lbearing = 0;
-	tile_info->image_width = image_width;
-	tile_info->image_height = image_height;
     } else {
 	if (tile_info) free((genericptr_t)tile_info);
-	tile_info = 0;
+	map_info->mtype.tile_map = 0;
     }
 
     return result;
@@ -884,6 +993,38 @@ clear_map_window(wp)
 {
     struct map_info_t *map_info = wp->map_information;
 
+    /*
+     * Check if tileset has changed.
+     * This can happen if tileset changed via doset() and doredraw() was
+     * called.  --ALI
+     */
+    if (tile_index >= 0 && strcmp(tileset, tilesets[tile_index].name) ||
+      tile_index < 0 && tileset[0]) {
+	int i;
+	for(i = 0; i < no_tilesets; i++)
+	    if (!strcmp(tileset, tilesets[i].name))
+		break;
+	if (i < no_tilesets && tilesets[i].flags & ~TILESET_TRANSPARENT) {
+	    pline("Warning: Can't use tile set \"%s\"; unsupported flag set",
+	      tilesets[i].name);
+	    i = tile_index;
+	    strcpy(tileset, tilesets[tile_index].name);
+	}
+	if (i == no_tilesets)
+	    tile_index = -1;
+	else
+	    tile_index = i;
+	if (tile_index >= 0 && init_tiles(wp)) {
+	    map_info->is_tile = TRUE;
+	    post_process_tiles();
+	} else {
+	    tile_index = -1;
+	    tileset[0] = '\0';
+	    init_text(wp);
+	    map_info->is_tile = FALSE;
+	}
+	set_map_size(wp, COLNO, ROWNO);
+    }
     if (map_info->is_tile) {
 	map_all_stone(map_info);
     } else {
@@ -1203,8 +1344,8 @@ map_update(wp, start_row, stop_row, start_col, stop_col, inverted)
 		int dest_x = cur_col * map_info->square_width;
 		int dest_y = row * map_info->square_height;
 
-		src_x = (tile % TILES_PER_ROW) * tile_width;
-		src_y = (tile / TILES_PER_ROW) * tile_height;
+		src_x = (tile % tiles_per_row) * map_info->square_width;
+		src_y = (tile / tiles_per_row) * map_info->square_height;
 		XCopyArea(dpy, tile_pixmap, XtWindow(wp->w),
 			  tile_map->black_gc,	/* no grapics_expose */
 			  src_x, src_y,
@@ -1335,6 +1476,10 @@ init_text(wp)
     struct map_info_t *map_info = wp->map_information;
     struct text_map_info_t *text_map;
 
+    if (map_info->mtype.tile_map) {
+	free(map_info->mtype.tile_map);
+	map_info->mtype.tile_map = 0;
+    }
     map_info->is_tile = FALSE;
     text_map = map_info->mtype.text_map =
 	(struct text_map_info_t *) alloc(sizeof(struct text_map_info_t));
@@ -1385,7 +1530,7 @@ create_map_window(wp, create_popup, parent)
 	num_args = 0;
 	XtSetArg(args[num_args], XtNinput, False);            num_args++;
 
-	wp->popup = parent = XtCreatePopupShell("nethack",
+	wp->popup = parent = XtCreatePopupShell(DEF_GAME_NAME,
 					topLevelShellWidgetClass,
 				       toplevel, args, num_args);
 	/*
@@ -1439,10 +1584,53 @@ create_map_window(wp, create_popup, parent)
     (void) memset((genericptr_t) map_info->t_stop, (char) 0,
 			sizeof(map_info->t_stop));
 
+    map_info->mtype.text_map = (struct text_map_info_t *)0;
+    map_info->mtype.tile_map = (struct tile_map_info_t *)0;
+
+    /* Backwards compatibility */
+    if (appResources.tile_file[0]) {
+	int i;
+	for(i = 0; i < no_tilesets; i++)
+	    if (!strcmp(tilesets[i].file, appResources.tile_file))
+		break;
+	if (i == no_tilesets && no_tilesets < MAXNOTILESETS) {
+	    pline(
+	      "Warning: Adding tiles in file \"%s\" as \"X Default\" tile set",
+	      appResources.tile_file);
+	    strcpy(tilesets[i].name, "X Default");
+	    strcpy(tilesets[i].file, appResources.tile_file);
+	    tilesets[i].flags = 0;
+	    no_tilesets++;
+	    if (!tileset[0]) {
+		strcpy(tileset, tilesets[i].name);
+		tile_index = i;
+	    }
+	}
+	else if (i < no_tilesets && !tileset[0]) {
+	    strcpy(tileset, tilesets[i].name);
+	    tile_index = i;
+	}
+    }
+    if (tile_index < 0 && tileset[0]) {
+	int i;
+	for(i = 0; i < no_tilesets; i++)
+	    if (!strcmp(tilesets[i].name, tileset)) {
+		tile_index = i;
+		break;
+	    }
+    }
+    if (tile_index >= 0 && tilesets[tile_index].flags & ~TILESET_TRANSPARENT) {
+	pline("Warning: Can't use tile set \"%s\"; unsupported flag set",
+	  tilesets[tile_index].name);
+	tile_index = -1;
+	tileset[0] = '\0';
+    }
     /* we probably want to restrict this to the 1st map window only */
-    if (appResources.tile_file[0] && init_tiles(wp)) {
+    if (tile_index >= 0 && init_tiles(wp)) {
 	map_info->is_tile = TRUE;
     } else {
+	tile_index = -1;
+	tileset[0] = '\0';
 	init_text(wp);
 	map_info->is_tile = FALSE;
     }

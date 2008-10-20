@@ -24,6 +24,7 @@
 #define AT_BOOM		14	/* explodes when killed */
 #define AT_GAZE		15	/* gaze - ranged */
 #define AT_TENT		16	/* tentacles */
+#define AT_MULTIPLY	17	/* RJ - multiplies (yes, it's an attack) */
 
 #define AT_WEAP		254	/* uses weapon */
 #define AT_MAGC		255	/* uses magic spell(s) */
@@ -43,7 +44,7 @@
 #define AD_ELEC		6	/* shock damage */
 #define AD_DRST		7	/* drains str (poison) */
 #define AD_ACID		8	/* acid damage */
-#define AD_SPC1		9	/* for extension of buzz() */
+#define AD_LITE		9		/* KMH -- light ray */
 #define AD_SPC2		10	/* for extension of buzz() */
 #define AD_BLND		11	/* blinds (yellow light) */
 #define AD_STUN		12	/* stuns */
@@ -68,7 +69,7 @@
 #define AD_DRCO		31	/* drains constitution */
 #define AD_DRIN		32	/* drains intelligence (mind flayer) */
 #define AD_DISE		33	/* confers diseases */
-#define AD_DCAY		34	/* decays organics (brown Pudding) */
+#define AD_DCAY		34	/* decays organics (brown pudding) */
 #define AD_SSEX		35	/* Succubus seduction (extended) */
 				/* If no SEDUCE then same as AD_SEDU */
 #define AD_HALU		36	/* causes hallucination */
@@ -76,8 +77,11 @@
 #define AD_PEST		38	/* for Pestilence only */
 #define AD_FAMN		39	/* for Famine only */
 #define AD_SLIM		40	/* turns you into green slime */
-#define AD_ENCH		41	/* remove enchantment (disenchanter) */
-#define AD_CORR		42	/* corrode armor (black pudding) */
+#define AD_CALM		41	/* KMH -- calms its enemies (koala) */
+#define AD_ENCH		42	/* KMH -- remove enchantment */
+#define AD_POLY		43	/* RJ -- polymorphs (genetic engineer) */
+#define AD_CORR		44	/* corrode armor (black pudding) */
+#define AD_TCKL		45	/* Tickle (Nightgaunts) */
 
 #define AD_CLRC		240	/* random clerical spell */
 #define AD_SPEL		241	/* random magic spell */

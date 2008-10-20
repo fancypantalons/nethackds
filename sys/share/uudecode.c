@@ -164,8 +164,6 @@ char **argv;
 		exit(5);
 	}
 	exit(0);
-	/*NOTREACHED*/
-	return 0;
 }
 
 /*

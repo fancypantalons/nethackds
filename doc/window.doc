@@ -182,9 +182,17 @@ player_selection()
 		   player_selection() offers a Quit option, it is its
 		   responsibility to clean up and terminate the process.
 		   You need to fill in pl_character[0].
+#ifdef FILE_AREAS
+display_file(area, str, boolean complain)
+#else
 display_file(str, boolean complain)
+#endif
 		-- Display the file named str.  Complain about missing files
-		   iff complain is TRUE.
+		   iff complain is TRUE. If FILE_AREAS is defined then the
+		   file should be found in the named area. Note that vanilla
+		   does not define FILE_AREAS and therefore window ports
+		   defined in this way will be compatible with both Slash'EM
+		   and vanilla NetHack.
 update_inventory()
 		-- Indicate to the window port that the inventory has been
 		   changed.
@@ -367,6 +375,7 @@ preference_update(preference)
 		   Your window-port will only be notified of a particular
 		   change if it indicated that it wants to be by setting the 
 		   corresponding bit in the wincap mask.
+
 
 III.  Global variables
 
@@ -791,7 +800,7 @@ When writing a new window-port, you need to follow the following guidelines:
    WINOBJ (if you want the NetHack binary to include them, that is).
 
 9) Look at your port's portmain.c (the file containing main()) and make
-   sure that all of the calls match the the requirements laid out in
+   sure that all of the calls match the requirements laid out in
    Section VII.
 
 Now, proceed with compilation and installation as usual.  Don't forget

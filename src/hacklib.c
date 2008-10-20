@@ -466,7 +466,7 @@ setrandom()
 #ifdef RANDOM	/* srandom() from sys/share/random.c */
 	srandom((unsigned int) time((time_t *)0));
 #else
-# if defined(__APPLE__) || defined(BSD) || defined(LINUX) || defined(ULTRIX) || defined(CYGWIN32) /* system srandom() */
+# if defined(BSD) || defined(LINUX) || defined(ULTRIX) || defined(CYGWIN32) /* system srandom() */
 #  if defined(BSD) && !defined(POSIX_TYPES)
 #   if defined(SUNOS4)
 	(void)
@@ -506,6 +506,13 @@ int
 getyear()
 {
 	return(1900 + getlt()->tm_year);
+}
+
+/* KMH -- Used by gypsies */
+int
+getmonth()
+{
+	return (getlt()->tm_mon);
 }
 
 #if 0
@@ -595,6 +602,15 @@ friday_13th()
 	register struct tm *lt = getlt();
 
 	return((boolean)(lt->tm_wday == 5 /* friday */ && lt->tm_mday == 13));
+}
+
+boolean
+groundhog_day()
+{
+	register struct tm *lt = getlt();
+
+	/* KMH -- Groundhog Day is February 2 */
+	return((boolean)(lt->tm_mon == 1 && lt->tm_mday == 2));
 }
 
 int

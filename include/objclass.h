@@ -29,16 +29,15 @@ struct objclass {
 #define oc_bulky	oc_big	/* for armor */
 	Bitfield(oc_tough,1);	/* hard gems/rings */
 
-	Bitfield(oc_dir,2);
+	Bitfield(oc_dir,3);
 #define NODIR		1	/* for wands/spells: non-directional */
 #define IMMEDIATE	2	/*		     directional */
 #define RAY		3	/*		     zap beams */
 
 #define PIERCE		1	/* for weapons & tools used as weapons */
 #define SLASH		2	/* (latter includes iron ball & chain) */
+#define EXPLOSION	4	/* (rockets,  grenades) */
 #define WHACK		0
-
-	/*Bitfield(oc_subtyp,3);*/	/* Now too big for a bitfield... see below */
 
 	Bitfield(oc_material,5);
 #define LIQUID		1	/* currently only for venom */
@@ -63,9 +62,9 @@ struct objclass {
 #define GEMSTONE	20
 #define MINERAL		21
 
-#define is_organic(otmp)	(objects[otmp->otyp].oc_material <= WOOD)
-#define is_metallic(otmp)	(objects[otmp->otyp].oc_material >= IRON && \
-				 objects[otmp->otyp].oc_material <= MITHRIL)
+#define is_organic(otmp)	(objects[(otmp)->otyp].oc_material <= WOOD)
+#define is_metallic(otmp)	(objects[(otmp)->otyp].oc_material >= IRON && \
+				 objects[(otmp)->otyp].oc_material <= MITHRIL)
 
 /* primary damage: fire/rust/--- */
 /* is_flammable(otmp), is_rottable(otmp) in mkobj.c */
@@ -78,7 +77,8 @@ struct objclass {
 				is_rottable(otmp) || is_corrodeable(otmp))
 
 	schar	oc_subtyp;
-#define oc_skill	oc_subtyp   /* Skills of weapons, spellbooks, tools, gems */
+/*	Bitfield(oc_subtyp,3);*/	/* Now too big for a bitfield */
+#define oc_skill	oc_subtyp   /* for weapons, spellbooks, tools, gems */
 #define oc_armcat	oc_subtyp   /* for armor */
 #define ARM_SHIELD	1	/* needed for special wear function */
 #define ARM_HELM	2
@@ -99,8 +99,17 @@ struct objclass {
 /* Check the AD&D rules!  The FIRST is small monster damage. */
 /* for weapons, and tools, rocks, and gems useful as weapons */
 	schar	oc_wsdam, oc_wldam;	/* max small/large monster damage */
+#define oc_range	oc_wsdam	/* for strength independant ranged weapons */
+#define oc_rof		oc_wldam	/* rate of fire bonus for ranged weapons */
+	
 	schar	oc_oc1, oc_oc2;
 #define oc_hitbon	oc_oc1		/* weapons: "to hit" bonus */
+#define w_ammotyp	oc_oc2		/* type of ammo taken by ranged weapon */
+#define WP_GENERIC	0		/* all ammo subclasses ok */
+#define WP_BULLET	1
+#define WP_SHELL	2
+#define WP_ROCKET	3
+#define WP_GRENADE	4
 
 #define a_ac		oc_oc1	/* armor class, used in ARM_BONUS in do.c */
 #define a_can		oc_oc2		/* armor: used in mhitu.c */
@@ -144,6 +153,8 @@ extern NEARDATA struct objdescr obj_descr[];
 #define ALLOW_COUNT	(MAXOCLASSES+1) /* Can be used in the object class */
 #define ALL_CLASSES	(MAXOCLASSES+2) /* input to getobj().		   */
 #define ALLOW_NONE	(MAXOCLASSES+3) /*				   */
+#define ALLOW_FLOOROBJ	(MAXOCLASSES+4) /*				   */
+#define ALLOW_THISPLACE	(MAXOCLASSES+5) /*				   */
 
 #define BURNING_OIL	(MAXOCLASSES+1) /* Can be used as input to explode. */
 #define MON_EXPLODE	(MAXOCLASSES+2) /* Exploding monster (e.g. gas spore) */

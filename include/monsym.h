@@ -36,6 +36,7 @@
 #define S_XAN		24
 #define S_LIGHT		25
 #define S_ZRUTY		26
+#define S_ZOUTHERN	26	/* KMH */
 #define S_ANGEL		27
 #define S_BAT		28
 #define S_CENTAUR	29
@@ -67,11 +68,14 @@
 #define S_DEMON		56
 #define S_EEL		57
 #define S_LIZARD	58
+#define S_BAD_FOOD      59
+#define S_BAD_COINS     60
 
-#define S_WORM_TAIL	59
-#define S_MIMIC_DEF	60
+#define S_WORM_TAIL     61
+#define S_MIMIC_DEF     62
 
-#define MAXMCLASSES 61	/* number of monster classes */
+#define MAXMCLASSES 63  /* number of monster classes */
+#define MISCMCLASSES 2  /* currently only wormtail and mimicdef*/
 
 #if 0	/* moved to decl.h so that makedefs.c won't see them */
 extern const char def_monsyms[MAXMCLASSES];	/* default class symbols */
@@ -139,9 +143,12 @@ extern uchar monsyms[MAXMCLASSES];		/* current class symbols */
 #define DEF_DEMON	'&'
 #define DEF_EEL		';'
 #define DEF_LIZARD	':'
+#define DEF_BAD_FOOD    '%'
+#define DEF_BAD_COINS   '$'
 
 #define DEF_INVISIBLE	'I'
 #define DEF_WORM_TAIL	'~'
 #define DEF_MIMIC_DEF	']'
 
 #endif /* MONSYM_H */
+

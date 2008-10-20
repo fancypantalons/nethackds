@@ -173,6 +173,9 @@ register boolean special;
 		    if (rn2(4)) helm = rn2(2) ? HELM_OF_BRILLIANCE : HELM_OF_TELEPATHY;
 		    if (rn2(2)) shield = STRANGE_OBJECT;
 		    break;
+#ifdef YEOMAN
+		case PM_YEOMAN:
+#endif
 		case PM_KNIGHT:
 		    if (rn2(4)) weapon = LONG_SWORD;
 		    if (rn2(2)) armor = rnd_class(PLATE_MAIL, CHAIN_MAIL);
@@ -195,7 +198,8 @@ register boolean special;
 		    if (rn2(2)) weapon = ELVEN_DAGGER;
 		    break;
 		case PM_ROGUE:
-		    if (rn2(2)) weapon = SHORT_SWORD;
+		    weapon = SHORT_SWORD;
+		    armor = LEATHER_ARMOR;
 		    break;
 		case PM_SAMURAI:
 		    if (rn2(2)) weapon = KATANA;
@@ -205,10 +209,17 @@ register boolean special;
 		    /* Defaults are just fine */
 		    break;
 #endif
+		case PM_UNDEAD_SLAYER:
+		    if (rn2(2)) weapon = SILVER_SPEAR;
+		    if (rn2(2)) armor = rnd_class(PLATE_MAIL, CHAIN_MAIL);
+		    break;
 		case PM_VALKYRIE:
 		    if (rn2(2)) weapon = WAR_HAMMER;
 		    if (rn2(2)) armor = rnd_class(PLATE_MAIL, CHAIN_MAIL);
 		    break;
+		case PM_FLAME_MAGE:
+		case PM_ICE_MAGE:
+		case PM_NECROMANCER:
 		case PM_WIZARD:
 		    if (rn2(4)) weapon = rn2(2) ? QUARTERSTAFF : ATHAME;
 		    if (rn2(2)) {
@@ -264,6 +275,12 @@ register boolean special;
 		quan = rn2(10);
 		while(quan--)
 		    (void) mpickobj(mtmp, mkobj(RANDOM_CLASS, FALSE));
+	    } else { /* wandering characters... */
+#ifndef GOLDOBJ
+	       mtmp->mgold = rn2((mtmp->m_lev)*100);
+#else
+	       mkmonmoney(mtmp, rn2((mtmp->m_lev)*100));
+#endif
 	    }
 	    quan = rnd(3);
 	    while(quan--)

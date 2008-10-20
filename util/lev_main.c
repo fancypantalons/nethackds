@@ -6,8 +6,8 @@
  * This file contains the main function for the parser
  * and some useful functions needed by yacc
  */
-#define SPEC_LEV	/* for MPW */
-/* although, why don't we move those special defines here.. and in dgn_main? */
+
+#define LEVEL_COMPILER	1	/* Enable definition of internal structures */
 
 #include "hack.h"
 #include "date.h"
@@ -15,11 +15,14 @@
 #ifdef STRICT_REF_DEF
 #include "tcap.h"
 #endif
+/* ALI - We need the list of artifact names for artifact doors */
+#define MAKEDEFS_C      /* We only want the names, not the complete defn */
+#include "artilist.h"
+#undef MAKEDEFS_C
 
 #ifdef MAC
-# if defined(__SC__) || defined(__MRC__)
+# ifdef MAC_MPW
 #  define MPWTOOL
-#  define PREFIX ":dungeon:"	/* place output files here */
 #  include <CursorCtl.h>
 # else
 #  if !defined(__MACH__)
@@ -56,6 +59,7 @@
 # define OMASK 0644
 #endif
 
+#define MAX_REGISTERS	10
 #define ERR		(-1)
 
 #define NewTab(type, size)	(type **) alloc(sizeof(type *) * size)
@@ -75,6 +79,7 @@ int  FDECL (main, (int, char **));
 void FDECL (yyerror, (const char *));
 void FDECL (yywarning, (const char *));
 int  NDECL (yywrap);
+int FDECL(get_artifact_id, (char *));
 int FDECL(get_floor_type, (CHAR_P));
 int FDECL(get_room_type, (char *));
 int FDECL(get_trap_type, (char *));
@@ -149,9 +154,16 @@ static struct {
 	{ "zoo",	 ZOO },
 	{ "delphi",	 DELPHI },
 	{ "temple",	 TEMPLE },
+	{ "realzoo",	 REALZOO },
+	{ "giantcourt",	 GIANTCOURT },
+	{ "dragonlair",  DRAGONLAIR },
+	{ "badfoodshop", BADFOODSHOP },
 	{ "anthole",	 ANTHOLE },
 	{ "cocknest",	 COCKNEST },
 	{ "leprehall",	 LEPREHALL },
+	{ "lemurepit",   LEMUREPIT },
+	{ "migohive",    MIGOHIVE },
+	{ "fungusfarm",  FUNGUSFARM },
 	{ "shop",	 SHOPBASE },
 	{ "armor shop",	 ARMORSHOP },
 	{ "scroll shop", SCROLLSHOP },
@@ -161,8 +173,13 @@ static struct {
 	{ "ring shop",	 RINGSHOP },
 	{ "wand shop",	 WANDSHOP },
 	{ "tool shop",	 TOOLSHOP },
+	{ "pet shop",    PETSHOP },	/* Stephen White */
+	{ "tin shop",    TINSHOP }, /* Robin Johnson */
 	{ "book shop",	 BOOKSHOP },
 	{ "candle shop", CANDLESHOP },
+#ifdef BLACKMARKET
+	{ "black market", BLACKSHOP },
+#endif /* BLACKMARKET */
 	{ 0, 0 }
 };
 
@@ -198,9 +215,11 @@ extern pool *tmppool[];
 extern engraving *tmpengraving[];
 extern mazepart *tmppart[];
 extern room *tmproom[];
+extern lev_region *tmprndlreg[];
 
 extern int n_olist, n_mlist, n_plist;
 
+extern unsigned int nrndlreg;
 extern unsigned int nlreg, nreg, ndoor, ntrap, nmons, nobj;
 extern unsigned int ndb, nwalk, npart, ndig, npass, nlad, nstair;
 extern unsigned int naltar, ncorridor, nrooms, ngold, nengraving;
@@ -220,28 +239,67 @@ char **argv;
 	boolean errors_encountered = FALSE;
 #if defined(MAC) && (defined(THINK_C) || defined(__MWERKS__))
 	static char *mac_argv[] = {	"lev_comp",	/* dummy argv[0] */
+	/* KMH -- had to add more from SLASH'EM */
 				":dat:Arch.des",
 				":dat:Barb.des",
 				":dat:Caveman.des",
+				":dat:Flame.des",
 				":dat:Healer.des",
+				":dat:Hobbit.des",
+				":dat:Ice.des",
+				":dat:sokoban.des",
 				":dat:Knight.des",
+				":dat:Lycn.des",
 				":dat:Monk.des",
+				":dat:Necro.des",
 				":dat:Priest.des",
-				":dat:Ranger.des",
 				":dat:Rogue.des",
+				":dat:Ranger.des",
 				":dat:Samurai.des",
+#ifdef TOURIST
 				":dat:Tourist.des",
+#endif
+				":dat:Slayer.des",		/* Should be Uslayer */
 				":dat:Valkyrie.des",
 				":dat:Wizard.des",
+#ifdef YEOMAN
+				":dat:Yeoman.des",
+#endif
+#ifdef ZOUTHERN
+				":dat:Zouthern.des"
+#endif
+				":dat:beholder.des",
 				":dat:bigroom.des",
+				":dat:blkmar.des",
 				":dat:castle.des",
+				":dat:caves.des",
+				":dat:dragons.des",
 				":dat:endgame.des",
+				":dat:frnknstn.des",
 				":dat:gehennom.des",
+				":dat:giants.des",
+				":dat:guild.des",
 				":dat:knox.des",
+				":dat:kobold-1.des",
+				":dat:kobold-2.des",
+				":dat:lich.des",
+				":dat:mall-1.des",
+				":dat:mall-2.des",
 				":dat:medusa.des",
+				":dat:mtemple.des",
 				":dat:mines.des",
+				":dat:newmall.des",
+				":dat:nightmar.des",
+				":dat:nymph.des",
 				":dat:oracle.des",
+				":dat:rats.des",
+				":dat:sea.des",
 				":dat:sokoban.des",
+				":dat:spiders.des",
+				":dat:stor-1.des",
+				":dat:stor-2.des",
+				":dat:stor-3.des",
+				":dat:tomb.des",
 				":dat:tower.des",
 				":dat:yendor.des"
 				};
@@ -306,8 +364,13 @@ void
 yyerror(s)
 const char *s;
 {
-	(void) fprintf(stderr, "%s: line %d : %s\n", fname,
-		(*s >= 'A' && *s <= 'Z') ? colon_line_number : line_number, s);
+	(void) fprintf(stderr,
+#ifndef MAC_MPW
+	  "%s: line %d : %s\n",
+#else
+	  "File %s ; Line %d :# %s\n",
+#endif
+	  fname, (*s >= 'A' && *s <= 'Z') ? colon_line_number : line_number, s);
 	if (++fatal_error > MAX_ERRORS) {
 		(void) fprintf(stderr,"Too many errors, good bye!\n");
 		exit(EXIT_FAILURE);
@@ -321,7 +384,12 @@ void
 yywarning(s)
 const char *s;
 {
-	(void) fprintf(stderr, "%s: line %d : WARNING : %s\n",
+	(void) fprintf(stderr,
+#ifndef MAC_MPW
+	  "%s: line %d : WARNING : %s\n",
+#else
+	  "File %s ; Line %d # WARNING : %s\n",
+#endif
 				fname, colon_line_number, s);
 }
 
@@ -332,6 +400,22 @@ int
 yywrap()
 {
 	return 1;
+}
+
+/*
+ * Find the index of an artifact in the table, knowing its name.
+ */
+int
+get_artifact_id(s)
+char *s;
+{
+	register int i;
+
+	SpinCursor(3);
+	for(i=0; artifact_names[i]; i++)
+	    if (!strcmp(s, artifact_names[i]))
+		return ((int) i);
+	return ERR;
 }
 
 /*
@@ -499,6 +583,13 @@ char c;
 		  case 'W'  : return(WATER);
 		  case 'T'	: return (TREE);
 		  case 'F'	: return (IRONBARS);	/* Fe = iron */
+		  case 'Z'  :	/* Kazi */
+#ifdef SINKS
+		      return(TOILET);
+#else
+		      yywarning("Toilets are not allowed in this version!  Ignoring...");
+		      return(ROOM);
+#endif
 	    }
 	return(INVALID_TYPE);
 }
@@ -717,6 +808,15 @@ store_part()
 		    tmppart[npart]->lregions[i] = tmplreg[i];
 	}
 	nlreg = 0;
+
+	/* the random level regions */
+
+	if ((tmppart[npart]->nrndlreg = nrndlreg) != 0) {
+		tmppart[npart]->rndlregions = NewTab(lev_region, nrndlreg);
+		for(i=0;i<nrndlreg;i++)
+		    tmppart[npart]->rndlregions[i] = tmprndlreg[i];
+	}
+	nrndlreg = 0;
 
 	/* the doors */
 
@@ -964,6 +1064,36 @@ store_room()
 	nrooms++;
 }
 
+void
+store_place_list(int npart, int nlist, int nloc, const struct coord *plist)
+{
+	int i;
+	char msg[256];
+	if (!tmppart[npart]->nloc) {
+	    tmppart[npart]->nloc = (char *) alloc(MAX_REGISTERS);
+	    tmppart[npart]->rloc_x = NewTab(char, MAX_REGISTERS);
+	    tmppart[npart]->rloc_y = NewTab(char, MAX_REGISTERS);
+	}
+	if (nlist < tmppart[npart]->nlocset) {
+	    Sprintf(msg,
+		    "Location registers for place list %d already initialized!",
+		    nlist);
+	    yyerror(msg);
+	} else if (nlist > tmppart[npart]->nlocset) {
+	    Sprintf(msg, "Place list %d out of order!", nlist);
+	    yyerror(msg);
+	} else {
+	    tmppart[npart]->nlocset++;
+	    tmppart[npart]->rloc_x[nlist] = (char *) alloc(n_plist);
+	    tmppart[npart]->rloc_y[nlist] = (char *) alloc(n_plist);
+	    for(i = 0; i < n_plist; i++) {
+		tmppart[npart]->rloc_x[nlist][i] = plist[i].x;
+		tmppart[npart]->rloc_y[nlist][i] = plist[i].y;
+	    }
+	    tmppart[npart]->nloc[nlist] = nloc;
+	}
+}
+
 /*
  * Output some info common to all special levels.
  */
@@ -1119,11 +1249,7 @@ specialmaze *maze_level;
 	Strcat(lbuf, filename);
 	Strcat(lbuf, LEV_EXT);
 
-#if defined(MAC) && (defined(__SC__) || defined(__MRC__))
-	fout = open(lbuf, O_WRONLY|O_CREAT|O_BINARY);
-#else
 	fout = open(lbuf, O_WRONLY|O_CREAT|O_BINARY, OMASK);
-#endif
 	if (fout < 0) return FALSE;
 
 	if (room_level) {
@@ -1202,16 +1328,39 @@ specialmaze *maze;
 	    if (pt->nlreg > 0)
 		Free(pt->lregions);
 
+	    /* random level regions registers */
+	    Write(fd, &pt->nrndlreg, sizeof pt->nrndlreg);
+	    for (j = 0; j < pt->nrndlreg; j++) {
+		lev_region *l = pt->rndlregions[j];
+		char *rname = l->rname.str;
+		l->rname.str = 0;	/* reset in case `len' is narrower */
+		l->rname.len = rname ? strlen(rname) : 0;
+		Write(fd, l, sizeof *l);
+		if (rname) {
+		    Write(fd, rname, l->rname.len);
+		    Free(rname);
+		}
+		Free(l);
+	    }
+	    if (pt->nrndlreg > 0)
+		Free(pt->rndlregions);
+
 	    /* The random registers */
 	    Write(fd, &(pt->nrobjects), sizeof(pt->nrobjects));
 	    if(pt->nrobjects) {
 		    Write(fd, pt->robjects, pt->nrobjects);
 		    Free(pt->robjects);
 	    }
-	    Write(fd, &(pt->nloc), sizeof(pt->nloc));
-	    if(pt->nloc) {
-		    Write(fd, pt->rloc_x, pt->nloc);
-		    Write(fd, pt->rloc_y, pt->nloc);
+	    Write(fd, &(pt->nlocset), sizeof(pt->nlocset));
+	    if (pt->nlocset) {
+		Write(fd, pt->nloc, pt->nlocset);
+		for (j = 0; j < pt->nlocset; j++) {
+		    Write(fd, pt->rloc_x[j], pt->nloc[j]);
+		    Write(fd, pt->rloc_y[j], pt->nloc[j]);
+		    Free(pt->rloc_x[j]);
+		    Free(pt->rloc_y[j]);
+		}
+		Free(pt->nloc);
 		    Free(pt->rloc_x);
 		    Free(pt->rloc_y);
 	    }

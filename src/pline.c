@@ -304,6 +304,7 @@ register struct monst *mtmp;
 #endif
 	}
 	else if (mtmp->mpeaceful) Strcat(info, ", peaceful");
+	else if (mtmp->mtraitor)  Strcat(info, ", traitor");
 	if (mtmp->meating)	  Strcat(info, ", eating");
 	if (mtmp->mcan)		  Strcat(info, ", cancelled");
 	if (mtmp->mconf)	  Strcat(info, ", confused");
@@ -321,7 +322,11 @@ register struct monst *mtmp;
 				  /* [arbitrary reason why it isn't moving] */
 	else if (mtmp->mstrategy & STRAT_WAITMASK)
 				  Strcat(info, ", meditating");
-	else if (mtmp->mflee)	  Strcat(info, ", scared");
+	else if (mtmp->mflee) {	  Strcat(info, ", scared");
+#ifdef WIZARD
+	    if (wizard)		  Sprintf(eos(info), " (%d)", mtmp->mfleetim);
+#endif
+	}
 	if (mtmp->mtrapped)	  Strcat(info, ", trapped");
 	if (mtmp->mspeed)	  Strcat(info,
 					mtmp->mspeed == MFAST ? ", fast" :
@@ -344,12 +349,14 @@ register struct monst *mtmp;
 	Strcpy(monnambuf, x_monnam(mtmp, ARTICLE_THE, (char *)0,
 	    (SUPPRESS_IT|SUPPRESS_INVISIBLE), FALSE));
 
-	pline("Status of %s (%s):  Level %d  HP %d(%d)  AC %d%s.",
+	pline("Status of %s (%s):  Level %d  HP %d(%d)  Pw %d(%d)  AC %d%s.",
 		monnambuf,
 		align_str(alignment),
 		mtmp->m_lev,
 		mtmp->mhp,
 		mtmp->mhpmax,
+		mtmp->m_en,
+		mtmp->m_enmax,
 		find_mac(mtmp),
 		info);
 }
@@ -409,7 +416,7 @@ ustatusline()
 	    Strcat(info, mon_nam(u.ustuck));
 	}
 
-	pline("Status of %s (%s%s):  Level %d  HP %d(%d)  AC %d%s.",
+	pline("Status of %s (%s%s):  Level %d  HP %d(%d)  Pw %d(%d)  AC %d%s.",
 		plname,
 		    (u.ualign.record >= 20) ? "piously " :
 		    (u.ualign.record > 13) ? "devoutly " :
@@ -423,6 +430,8 @@ ustatusline()
 		Upolyd ? mons[u.umonnum].mlevel : u.ulevel,
 		Upolyd ? u.mh : u.uhp,
 		Upolyd ? u.mhmax : u.uhpmax,
+		u.uen,
+		u.uenmax,
 		u.uac,
 		info);
 }

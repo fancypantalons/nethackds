@@ -57,9 +57,8 @@ static char NDECL(BIOSgetch);
 static char * NDECL(getdta);
 #endif
 static unsigned int FDECL(dos_ioctl, (int,int,unsigned));
-#ifdef USE_TILES
-extern boolean FDECL(pckeys,(unsigned char, unsigned char));	/* pckeys.c */
-#endif
+/* WAC pckeys is now a char */
+extern char FDECL(pckeys,(unsigned char, unsigned char));    /* pckeys.c */
 
 int
 tgetch()
@@ -199,8 +198,10 @@ static const struct pad {
  */
 #ifdef PC9800
 #define SCANLO		0x5
+/* #define SCANLO2		0x5 /* ... */
 #else
 #define SCANLO		0x10
+#define SCANLO2		0x78
 #endif /* PC9800 */
 
 static const char scanmap[] = { 	/* ... */
@@ -208,7 +209,7 @@ static const char scanmap[] = { 	/* ... */
 			 0,  0,  0,  0,  0,  0, '-','^','\\','\b',
 	'\t','q','w','e','r','t','y','u','i','o','p','@','[', '\n',
 	'a','s','d','f','g','h','j','k','l',';',':', ']',
-	'z','x','c','v','b','N','m',',','.','/'	/* ... */
+        'z','x','c','v','b','n','m',',','.','/' /* ... */
 #else
 	'q','w','e','r','t','y','u','i','o','p','[',']', '\n',
 	0, 'a','s','d','f','g','h','j','k','l',';','\'', '`',
@@ -216,7 +217,17 @@ static const char scanmap[] = { 	/* ... */
 #endif /* PC9800 */
 };
 
+static const char scanmap2[] = { 	/* ... */
+#ifdef PC9800
+	/* ... */
+#else
+	'1','2','3','4','5','6','7','8','9','0','-','='	/* ... */
+#endif /* PC9800 */
+};
+
 #define inmap(x)	(SCANLO <= (x) && (x) < SCANLO + SIZE(scanmap))
+#define inmap2(x)	(SCANLO2 <= (x) && (x) < SCANLO2 + SIZE(scanmap2))
+
 
 #ifdef NEW_ALT
 #define NUMERIC_SCANLO		0x78
@@ -244,7 +255,8 @@ static const char numeric_scanmap[] = { 	/* ... */
 static char
 BIOSgetch()
 {
-      unsigned char scan, shift, ch=0;
+      /* WAC added pckeypress */
+      unsigned char scan, shift, ch=0, pckeypress=0;
       const struct pad *kpad;
       union REGS regs;
 
@@ -271,13 +283,16 @@ BIOSgetch()
 		else
 			ch = kpad[scan - KEYPADLO].normal;
 	}
-#ifdef USE_TILES
+
 	/* Check for special interface manipulation keys */
-	if (pckeys(scan, shift)) {
-		ch = 0xFF;
+        /* WAC for help and stuff */
+        pckeypress = pckeys(scan, shift);
+        if (pckeypress) {
+                /* ch = 0xFF; */
+                ch = pckeypress;
 		continue;
 	}
-#endif
+
 	/* Translate unassigned Alt-letters */
 #ifdef PC9800
 	if (shift & KANA)
@@ -286,15 +301,14 @@ BIOSgetch()
 #else
 	if ((shift & ALT) && !ch) {
 #endif
-#if 0
-		pline("Scan code: %d 0x%03X", scan, scan);
+/* WAC DEBUGGING */
+#ifdef KEY_DEBUG
+		pline("scan: %d", scan);
 #endif
 		if (inmap(scan))
 			ch = scanmap[scan - SCANLO];
-#ifdef NEW_ALT
-		else if (in_numericmap(scan))
-			ch = numeric_scanmap[scan - NUMERIC_SCANLO];
-#endif
+		else if (inmap2(scan))
+			ch = scanmap2[scan - SCANLO2];
 		return (isprint(ch) ? M(ch) : ch);
 	}
       } while (ch == 0xFF);
@@ -332,6 +346,11 @@ DOSgetch()
 		} else if (inmap(ch)) { /* Alt-letters */
 			ch = scanmap[ch - SCANLO];
 			if (isprint(ch)) ch = M(ch);
+#if 0
+		} else if (inmap2(ch))
+			ch = scanmap2[ch - SCANLO2];
+			if (isprint(ch)) ch = M(ch);
+#endif
 		} else ch = 0;		/* munch it */
 	}
 #endif
@@ -514,6 +533,57 @@ unsigned setvalue;
 	intdos(&regs, &regs);
 	return (regs.x.dx);
 }
+
+/* WAC added Win95 DOS Box Title Changer for DJGPP */
+#  ifdef __DJGPP__
+
+/* Defines */
+#define APP_TITLE_BUFFER_LEN    80  /* Max. title length */
+
+/* --------------------
+   - w95_setapptitle -
+   -------------------- */
+
+/* Set the application title, e.g. "MS-DOS Prompt" -> "MS-DOS Prompt - MyApp".
+   This returns 1 on success, 0 on failure. */
+
+int w95_setapptitle (char *apptitle)
+{
+    __dpmi_regs r;          /* Registers for function call          */
+    int segment, selector;  /* Allocated memory's segment, selector */
+    int paras;              /* No. paragraphs to allocate           */
+
+    /* Check the title isn't too long */
+    if ((strlen(apptitle) + 1) > APP_TITLE_BUFFER_LEN) return(0);
+
+    /* Allocate some DOS memory */
+    paras = (APP_TITLE_BUFFER_LEN + 15) >> 4;
+    segment = __dpmi_allocate_dos_memory(paras, &selector);
+    if (segment == -1) return(0);
+
+    /* Put the title in it */
+    movedata(_my_ds(), (int) apptitle, selector, 0, strlen(apptitle) + 1);
+
+    /* Set up the registers - nuke DX as part of this; set AX to set the
+       app title */
+    memset (&r, 0, sizeof(r));
+    r.x.ax = 0x168E;
+    r.x.dx = 0x0000;
+    r.x.es = segment;
+    r.x.di = 0;
+
+    /* Interrupt */
+    __dpmi_int (0x2F, &r);
+
+    /* Free the memory */
+    __dpmi_free_dos_memory(selector);
+
+    /* Return result - AX contain 1 on success, 0 on failure */
+    return(r.x.ax);
+}
+
+#  endif
+
 
 # endif /* OVLB */
 

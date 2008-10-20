@@ -19,7 +19,9 @@ boolean m_using = FALSE;
  * don't know not to read scrolls, etc....
  */
 
+#if 0
 STATIC_DCL struct permonst *FDECL(muse_newcham_mon, (struct monst *));
+#endif
 STATIC_DCL int FDECL(precheck, (struct monst *,struct obj *));
 STATIC_DCL void FDECL(mzapmsg, (struct monst *,struct obj *,BOOLEAN_P));
 STATIC_DCL void FDECL(mreadmsg, (struct monst *,struct obj *));
@@ -238,6 +240,11 @@ struct obj *otmp;
 #define MUSE_UNICORN_HORN 17
 #define MUSE_POT_FULL_HEALING 18
 #define MUSE_LIZARD_CORPSE 19
+/* [Tom] my new items... */
+#define MUSE_WAN_HEALING 20
+#define MUSE_WAN_EXTRA_HEALING 21
+#define MUSE_WAN_CREATE_HORDE 22
+#define MUSE_POT_VAMPIRE_BLOOD 23
 /*
 #define MUSE_INNATE_TPT 9999
  * We cannot use this.  Since monsters get unlimited teleportation, if they
@@ -320,6 +327,11 @@ struct monst *mtmp;
 		m.has_defense = MUSE_POT_HEALING;
 		return TRUE;
 	    }
+	    if ((obj = m_carrying(mtmp, POT_FULL_HEALING)) !=0) {
+		m.defensive = obj;
+		m.has_defense = MUSE_POT_FULL_HEALING;
+		return TRUE;
+	    }
 	}
 
 	fraction = u.ulevel < 10 ? 5 : u.ulevel < 14 ? 4 : 3;
@@ -342,6 +354,12 @@ struct monst *mtmp;
 		if ((obj = m_carrying(mtmp, POT_HEALING)) != 0) {
 		    m.defensive = obj;
 		    m.has_defense = MUSE_POT_HEALING;
+		    return TRUE;
+		}
+		if (is_vampire(mtmp->data) &&
+		  (obj = m_carrying(mtmp, POT_VAMPIRE_BLOOD)) !=0) {
+		    m.defensive = obj;
+		    m.has_defense = MUSE_POT_VAMPIRE_BLOOD;
 		    return TRUE;
 		}
 	    }
@@ -491,10 +509,30 @@ struct monst *mtmp;
 			m.defensive = obj;
 			m.has_defense = MUSE_WAN_CREATE_MONSTER;
 		}
+		nomore(MUSE_WAN_CREATE_HORDE);
+		if(obj->otyp == WAN_CREATE_HORDE && obj->spe > 0) {
+			m.defensive = obj;
+			m.has_defense = MUSE_WAN_CREATE_HORDE;
+		}
 		nomore(MUSE_POT_HEALING);
 		if(obj->otyp == POT_HEALING) {
 			m.defensive = obj;
 			m.has_defense = MUSE_POT_HEALING;
+		}
+		nomore(MUSE_WAN_HEALING);
+		if(obj->otyp == WAN_HEALING && obj->spe > 0) {
+			m.defensive = obj;
+			m.has_defense = MUSE_WAN_HEALING;
+		}
+		nomore(MUSE_WAN_EXTRA_HEALING);
+		if(obj->otyp == WAN_EXTRA_HEALING && obj->spe > 0) {
+			m.defensive = obj;
+			m.has_defense = MUSE_WAN_EXTRA_HEALING;
+		}
+		nomore(MUSE_POT_VAMPIRE_BLOOD);
+		if(is_vampire(mtmp->data) && obj->otyp == POT_VAMPIRE_BLOOD) {
+			m.defensive = obj;
+			m.has_defense = MUSE_POT_VAMPIRE_BLOOD;
 		}
 	    } else {	/* Pestilence */
 		nomore(MUSE_POT_FULL_HEALING);
@@ -677,6 +715,23 @@ mon_tele:
 				 MIGR_RANDOM, (coord *)0);
 		return 2;
 	    }
+	case MUSE_WAN_CREATE_HORDE:
+	    {   coord cc;
+		struct permonst *pm=rndmonst();
+		int cnt = 1;
+		if (!enexto(&cc, mtmp->mx, mtmp->my, pm)) return 0;
+		mzapmsg(mtmp, otmp, FALSE);
+		otmp->spe--;
+		if (oseen) makeknown(WAN_CREATE_HORDE);
+		cnt = rnd(4) + 10;
+		while(cnt--) {
+			struct monst *mon;
+			if (!enexto(&cc, mtmp->mx, mtmp->my, pm)) continue;
+			mon = makemon(rndmonst(), cc.x, cc.y, NO_MM_FLAGS);
+			if (mon) newsym(mon->mx,mon->my);
+		}
+		return 2;
+	    }
 	case MUSE_WAN_CREATE_MONSTER:
 	    {	coord cc;
 		    /* pm: 0 => random, eel => aquatic, croc => amphibious */
@@ -842,6 +897,27 @@ mon_tele:
 		newsym(trapx, trapy);
 
 		goto mon_tele;
+	/* [Tom] */
+	case MUSE_WAN_HEALING:
+		mzapmsg(mtmp, otmp, TRUE);
+		otmp->spe--;
+		i = d(5,2) + 5 * !!bcsign(otmp);
+		mtmp->mhp += i;
+		if (mtmp->mhp > mtmp->mhpmax) mtmp->mhp = ++mtmp->mhpmax;
+		if (!otmp->cursed) mtmp->mcansee = 1;
+		if (vismon) pline("%s begins to look better.", Monnam(mtmp));
+		if (oseen) makeknown(WAN_HEALING);
+		return 2;
+	case MUSE_WAN_EXTRA_HEALING:
+		mzapmsg(mtmp, otmp, TRUE);
+		otmp->spe--;
+		i = d(5,4) + 10 * !!bcsign(otmp);
+		mtmp->mhp += i;
+		if (mtmp->mhp > mtmp->mhpmax) mtmp->mhp = ++mtmp->mhpmax;
+		if (!otmp->cursed) mtmp->mcansee = 1;
+		if (vismon) pline("%s begins to look better.", Monnam(mtmp));
+		if (oseen) makeknown(WAN_EXTRA_HEALING);
+		return 2;
 	case MUSE_POT_HEALING:
 		mquaffmsg(mtmp, otmp);
 		i = d(6 + 2 * bcsign(otmp), 4);
@@ -882,6 +958,19 @@ mon_tele:
 		}
 		if (vismon) pline("%s looks completely healed.", Monnam(mtmp));
 		if (oseen) makeknown(otmp->otyp);
+		m_useup(mtmp, otmp);
+		return 2;
+	case MUSE_POT_VAMPIRE_BLOOD:
+		mquaffmsg(mtmp, otmp);
+		if (!otmp->cursed) {
+		    i = rnd(8) + rnd(2);
+		    mtmp->mhp += i;
+		    mtmp->mhpmax += i;
+		    if (vismon) pline("%s looks full of life.", Monnam(mtmp));
+		}
+		else if (vismon)
+		    pline("%s discards the congealed blood in disgust.", Monnam(mtmp));
+		if (oseen) makeknown(POT_VAMPIRE_BLOOD);
 		m_useup(mtmp, otmp);
 		return 2;
 	case MUSE_LIZARD_CORPSE:
@@ -942,21 +1031,25 @@ struct monst *mtmp;
 
 #define MUSE_WAN_DEATH 1
 #define MUSE_WAN_SLEEP 2
-#define MUSE_WAN_FIRE 3
-#define MUSE_WAN_COLD 4
-#define MUSE_WAN_LIGHTNING 5
-#define MUSE_WAN_MAGIC_MISSILE 6
-#define MUSE_WAN_STRIKING 7
-#define MUSE_SCR_FIRE 8
-#define MUSE_POT_PARALYSIS 9
-#define MUSE_POT_BLINDNESS 10
-#define MUSE_POT_CONFUSION 11
-#define MUSE_FROST_HORN 12
-#define MUSE_FIRE_HORN 13
+#define MUSE_WAN_FIREBALL 3
+#define MUSE_WAN_FIRE 4
+#define MUSE_WAN_COLD 5
+#define MUSE_WAN_LIGHTNING 6
+#define MUSE_WAN_MAGIC_MISSILE 7
+#define MUSE_WAN_STRIKING 8
+#define MUSE_SCR_FIRE 9
+#define MUSE_POT_PARALYSIS 10
+#define MUSE_POT_BLINDNESS 11
+#define MUSE_POT_CONFUSION 12
+#define MUSE_POT_SLEEPING 13
 #define MUSE_POT_ACID 14
-/*#define MUSE_WAN_TELEPORTATION 15*/
-#define MUSE_POT_SLEEPING 16
-#define MUSE_SCR_EARTH 17
+#define MUSE_FROST_HORN 15
+#define MUSE_FIRE_HORN 16
+#define MUSE_WAN_DRAINING 17	/* KMH */
+/*#define MUSE_WAN_TELEPORTATION 18*/
+#define MUSE_SCR_EARTH 19
+#define MUSE_POT_AMNESIA 20
+#define MUSE_WAN_CANCELLATION 21	/* Lethe */
 
 /* Select an offensive item/action for a monster.  Returns TRUE iff one is
  * found.
@@ -998,6 +1091,14 @@ struct monst *mtmp;
 			m.offensive = obj;
 			m.has_offense = MUSE_WAN_SLEEP;
 		    }
+/*WAC fixed*/
+/* [Tom] doesn't work...*/
+
+		    nomore(MUSE_WAN_FIREBALL);                    
+		    if(obj->otyp == WAN_FIREBALL && obj->spe > 0) {
+			m.offensive = obj;
+			m.has_offense = MUSE_WAN_FIREBALL;
+                    }
 		    nomore(MUSE_WAN_FIRE);
 		    if(obj->otyp == WAN_FIRE && obj->spe > 0) {
 			m.offensive = obj;
@@ -1029,6 +1130,11 @@ struct monst *mtmp;
 			m.has_offense = MUSE_WAN_MAGIC_MISSILE;
 		    }
 		}
+		nomore(MUSE_WAN_DRAINING);
+		if(obj->otyp == WAN_DRAINING && obj->spe > 0) {
+			m.offensive = obj;
+			m.has_offense = MUSE_WAN_DRAINING;
+		}
 		nomore(MUSE_WAN_STRIKING);
 		if(obj->otyp == WAN_STRIKING && obj->spe > 0) {
 			m.offensive = obj;
@@ -1054,6 +1160,18 @@ struct monst *mtmp;
 			m.offensive = obj;
 			m.has_offense = MUSE_POT_SLEEPING;
 		}
+		/* Mik's Lethe patch - monsters use !oAmnesia */
+		nomore(MUSE_POT_AMNESIA);
+		if (obj->otyp == POT_AMNESIA) {
+			m.offensive   = obj;
+			m.has_offense = MUSE_POT_AMNESIA;
+		}
+		nomore(MUSE_POT_SLEEPING);
+		if(obj->otyp == POT_SLEEPING) {
+			m.offensive = obj;
+			m.has_offense = MUSE_POT_SLEEPING;
+		}
+		/* KMH, balance patch -- monsters use potion of acid */
 		nomore(MUSE_POT_ACID);
 		if(obj->otyp == POT_ACID) {
 			m.offensive = obj;
@@ -1078,6 +1196,11 @@ struct monst *mtmp;
 		       && (!In_endgame(&u.uz) || Is_earthlevel(&u.uz))) {
 		    m.offensive = obj;
 		    m.has_offense = MUSE_SCR_EARTH;
+		}
+		nomore(MUSE_WAN_CANCELLATION);
+		if (obj->otyp == WAN_CANCELLATION && obj->spe > 0) {
+			m.offensive   = obj;
+			m.has_offense = MUSE_WAN_CANCELLATION;
 		}
 #if 0
 		nomore(MUSE_SCR_FIRE);
@@ -1157,6 +1280,37 @@ register struct obj *otmp;
 	case SPE_CANCELLATION:
 		(void) cancel_monst(mtmp, otmp, FALSE, TRUE, FALSE);
 		break;
+	case WAN_DRAINING:	/* KMH */
+		tmp = d(2,6);
+		if (mtmp == &youmonst) {
+			if (Drain_resistance) {
+				shieldeff(u.ux, u.uy);
+				pline("Boing!");
+			} else
+				losexp("life drainage", FALSE);
+			if (zap_oseen)
+				makeknown(WAN_DRAINING);
+			stop_occupation();
+			nomul(0);
+			break;
+		} else if (resists_drli(mtmp)) {
+			shieldeff(mtmp->mx, mtmp->my);
+			break;	/* skip makeknown */
+		} else if (!resist(mtmp, otmp->oclass, tmp, NOTELL) &&
+				mtmp->mhp > 0) {
+			mtmp->mhpmax -= tmp;
+			if (mtmp->mhpmax <= 0 || mtmp->m_lev <= 0)
+				monkilled(mtmp, "", AD_DRLI);
+			else {
+				mtmp->m_lev--;
+				if (canseemon(mtmp)) {
+					pline("%s suddenly seems weaker!", Monnam(mtmp));
+				}
+			}
+		}
+		if (cansee(mtmp->mx, mtmp->my) && zap_oseen)
+			makeknown(WAN_DRAINING);
+		break;
 	}
 	if (reveal_invis) {
 	    if (mtmp->mhp > 0 && cansee(bhitpos.x,bhitpos.y)
@@ -1186,8 +1340,8 @@ struct obj *obj;			/* 2nd arg to fhitm/fhito */
 
 	bhitpos.x = mon->mx;
 	bhitpos.y = mon->my;
-	ddx = sgn(mon->mux - mon->mx);
-	ddy = sgn(mon->muy - mon->my);
+	u.dx = ddx = sgn(mon->mux - mon->mx);
+	u.dy = ddy = sgn(mon->muy - mon->my);
 
 	while(range-- > 0) {
 		int x,y;
@@ -1278,6 +1432,8 @@ struct monst *mtmp;
 	switch(m.has_offense) {
 	case MUSE_WAN_DEATH:
 	case MUSE_WAN_SLEEP:
+/*WAC reactivate*/
+	case MUSE_WAN_FIREBALL:
 	case MUSE_WAN_FIRE:
 	case MUSE_WAN_COLD:
 	case MUSE_WAN_LIGHTNING:
@@ -1286,11 +1442,20 @@ struct monst *mtmp;
 		otmp->spe--;
 		if (oseen) makeknown(otmp->otyp);
 		m_using = TRUE;
+/*WAC Handled later
+		if (otmp->otyp == WAN_FIREBALL) {
+		    buzz((int) -10 - SPE_FIREBALL - SPE_MAGIC_MISSILE, rn2(2)+3,
+		    mtmp->mx, mtmp->my,
+		    sgn(mtmp->mux-mtmp->mx), sgn(mtmp->muy-mtmp->my));
+		}
+		else {
+*/
 		buzz((int)(-30 - (otmp->otyp - WAN_MAGIC_MISSILE)),
 			(otmp->otyp == WAN_MAGIC_MISSILE) ? 2 : 6,
 			mtmp->mx, mtmp->my,
 			sgn(mtmp->mux-mtmp->mx), sgn(mtmp->muy-mtmp->my));
 		m_using = FALSE;
+/*                }*/
 		return (mtmp->mhp <= 0) ? 1 : 2;
 	case MUSE_FIRE_HORN:
 	case MUSE_FROST_HORN:
@@ -1306,8 +1471,10 @@ struct monst *mtmp;
 			sgn(mtmp->mux-mtmp->mx), sgn(mtmp->muy-mtmp->my));
 		m_using = FALSE;
 		return (mtmp->mhp <= 0) ? 1 : 2;
-	case MUSE_WAN_TELEPORTATION:
+/*      case MUSE_WAN_TELEPORTATION:*/
 	case MUSE_WAN_STRIKING:
+	case MUSE_WAN_DRAINING:	/* KMH */
+	case MUSE_WAN_CANCELLATION:  /* Lethe */
 		zap_oseen = oseen;
 		mzapmsg(mtmp, otmp, FALSE);
 		otmp->spe--;
@@ -1464,6 +1631,10 @@ struct monst *mtmp;
 			(void) destroy_mitem(mtmp, SPBOOK_CLASS, AD_FIRE);
 			(void) destroy_mitem(mtmp, POTION_CLASS, AD_FIRE);
 			num = (2*(rn1(3, 3) + 2 * bcsign(otmp)) + 1)/3;
+			if (Slimed) {
+			      Your("slimy parts are burned away!");
+			      Slimed = 0;
+			}
 			if (Fire_resistance)
 			    You("are not harmed.");
 			burn_away_slime();
@@ -1492,6 +1663,7 @@ struct monst *mtmp;
 	case MUSE_POT_CONFUSION:
 	case MUSE_POT_SLEEPING:
 	case MUSE_POT_ACID:
+	case MUSE_POT_AMNESIA:
 		/* Note: this setting of dknown doesn't suffice.  A monster
 		 * which is out of sight might throw and it hits something _in_
 		 * sight, a problem not existing with wands because wand rays
@@ -1528,7 +1700,9 @@ struct monst *mtmp;
 # endif
 		) return 0;
 	if (difficulty > 7 && !rn2(35)) return WAN_DEATH;
+	if (difficulty > 6 && !rn2(25)) return WAN_FIREBALL;
 	switch (rn2(9 - (difficulty < 4) + 4 * (difficulty > 6))) {
+
 		case 0: {
 		    struct obj *helmet = which_armor(mtmp, W_ARMH);
 
@@ -1541,12 +1715,12 @@ struct monst *mtmp;
 		case 4: return POT_BLINDNESS;
 		case 5: return POT_SLEEPING;
 		case 6: return POT_PARALYSIS;
-		case 7: case 8:
-			return WAN_MAGIC_MISSILE;
-		case 9: return WAN_SLEEP;
-		case 10: return WAN_FIRE;
-		case 11: return WAN_COLD;
-		case 12: return WAN_LIGHTNING;
+		case 7: return WAN_MAGIC_MISSILE;
+		case 8: return WAN_SLEEP;
+		case 9: return WAN_FIRE;
+		case 10: return WAN_COLD;
+		case 11: return WAN_LIGHTNING;
+		case 12: return WAN_DRAINING;
 	}
 	/*NOTREACHED*/
 	return 0;
@@ -1571,7 +1745,11 @@ struct monst *mtmp;
 	int x = mtmp->mx, y = mtmp->my;
 	struct trap *t;
 	int xx, yy;
+#ifdef STEED
+	boolean immobile = (mdat->mmove == 0 || mtmp == u.usteed);
+#else
 	boolean immobile = (mdat->mmove == 0);
+#endif
 	boolean stuck = (mtmp == u.ustuck);
 
 	m.misc = (struct obj *)0;
@@ -1620,8 +1798,10 @@ struct monst *mtmp;
 			m.has_misc = MUSE_POT_GAIN_LEVEL;
 		}
 		nomore(MUSE_BULLWHIP);
+/*  WAC kludge here so monsters don't attempt to grab cursed weapon */
 		if(obj->otyp == BULLWHIP && (MON_WEP(mtmp) == obj) &&
-		   distu(mtmp->mx,mtmp->my)==1 && uwep && !mtmp->mpeaceful) {
+		   distu(mtmp->mx,mtmp->my)==1 && uwep && !uwep->cursed &&
+		   !mtmp->mpeaceful) {
 			m.misc = obj;
 			m.has_misc = MUSE_BULLWHIP;
 		}
@@ -1673,6 +1853,7 @@ struct monst *mtmp;
 #undef nomore
 }
 
+#if 0
 /* type of monster to polymorph into; defaults to one suitable for the
    current level rather than the totally arbitrary choice of newcham() */
 static struct permonst *
@@ -1689,6 +1870,7 @@ struct monst *mon;
 	}
 	return rndmonst();
 }
+#endif
 
 int
 use_misc(mtmp)
@@ -1785,13 +1967,21 @@ skipmsg:
 	case MUSE_WAN_POLYMORPH:
 		mzapmsg(mtmp, otmp, TRUE);
 		otmp->spe--;
-		(void) newcham(mtmp, muse_newcham_mon(mtmp), TRUE, FALSE);
+#if 0
+		(void) newcham(mtmp, muse_newcham_mon(), TRUE, vismon);
+#else
+		(void) mon_poly(mtmp, FALSE, "%s changes!");
+#endif
 		if (oseen) makeknown(WAN_POLYMORPH);
 		return 2;
 	case MUSE_POT_POLYMORPH:
 		mquaffmsg(mtmp, otmp);
+#if 0
 		if (vismon) pline("%s suddenly mutates!", Monnam(mtmp));
-		(void) newcham(mtmp, muse_newcham_mon(mtmp), FALSE, FALSE);
+		(void) newcham(mtmp, muse_newcham_mon(mtmp), FALSE, vismon);
+#else
+		(void) mon_poly(mtmp, FALSE, "%s suddenly mutates!");
+#endif
 		if (oseen) makeknown(POT_POLYMORPH);
 		m_useup(mtmp, otmp);
 		return 2;
@@ -1809,7 +1999,11 @@ skipmsg:
 		if (mtmp->wormno) worm_move(mtmp);
 		newsym(trapx, trapy);
 
-		(void) newcham(mtmp, (struct permonst *)0, FALSE, FALSE);
+#if 0
+		(void) newcham(mtmp, (struct permonst *)0, FALSE, vismon);
+#else
+		(void) mon_poly(mtmp, FALSE, "%s changes!");
+#endif
 		return 2;
 	case MUSE_BULLWHIP:
 		/* attempt to disarm hero */
@@ -1969,10 +2163,17 @@ struct obj *obj;
 	    if (objects[typ].oc_dir == RAY ||
 		    typ == WAN_STRIKING ||
 		    typ == WAN_TELEPORTATION ||
-		    typ == WAN_CREATE_MONSTER)
+		    typ == WAN_CREATE_MONSTER ||
+		    typ == WAN_CREATE_HORDE ||
+		    typ == WAN_DRAINING	||
+		    typ == WAN_HEALING ||
+		    typ == WAN_EXTRA_HEALING ||
+		    typ == WAN_CANCELLATION)
 		return TRUE;
 	    break;
 	case POTION_CLASS:
+	    if (typ == POT_VAMPIRE_BLOOD)
+		return is_vampire(mon->data);
 	    if (typ == POT_HEALING ||
 		    typ == POT_EXTRA_HEALING ||
 		    typ == POT_FULL_HEALING ||
@@ -1981,7 +2182,8 @@ struct obj *obj;
 		    typ == POT_PARALYSIS ||
 		    typ == POT_SLEEPING ||
 		    typ == POT_ACID ||
-		    typ == POT_CONFUSION)
+		    typ == POT_CONFUSION ||
+		    typ == POT_AMNESIA)
 		return TRUE;
 	    if (typ == POT_BLINDNESS && !attacktype(mon->data, AT_GAZE))
 		return TRUE;
@@ -2004,6 +2206,8 @@ struct obj *obj;
 		return (boolean)(!obj->cursed && !is_unicorn(mon->data));
 	    if (typ == FROST_HORN || typ == FIRE_HORN)
 		return (obj->spe > 0);
+	    if (is_weptool(obj))
+	    	return (boolean)likes_objs(mon->data);
 	    break;
 	case FOOD_CLASS:
 	    if (typ == CORPSE)
@@ -2048,6 +2252,9 @@ const char *str;
 		makeknown(AMULET_OF_REFLECTION);
 	    }
 	    return TRUE;
+	} else if (mon->data == &mons[PM_NIGHTMARE]) {
+	    pline(str,s_suffix(mon_nam(mon)),"horn");
+	    return TRUE;
 	} else if ((orefl = which_armor(mon, W_ARM)) &&
 		(orefl->otyp == SILVER_DRAGON_SCALES || orefl->otyp == SILVER_DRAGON_SCALE_MAIL)) {
 	    if (str)
@@ -2058,6 +2265,13 @@ const char *str;
 	    /* Silver dragons only reflect when mature; babies do not */
 	    if (str)
 		pline(str, s_suffix(mon_nam(mon)), "scales");
+	    return TRUE;
+	} else if (mon->data == &mons[PM_DIAMOND_GOLEM]
+	         || mon->data == &mons[PM_SAPPHIRE_GOLEM]
+	         || mon->data == &mons[PM_CRYSTAL_GOLEM]) {
+	    /* Some of the higher golems have intrinsic reflection */
+	    if (str)
+		pline(str, s_suffix(mon_nam(mon)), "body");
 	    return TRUE;
 	}
 	return FALSE;
@@ -2092,6 +2306,12 @@ const char *fmt, *str;
 	} else if (youmonst.data == &mons[PM_SILVER_DRAGON]) {
 	    if (fmt && str)
 	    	pline(fmt, str, "scales");
+	    return TRUE;
+	} else if (youmonst.data == &mons[PM_DIAMOND_GOLEM]
+	         || youmonst.data == &mons[PM_SAPPHIRE_GOLEM]
+	         || youmonst.data == &mons[PM_CRYSTAL_GOLEM]) {
+	    if (fmt && str)
+	    	pline(fmt, str, "body");
 	    return TRUE;
 	}
 	return FALSE;

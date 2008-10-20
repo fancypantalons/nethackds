@@ -145,7 +145,7 @@ CALLOC = ../src/alloc.c panic.c
 OALLOC = $(OBJDIR)/alloc.o panic.o
 
 # object files for makedefs
-MAKEOBJS = makedefs.o $(OMONOBJ)
+MAKEOBJS = makedefs.o $(OMONOBJ) $(OALLOC)
 
 # object files for special levels compiler
 SPLEVOBJS = lev_yacc.o lev_lex.o lev_main.o $(OALLOC) $(ONAMING)
@@ -163,7 +163,7 @@ DLBOBJS = dlb_main.o $(OBJDIR)/dlb.o $(OALLOC)
 # a more portable flex skeleton, which is not included in the distribution.
 # hopefully keeping this out of the section to be edited will keep too
 # many people from being confused by it...
-# FLEXDIST = -L -S../sys/share/flexhack.skl
+# FLEXDIST = -L # -S../sys/share/flexhack.skl
 FLEXDIST =
 #
 # flags for creating distribution versions of sys/share/*_yacc.c, without
@@ -214,7 +214,7 @@ lev_comp:  $(SPLEVOBJS)
 
 lev_yacc.o:  lev_yacc.c $(HACK_H) ../include/sp_lev.h
 lev_main.o:  lev_main.c $(HACK_H) ../include/sp_lev.h ../include/tcap.h \
-		../include/date.h
+		../include/date.h ../include/artilist.h
 
 # see lev_comp.l for WEIRD_LEX discussion
 # egrep will return failure if it doesn't find anything, but we know there
@@ -293,14 +293,31 @@ dlb_main.o: dlb_main.c $(CONFIG_H) ../include/dlb.h ../include/date.h
 #
 TEXT_IO = tiletext.o tiletxt.o $(ONAMING)
 GIFREADERS = gifread.o $(OALLOC)
+XPMREADERS = xpmread.o $(OALLOC)
 PPMWRITERS = ppmwrite.o $(OALLOC)
 
-tileutils: tilemap gif2txt txt2ppm tile2x11
+tileutils: tilemap gif2txt xpm2txt txt2ppm txtfilt tile2x11 magtile bigtile \
+	txtmerge txtbg mapmerge tile2png
 
+magtile: magtile.o $(TEXT_IO)
+	$(CC) $(LFLAGS) -o magtile magtile.o $(TEXT_IO) $(LIBS)
+bigtile: bigtile.o $(TEXT_IO)
+	$(CC) $(LFLAGS) -o bigtile bigtile.o $(TEXT_IO) $(LIBS)
 gif2txt: $(GIFREADERS) $(TEXT_IO)
 	$(CC) $(LFLAGS) -o gif2txt $(GIFREADERS) $(TEXT_IO) $(LIBS)
+xpm2txt: $(XPMREADERS) $(TEXT_IO)
+	$(CC) $(LFLAGS) -o xpm2txt $(XPMREADERS) $(TEXT_IO) $(LIBS) -lXpm -lX11
 txt2ppm: $(PPMWRITERS) $(TEXT_IO)
 	$(CC) $(LFLAGS) -o txt2ppm $(PPMWRITERS) $(TEXT_IO) $(LIBS)
+txtfilt: txtfilt.o $(TEXT_IO)
+	$(CC) $(LFLAGS) -o txtfilt txtfilt.o $(TEXT_IO) $(LIBS)
+txtbg: txtbg.o $(TEXT_IO)
+	$(CC) $(LFLAGS) -o txtbg txtbg.o $(TEXT_IO) $(LIBS)
+mapmerge: mapmerge.o
+	$(CC) $(LFLAGS) -o mapmerge mapmerge.o
+
+txtmerge: txtmerge.o $(TEXT_IO)
+	$(CC) $(LFLAGS) -o txtmerge txtmerge.o $(TEXT_IO) $(LIBS)
 
 tile2x11: tile2x11.o $(TEXT_IO)
 	$(CC) $(LFLAGS) -o tile2x11 tile2x11.o $(TEXT_IO) $(LIBS)
@@ -317,13 +334,21 @@ xpm2img.ttp: xpm2img.o bitmfile.o
 tile2beos: tile2beos.o $(TEXT_IO)
 	$(CC) $(LFLAGS) -o tile2beos tile2beos.o $(TEXT_IO) -lbe
 
+tile2png: tile2png.o $(TEXT_IO)
+	$(CC) $(LFLAGS) -o tile2png tile2png.o $(TEXT_IO) -lz -lpng
+
 tilemap: ../win/share/tilemap.c $(HACK_H)
 	$(CC) $(CFLAGS) $(LFLAGS) -o tilemap ../win/share/tilemap.c $(LIBS)
 ../src/tile.c: tilemap
 	./tilemap
+../include/tile.h: ../win/share/tile_t.h tilemap
+	./tilemap
 
-../include/tile.h: ../win/share/tile.h
-	cp ../win/share/tile.h ../include/tile.h
+magtile.o: ../win/share/magtile.c $(CONFIG_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/magtile.c
+bigtile.o: ../win/share/bigtile.c $(CONFIG_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/bigtile.c
+
 tiletext.o: ../win/share/tiletext.c $(CONFIG_H) ../include/tile.h
 	$(CC) $(CFLAGS) -c ../win/share/tiletext.c
 tiletxt.o: ../win/share/tilemap.c $(HACK_H)
@@ -332,8 +357,19 @@ tiletxt.o: ../win/share/tilemap.c $(HACK_H)
 
 gifread.o: ../win/share/gifread.c $(CONFIG_H) ../include/tile.h
 	$(CC) $(CFLAGS) -c ../win/share/gifread.c
+xpmread.o: ../win/share/xpmread.c $(HACK_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/xpmread.c
 ppmwrite.o: ../win/share/ppmwrite.c $(CONFIG_H) ../include/tile.h
 	$(CC) $(CFLAGS) -c ../win/share/ppmwrite.c
+txtfilt.o: ../win/share/txtfilt.c $(CONFIG_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/txtfilt.c
+txtbg.o: ../win/share/txtbg.c $(HACK_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/txtbg.c
+mapmerge.o: ../win/share/mapmerge.c $(HACK_H)
+	$(CC) $(CFLAGS) -c ../win/share/mapmerge.c
+
+txtmerge.o: ../win/share/txtmerge.c $(CONFIG_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/txtmerge.c
 
 tile2bmp.o: ../win/share/tile2bmp.c $(HACK_H) ../include/tile.h
 	$(CC) $(CFLAGS) -c ../win/share/tile2bmp.c
@@ -352,6 +388,9 @@ bitmfile.o: ../win/gem/bitmfile.c ../include/bitmfile.h
 
 tile2beos.o: ../win/BeOS/tile2beos.cpp $(HACK_H) ../include/tile.h
 	$(CXX) $(CFLAGS) -c ../win/BeOS/tile2beos.cpp
+
+tile2png.o: ../win/share/tile2png.c $(HACK_H) ../include/tile.h
+	$(CC) $(CFLAGS) -c ../win/share/tile2png.c
 
 # using dependencies like
 #	../src/foo::
@@ -396,7 +435,8 @@ spotless: clean
 	-rm -f ../include/lev_comp.h ../include/dgn_comp.h
 	-rm -f ../include/tile.h
 	-rm -f makedefs lev_comp dgn_comp recover dlb
-	-rm -f gif2txt txt2ppm tile2x11 tile2img.ttp xpm2img.ttp tilemap
+	-rm -f gif2txt xpm2txt txt2ppm tile2x11 tile2img.ttp xpm2img.ttp tilemap
+	-rm -f magtile bigtile txtmerge txtfilt txtbg mapmerge tile2png
 
 tileedit: tileedit.cpp $(TEXT_IO)
 	$(QTDIR)/bin/moc -o tileedit.moc tileedit.h

@@ -1,4 +1,7 @@
-	SCCS Id: @(#)Install.dos	 3.4
+WAC Note:
+Allegro support can be defined in the makefile.gcc by defining ALLEG_FX
+
+SCCS Id: @(#)Install.dos	 3.4
 
 	   Copyright (c) NetHack PC Development Team 1990-2002.
        NetHack may be freely redistributed.  See license for details.
@@ -7,7 +10,7 @@
 		     NetHack 3.4 on a DOS system
          ======================================================
                    (or, How to make PC NetHack 3.4)
-                 Last revision: $Date: 2003/06/13 19:57:52 $
+                 Last revision: $Date: 2003/11/24 20:12:12 $
 
 Credit for a runnable full PC NetHack 3.4 goes to the PC Development team
 of Paul Winner, Kevin Smolkowski, Michael Allison, Yitzhak Sapir, Bill Dyer, 

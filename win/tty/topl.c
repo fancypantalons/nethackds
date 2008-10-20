@@ -10,9 +10,16 @@
 #include "wintty.h"
 #include <ctype.h>
 
+#ifdef  __WATCOMC__
+ /* for delay() */
+ #include <i86.h>
+#endif
+
 #ifndef C	/* this matches src/cmd.c */
 #define C(c)	(0x1f & (c))
 #endif
+
+
 
 STATIC_DCL void FDECL(redotoplin, (const char*));
 STATIC_DCL void FDECL(topl_putsym, (CHAR_P));
@@ -21,9 +28,16 @@ STATIC_DCL void FDECL(removetopl, (int));
 
 #ifdef OVLB
 
+#ifdef BORG
+extern char borg_on;
+#endif
+
 int
 tty_doprev_message()
 {
+	/*WAC merged in NH340 prevwindow - add reverse ordering?*/
+    winid tmpwin;
+
     register struct WinDesc *cw = wins[WIN_MESSAGE];
 
     winid prevmsg_win;
@@ -114,6 +128,44 @@ tty_doprev_message()
         } while (morc == C('p'));
         ttyDisplay->dismiss_more = 0;
     }
+
+#if 0
+    ttyDisplay->dismiss_more = C('p');	/* <ctrl/P> allowed at --More-- */
+
+    do {
+	morc = 0;
+        if (cw->maxcol == cw->maxrow) {
+            redotoplin(toplines);
+            cw->maxcol--;
+            if (cw->maxcol < 0) cw->maxcol = cw->rows-1;
+            if (!cw->data[cw->maxcol])
+                cw->maxcol = cw->maxrow;
+        } else
+        if (cw->data[cw->maxcol]) {
+/*WAC Show all the history in a window*/
+            tmpwin = create_nhwindow(NHW_MENU);
+            putstr(tmpwin, ATR_BOLD, "Message History");
+            putstr(tmpwin, 0, "");
+            putstr(tmpwin, 0, toplines);
+
+            do {
+                if (!cw->data[cw->maxcol]) break;
+                putstr(tmpwin, 0, cw->data[cw->maxcol]);
+                cw->maxcol--;
+                if (cw->maxcol < 0) cw->maxcol = cw->rows-1;
+                if (!cw->data[cw->maxcol])
+                        cw->maxcol = cw->maxrow;
+            } while (cw->maxcol != cw->maxrow);
+
+            display_nhwindow(tmpwin, TRUE);
+            destroy_nhwindow(tmpwin);
+
+            cw->maxcol = cw->maxrow;
+        } 
+
+    } while (morc == C('p'));
+    ttyDisplay->dismiss_more = 0;
+#endif
     return 0;
 }
 
@@ -192,7 +244,21 @@ more()
     if(flags.standout)
 	standoutend();
 
+#ifdef BORG
+    if (borg_on) {
+#ifdef  __WATCOMC__
+         delay(100);
+#else
+       delay_output();
+       delay_output(); /* 100ms wait */
+#endif
+   } else {
+
     xwaitforspace("\033 ");
+   }
+#else
+    xwaitforspace("\033 ");
+#endif
 
     if(morc == '\033')
 	cw->flags |= WIN_STOP;

@@ -92,7 +92,12 @@
 
 #else	/* V7 */
 
-# include <sgtty.h>
+#ifdef POSIX_TYPES
+static int FDECL (speednum, (speed_t));
+#endif
+static void NDECL (setctty);
+
+# include <bsd/sgtty.h>
 # define termstruct	sgttyb
 # define kill_sym	sg_kill
 # define erase_sym	sg_erase

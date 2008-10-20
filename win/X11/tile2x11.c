@@ -10,13 +10,13 @@
 #include "tile.h"
 #include "tile2x11.h"		/* x11 output file header structure */
 
-#define OUTNAME "x11tiles"	/* output file name */
+#define OUTNAME "x11tiles"	/* Default output file name */
 /* #define PRINT_COLORMAP */	/* define to print the colormap */
 
 
 x11_header	header;
-unsigned char	tile_bytes[TILE_X*TILE_Y*(MAX_GLYPH+TILES_PER_ROW)];
-unsigned char	*curr_tb = tile_bytes;
+unsigned char	*tile_bytes = NULL;
+unsigned char	*curr_tb = NULL;
 unsigned char	x11_colormap[MAXCOLORMAPSIZE][3];
 
 
@@ -28,9 +28,9 @@ pix_to_colormap(pix)
     int i;
 
     for (i = 0; i < header.ncolors; i++) {
-	if (pix.r == ColorMap[CM_RED][i] &&
-		pix.g == ColorMap[CM_GREEN][i] &&
-		pix.b == ColorMap[CM_BLUE][i])
+	if (pix.r == x11_colormap[i][CM_RED] &&
+		pix.g == x11_colormap[i][CM_GREEN] &&
+		pix.b == x11_colormap[i][CM_BLUE])
 	    break;
     }
 
@@ -44,31 +44,22 @@ pix_to_colormap(pix)
 
 /* Convert the tiles in the file to our format of bytes. */
 static unsigned long
-convert_tiles(tb_ptr, total)
+convert_tiles(tb_ptr)
     unsigned char **tb_ptr;	/* pointer to a tile byte pointer */
-    unsigned long total;	/* total tiles so far */
 {
     unsigned char *tb = *tb_ptr;
     unsigned long count = 0;
-    pixel tile[TILE_Y][TILE_X];
+    pixel tile[MAX_TILE_Y][MAX_TILE_X];
     int x, y;
 
     while (read_text_tile(tile)) {
 	count++;
-	total++;
-	for (y = 0; y < TILE_Y; y++) {
-	    for (x = 0; x < TILE_X; x++)
-		tb[x] = pix_to_colormap(tile[y][x]);
-	    tb += TILE_X * header.per_row;
-	}
-
-	/* repoint at the upper-left corner of the next tile */
-	*tb_ptr += TILE_X;
-	if (header.per_row == 1 || (total % header.per_row) == 0)
-	    *tb_ptr += TILE_X * (TILE_Y - 1) * header.per_row;
-	tb = *tb_ptr;
+	for (y = 0; y < tile_y; y++)
+	    for (x = 0; x < tile_x; x++)
+		*tb++ = pix_to_colormap(tile[y][x]);
     }
 
+    *tb_ptr = tb;	/* update return val */
     return count;
 }
 
@@ -118,8 +109,21 @@ process_file(fname)
 	Fprintf(stderr, "can't open file \"%s\"\n", fname);
 	exit(1);
     }
+
+    if (!tile_bytes) {
+	/*
+	 * Delayed until we open the first input file so that
+	 * we know the size of the tiles we are processing.
+	 */
+	tile_bytes = malloc(tile_x*tile_y*MAX_GLYPH);
+	if (!tile_bytes) {
+	    Fprintf(stderr, "Not enough memory.\n");
+	    exit(1);
+	}
+	curr_tb = tile_bytes;
+    }
     merge_text_colormap();
-    count = convert_tiles(&curr_tb, header.ntiles);
+    count = convert_tiles(&curr_tb);
     Fprintf(stderr, "%s: %lu tiles\n", fname, count);
     header.ntiles += count;
     fclose_text_file();
@@ -131,42 +135,102 @@ static int
 xpm_write(fp)
 FILE *fp;
 {
-    int i, j, n;
+    int i,j,x,y;
+    char c[3]="?";
+    unsigned char *bytes;
 
-    if (header.ncolors > 64) {
-	Fprintf(stderr, "Sorry, only configured for up to 64 colors\n");
+    if (header.ncolors > 4096) {
+	Fprintf(stderr, "Sorry, only configured for up to 4096 colors\n");
 	exit(1);
 	/* All you need to do is add more char per color - below */
     }
 
+    /* Fill unused entries with "checkerboard" pattern */
+    for(i = TILES_PER_COL * TILES_PER_ROW - header.ntiles; i > 0; i--)
+	for (y = 0; y < tile_y; y++)
+	    for (x = 0; x < tile_x; x+=2)
+	    {
+		*curr_tb++ = 0;
+		*curr_tb++ = 1;
+	    }
+
     Fprintf(fp, "/* XPM */\n");
     Fprintf(fp, "static char* nhtiles[] = {\n");
     Fprintf(fp, "\"%lu %lu %lu %d\",\n",
-		header.tile_width*header.per_row,
-		(header.tile_height*header.ntiles)/header.per_row,
+		header.tile_width*TILES_PER_ROW,
+		header.tile_height*TILES_PER_COL,
 		header.ncolors,
-		1 /* char per color */);
-    for (i = 0; i < header.ncolors; i++)
-	Fprintf(fp, "\"%c  c #%02x%02x%02x\",\n",
-		i+'0', /* just one char per color */
+		header.ncolors > 64 ? 2 : 1 /* char per color */);
+    for (i = 0; i < header.ncolors; i++) {
+	if (header.ncolors > 64) {
+	    /* two chars per color */
+	    c[0] = i / 64 + '0';
+	    c[1] = i % 64 + '0';
+	}
+	else
+	    c[0] = i + '0';	/* just one char per color */
+	Fprintf(fp, "\"%s  c #%02x%02x%02x\",\n", c,
 		x11_colormap[i][0],
 		x11_colormap[i][1],
 		x11_colormap[i][2]);
+    }
 
-    n = 0;
-    for (i = 0; i < (header.tile_height*header.ntiles)/header.per_row; i++) {
+    for (j = 0; j < TILES_PER_COL; j++)
+	for (y = 0; y < header.tile_height; y++) {
+	    bytes=tile_bytes+(j*TILES_PER_ROW*header.tile_height+y)*
+	      header.tile_width;
 	Fprintf(fp, "\"");
-	for (j = 0; j < header.tile_width*header.per_row; j++) {
-	    /* just one char per color */
-	    fputc(tile_bytes[n++]+'0', fp);
+	    for (i = 0; i < TILES_PER_ROW; i++) {
+		for (x = 0; x < header.tile_width; x++) {
+		    if (header.ncolors > 64) {
+			/* two chars per color */
+			c[0] = bytes[x] / 64 + '0';
+			c[1] = bytes[x] % 64 + '0';
+		    }
+		    else
+			c[0] = bytes[x] + '0';	/* just one char per color */
+		    fputs(c, fp);
+		}
+		bytes+=header.tile_height*header.tile_width;
 	}
-
 	Fprintf(fp, "\",\n");
     }
 
-    return fprintf(fp, "};\n") >= 0;
+    return fprintf(fp, "};\n")>=0;
 }
 #endif	/* USE_XPM */
+
+/*
+ * ALI
+ *
+ * Architecture independent tile file so that x11tiles can always be
+ * stored in FILE_AREA_SHARE, thus simplifying the configuration.
+ */
+
+static boolean
+fwrite_tile_header_item(item, fp)
+long item;
+FILE *fp;
+{
+    putc((item>>24)&0xff,fp);
+    putc((item>>16)&0xff,fp);
+    putc((item>>8)&0xff,fp);
+    putc(item&0xff,fp);
+    return !ferror(fp);
+}
+
+static boolean
+fwrite_tile_header(header, fp)
+x11_header *header;
+FILE *fp;
+{
+    return fwrite_tile_header_item(header->version,fp) &&
+      fwrite_tile_header_item(header->ncolors,fp) &&
+      fwrite_tile_header_item(header->tile_width,fp) &&
+      fwrite_tile_header_item(header->tile_height,fp) &&
+      fwrite_tile_header_item(header->ntiles,fp) &&
+      fwrite_tile_header_item(header->per_row,fp);
+}
 
 int
 main(argc, argv)
@@ -174,37 +238,41 @@ main(argc, argv)
     char **argv;
 {
     FILE *fp;
-    int i;
+    int i, argn = 1;
+    char *outname = OUTNAME;
 
     header.version	= 2;		/* version 1 had no per_row field */
     header.ncolors	= 0;
-    header.tile_width	= TILE_X;
-    header.tile_height	= TILE_Y;
     header.ntiles	= 0;		/* updated as we read in files */
-    header.per_row	= TILES_PER_ROW;
+    header.per_row	= 1;
 
-    if (argc == 1) {
-	Fprintf(stderr, "usage: %s txt_file1 [txt_file2 ...]\n", argv[0]);
+    while (argn < argc) {
+	if (argn + 1 < argc && !strcmp(argv[argn], "-o")) {
+	    outname = argv[argn + 1];
+	    argn += 2;
+	}
+	else
+	    break;
+    }
+
+    if (argn == argc) {
+	Fprintf(stderr, "usage: %s [-o out_file] txt_file1 [txt_file2 ...]\n",
+	  argv[0]);
 	exit(1);
     }
 
-    fp = fopen(OUTNAME, "w");
+    fp = fopen(outname, "w");
     if (!fp) {
-	Fprintf(stderr, "can't open output file\n");
+	perror(outname);
 	exit(1);
     }
 
-    /* don't leave garbage at end of partial row */
-    (void) memset((genericptr_t)tile_bytes, 0, sizeof(tile_bytes));
-
-    for (i = 1; i < argc; i++)
+    for (i = argn; i < argc; i++)
 	process_file(argv[i]);
     Fprintf(stderr, "Total tiles: %ld\n", header.ntiles);
 
-    /* round size up to the end of the row */
-    if ((header.ntiles % header.per_row) != 0) {
-	header.ntiles += header.per_row - (header.ntiles % header.per_row);
-    }
+    header.tile_width	= tile_x;
+    header.tile_height	= tile_y;
 
 #ifdef USE_XPM
     if (xpm_write(fp) == 0) {
@@ -212,8 +280,8 @@ main(argc, argv)
 	exit(1);
     }
 #else
-    if (fwrite((char *)&header, sizeof(x11_header), 1, fp) == 0) {
-	Fprintf(stderr, "can't open output header\n");
+    if (fwrite_tile_header(&header, fp) == 0) {
+	Fprintf(stderr, "can't write output header\n");
 	exit(1);
     }
 
@@ -231,5 +299,6 @@ main(argc, argv)
 #endif
 
     fclose(fp);
+    free(tile_bytes);
     return 0;
 }

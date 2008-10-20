@@ -26,6 +26,9 @@ gettty(){
 #if defined(MSDOS) && defined(NO_TERMS)
 	gr_init();
 #endif
+#if defined(MSDOS) && defined(PC_MOUSE)
+        mouse_init();
+#endif
 }
 
 /* reset terminal to original state */
@@ -35,6 +38,9 @@ const char *s;
 {
 #if defined(MSDOS) && defined(NO_TERMS)
 	gr_finish();
+#endif
+#if defined(MSDOS) && defined(PC_MOUSE)
+        mouse_finish();
 #endif
 	end_screen();
 	if(s) raw_print(s);

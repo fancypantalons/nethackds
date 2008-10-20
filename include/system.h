@@ -16,7 +16,9 @@
 #include <types.h>
 #else
 # ifndef AMIGA
+#  ifndef       __WATCOMC__
 #include <sys/types.h>
+# endif
 # endif
 #endif
 
@@ -57,7 +59,7 @@ typedef long	off_t;
 #endif
 #ifndef SIG_RET_TYPE
 # if defined(NHSTDC) || defined(POSIX_TYPES) || defined(OS2) || defined(__DECC)
-#  define SIG_RET_TYPE void (*)()
+#  define SIG_RET_TYPE void (*)(int)
 # endif
 #endif
 #ifndef SIG_RET_TYPE
@@ -76,19 +78,19 @@ typedef long	off_t;
 # ifdef random
 # undef random
 # endif
-# if !defined(__SC__) && !defined(LINUX)
+# if !defined(__SC__) && !defined(__CYGWIN__) && !defined(LINUX)
 E  long NDECL(random);
 # endif
 # if (!defined(SUNOS4) && !defined(bsdi) && !defined(__FreeBSD__)) || defined(RANDOM)
 E void FDECL(srandom, (unsigned int));
 # else
-#  if !defined(bsdi) && !defined(__FreeBSD__)
+#  if !defined(bsdi) && !defined(LINUX) && !defined(__CYGWIN__) && !defined(__FreeBSD__)
 E int FDECL(srandom, (unsigned int));
 #  endif
 # endif
 #else
-E long lrand48();
-E void srand48();
+E long FDECL(lrand48, (void));
+E void FDECL(srand48, (long));
 #endif /* BSD || ULTRIX || RANDOM */
 
 #if !defined(BSD) || defined(ultrix)
@@ -132,7 +134,7 @@ E void FDECL(perror, (const char *));
 E void FDECL(qsort, (genericptr_t,size_t,size_t,
 		     int(*)(const genericptr,const genericptr)));
 #else
-# if defined(BSD) || defined(ULTRIX)
+# if (defined(BSD) || defined(ULTRIX)) && (!defined(LINUX) && !defined(__CYGWIN__))
 E  int qsort();
 # else
 #  if !defined(LATTICE) && !defined(AZTEC_50)
@@ -160,7 +162,7 @@ E int FDECL(link, (const char *, const char*));
 # ifndef bsdi
 E long FDECL(lseek, (int,long,int));
 # endif
-#  if defined(POSIX_TYPES) || defined(__TURBOC__)
+#  if defined(POSIX_TYPES) || defined(__TURBOC__) || defined(_MSC_VER)
 #   ifndef bsdi
 E int FDECL(write, (int, const void *,unsigned));
 #   endif
@@ -175,11 +177,11 @@ E int FDECL(write, (int,genericptr_t,unsigned));
 #  ifdef OS2_CSET2_VER_1
 E int FDECL(unlink, (char *));
 #  else
-E int FDECL(unlink, (const char *)); /* prototype is ok in ver >= 2 */
-#  endif
-# else
 #  ifndef __SC__
 E int FDECL(unlink, (const char *));
+#  else
+E int FDECL(unlink, (const char *)); /* prototype is ok in ver >= 2 */
+#  endif
 #  endif
 # endif
 
@@ -205,8 +207,8 @@ E int FDECL(open, (const char *,int,...));
 E int FDECL(dup2, (int, int));
 E int FDECL(setmode, (int,int));
 E int NDECL(kbhit);
-# if !defined(_DCC)
-#  if defined(__TURBOC__)
+# if !defined(_DCC) && !defined(__MINGW32__)
+#  if defined(__TURBOC__) || defined(_MSC_VER)
 E int FDECL(chdir, (const char *));
 #  else
 #   ifndef __EMX__
@@ -298,8 +300,8 @@ E long NDECL(fork);
 #else
 #if defined(SYSV) || defined(VMS) || defined(MAC) || defined(SUNOS4)
 # if defined(NHSTDC) || (defined(VMS) && !defined(ANCIENT_VAXC))
-#  if !defined(_AIX32) && !(defined(SUNOS4) && defined(__STDC__))
-				/* Solaris unbundled cc (acc) */
+#  if !defined(_AIX32) && !(defined(SUNOS4) && defined(__STDC__)) && !defined(LINUX)
+/* Solaris unbundled cc (acc) */
 E int FDECL(memcmp, (const void *,const void *,size_t));
 E void *FDECL(memcpy, (void *, const void *, size_t));
 E void *FDECL(memset, (void *, int, size_t));
@@ -346,7 +348,7 @@ E char *FDECL(memset, (char*,int,int));
 E void sleep();
 #endif
 #if defined(ULTRIX) || defined(SYSV)
-E unsigned sleep();
+E unsigned sleep(unsigned);
 #endif
 #if defined(HPUX)
 E unsigned int FDECL(sleep, (unsigned int));
@@ -356,7 +358,7 @@ E int FDECL(sleep, (unsigned));
 #endif
 
 E char *FDECL(getenv, (const char *));
-E char *getlogin();
+E char *getlogin(void);
 #if defined(HPUX) && !defined(_POSIX_SOURCE)
 E long NDECL(getuid);
 E long NDECL(getgid);
@@ -421,7 +423,7 @@ E size_t FDECL(strlen, (const char *));
 # ifdef HPUX
 E unsigned int	FDECL(strlen, (char *));
 #  else
-#   if !(defined(ULTRIX_PROTO) && defined(__GNUC__))
+#   if !(defined(ULTRIX_PROTO) && defined(__GNUC__)) && !defined(LINUX)
 E int	FDECL(strlen, (const char *));
 #   endif
 #  endif /* HPUX */
@@ -517,12 +519,16 @@ E genericptr_t FDECL(malloc, (size_t));
 
 # ifndef LATTICE
 #  if !(defined(ULTRIX_PROTO) && defined(__GNUC__))
+#   ifndef      __WATCOMC__
 E struct tm *FDECL(localtime, (const time_t *));
 #  endif
 # endif
+# endif
 
 # if defined(ULTRIX) || (defined(BSD) && defined(POSIX_TYPES)) || defined(SYSV) || defined(MICRO) || defined(VMS) || defined(MAC) || (defined(HPUX) && defined(_POSIX_SOURCE))
+#  ifndef       __WATCOMC__
 E time_t FDECL(time, (time_t *));
+#  endif
 # else
 E long FDECL(time, (time_t *));
 # endif /* ULTRIX */

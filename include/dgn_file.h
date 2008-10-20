@@ -24,8 +24,7 @@ struct tmpdungeon {
 	int	flags,
 		chance,
 		levels,
-		branches,
-		entry_lev;		/* entry level for this dungeon */
+		branches;
 	char	boneschar;
 };
 
@@ -42,6 +41,7 @@ struct tmpbranch {
 	int	chain;		/* index into tmplevel array (chained branch)*/
 	int	type;		/* branch type (see below) */
 	int	up;		/* branch is up or down */
+	int	entry_lev;	/* entry level in target dungeon */
 };
 
 /*
@@ -70,7 +70,7 @@ struct tmpbranch {
 /*
  *	Max number of prototype levels and branches.
  */
-#define LEV_LIMIT	50
+#define LEV_LIMIT	99
 #define BRANCH_LIMIT	32
 
 #endif /* DGN_FILE_H */

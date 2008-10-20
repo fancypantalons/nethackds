@@ -123,6 +123,10 @@ STATIC_DCL void NDECL(positionbar);
 static void FDECL(vga_special,(int, int, int));
 #endif
 
+/* WAC draw a pet mark */
+void vga_Draw_PetMark(int,int,BOOLEAN_P);
+
+
 extern int clipx, clipxmax;	/* current clipping column from wintty.c */
 extern boolean clipping;	/* clipping on? from wintty.c */
 extern int savevmode;		/* store the original video mode */
@@ -202,6 +206,27 @@ STATIC_VAR struct overview_planar_cell_struct *planecell_O;
 STATIC_VAR struct tibhdr_struct tibheader;
 /* extern FILE *tilefile; */ /* Not needed in here most likely */
 # endif
+
+/*  WAC  quick colortest
+ *	1 - purple
+ *	2 - dark blue
+ *	3 - background gray
+ *	4 - orange
+ *	5 - brown
+ *	6 - bright green
+ *	7 - bright white
+ *	8 - light blue
+ *	9 - dark brown
+ *	10 - green
+ *	11 - white
+ *	12 - red
+ *	13 - skin
+ *	14 - yellow
+ *	15 - gray
+ *	16 - black
+ */
+
+STATIC_VAR int petmark_color = 12;
 
 /* STATIC_VAR int  g_attribute;	*/	/* Current attribute to use */
 
@@ -408,16 +433,30 @@ unsigned special;	/* special feature: corpse, invis, detected, pet, ridden - hac
 			if (map[ry][col].special) decal_planar(planecell, special);
 			vga_DisplayCell(planecell, 
 					col - clipx, row);
-		} else
+			if (glyph_is_pet(glyphnum)
+#ifdef TEXTCOLOR
+				&& iflags.hilite_pet
+#endif
+			   )
+			   	vga_Draw_PetMark(col- clipx, row, FALSE);
+		} else {
 			pline("vga_xputg: Error reading tile (%d,%d) from file",
 					glyphnum,glyph2tile[glyphnum]);
 	    }
+	    }
 	} else {
-	    if (!ReadPlanarTileFile_O(glyph2tile[glyphnum], &planecell_O))
+	    if (!ReadPlanarTileFile_O(glyph2tile[glyphnum], &planecell_O)) {
 			vga_DisplayCell_O(planecell_O, col, row);
-	    else
+			if (glyph_is_pet(glyphnum)
+#ifdef TEXTCOLOR
+				&& iflags.hilite_pet
+#endif
+			   )
+			   	vga_Draw_PetMark(col- clipx, row,TRUE);
+	    } else {
 			pline("vga_xputg: Error reading tile (%d,%d) from file",
 					glyphnum,glyph2tile[glyphnum]);
+	}
 	}
 	if (col < (CO - 1 )) ++col;
 	vga_gotoloc(col,row);
@@ -520,6 +559,12 @@ boolean clearfirst;
 						decal_planar(planecell, map[y][x].special);
 					vga_DisplayCell(planecell,
 						x - clipx, y + TOP_MAP_ROW);
+					if (glyph_is_pet(t)
+#ifdef TEXTCOLOR
+						&& iflags.hilite_pet
+#endif
+					   )
+					   	vga_Draw_PetMark(x - clipx, y + TOP_MAP_ROW,FALSE);
 		  	  	} else
 			      pline("vga_redrawmap: Error reading tile (%d,%d)",
 					 t,glyph2tile[t]);
@@ -528,6 +573,12 @@ boolean clearfirst;
 				     &planecell_O)) {
 					vga_DisplayCell_O(planecell_O,
 						x, y + TOP_MAP_ROW);
+					if (glyph_is_pet(t)
+#ifdef TEXTCOLOR
+						&& iflags.hilite_pet
+#endif
+					   )
+					   	vga_Draw_PetMark(x, y + TOP_MAP_ROW,TRUE);
 		  	  	} else
 			     pline("vga_redrawmap: Error reading tile (%d,%d)",
 					t,glyph2tile[t]);
@@ -658,13 +709,20 @@ boolean left;
 	for (y = 0; y < ROWNO; ++y) {
 	    for (x = i; x < j; x += 2) {
 		t = map[y][x].glyph;
-		if (!ReadPlanarTileFile(glyph2tile[t], &planecell))
-			if (map[y][x].special) decal_planar(planecell, map[y][x].special);
+		if (!ReadPlanarTileFile(glyph2tile[t], &planecell)) {
 			vga_DisplayCell(planecell, x - clipx, y + TOP_MAP_ROW);
-		else
+			if (glyph_is_pet(t)
+#ifdef TEXTCOLOR
+				&& iflags.hilite_pet
+#endif
+			   )
+			   	vga_Draw_PetMark(x - clipx, y + TOP_MAP_ROW,FALSE);
+
+		} else
 			pline("vga_shiftmap: Error reading tile (%d,%d)",
 				t, glyph2tile[t]);		
 	    }
+	}
 	}
 }
 #   endif /* SCROLLMAP */
@@ -1474,6 +1532,149 @@ vga_HideCursor()
 	    egawriteplane(15);
 }
 #  endif /* SIMULATE_CURSOR */
+
+
+/* WAC simulate graphical pet marks 
+ * This is actually a hack so that we don't have to have another tile file for 
+ * petmarked monsters - this takes the cell on screen and modifies it
+ * then puts it back.  Most of the code is similar to that used in drawing the cursor
+ */
+static struct planar_cell_struct underpetmark;
+static struct planar_cell_struct petmark;
+
+void
+vga_Draw_PetMark(x,y,singlebyte)
+int x,y;
+boolean singlebyte;
+{
+	int i,pixx,pixy,p;
+	char __far *tmp1;
+	char __far *tmp2;
+	unsigned char first,second;
+	
+/*	char on[2] =  {0xFF,0xFF}; */
+/*	char off[2] = {0x00,0x00}; */
+
+#ifdef REINCARNATION
+	if (Is_rogue_level(&u.uz)) return; /* No graphical petmarks on the rogue level */
+#endif
+
+	pixy = row2y(y);		  /* convert to pixels */
+
+	    if (singlebyte)
+		    pixx = x;
+	    else
+		    pixx = col2x(x);
+
+	    for(i=0;i < ROWS_PER_CELL; ++i) {
+		tmp1 = screentable[i+pixy];
+ 		tmp1 += pixx;
+ 		tmp2 = tmp1 + 1;
+		egareadplane(3);
+		/* memcpy(underpetmark.plane[3].image[i],tmp1,BYTES_PER_CELL); */
+		underpetmark.plane[3].image[i][0] = READ_ABSOLUTE(tmp1);
+		if (!singlebyte)
+			underpetmark.plane[3].image[i][1] = READ_ABSOLUTE(tmp2);
+
+		egareadplane(2);
+		/* memcpy(underpetmark.plane[2].image[i],tmp1,BYTES_PER_CELL); */
+		underpetmark.plane[2].image[i][0] = READ_ABSOLUTE(tmp1);
+		if (!singlebyte)
+			underpetmark.plane[2].image[i][1] = READ_ABSOLUTE(tmp2);
+
+		egareadplane(1);
+		/* memcpy(underpetmark.plane[1].image[i],tmp1,BYTES_PER_CELL); */
+		underpetmark.plane[1].image[i][0] = READ_ABSOLUTE(tmp1);
+		if (!singlebyte)
+			underpetmark.plane[1].image[i][1] = READ_ABSOLUTE(tmp2);
+
+		egareadplane(0);
+		/* memcpy(underpetmark.plane[0].image[i],tmp1,BYTES_PER_CELL); */
+		underpetmark.plane[0].image[i][0] = READ_ABSOLUTE(tmp1);
+		if (!singlebyte)
+			underpetmark.plane[0].image[i][1] = READ_ABSOLUTE(tmp2);
+	    }
+
+	    /*
+             * Now we have a snapshot of the current cell.
+             * Make a copy of it, then manipulate the copy
+             * to include the cursor, and place the tinkered
+             * version on the display.
+             */ 
+
+	    petmark = underpetmark;
+
+
+		    for(i = 0; i < 5; ++i) {
+
+			if (i == 0) {
+				if (!singlebyte) first  = 0x6C; /* 01101100 */
+				else first = 0x50;
+			} else if (i == 1) {
+				if (!singlebyte) first  = 0xFE; /* 11111110 */
+				else first = 0xF8;
+			} else if (i == 2) {
+				if (!singlebyte) first  = 0x7C; /* 01111100 */
+				else first = 0x70;
+			} else if (i == 3) {
+				if (!singlebyte) first  = 0x38; /* 00111000 */
+				else first = 0x20;
+			} else {
+				if (!singlebyte) first  = 0x10; /* 00010000 */
+				else first = 0x00;
+			}
+			for (p=0; p < SCREENPLANES; ++p) {
+				if (petmark_color & colorbits[p]) {
+					petmark.plane[p].image[i][0] |= first;
+				} else {
+					petmark.plane[p].image[i][0] &= ~first;
+				}
+			}
+		    }
+
+
+	   /*
+            * Place the new cell onto the display.
+            *
+            */
+	    
+	    for(i=0;i < ROWS_PER_CELL; ++i) {
+ 		tmp1 = screentable[i+pixy];
+ 		tmp1 += pixx;
+ 		tmp2 = tmp1 + 1;
+		egawriteplane(8);
+		/* memcpy(tmp1,petmark.plane[3].image[i],BYTES_PER_CELL); */
+		WRITE_ABSOLUTE(tmp1,petmark.plane[3].image[i][0]);
+		if (!singlebyte)
+		WRITE_ABSOLUTE(tmp2,petmark.plane[3].image[i][1]);
+
+		egawriteplane(4);
+		/* memcpy(tmp1,petmark.plane[2].image[i],BYTES_PER_CELL); */
+		WRITE_ABSOLUTE(tmp1,petmark.plane[2].image[i][0]);
+		if (!singlebyte)
+		WRITE_ABSOLUTE(tmp2,petmark.plane[2].image[i][1]);
+
+		egawriteplane(2);
+		/* memcpy(tmp1,petmark.plane[1].image[i],BYTES_PER_CELL); */
+		WRITE_ABSOLUTE(tmp1,petmark.plane[1].image[i][0]);
+		if (!singlebyte)
+		WRITE_ABSOLUTE(tmp2,petmark.plane[1].image[i][1]);
+
+		egawriteplane(1);
+		/* memcpy(tmp1,petmark.plane[0].image[i],BYTES_PER_CELL); */
+		WRITE_ABSOLUTE(tmp1,petmark.plane[0].image[i][0]);
+		if (!singlebyte)
+		WRITE_ABSOLUTE(tmp2,petmark.plane[0].image[i][1]);
+	    }
+	    egawriteplane(15);
+	    
+#ifdef POSITIONBAR
+	    if (inmap) positionbar();
+#endif
+}
+
+
+
 # endif /* OVLB */
 #endif /* SCREEN_VGA  */
 

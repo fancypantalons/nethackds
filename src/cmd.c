@@ -45,6 +45,7 @@ extern int NDECL(doputon); /**/
 extern int NDECL(doddoremarm); /**/
 extern int NDECL(dokick); /**/
 extern int NDECL(dofire); /**/
+extern int NDECL(dofire); /**/
 extern int NDECL(dothrow); /**/
 extern int NDECL(doeat); /**/
 extern int NDECL(done2); /**/
@@ -78,6 +79,7 @@ extern int NDECL(dodip); /**/
 extern int NDECL(dosacrifice); /**/
 extern int NDECL(dopray); /**/
 extern int NDECL(doturn); /**/
+extern int NDECL(dotech); /**/
 extern int NDECL(doredraw); /**/
 extern int NDECL(doread); /**/
 extern int NDECL(dosave); /**/
@@ -93,10 +95,14 @@ extern int NDECL(dountrap); /**/
 extern int NDECL(doversion); /**/
 extern int NDECL(doextversion); /**/
 extern int NDECL(doswapweapon); /**/
+extern int NDECL(doswapweapon); /**/
 extern int NDECL(dowield); /**/
+extern int NDECL(dowieldquiver); /**/
 extern int NDECL(dowieldquiver); /**/
 extern int NDECL(dozap); /**/
 extern int NDECL(doorganize); /**/
+extern int NDECL(dolistvanq); /**/
+
 #endif /* DUMB */
 
 #ifdef OVL1
@@ -106,12 +112,24 @@ static int NDECL((*timed_occ_fn));
 STATIC_PTR int NDECL(doprev_message);
 STATIC_PTR int NDECL(timed_occupation);
 STATIC_PTR int NDECL(doextcmd);
+#ifdef BORG
+STATIC_PTR int NDECL(doborgtoggle);
+#endif
 STATIC_PTR int NDECL(domonability);
 STATIC_PTR int NDECL(dotravel);
+STATIC_PTR int NDECL(playersteal);
+#if 0
+STATIC_PTR int NDECL(specialpower); /* WAC -- use techniques */
+#endif
 # ifdef WIZARD
 STATIC_PTR int NDECL(wiz_wish);
 STATIC_PTR int NDECL(wiz_identify);
 STATIC_PTR int NDECL(wiz_map);
+/* BEGIN TSANTH'S CODE */
+STATIC_PTR int NDECL(wiz_gain_ac);
+STATIC_PTR int NDECL(wiz_gain_level);
+STATIC_PTR int NDECL(wiz_toggle_invulnerability);
+/* END TSANTH'S CODE */
 STATIC_PTR int NDECL(wiz_genesis);
 STATIC_PTR int NDECL(wiz_where);
 STATIC_PTR int NDECL(wiz_detect);
@@ -135,6 +153,9 @@ STATIC_DCL void FDECL(mon_invent_chain, (winid, const char *, struct monst *, lo
 STATIC_DCL void FDECL(mon_chain, (winid, const char *, struct monst *, long *, long *));
 STATIC_DCL void FDECL(contained, (winid, const char *, long *, long *));
 STATIC_PTR int NDECL(wiz_show_stats);
+#ifdef DISPLAY_LAYERS
+STATIC_PTR int NDECL(wiz_show_display);
+#endif
 #  ifdef PORT_DEBUG
 STATIC_DCL int NDECL(wiz_port_debug);
 #  endif
@@ -143,6 +164,9 @@ STATIC_PTR int NDECL(enter_explore_mode);
 STATIC_PTR int NDECL(doattributes);
 STATIC_PTR int NDECL(doconduct); /**/
 STATIC_PTR boolean NDECL(minimal_enlightenment);
+STATIC_PTR int FDECL(makemenu, (const char *, struct menu_list *));
+
+static NEARDATA struct rm *maploc;
 
 #ifdef OVLB
 STATIC_DCL void FDECL(enlght_line, (const char *,const char *,const char *));
@@ -157,6 +181,14 @@ static const char* readchar_queue="";
 STATIC_DCL char *NDECL(parse);
 STATIC_DCL boolean FDECL(help_dir, (CHAR_P,const char *));
 
+STATIC_PTR int NDECL(domenusystem); /* WAC the menus*/
+
+#ifdef BORG
+/* in borg.c */
+extern char borg_on;
+extern char borg_line[80];
+char borg_input(void);
+#endif
 #ifdef OVL1
 
 STATIC_PTR int
@@ -164,6 +196,7 @@ doprev_message()
 {
     return nh_doprev_message();
 }
+
 
 /* Count down by decrementing multi */
 STATIC_PTR int
@@ -322,11 +355,27 @@ doextlist()	/* here after #? - now list all full-word commands */
 	return 0;
 }
 
-#ifdef TTY_GRAPHICS
+#ifdef BORG
+STATIC_PTR int 
+doborgtoggle()
+{
+	char    qbuf[QBUFSZ];
+	char    c;
+	Strcpy(qbuf,"Really enable cyborg?");
+	if ((c = yn_function(qbuf, ynqchars, 'n')) == 'y') {
+		borg_on = 1;
+		pline("The cyborg is enabled.... Good luck!");
+	}
+	return 0;
+}
+#endif
+
+#if defined(TTY_GRAPHICS) || defined(GL_GRAPHICS) || defined(SDL_GRAPHICS)
 #define MAX_EXT_CMD 40		/* Change if we ever have > 40 ext cmds */
 /*
  * This is currently used only by the tty port and is
  * controlled via runtime option 'extmenu'
+ * -AJA- The SDL/GL window systems use it too.
  */
 int
 extcmd_via_menu()	/* here after # - now show pick-list of possible commands */
@@ -493,6 +542,129 @@ enter_explore_mode()
 	return 0;
 }
 
+
+STATIC_PTR int
+playersteal()
+{
+	register int x, y;
+        int temp, chanch, base, dexadj, statbonus = 0;
+	boolean no_steal = FALSE;
+
+	if (nohands(youmonst.data)) {
+		pline("Could be hard without hands ...");
+		no_steal = TRUE;
+	} else
+	if (near_capacity() > SLT_ENCUMBER) {
+		Your("load is too heavy to attempt to steal.");
+		no_steal = TRUE;
+	}
+	if (no_steal) {
+		/* discard direction typeahead, if any */
+		display_nhwindow(WIN_MESSAGE, TRUE);    /* --More-- */
+		return(0);
+	}
+
+	if(!getdir(NULL)) return(0);
+	if(!u.dx && !u.dy) return(0);
+
+	x = u.ux + u.dx;
+	y = u.uy + u.dy;
+	
+	if(u.uswallow) {
+		pline("You search around but don't find anything.");
+		return(1);
+	}
+
+	u_wipe_engr(2);
+
+	maploc = &levl[x][y];
+
+	if(MON_AT(x, y)) {
+		register struct monst *mdat = m_at(x, y);
+
+		/* calculate chanch of sucess */
+		base = 5;
+		dexadj = 1;
+		if (Role_if(PM_ROGUE)) {
+			base = 5 + (u.ulevel * 2);
+			dexadj = 3;
+		}
+		if (ACURR(A_DEX) < 10) statbonus = (ACURR(A_DEX) - 10) * dexadj;
+		else 
+		if (ACURR(A_DEX) > 14) statbonus = (ACURR(A_DEX) - 14) * dexadj;
+
+		chanch = base + statbonus;
+
+		if (uarmg && uarmg->otyp != GAUNTLETS_OF_DEXTERITY)
+				chanch -= 5;
+		if (!uarmg)     chanch += 5;
+		if (uarms)      chanch -= 10;
+		if (uarm && uarm->owt < 75)       chanch += 10;
+		else if (uarm && uarm->owt < 125) chanch += 5;
+		else if (uarm && uarm->owt < 175) chanch += 0;
+		else if (uarm && uarm->owt < 225) chanch -= 5;
+		else if (uarm && uarm->owt < 275) chanch -= 10;
+		else if (uarm && uarm->owt < 325) chanch -= 15;
+		else if (uarm && uarm->owt < 375) chanch -= 20;
+		else if (uarm)                    chanch -= 25;
+		if (chanch < 5) chanch = 5;
+		if (chanch > 95) chanch = 95;
+		if (rnd(100) < chanch || mdat->mtame) {
+
+#ifdef GOLDOBJ
+			/* [CWC] This will steal money from the monster from the
+			 * first found goldobj - we could be really clever here and
+			 * then move onwards to the next goldobj in invent if we
+			 * still have coins left to steal, but lets leave that until
+			 * we actually have other coin types to test it on.
+			 */
+			struct obj *gold = findgold(mdat->minvent);
+			if (gold) {
+				int mongold;
+				int coinstolen;
+				coinstolen = (u.ulevel * rn1(25,25));
+				mongold = (int)gold->quan;
+				if (coinstolen > mongold) coinstolen = mongold;
+				if (coinstolen > 0)	{
+					if (coinstolen != mongold) 
+						gold = splitobj(gold, coinstolen);
+					obj_extract_self(gold);
+		      if (merge_choice(invent, gold) || inv_cnt() < 52) {
+				    addinv(gold);
+						You("steal %s.", doname(gold));
+					} else {
+            You("grab %s, but find no room in your knapsack.", doname(gold));
+			    	dropy(gold);
+					}
+				}
+				else
+				impossible("cmd.c:playersteal() stealing negative money");
+#else
+			if (mdat->mgold) {
+				temp = (u.ulevel * rn1(25,25));
+				if (temp > mdat->mgold) temp = mdat->mgold;
+				u.ugold += temp;
+				mdat->mgold -= temp;
+				You("steal %d gold.",temp);
+#endif
+			} else
+				You("don't find anything to steal.");
+
+			if (!mdat->mtame) exercise(A_DEX, TRUE);
+			return(1);
+		} else {
+			You("failed to steal anything.");
+			setmangry(mdat);
+			return(1);
+	       }
+	} else {
+		pline("I don't see anybody to rob there!");
+		return(0);
+	}
+
+	return(0);
+} 
+
 #ifdef WIZARD
 
 /* ^W command - wish for something */
@@ -510,6 +682,219 @@ wiz_wish()	/* Unlimited wishes for debug mode by Paul Polderman */
 	    pline("Unavailable command '^W'.");
 	return 0;
 }
+
+
+#if 0	/* WAC -- Now uses techniques */
+STATIC_PTR int
+specialpower()      /* Special class abilites [modified by Tom] */
+{
+	/*
+	 * STEPHEN WHITE'S NEW CODE
+	 *
+	 * For clarification, lastuse (as declared in decl.{c|h}) is the
+	 * actual length of time the power is active, nextuse is when you can
+	 * next use the ability.
+	 */
+
+        /*Added wizard mode can choose to use ability - wAC*/
+	if (u.unextuse) {
+	    You("have to wait %s before using your ability again.",
+		(u.unextuse > 500) ? "for a while" : "a little longer");
+#ifdef WIZARD
+            if (!wizard || (yn("Use ability anyways?") == 'n'))
+#endif
+                return(0);
+	}
+
+	switch (u.role) {
+	    case 'A':
+/*WAC stolen from the spellcasters...'A' can identify from
+        historical research*/
+		if(Hallucination || Stunned || Confusion) {
+		    You("can't concentrate right now!");
+		    break;
+		} else if((ACURR(A_INT) + ACURR(A_WIS)) < rnd(60)) {
+			pline("Nothing in your pack looks familiar.");
+		    u.unextuse = rn1(500,500);
+		    break;
+		} else if(invent) {
+		    int ret;
+			You("examine your possessions.");
+			identify_pack(1);
+/*WAC this should be better - made like scroll of identify*/
+/* KMH -- also commented out use of 'ret' without initialization */
+/*                  ret = ggetobj("identify", identify, 1, FALSE);*/
+/*		    if (ret < 0) break; *//* quit or no eligible items */
+/*                  ret = ggetobj("identify", identify, 1, FALSE);*/
+		} else {
+			/* KMH -- fixed non-compliant string */
+			You("are already quite familiar with the contents of your pack.");
+		    break;
+		}
+		u.unextuse = rn1(500,1500);
+		break;
+	    case 'G':
+			Your("ability, gem identification, is automatic.");
+			return(0);
+		case 'P':
+			Your("ability, bless and curse detection, is automatic.");
+			return(0);
+	    case 'D':
+			/* KMH -- Just do it!  (Besides, Alt isn't portable...) */
+			return (polyatwill());
+			/*Your("ability, polymorphing, uses the alt-y key.");*/
+			/*return(0);*/
+	    case 'L':
+		/*only when empty handed, in human form!*/
+		if (Upolyd) {
+			You("can't do this while polymorphed!");
+			break;
+		}
+		if (uwep == 0) {
+			Your("fingernails extend into claws!");
+			aggravate();
+			u.ulastuse = d(2,4) + (u.ulevel/5) + 1; /* [max] was d(2,8) */
+			u.unextuse = rn1(1000,1000); /* [max] increased delay */
+		}
+		else You("can't do this while holding a weapon!");
+		break;
+	    case 'R':
+	    /* KMH -- Just do it!  (Besides, Alt isn't portable...) */
+	    return (playersteal());
+		/*Your("ability, stealing, uses the alt-b key.");*/
+        /*return(0);*/
+		break;
+	    case 'M':
+		Your("special ability is unarmed combat, and it is automatic.");
+                return(0);
+		break;
+	    case 'C':
+	    case 'T':
+		You("don't have a special ability!");
+                return(0);
+		break;
+	    case 'B':
+		You("fly into a berserk rage!");
+		u.ulastuse = d(2,8) + (u.ulevel/5) + 1;
+		incr_itimeout(&HFast, u.ulastuse);
+		u.unextuse = rn1(1000,500);
+		return(0);
+		break;
+	    case 'F':
+	    case 'I':
+	    case 'N':
+	    case 'W':
+            /* WAC spell-users can study their known spells*/
+		if(Hallucination || Stunned || Confusion) {
+		    You("can't concentrate right now!");
+		    break;
+		} else {
+			You("concentrate...");
+			studyspell(); /*in spell.c*/
+		}
+		break;
+	    case 'E':
+                Your("%s %s become blurs as they reach for your quiver!",
+			uarmg ? "gloved" : "bare",      /* Del Lamb */
+			makeplural(body_part(HAND)));
+                u.ulastuse = rnd((int) (u.ulevel/6 + 1)) + 1;
+		u.unextuse = rn1(1000,500);
+		break;
+	    case 'U':
+	    case 'V':
+		if(!uwep || (weapon_type(uwep) == P_NONE)) {
+		    You("are not wielding a weapon!");
+		    break;
+		} else if(uwep->known == TRUE) {
+                    You("study and practice with your %s %s.",
+                        uarmg ? "gloved" : "bare",      /* Del Lamb */
+			makeplural(body_part(HAND)));
+                    practice_weapon();
+		} else {
+                    if (not_fully_identified(uwep)) {
+                        You("examine %s.", doname(uwep));
+                            if (rnd(15) <= ACURR(A_INT)) {
+                                makeknown(uwep->otyp);
+                                uwep->known = TRUE;
+                                You("discover it is %s",doname(uwep));
+                                } else
+                     pline("Unfortunately, you didn't learn anything new.");
+                    } 
+                /*WAC Added practicing code - in weapon.c*/
+                    practice_weapon();
+		}
+                u.unextuse = rn1(500,500);
+		break;
+	    case 'H':
+		if (Hallucination || Stunned || Confusion) {
+		    You("are in no condition to perform surgery!");
+		    break;
+		}
+		if ((Sick) || (Slimed)) {       /* WAC cure sliming too */
+		    if(carrying(SCALPEL)) {
+			pline("Using your scalpel (ow!), you cure your infection!");
+			make_sick(0L,(char *)0, TRUE,SICK_ALL);
+			Slimed = 0;
+			if(u.uhp > 6) u.uhp -= 5;
+			else          u.uhp = 1;
+			u.unextuse = rn1(500,500);
+			break;
+		    } else pline("If only you had a scalpel...");
+		}
+		if (u.uhp < u.uhpmax) {
+		    if(carrying(MEDICAL_KIT)) {
+			pline("Using your medical kit, you bandage your wounds.");
+			u.uhp += (u.ulevel * (rnd(2)+1)) + rn1(5,5);
+		    } else {
+			pline("You bandage your wounds as best you can.");
+			u.uhp += (u.ulevel) + rn1(5,5);
+		    }
+		    u.unextuse = rn1(1000,500);
+		    if (u.uhp > u.uhpmax) u.uhp = u.uhpmax;
+		} else pline("You don't need your healing powers!");
+		break;
+	    case 'K':
+		if (u.uhp < u.uhpmax || Sick || Slimed) { /*WAC heal sliming */
+			if (Sick) You("lay your hands on the foul sickness...");
+			pline("A warm glow spreads through your body!");
+			if (Slimed) pline_The("slime is removed.");
+			Slimed = 0;
+			if(Sick) make_sick(0L,(char*)0, TRUE, SICK_ALL);
+			else     u.uhp += (u.ulevel * 4);
+			if (u.uhp > u.uhpmax) u.uhp = u.uhpmax;
+			u.unextuse = 3000;
+		} else pline(nothing_happens);
+		break;
+	    case 'S':
+		You("scream \"KIIILLL!\"");
+		aggravate();
+		u.ulastuse = rnd((int) (u.ulevel/6 + 1)) + 1;
+		u.unextuse = rn1(1000,500);
+		return(0);
+		break;
+#ifdef YEOMAN
+		case 'Y':
+#ifdef STEED
+			if (u.usteed) {
+				pline("%s gets tamer.", Monnam(u.usteed));
+				tamedog(u.usteed, (struct obj *) 0);
+				u.unextuse = rn1(1000,500);
+			} else
+				Your("special ability is only effective when riding a monster.");
+			break;
+#else
+			You("don't have a special ability!");
+			return(0);
+#endif
+#endif
+	    default:
+		break;
+	  }
+/*By default,  action should take a turn*/
+	return(1);
+}
+#endif
+
 
 /* ^I command - identify hero's inventory */
 STATIC_PTR int
@@ -543,6 +928,52 @@ wiz_map()
 }
 
 /* ^G command - generate monster(s); a count prefix will be honored */
+STATIC_PTR int
+wiz_gain_level()
+{
+	if (wizard) pluslvl(FALSE);
+	else            pline("Unavailable command '^J'.");
+	return 0;
+}
+
+/* BEGIN TSANTH'S CODE */
+STATIC_PTR int
+wiz_gain_ac()
+{
+	if (wizard) {
+		if (u.ublessed < 20) {
+			pline("Intrinsic AC increased by 1.");
+			HProtection |= FROMOUTSIDE;
+			u.ublessed++;
+			flags.botl = 1;
+		} else
+			pline("Intrinsic AC is already maximized.");
+	}
+	else
+		pline("Unavailable command '^C'.");
+	return 0;
+}
+
+STATIC_PTR int
+wiz_toggle_invulnerability()
+{
+	if (wizard) {
+	    if ((Invulnerable == 0) && (u.uinvulnerable == FALSE)) {
+	            You("will be invulnerable for 32000 turns.");
+	            Invulnerable = 32000;
+	            u.uinvulnerable = TRUE;
+	    }
+	    else {
+	            You("are no longer invulnerable.");
+	            Invulnerable = 0;
+	            u.uinvulnerable = FALSE;
+	    }
+	}
+	else            pline("Unavailable command '^N'.");
+	return 0;
+}
+/* END TSANTH'S CODE */
+
 STATIC_PTR int
 wiz_genesis()
 {
@@ -614,7 +1045,7 @@ wiz_level_change()
 	}
 	if (newlevel < 1) newlevel = 1;
 	while (u.ulevel > newlevel)
-	    losexp("#levelchange");
+	    losexp("#levelchange", TRUE);
     } else {
 	if (u.ulevel >= MAXULEV) {
 	    You("are already as experienced as you can get.");
@@ -789,43 +1220,9 @@ const char *start, *middle, *end;
 	putstr(en_win, 0, buf);
 }
 
-/* format increased damage or chance to hit */
-static char *
-enlght_combatinc(inctyp, incamt, final, outbuf)
-const char *inctyp;
-int incamt, final;
-char *outbuf;
-{
-	char numbuf[24];
-	const char *modif, *bonus;
 
-	if (final
-#ifdef WIZARD
-		|| wizard
-#endif
-	  ) {
-	    Sprintf(numbuf, "%s%d",
-		    (incamt > 0) ? "+" : "", incamt);
-	    modif = (const char *) numbuf;
-	} else {
-	    int absamt = abs(incamt);
 
-	    if (absamt <= 3) modif = "small";
-	    else if (absamt <= 6) modif = "moderate";
-	    else if (absamt <= 12) modif = "large";
-	    else modif = "huge";
-	}
-	bonus = (incamt > 0) ? "bonus" : "penalty";
-	/* "bonus to hit" vs "damage bonus" */
-	if (!strcmp(inctyp, "damage")) {
-	    const char *ctmp = inctyp;
-	    inctyp = bonus;
-	    bonus = ctmp;
-	}
-	Sprintf(outbuf, "%s %s %s", an(modif), bonus, inctyp);
-	return outbuf;
-}
-
+/* KMH, intrinsic patch -- several of these are updated */
 void
 enlightenment(final)
 int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
@@ -929,13 +1326,42 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 	if (Blind_telepat) you_are("telepathic");
 	if (Warning) you_are("warned");
 	if (Warn_of_mon && flags.warntype) {
-		Sprintf(buf, "aware of the presence of %s",
-			(flags.warntype & M2_ORC) ? "orcs" :
-			(flags.warntype & M2_DEMON) ? "demons" :
-			something); 
+	    /* [ALI] Add support for undead */
+	    int i, nth = 0;
+	    unsigned long warntype = flags.warntype;
+	    struct { unsigned long mask; const char *str; } warntypes[] = {
+		M2_ORC,		"orcs",
+		M2_DEMON,	"demons",
+		M2_UNDEAD,	"undead",
+	    };
+
+	    Sprintf(buf, "aware of the presence of ");
+	    for(i = 0; i < SIZE(warntypes); i++)
+	    {
+		if (warntype & warntypes[i].mask) {
+		    warntype &= ~warntypes[i].mask;
+		    if (nth) {
+			if (warntype)
+			    strcat(buf, ", ");
+			else
+			    strcat(buf, " and ");
+		    }
+		    else
+			nth = 1;
+		    strcat(buf, warntypes[i].str);
+		}
+	    }
+	    if (warntype)
+	    {
+		if (nth)
+		    strcat(buf, " and ");
+		strcat(buf, something); 
+	    }
 		you_are(buf);
 	}
+#if 0	/* ALI - dealt with under Warn_of_mon */
 	if (Undead_warning) you_are("warned of undead");
+#endif
 	if (Searching) you_have("automatic searching");
 	if (Clairvoyant) you_are("clairvoyant");
 	if (Infravision) you_have("infravision");
@@ -1039,9 +1465,21 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 	if (Reflecting) you_have("reflection");
 	if (Free_action) you_have("free action");
 	if (Fixed_abil) you_have("fixed abilities");
+	if (uamul && uamul->otyp == AMULET_VERSUS_STONE)
+		enl_msg("You ", "will be", "would have been", " depetrified");
 	if (Lifesaved)
 		enl_msg("Your life ", "will be", "would have been", " saved");
-	if (u.twoweap) you_are("wielding two weapons at once");
+	if (u.twoweap) {
+	    if (uwep && uswapwep)
+		Sprintf(buf, "wielding two weapons at once");
+	    else if (uwep || uswapwep)
+		Sprintf(buf, "fighting with a weapon and your %s %s",
+			uwep ? "left" : "right", body_part(HAND));
+	    else
+		Sprintf(buf, "fighting with two %s",
+			makeplural(body_part(HAND)));
+	    you_are(buf);
+	}
 
 	/*** Miscellany ***/
 	if (Luck) {
@@ -1066,6 +1504,20 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 	    if (ltmp >= 0)
 		enl_msg("Good luck ", "does", "did", " not time out for you");
 	}
+
+	/* KMH, balance patch -- healthstones affect health */
+	if (u.uhealbonus)
+	{
+		Sprintf(buf, "%s health", u.uhealbonus > 0 ? "extra" :
+			"reduced");
+#ifdef WIZARD
+	    if (wizard) Sprintf(eos(buf), " (%d)", u.uhealbonus);
+#endif
+		you_have(buf);
+	}
+#ifdef WIZARD
+	 else if (wizard) enl_msg("Your health bonus ", "is", "was", " zero");
+#endif
 
 	if (u.ugangr) {
 	    Sprintf(buf, " %sangry with you",
@@ -1092,6 +1544,15 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 	    if (wizard) Sprintf(eos(buf), " (%d)", u.ublesscnt);
 #endif
 	    you_can(buf);
+#if 0	/* WAC -- replaced by techniques */
+/*	    Sprintf(buf, "%s%suse%s your special", !u.unextuse ? "" : "not ",
+		    final ? "have " : "", final ? "d" : "");*/
+	    Sprintf(buf, "%suse your special", !u.unextuse ? "" : "not ");
+#ifdef WIZARD
+	    if (wizard) Sprintf(eos(buf), " (%d)", u.unextuse);
+#endif
+	    you_can(buf);
+#endif
 	}
 
     {
@@ -1240,6 +1701,210 @@ doattributes()
 	return 0;
 }
 
+static const struct menu_tab game_menu[] = {
+	{'O', TRUE, doset, "Options"},
+	{'r', TRUE, doredraw, "Redraw Screen"},
+	{'x', TRUE, enter_explore_mode, "Enter Explore Mode"},
+#ifdef SHELL
+	{'!', TRUE, dosh, "Jump to Shell"},
+#endif
+	{'S', TRUE, dosave, "Save"},
+	{'q', TRUE, done2, "Quit [M-q]"},
+	{0,0,0,0},
+};
+
+static const struct menu_tab inv_menu[] = {
+	{(char)0, TRUE, (void *)0, "View Inventory"},
+	{'i', TRUE, ddoinv, "Inventory List"},
+	{'I', TRUE, dotypeinv, "Inventory List by Type"},
+	{'*', TRUE, doprinuse, "Items in use"},
+	{(char)0, TRUE, (void *)0, "Ready Items"},
+	{'w', FALSE, dowield, "Wield Weapon"},
+	{'W', FALSE, dowear, "Wear Protective Gear"},
+	{'Q', FALSE, dowieldquiver, "Prepare missile weapon (in Quiver)"},
+	{'T', FALSE, dotakeoff, "Take off Protective Gear"},
+	{(char)0, TRUE, (void *)0, "Manipulate Items"},
+	{'a', FALSE, doapply, "Apply an object"},
+	{'d', FALSE, dodip, "Dip an object [M-d]"},
+	{'E', FALSE, doengrave, "Engrave into the ground"},
+	{'f', FALSE, dofire, "Fire your prepared missile weapon"},
+	{'i', TRUE, doinvoke, "Invoke your weapon"},
+	{'t', FALSE, dothrow, "Throw an item"},
+	{(char)0, TRUE, (void *)0, "Drop Items"},
+	{'d', FALSE, dodrop, "Drop an object"},
+	{'D', FALSE, doddrop, "Multi-Drop"},
+	{0,0,0,0}
+};
+
+static const struct menu_tab action_menu[] = {
+	{'c', FALSE, doclose, "Close a door"},
+	{'e', FALSE, doeat, "Eat some food"},
+	{'f', FALSE, doforce, "Force a lock [M-f]"},
+	{'l', FALSE, doloot, "Loot an object"},
+	{'o', FALSE, doopen, "Open a door"},
+	{'q', TRUE, dodrink, "Quaff a potion"},
+	{'r', FALSE, doread, "Read an object"},
+	{'u', FALSE, dountrap, "Untrap"}, 
+	{'z', FALSE, dozap, "Zap a wand"},
+	{'Z', TRUE, docast, "Cast a spell"},
+	{0,0,0,0}
+};
+
+static const struct menu_tab player_menu[] = {
+	{'b', FALSE, playersteal, "Steal from Monsters [M-b]"},
+	{'c', TRUE, dotalk, "Chat with Monsters [M-c]"},
+	{'d', FALSE, dokick, "Do Kick"}, 
+	/*        {'e', FALSE, specialpower, "Use your Class Ability [M-e]"},*/
+	{'e', TRUE, enhance_weapon_skill, "Weapon Skills [M-k]"},
+	{'m', TRUE, domonability, "Use your Monster Ability [M-m]"},
+	{'o', FALSE, dosacrifice, "Offer a Sacrifice [M-o]"},
+	{'p', FALSE, dopay, "Pay the Shopkeeper"},
+	{'s', FALSE, dosit, "Sit down [M-s]"},
+	{'t', TRUE, dotele, "Controlled Teleport [C-t]"},
+/*	{'T', TRUE, doturn, "Turn Undead [M-t]"},*/
+	{'T', TRUE, dotech, "Use Techniques [M-t]"},
+	{'x', TRUE, doattributes, "Show attributes"},
+	{'y', TRUE, polyatwill, "Self-Polymorph [M-y]"},
+	{0,0,0,0}
+};
+
+#ifdef WIZARD
+static const struct menu_tab wizard_menu[] = {
+	{'c', TRUE, wiz_gain_ac, "Increase AC"},
+#ifdef DISPLAY_LAYERS
+	{'d', TRUE, wiz_show_display, "Detail display layers"},
+#endif
+	{'e', TRUE, wiz_detect, "Detect secret doors and traps"},
+	{'f', TRUE, wiz_map, "Do magic mapping"},
+	{'g', TRUE, wiz_genesis, "Create monster"},
+	{'i', TRUE, wiz_identify, "Identify items in pack"},
+	{'j', TRUE, wiz_gain_level, "Go up an experience level"},
+	{'n', TRUE, wiz_toggle_invulnerability, "Toggle invulnerability"},
+	{'o', TRUE, wiz_where, "Tell locations of special levels"},
+	{'v', TRUE, wiz_level_tele, "Do trans-level teleport"},
+	{'w', TRUE, wiz_wish,  "Make wish"},
+	{'L', TRUE, wiz_light_sources, "show mobile light sources"},
+	{'M', TRUE, wiz_show_stats, "show memory statistics"},
+	{'S', TRUE, wiz_show_seenv, "show seen vectors"},
+	{'T', TRUE, wiz_timeout_queue, "look at timeout queue"},
+	{'V', TRUE, wiz_show_vision, "show vision array"},
+	{'W', TRUE, wiz_show_wmodes, "show wall modes"},
+#ifdef DEBUG
+	{'&', TRUE, wiz_debug_cmd, "wizard debug command"},
+#endif
+	{0,0,0,0,0},
+};
+#endif
+
+static const struct menu_tab help_menu[] = {
+	{'?', TRUE, dohelp, "Help Contents"},
+	{'v', TRUE, doextversion, "Version"},
+	{'/', TRUE, dowhatis, "Identify an object on the screen" },
+	{'&', TRUE, dowhatdoes, "Determine what a key does"},
+	{0,0,0,0,0},
+};
+
+static const struct menu_tab main_menu[] = {
+	{'g', TRUE, (void *)0, "Game"},
+	{'i', TRUE, (void *)0, "Inventory"},
+	{'a', TRUE, (void *)0, "Action"},
+	{'p', TRUE, (void *)0, "Player"},
+	{'d', TRUE, (void *)0, "Discoveries"},
+#ifdef WIZARD
+	{'w', TRUE, (void *)0, "Wizard"},
+#endif
+	{'?', TRUE, (void *)0, "Help"},
+	{0,0,0,0},
+};
+
+static const struct menu_tab discover_menu[] = {
+	{'X', TRUE, dovspell, "View known spells"},                  /* Mike Stephenson */
+	{'d', TRUE, dodiscovered, "Items already discovered [\\]"},             /* Robert Viduya */
+	{'C', TRUE, do_mname, "Name a monster"},
+	{0,0,0,0},
+};
+
+static struct menu_list main_menustruct[] = {
+	{"Game", "Main Menu", game_menu},
+	{"Inventory", "Main Menu", inv_menu},
+	{"Action", "Main Menu", action_menu},
+	{"Player", "Main Menu", player_menu},
+	{"Discoveries", "Main Menu", discover_menu},
+#ifdef WIZARD
+	{"Wizard", "Main Menu", wizard_menu},
+#endif
+	{"Help", "Main Menu", help_menu},
+	{"Main Menu",(char *)0, main_menu},
+	{0,0,0},
+};
+
+STATIC_PTR int
+makemenu(menuname, menu_struct)
+const char *menuname;
+struct menu_list menu_struct[];
+{
+	winid win;
+	anything any;
+	menu_item *selected;
+        int n, i, NDECL((*func));
+        const struct menu_tab *current_menu;
+
+	any.a_void = 0;
+	win = create_nhwindow(NHW_MENU);
+	start_menu(win);
+
+        for (i = 0; menu_struct[i].m_header; i++) {
+                if (strcmp(menu_struct[i].m_header,menuname)) continue;
+                current_menu = menu_struct[i].m_menu;
+                for (n = 0; current_menu[n].m_item; n++) {
+                        if (u.uburied && !current_menu[n].can_if_buried) continue;
+#ifdef WIZARD
+			if (!wizard && !current_menu[n].m_funct && !strcmp(current_menu[n].m_item,"Wizard")) continue;
+#endif
+                        if (current_menu[n].m_char == (char)0) {
+                                any.a_int = 0; 
+                                add_menu(win, NO_GLYPH, &any, 0, 0, ATR_BOLD,
+                                     current_menu[n].m_item, MENU_UNSELECTED);
+                                continue;
+                        }
+                        any.a_int = n + 1; /* non-zero */
+                        add_menu(win, NO_GLYPH, &any, current_menu[n].m_char,
+                        0, ATR_NONE, current_menu[n].m_item, MENU_UNSELECTED);
+                }
+                break;
+        }
+        end_menu(win, menuname);
+        n = select_menu(win, PICK_ONE, &selected);
+        destroy_nhwindow(win);
+        if (n > 0) {
+                /* we discard 'const' because some compilers seem to have
+		       trouble with the pointer passed to set_occupation() */
+                i = selected[0].item.a_int - 1;
+                func = current_menu[i].m_funct;
+                if (current_menu[i].m_text && !occupation && multi)
+                      set_occupation(func, current_menu[i].m_text, multi);
+                /*WAC catch void into makemenu */
+                if (func == (void *)0)
+                        return (makemenu(current_menu[i].m_item, menu_struct));
+                else return (*func)();            /* perform the command */
+        } else if (n < 0) {
+                for (i = 0; menu_struct[i].m_header; i++){
+                   if (menuname == menu_struct[i].m_header) {
+                    if (menu_struct[i].m_parent)
+                      return (makemenu(menu_struct[i].m_parent, menu_struct));
+                    else return (0);
+                }
+        }
+        }
+        return 0;
+}
+
+STATIC_PTR int
+domenusystem()  /* WAC add helpful menus ;B */
+{
+        return (makemenu("Main Menu", main_menustruct));
+}
+
 /* KMH, #conduct
  * (shares enlightenment's tense handling)
  */
@@ -1248,6 +1913,43 @@ doconduct()
 {
 	show_conduct(0);
 	return 0;
+}
+
+/* format increased damage or chance to hit */
+static char *
+enlght_combatinc(inctyp, incamt, final, outbuf)
+const char *inctyp;
+int incamt, final;
+char *outbuf;
+{
+	char numbuf[24];
+	const char *modif, *bonus;
+
+	if (final
+#ifdef WIZARD
+		|| wizard
+#endif
+	  ) {
+	    Sprintf(numbuf, "%s%d",
+		    (incamt > 0) ? "+" : "", incamt);
+	    modif = (const char *) numbuf;
+	} else {
+	    int absamt = abs(incamt);
+
+	    if (absamt <= 3) modif = "small";
+	    else if (absamt <= 6) modif = "moderate";
+	    else if (absamt <= 12) modif = "large";
+	    else modif = "huge";
+	}
+	bonus = (incamt > 0) ? "bonus" : "penalty";
+	/* "bonus to hit" vs "damage bonus" */
+	if (!strcmp(inctyp, "damage")) {
+	    const char *ctmp = inctyp;
+	    inctyp = bonus;
+	    bonus = ctmp;
+	}
+	Sprintf(outbuf, "%s %s %s", an(modif), bonus, inctyp);
+	return outbuf;
 }
 
 void
@@ -1262,9 +1964,12 @@ int final;
 	putstr(en_win, 0, "Voluntary challenges:");
 	putstr(en_win, 0, "");
 
-	if (!u.uconduct.food)
+	if (!u.uconduct.food && !u.uconduct.unvegan)
 	    enl_msg(You_, "have gone", "went", " without food");
 	    /* But beverages are okay */
+	else if (!u.uconduct.food)
+	    enl_msg(You_, "have gone", "went", " without eating");
+	    /* But quaffing animal products (eg., blood) is okay */
 	else if (!u.uconduct.unvegan)
 	    you_have_X("followed a strict vegan diet");
 	else if (!u.uconduct.unvegetarian)
@@ -1336,6 +2041,17 @@ int final;
 			" for any artifacts");
 	}
 
+
+	if (!u.uconduct.celibacy)
+	    you_have_X("remained celibate");
+#ifdef WIZARD
+	else if (wizard) {
+	    Sprintf(buf, "your vow of celibacy %ld time%s",
+		    u.uconduct.celibacy, plur(u.uconduct.celibacy));
+	    enl_msg(You_, "have broken ", "broke ", buf);
+	}
+#endif
+
 	/* Pop up the window and wait for a key */
 	display_nhwindow(en_win, TRUE);
 	destroy_nhwindow(en_win);
@@ -1358,23 +2074,35 @@ int final;
 static const struct func_tab cmdlist[] = {
 	{C('d'), FALSE, dokick}, /* "D" is for door!...?  Msg is in dokick.c */
 #ifdef WIZARD
+	{C('b'), FALSE, playersteal},
+/* BEGIN TSANTH'S CODE */
+	{C('c'), TRUE, wiz_gain_ac},
+/* END TSANTH'S CODE */
 	{C('e'), TRUE, wiz_detect},
 	{C('f'), TRUE, wiz_map},
 	{C('g'), TRUE, wiz_genesis},
 	{C('i'), TRUE, wiz_identify},
+	{C('j'), TRUE, wiz_gain_level},
 #endif
 	{C('l'), TRUE, doredraw}, /* if number_pad is set */
 #ifdef WIZARD
+/* BEGIN TSANTH'S CODE */
+	{C('n'), TRUE, wiz_toggle_invulnerability},
+/* END TSANTH'S CODE */
 	{C('o'), TRUE, wiz_where},
 #endif
 	{C('p'), TRUE, doprev_message},
+	{C('q'), TRUE, done2},
 	{C('r'), TRUE, doredraw},
+/*	{C('s'), FALSE, specialpower},*/
+	{C('s'), TRUE, dosave},
 	{C('t'), TRUE, dotele},
 #ifdef WIZARD
 	{C('v'), TRUE, wiz_level_tele},
 	{C('w'), TRUE, wiz_wish},
 #endif
 	{C('x'), TRUE, doattributes},
+	{C('y'), TRUE, polyatwill},
 #ifdef SUSPEND
 	{C('z'), TRUE, dosuspend},
 #endif
@@ -1382,6 +2110,13 @@ static const struct func_tab cmdlist[] = {
 	{'A', FALSE, doddoremarm},
 	{M('a'), TRUE, doorganize},
 /*	'b', 'B' : go sw */
+#ifdef BORG
+	{'B', TRUE, doborgtoggle}, /* [Tom] */
+#endif
+	{M('b'), FALSE, playersteal},   /* jla */
+#if 0
+	{M('b'), FALSE, specialpower},   /* jla */
+#endif
 	{'c', FALSE, doclose},
 	{'C', TRUE, do_mname},
 	{M('c'), TRUE, dotalk},
@@ -1404,17 +2139,19 @@ static const struct func_tab cmdlist[] = {
 	{'j', FALSE, dojump}, /* if number_pad is on */
 	{M('j'), FALSE, dojump},
 	{'k', FALSE, dokick}, /* if number_pad is on */
+	{'K', TRUE, dolistvanq}, /* if number_pad is on */
+	{M('k'), TRUE, enhance_weapon_skill},
 	{'l', FALSE, doloot}, /* if number_pad is on */
 	{M('l'), FALSE, doloot},
 /*	'n' prefixes a count if number_pad is on */
 	{M('m'), TRUE, domonability},
 	{'N', TRUE, ddocall}, /* if number_pad is on */
 	{M('n'), TRUE, ddocall},
-	{M('N'), TRUE, ddocall},
 	{'o', FALSE, doopen},
 	{'O', TRUE, doset},
 	{M('o'), FALSE, dosacrifice},
 	{'p', FALSE, dopay},
+/*WAC replace with dowear*/
 	{'P', FALSE, doputon},
 	{M('p'), TRUE, dopray},
 	{'q', FALSE, dodrink},
@@ -1428,19 +2165,25 @@ static const struct func_tab cmdlist[] = {
 	{M('s'), FALSE, dosit},
 	{'t', FALSE, dothrow},
 	{'T', FALSE, dotakeoff},
-	{M('t'), TRUE, doturn},
+/*	{M('t'), TRUE, doturn},*/
+	{M('t'), TRUE, dotech},
 /*	'u', 'U' : go ne */
 	{'u', FALSE, dountrap}, /* if number_pad is on */
 	{M('u'), FALSE, dountrap},
 	{'v', TRUE, doversion},
 	{'V', TRUE, dohistory},
 	{M('v'), TRUE, doextversion},
+/*replaced with dowear*/
 	{'w', FALSE, dowield},
 	{'W', FALSE, dowear},
 	{M('w'), FALSE, dowipe},
-	{'x', FALSE, doswapweapon},
+	{'x', FALSE, doswapweapon},                    /* [Tom] */        
 	{'X', TRUE, enter_explore_mode},
+#if 0
+        {M('x'), TRUE, dovspell},                  /* Mike Stephenson */
+#endif
 /*	'y', 'Y' : go nw */
+	{M('y'), FALSE, polyatwill},  /* jla */        
 	{'z', FALSE, dozap},
 	{'Z', TRUE, docast},
 	{'<', FALSE, doup},
@@ -1461,6 +2204,10 @@ static const struct func_tab cmdlist[] = {
 	{'\\', TRUE, dodiscovered},		/* Robert Viduya */
 	{'@', TRUE, dotogglepickup},
 	{M('2'), FALSE, dotwoweapon},
+/* WAC Angband style items in use, menusystem
+	{'*', TRUE, doinvinuse}, */
+	{'`', TRUE, domenusystem},
+	{'~', TRUE, domenusystem},
 	{WEAPON_SYM,  TRUE, doprwep},
 	{ARMOR_SYM,  TRUE, doprarm},
 	{RING_SYM,  TRUE, doprring},
@@ -1475,12 +2222,18 @@ static const struct func_tab cmdlist[] = {
 };
 
 struct ext_func_tab extcmdlist[] = {
+	{"2weapon", "toggle two-weapon combat", dotwoweapon, FALSE},
 	{"adjust", "adjust inventory letters", doorganize, TRUE},
+	{"borrow", "steal from monsters", playersteal, FALSE},  /* jla */        
 	{"chat", "talk to someone", dotalk, TRUE},	/* converse? */
 	{"conduct", "list which challenges you have adhered to", doconduct, TRUE},
 	{"dip", "dip an object into something", dodip, FALSE},
 	{"enhance", "advance or check weapons skills", enhance_weapon_skill,
 							TRUE},
+#if 0
+	{"ethics", "list which challenges you have adhered to", doethics, TRUE},
+#endif
+	{"explore", "enter explore mode", enter_explore_mode, TRUE},
 	{"force", "force a lock", doforce, FALSE},
 	{"invoke", "invoke an object's powers", doinvoke, TRUE},
 	{"jump", "jump to a location", dojump, FALSE},
@@ -1495,18 +2248,27 @@ struct ext_func_tab extcmdlist[] = {
 #endif
 	{"rub", "rub a lamp or a stone", dorub, FALSE},
 	{"sit", "sit down", dosit, FALSE},
+#ifdef SHOUT
+	{"shout", "say something loud", doyell, TRUE}, /* jrn */
+#endif
+	{"technique", "perform a technique", dotech, TRUE},
 	{"turn", "turn undead", doturn, TRUE},
 	{"twoweapon", "toggle two-weapon combat", dotwoweapon, FALSE},
 	{"untrap", "untrap something", dountrap, FALSE},
-	{"version", "list compile time options for this version of NetHack",
+	{"vanquished", "list vanquished monsters", dolistvanq, TRUE},
+	{"version", "list compile time options for this version of Slash'EM",
 		doextversion, TRUE},
 	{"wipe", "wipe off your face", dowipe, FALSE},
+	{"youpoly", "polymorph at will", polyatwill, FALSE},  /* jla */        
 	{"?", "get this list of extended commands", doextlist, TRUE},
 #if defined(WIZARD)
 	/*
 	 * There must be a blank entry here for every entry in the table
 	 * below.
 	 */
+#ifdef DISPLAY_LAYERS
+	{(char *)0, (char *)0, donull, TRUE},
+#endif
 	{(char *)0, (char *)0, donull, TRUE},
 	{(char *)0, (char *)0, donull, TRUE},
 #ifdef DEBUG_MIGRATING_MONS
@@ -1514,12 +2276,12 @@ struct ext_func_tab extcmdlist[] = {
 #endif
 	{(char *)0, (char *)0, donull, TRUE},
 	{(char *)0, (char *)0, donull, TRUE},
-	{(char *)0, (char *)0, donull, TRUE},
 #ifdef PORT_DEBUG
 	{(char *)0, (char *)0, donull, TRUE},
 #endif
 	{(char *)0, (char *)0, donull, TRUE},
         {(char *)0, (char *)0, donull, TRUE},
+	{(char *)0, (char *)0, donull, TRUE},
 	{(char *)0, (char *)0, donull, TRUE},
 	{(char *)0, (char *)0, donull, TRUE},
 #ifdef DEBUG
@@ -1532,6 +2294,9 @@ struct ext_func_tab extcmdlist[] = {
 
 #if defined(WIZARD)
 static const struct ext_func_tab debug_extcmdlist[] = {
+#ifdef DISPLAY_LAYERS
+	{"display", "detail display layers", wiz_show_display, TRUE},
+#endif
 	{"levelchange", "change experience level", wiz_level_change, TRUE},
 	{"lightsources", "show mobile light sources", wiz_light_sources, TRUE},
 #ifdef DEBUG_MIGRATING_MONS
@@ -1765,6 +2530,84 @@ sanity_check()
 	timer_sanity_check();
 }
 
+#ifdef DISPLAY_LAYERS
+/*
+ * Detail contents of each display layer at specified location(s).
+ */
+static int
+wiz_show_display()
+{
+    int ans, glyph;
+    coord cc;
+    winid win;
+    char buf[BUFSZ];
+    struct rm *lev;
+
+    cc.x = u.ux;
+    cc.y = u.uy;
+    pline("Pick a location.");
+    ans = getpos(&cc, FALSE, "a location of interest");
+    if (ans < 0 || cc.x < 0)
+	return 0;	/* done */
+    lev = &levl[cc.x][cc.y];
+    win = create_nhwindow(NHW_MENU);
+    Sprintf(buf, "Contents of hero's memory at (%d, %d):", cc.x, cc.y);
+    putstr(win, 0, buf);
+    putstr(win, 0, "");
+    Sprintf(buf, "Invisible monster: %s",
+	    lev->mem_invis ? "present" : "none");
+    putstr(win, 0, buf);
+    if (lev->mem_obj && lev->mem_corpse)
+	if (mons[lev->mem_obj - 1].geno & G_UNIQ)
+	    Sprintf(buf, "Object: %s%s corpse",
+		    type_is_pname(&mons[lev->mem_obj - 1]) ? "" : "the ",
+		    s_suffix(mons[lev->mem_obj - 1].mname));
+	else
+	    Sprintf(buf, "Object: %s corpse", mons[lev->mem_obj - 1].mname);
+    else
+	Sprintf(buf, "Object: %s", lev->mem_obj ?
+		obj_typename(lev->mem_obj - 1) : "none");
+    putstr(win, 0, buf);
+    Sprintf(buf, "Trap: %s", lev->mem_trap ?
+	    defsyms[trap_to_defsym(lev->mem_trap)].explanation : "none");
+    putstr(win, 0, buf);
+    Sprintf(buf, "Backgroud: %s", defsyms[lev->mem_bg].explanation);
+    putstr(win, 0, buf);
+    putstr(win, 0, "");
+    glyph = glyph_at(cc.x, cc.y);
+    Sprintf(buf, "Buffered (3rd screen): ");
+    if (glyph_is_monster(glyph)) {
+	Strcat(buf, mons[glyph_to_mon(glyph)].mname);
+	if (glyph_is_pet(glyph))
+	    Strcat(buf, " (tame)");
+	if (glyph_is_ridden_monster(glyph))
+	    Strcat(buf, " (ridden)");
+	if (glyph_is_detected_monster(glyph))
+	    Strcat(buf, " (detected)");
+    } else if (glyph_is_object(glyph)) {
+	if (glyph_is_body(glyph)) {
+	    int corpse = glyph_to_body(glyph);
+	    if (mons[corpse].geno & G_UNIQ)
+		Sprintf(eos(buf), "%s%s corpse",
+			type_is_pname(&mons[corpse]) ? "" : "the ",
+			s_suffix(mons[corpse].mname));
+	    else
+		Sprintf(eos(buf), "%s corpse", mons[corpse].mname);
+	} else
+	    Strcat(buf, obj_typename(glyph_to_obj(glyph)));
+    } else if (glyph_is_invisible(glyph))
+	Strcat(buf, "invisible monster");
+    else if (glyph_is_cmap(glyph))
+	Strcat(buf, defsyms[glyph_to_cmap(glyph)].explanation);
+    else
+	Sprintf(eos(buf), "[%d]", glyph);
+    putstr(win, 0, buf);
+    display_nhwindow(win, FALSE);
+    destroy_nhwindow(win);
+    return 0;
+}
+#endif
+
 #ifdef DEBUG_MIGRATING_MONS
 static int
 wiz_migrate_mons()
@@ -1812,9 +2655,17 @@ register char *cmd;
 		flags.nopick = 0;
 		cmd = parse();
 	}
-	if (*cmd == '\033') {
+	if (*cmd == '\033') { /* <esc> key - user might be panicking */
+		/* Bring up the menu */
+		if (multi || !flags.menu_on_esc || !(domenusystem())) {
+		flags.move = FALSE;
+		    multi = 0;
+		}
+		return;
+#if 0
 		flags.move = FALSE;
 		return;
+#endif
 	}
 #ifdef REDO
 	if (*cmd == DOAGAIN && !in_doagain && saveq[0]) {
@@ -1944,12 +2795,10 @@ register char *cmd;
 	    bad_command = FALSE;
 	} else if (*cmd == ' ' && !flags.rest_on_space) {
 	    bad_command = TRUE;		/* skip cmdlist[] loop */
-
 	/* handle all other commands */
 	} else {
 	    register const struct func_tab *tlist;
 	    int res, NDECL((*func));
-
 	    for (tlist = cmdlist; tlist->f_char; tlist++) {
 		if ((*cmd & 0xff) != (tlist->f_char & 0xff)) continue;
 
@@ -1973,7 +2822,6 @@ register char *cmd;
 	    /* if we reach here, cmd wasn't found in cmdlist[] */
 	    bad_command = TRUE;
 	}
-
 	if (bad_command) {
 	    char expcmd[10];
 	    register char *cp = expcmd;
@@ -2080,14 +2928,23 @@ getdir(s)
 const char *s;
 {
 	char dirsym;
+	/* WAC add dirsymbols to generic prompt */
+	char buf[BUFSZ];
+        
+	Sprintf(buf, "In what direction? [%s]",
+                (iflags.num_pad ? ndir : sdir));
+
 
 #ifdef REDO
 	if(in_doagain || *readchar_queue)
 	    dirsym = readchar();
 	else
 #endif
-	    dirsym = yn_function ((s && *s != '^') ? s : "In what direction?",
-					(char *)0, '\0');
+	do {
+	    dirsym = yn_function ((s && *s != '^') ? s : buf, (char *)0, '\0');
+	} while (!movecmd(dirsym) && !index(quitchars, dirsym)
+                && dirsym == '.' && dirsym == 's' && !u.dz);
+
 #ifdef REDO
 	savech(dirsym);
 #endif
@@ -2116,7 +2973,7 @@ const char *msg;
 	char ctrl;
 	winid win;
 	static const char wiz_only_list[] = "EFGIOVW";
-	char buf[BUFSZ], buf2[BUFSZ], *expl;
+	char buf[BUFSZ], buf2[BUFSZ], *expln;
 
 	win = create_nhwindow(NHW_TEXT);
 	if (!win) return FALSE;
@@ -2128,7 +2985,7 @@ const char *msg;
 	if (letter(sym)) { 
 	    sym = highc(sym);
 	    ctrl = (sym - 'A') + 1;
-	    if ((expl = dowhatdoes_core(ctrl, buf2))
+	    if ((expln = dowhatdoes_core(ctrl, buf2))
 		&& (!index(wiz_only_list, sym)
 #ifdef WIZARD
 		    || wizard
@@ -2139,7 +2996,7 @@ const char *msg;
 			" as specified in the Guidebook");
 		putstr(win, 0, buf);
 		putstr(win, 0, "");
-		putstr(win, 0, expl);
+		putstr(win, 0, expln);
 		putstr(win, 0, "");
 		putstr(win, 0, "To use that command, you press");
 		Sprintf(buf,
@@ -2342,11 +3199,44 @@ parse()
 	static char in_line[COLNO];
 #endif
 	register int foo;
+#ifdef BORG
+	char junk_char;
+#endif
+	static char repeat_char;
 	boolean prezero = FALSE;
 
 	multi = 0;
 	flags.move = 1;
 	flush_screen(1); /* Flush screen buffer. Put the cursor on the hero. */
+
+#ifdef BORG
+	if (borg_on) {
+	/* KMH -- Danger!  kbhit() is non-standard! */
+	   if (!kbhit()) {
+	       borg_input();
+	       return(borg_line);
+	   } else {
+		 junk_char = readchar();
+		 pline("Cyborg terminated.");
+		 borg_on = 0;
+	   }
+
+	} else 
+#endif
+	/* [Tom] for those who occasionally go insane... */
+	if (repeat_hit) {
+		/* Sanity checks for repeat_hit */
+		if (repeat_hit < 0) repeat_hit = 0;
+		else {
+			/* Don't want things to get too out of hand */
+			if (repeat_hit > 10) repeat_hit = 10;
+			
+			repeat_hit--;
+			in_line[0] = repeat_char;
+			in_line[1] = 0;
+			return (in_line);
+		}
+	}
 
 	if (!iflags.num_pad || (foo = readchar()) == 'n')
 	    for (;;) {
@@ -2367,7 +3257,7 @@ parse()
 
 	if (foo == '\033') {   /* esc cancels count (TH) */
 	    clear_nhwindow(WIN_MESSAGE);
-	    multi = last_multi = 0;
+	    /* multi = */ last_multi = 0;  /* WAC multi is cleared later in rhack */
 # ifdef REDO
 	} else if (foo == DOAGAIN || in_doagain) {
 	    multi = last_multi;
@@ -2386,6 +3276,7 @@ parse()
 	}
 	in_line[0] = foo;
 	in_line[1] = '\0';
+
 	if (foo == 'g' || foo == 'G' || foo == 'm' || foo == 'M' ||
 	    foo == 'F' || (iflags.num_pad && (foo == '5' || foo == '-'))) {
 	    foo = readchar();
@@ -2396,7 +3287,10 @@ parse()
 	    in_line[2] = 0;
 	}
 	clear_nhwindow(WIN_MESSAGE);
+
 	if (prezero) in_line[0] = '\033';
+	repeat_char = in_line[0];
+	
 	return(in_line);
 }
 
@@ -2507,21 +3401,29 @@ wiz_port_debug()
 	int num_menu_selections;
 	struct menu_selection_struct {
 		char *menutext;
+		char *portname;
 		void NDECL((*fn));
 	} menu_selections[] = {
 #ifdef WIN32CON
-		{"test win32 keystrokes", win32con_debug_keystrokes},
-		{"show keystroke handler information", win32con_handler_info},
+		{"test win32 keystrokes", "tty", win32con_debug_keystrokes},
+		{"show keystroke handler information", "tty",
+				win32con_handler_info},
 #endif
-		{(char *)0, (void NDECL((*)))0}		/* array terminator */
+		{(char *)0, (char *)0, (void NDECL((*)))0}/* array terminator */
 	};
 
 	num_menu_selections = SIZE(menu_selections) - 1;
-	if (num_menu_selections > 0) {
+	for (k=n=0; k < num_menu_selections; ++k)
+		if (!strcmp(menu_selections[k].portname, windowprocs.name))
+			n++;
+	if (n > 0) {
 		menu_item *pick_list;
 		win = create_nhwindow(NHW_MENU);
 		start_menu(win);
 		for (k=0; k < num_menu_selections; ++k) {
+			if (strcmp(menu_selections[k].portname,
+				   windowprocs.name))
+				continue;
 			any.a_int = k+1;
 			add_menu(win, NO_GLYPH, &any, item++, 0, ATR_NONE,
 				menu_selections[k].menutext, MENU_UNSELECTED);

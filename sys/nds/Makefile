@@ -10,7 +10,7 @@ include $(DEVKITARM)/base_rules
 CCMAKE=$(MAKE) CC=cc
 
 #export TARGET		:=	$(shell basename $(CURDIR))
-export TARGET		:=	NetHackDS
+export TARGET		:=	SlashEmDS
 export TARGETDIR	:=	build
 export TOPDIR		:=	$(CURDIR)
 
@@ -30,7 +30,8 @@ all: dat image
 #---------------------------------------------------------------------------------
 dat::
 	cd dat; $(CCMAKE)
-	cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h
+	cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h 
+	cd include; ../util/makedefs -f
 	@if egrep -s librarian dat/options ; then $(CCMAKE) dlb ; else true ; fi
 
 image: binary/$(TARGET).ds.gba
@@ -40,14 +41,14 @@ binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@[ -d binary ] || mkdir binary
 	@rm -rf binary/*
 	@cp build/$(TARGET).ds.gba build/$(TARGET).nds binary
-	@mkdir binary/NetHack
-	@mkdir binary/NetHack/save
-	@touch binary/NetHack/record
-	@cp dat/nhdat dat/license doc/Guidebook.txt doc/nethack.txt binary/NetHack
-	@cp sys/nds/NetHack/* binary/NetHack
+	@mkdir binary/SlashEM
+	@mkdir binary/SlashEM/save
+	@touch binary/SlashEM/record
+	@cp dat/nhshare dat/nhushare dat/license doc/Guidebook.txt doc/nethack.txt binary/SlashEM
+	@cp sys/nds/NetHack/* binary/SlashEM
 	@echo Done!  Copy everything in the 'binary' directory to your CF card.
 	@echo Note: If you compiled without DLB defined, you must copy the files listed in
-	@echo 'dat/dlb.lst to binary/NetHack.  Try: cd dat; cp `cat dlb.lst` ../binary/NetHack'
+	@echo 'dat/dlb.lst to binary/SlashEM.  Try: cd dat; cp `cat dlb.lst` ../binary/SlashEM'
 	@echo 
 
 install: binary/$(TARGET).ds.gba

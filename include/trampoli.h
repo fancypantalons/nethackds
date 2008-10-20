@@ -22,7 +22,13 @@
 #define doextcmd()	   doextcmd_()
 #define doextlist()	   doextlist_()
 #define domonability()	   domonability_()
+#ifdef POLYSELF
+#define polyatwill()       polyatwill_()
+#endif /* POLYSELF */
+#define playersteal()        playersteal_()
+#ifdef EXPLORE_MODE
 #define enter_explore_mode() enter_explore_mode_()
+#endif /* EXPLORE MODE */
 #define doprev_message() doprev_message_()
 #define timed_occupation() timed_occupation_()
 #define wiz_attributes()   wiz_attributes_()
@@ -307,7 +313,11 @@
 #define tty_destroy_nhwindow(x)		tty_destroy_nhwindow_(x)
 #define tty_curs(x,y,z)			tty_curs_(x,y,z)
 #define tty_putstr(x,y,z)		tty_putstr_(x,y,z)
+#ifdef FILE_AREAS
+#define tty_display_file(x,y,z)		tty_display_file_(x,y,z)
+#else
 #define tty_display_file(x,y)		tty_display_file_(x,y)
+#endif
 #define tty_start_menu(x)		tty_start_menu_(x)
 #define tty_add_menu(a,b,c,d,e,f,g,h)	tty_add_menu_(a,b,c,d,e,f,g,h)
 #define tty_end_menu(a,b)		tty_end_menu_(a,b)

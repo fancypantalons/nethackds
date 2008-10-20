@@ -1703,6 +1703,8 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
         add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, "Other", 0);
       } else if (choices[i] == '*') {
         add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, "Something from your inventory", 0);
+      } else if (choices[i] == ',') {
+        add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, "Something from the floor", 0);
       } else if ((choices[i] == '-') || (choices[i] == '.')) {
         add_menu(win, NO_GLYPH, &(ids[i]), 0, 0, 0, "Nothing/your finger", 0);
       } else if (choices[i] == '?') {

@@ -31,10 +31,10 @@
 #define SPFX_DFLAG1 0x0400000L	/* attack bonus on monsters w/ mflags1 flag */
 #define SPFX_DFLAG2 0x0800000L	/* attack bonus on monsters w/ mflags2 flag */
 #define SPFX_DALIGN 0x1000000L	/* attack bonus on non-aligned monsters  */
-#define SPFX_DBONUS 0x1F00000L	/* attack bonus mask */
 #define SPFX_XRAY   0x2000000L	/* gives X-RAY vision to player */
 #define SPFX_REFLECT 0x4000000L /* Reflection */
 
+#define SPFX_DBONUS 0x1F00000L	/* attack bonus mask */
 
 struct artifact {
 	short	    otyp;
@@ -48,6 +48,8 @@ struct artifact {
 	short	    role;	/* character role associated with */
 	short	    race;	/* character race associated with */
 	long        cost;	/* price when sold to hero (default 100 x base cost) */
+	
+	Bitfield(questarti,1);	/* is quest artifact */
 };
 
 /* invoked properties with special powers */
@@ -60,5 +62,12 @@ struct artifact {
 #define CREATE_PORTAL	(LAST_PROP+7)
 #define ENLIGHTENING	(LAST_PROP+8)
 #define CREATE_AMMO	(LAST_PROP+9)
+#define SUMMON_UNDEAD   (LAST_PROP+10)
+#define DEATH_GAZE      (LAST_PROP+11)
+#define LIGHT_AREA      (LAST_PROP+12) /* STEPHEN WHITE'S NEW CODE */
+#define PROT_POLY       (LAST_PROP+13)
+#define SUMMON_FIRE_ELEMENTAL           (LAST_PROP+14)
+#define SUMMON_WATER_ELEMENTAL          (LAST_PROP+15)
+#define OBJ_DETECTION	(LAST_PROP+16)
 
 #endif /* ARTIFACT_H */

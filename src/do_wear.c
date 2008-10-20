@@ -42,16 +42,6 @@ static NEARDATA const long takeoff_order[] = { WORN_BLINDF, W_WEP,
 	WORN_BOOTS, W_SWAPWEP, W_QUIVER, 0L };
 
 STATIC_DCL void FDECL(on_msg, (struct obj *));
-STATIC_PTR int NDECL(Armor_on);
-STATIC_PTR int NDECL(Boots_on);
-STATIC_DCL int NDECL(Cloak_on);
-STATIC_PTR int NDECL(Helmet_on);
-STATIC_PTR int NDECL(Gloves_on);
-STATIC_PTR int NDECL(Shield_on);
-#ifdef TOURIST
-STATIC_PTR int NDECL(Shirt_on);
-#endif
-STATIC_DCL void NDECL(Amulet_on);
 STATIC_DCL void FDECL(Ring_off_or_gone, (struct obj *, BOOLEAN_P));
 STATIC_PTR int FDECL(select_off, (struct obj *));
 STATIC_DCL struct obj *NDECL(do_takeoff);
@@ -90,7 +80,6 @@ register struct obj *otmp;
  * The Type_off() functions call setworn() themselves.
  */
 
-STATIC_PTR
 int
 Boots_on()
 {
@@ -193,7 +182,7 @@ Boots_off()
     return 0;
 }
 
-STATIC_OVL int
+int
 Cloak_on()
 {
     long oldprop =
@@ -210,6 +199,12 @@ Cloak_on()
 	case CLOAK_OF_MAGIC_RESISTANCE:
 	case ROBE:
 	case LEATHER_CLOAK:
+	/* KMH, balance patch -- removed
+	case CLOAK_OF_DRAIN_RESISTANCE: */               
+		break;
+	/* KMH, balance patch -- lab coat gives poison _and_ acid resistance */
+	case LAB_COAT:
+		EAcid_resistance |= WORN_CLOAK;
 		break;
 	case MUMMY_WRAPPING:
 		/* Note: it's already being worn, so we have to cheat here. */
@@ -230,13 +225,23 @@ Cloak_on()
 			See_invisible ? " see through" : "not see");
 		}
 		break;
+	case POISONOUS_CLOAK:
+		if (Poison_resistance)
+			pline("This cloak feels a little itchy.");
+		else {
+		    makeknown(uarmc->otyp);
+		    poisoned("cloak",A_STR,"poisonous cloak",3);
+		}
+		break;
 	case OILSKIN_CLOAK:
 		pline("%s very tightly.", Tobjnam(uarmc, "fit"));
 		break;
 	/* Alchemy smock gives poison _and_ acid resistance */
+#if 0
 	case ALCHEMY_SMOCK:
 		EAcid_resistance |= WORN_CLOAK;
   		break;
+#endif
 	default: impossible(unknown_type, c_cloak, uarmc->otyp);
     }
     return 0;
@@ -258,9 +263,16 @@ Cloak_off()
 	case CLOAK_OF_PROTECTION:
 	case CLOAK_OF_MAGIC_RESISTANCE:
 	case CLOAK_OF_DISPLACEMENT:
+	case POISONOUS_CLOAK:
 	case OILSKIN_CLOAK:
 	case ROBE:
 	case LEATHER_CLOAK:
+	/* KMH, balance patch -- removed
+	case CLOAK_OF_DRAIN_RESISTANCE: */
+		break;
+	/* KMH, balance patch -- lab coat gives poison _and_ acid resistance */
+	case LAB_COAT:
+		EAcid_resistance &= ~WORN_CLOAK;
 		break;
 	case MUMMY_WRAPPING:
 		if (Invis && !Blind) {
@@ -279,26 +291,32 @@ Cloak_off()
 			: see_yourself);
 		}
 		break;
+#if 0
 	/* Alchemy smock gives poison _and_ acid resistance */
 	case ALCHEMY_SMOCK:
 		EAcid_resistance &= ~WORN_CLOAK;
   		break;
+#endif
 	default: impossible(unknown_type, c_cloak, otyp);
     }
     return 0;
 }
 
-STATIC_PTR
 int
 Helmet_on()
 {
     switch(uarmh->otyp) {
 	case FEDORA:
+		set_moreluck();
+		flags.botl = 1;
+		break;
 	case HELMET:
 	case DENTED_POT:
 	case ELVEN_LEATHER_HELM:
 	case DWARVISH_IRON_HELM:
 	case ORCISH_HELM:
+	/* KMH, balance patch -- removed
+	case FIRE_HELMET: */
 	case HELM_OF_TELEPATHY:
 		break;
 	case HELM_OF_BRILLIANCE:
@@ -353,11 +371,17 @@ Helmet_off()
 
     switch(uarmh->otyp) {
 	case FEDORA:
+	    setworn((struct obj *)0, W_ARMH);
+	    set_moreluck();
+	    flags.botl = 1;
+	    return 0;
 	case HELMET:
 	case DENTED_POT:
 	case ELVEN_LEATHER_HELM:
 	case DWARVISH_IRON_HELM:
 	case ORCISH_HELM:
+	/* KMH, balance patch -- removed
+	case FIRE_HELMET: */
 	    break;
 	case DUNCE_CAP:
 	    flags.botl = 1;
@@ -388,7 +412,6 @@ Helmet_off()
     return 0;
 }
 
-STATIC_PTR
 int
 Gloves_on()
 {
@@ -397,6 +420,12 @@ Gloves_on()
 
     switch(uarmg->otyp) {
 	case LEATHER_GLOVES:
+		break;
+	case GAUNTLETS_OF_SWIMMING:
+		if (u.uinwater) {
+		   pline("Hey! You can swim!");
+		   spoteffects(TRUE);
+		}
 		break;
 	case GAUNTLETS_OF_FUMBLING:
 		if (!oldprop && !(HFumbling & ~TIMEOUT))
@@ -425,6 +454,12 @@ Gloves_off()
     switch(uarmg->otyp) {
 	case LEATHER_GLOVES:
 	    break;
+	case GAUNTLETS_OF_SWIMMING:
+	    if (u.uinwater) {
+	       You("begin to thrash about!");
+	       spoteffects(TRUE);
+	    }
+	    break;
 	case GAUNTLETS_OF_FUMBLING:
 	    if (!oldprop && !(HFumbling & ~TIMEOUT))
 		HFumbling = EFumbling = 0;
@@ -449,7 +484,7 @@ Gloves_off()
 
 	You("wield the %s in your bare %s.",
 	    corpse_xname(uwep, TRUE), makeplural(body_part(HAND)));
-	Strcpy(kbuf, an(corpse_xname(uwep, TRUE)));
+	Strcpy(kbuf, an(killer_cxname(uwep, TRUE)));
 	instapetrify(kbuf);
 	uwepgone();  /* life-saved still doesn't allow touching cockatrice */
     }
@@ -462,7 +497,7 @@ Gloves_off()
 	You("wield the %s in your bare %s.",
 	    corpse_xname(uswapwep, TRUE), body_part(HAND));
 
-	Strcpy(kbuf, an(corpse_xname(uswapwep, TRUE)));
+	Strcpy(kbuf, an(killer_cxname(uswapwep, TRUE)));
 	instapetrify(kbuf);
 	uswapwepgone();	/* lifesaved still doesn't allow touching cockatrice */
     }
@@ -470,7 +505,7 @@ Gloves_off()
     return 0;
 }
 
-STATIC_OVL int
+int
 Shield_on()
 {
 /*
@@ -511,7 +546,7 @@ Shield_off()
 }
 
 #ifdef TOURIST
-STATIC_OVL int
+int
 Shirt_on()
 {
 /*
@@ -546,10 +581,16 @@ Shirt_off()
  * is fire resistance, and we have to immediately set HFire_resistance in worn.c
  * since worn.c will check it before returning.
  */
-STATIC_PTR
 int
 Armor_on()
 {
+	/* KMH -- certain armor is obvious when worn */
+	switch (uarm->otyp) {
+		case ROBE_OF_PROTECTION:
+		case ROBE_OF_WEAKNESS:
+			makeknown(uarm->otyp);
+			break;
+	}
     return 0;
 }
 
@@ -574,15 +615,22 @@ Armor_gone()
     return 0;
 }
 
-STATIC_OVL void
+void
 Amulet_on()
 {
     switch(uamul->otyp) {
 	case AMULET_OF_ESP:
+#if 0	/* OBSOLETE */
+		if(uamul->oartifact == ART_MEDALLION_OF_SHIFTERS) rescham();
+#endif
 	case AMULET_OF_LIFE_SAVING:
 	case AMULET_VERSUS_POISON:
+	case AMULET_OF_DRAIN_RESISTANCE:
 	case AMULET_OF_REFLECTION:
 	case AMULET_OF_MAGICAL_BREATHING:
+	/* KMH, balance patch -- removed
+	case AMULET_OF_REGENERATION:
+	case AMULET_OF_CONFLICT:*/
 	case FAKE_AMULET_OF_YENDOR:
 		break;
 	case AMULET_OF_UNCHANGING:
@@ -615,15 +663,52 @@ Amulet_on()
 		useup(uamul);
 		break;
 	    }
+	/* KMH, balance patch -- removed
+	case AMULET_OF_POLYMORPH:        
+		makeknown(AMULET_OF_POLYMORPH);
+		You("feel rather strange.");
+		polyself();
+		flags.botl = 1;
+		pline("The amulet disintegrates!");
+		useup(uamul);
+		break;*/
 	case AMULET_OF_STRANGULATION:
 		makeknown(AMULET_OF_STRANGULATION);
 		pline("It constricts your throat!");
 		Strangled = 6;
 		break;
 	case AMULET_OF_RESTFUL_SLEEP:
+		if(uamul->blessed) {
+			char buf[BUFSZ];
+			int sleeptime;
+  
+			makeknown(AMULET_OF_RESTFUL_SLEEP);
+			do {
+			getlin("How many moves do you wish to sleep for? [1-500]", buf);
+				    sleeptime = (!*buf || *buf=='\033') ? 0 : atoi(buf);
+				} while (sleeptime < 1 || sleeptime > 500);
+			if (sleeptime > 0) {
+				You("sit down and fall asleep.");
+				nomul(-sleeptime);
+				u.usleep = 1;
+				nomovemsg = "You wake up from your refreshing nap.";
 		HSleeping = rnd(100);
+			}                
+		} else HSleeping = rnd(100);
 		break;
 	case AMULET_OF_YENDOR:
+		break;
+	/* KMH, balance patch -- added */
+	case AMULET_VERSUS_STONE:
+		uunstone();
+		break;
+	case AMULET_OF_FLYING:
+		if (!(EFlying & ~W_AMUL) && !is_flyer(youmonst.data)) {
+			You_feel("like flying!");
+			if (!Levitation)
+				float_up();
+			makeknown(AMULET_OF_FLYING);
+		}
 		break;
     }
 }
@@ -636,11 +721,20 @@ Amulet_off()
     switch(uamul->otyp) {
 	case AMULET_OF_ESP:
 		/* need to update ability before calling see_monsters() */
+#if 0	/* OBSOLETE */
+		if(uamul->oartifact == ART_MEDALLION_OF_SHIFTERS) restartcham();
+#endif
 		setworn((struct obj *)0, W_AMUL);
 		see_monsters();
 		return;
 	case AMULET_OF_LIFE_SAVING:
 	case AMULET_VERSUS_POISON:
+	case AMULET_OF_DRAIN_RESISTANCE:
+	/* KMH, balance patch -- removed
+	case AMULET_OF_REGENERATION:
+	case AMULET_OF_CONFLICT:*/
+	/* KMH, balance patch -- added */
+	case AMULET_VERSUS_STONE:
 	case AMULET_OF_REFLECTION:
 	case AMULET_OF_CHANGE:
 	case AMULET_OF_UNCHANGING:
@@ -670,6 +764,11 @@ Amulet_off()
 		if (!ESleeping)
 			HSleeping = 0;
 		return;
+	/* KMH, balance patch -- added */
+	case AMULET_OF_FLYING:
+		setworn((struct obj *)0, W_AMUL);
+		(void) float_down(0L, 0L);
+		return;
 	case AMULET_OF_YENDOR:
 		break;
     }
@@ -684,8 +783,8 @@ register struct obj *obj;
     long oldprop = u.uprops[objects[obj->otyp].oc_oprop].extrinsic;
     int old_attrib, which;
 
-    if (obj == uwep) setuwep((struct obj *) 0);
-    if (obj == uswapwep) setuswapwep((struct obj *) 0);
+    if (obj == uwep) setuwep((struct obj *) 0, TRUE);
+    if (obj == uswapwep) setuswapwep((struct obj *) 0, TRUE);
     if (obj == uquiver) setuqwep((struct obj *) 0);
 
     /* only mask out W_RING when we don't have both
@@ -707,11 +806,23 @@ register struct obj *obj;
 	case RIN_TELEPORT_CONTROL:
 	case RIN_POLYMORPH:
 	case RIN_POLYMORPH_CONTROL:
+	/* KMH, balance patch -- now an amulet
+	case RIN_DRAIN_RESISTANCE: */
+	/* KMH -- added */
+	case RIN_MOOD:
 	case RIN_FREE_ACTION:                
 	case RIN_SLOW_DIGESTION:
 	case RIN_SUSTAIN_ABILITY:
 	case MEAT_RING:
 		break;
+	case RIN_SLEEPING:        
+		HSleeping = rnd(100);
+		break;
+#if 0
+	case RIN_INDIGESTION:
+		incr_itimeout(&HIndigestion, rnd(20));
+		break;
+#endif
 	case RIN_WARNING:
 		see_monsters();
 		break;
@@ -764,6 +875,30 @@ register struct obj *obj;
 		    update_inventory();
 		}
 		break;
+	case RIN_GAIN_INTELLIGENCE:
+		ABON(A_INT) += obj->spe;
+		flags.botl = 1;
+		if (obj->spe || objects[RIN_GAIN_INTELLIGENCE].oc_name_known) {
+			makeknown(RIN_GAIN_INTELLIGENCE);
+			obj->known = TRUE;
+		}
+		break;
+	case RIN_GAIN_WISDOM:
+		ABON(A_WIS) += obj->spe;
+		flags.botl = 1;
+		if (obj->spe || objects[RIN_GAIN_WISDOM].oc_name_known) {
+			makeknown(RIN_GAIN_WISDOM);
+			obj->known = TRUE;
+		}
+		break;
+	case RIN_GAIN_DEXTERITY:
+		ABON(A_DEX) += obj->spe;
+		flags.botl = 1;
+		if (obj->spe || objects[RIN_GAIN_DEXTERITY].oc_name_known) {
+			makeknown(RIN_GAIN_DEXTERITY);
+			obj->known = TRUE;
+		}
+		break;
 	case RIN_INCREASE_ACCURACY:	/* KMH */
 		u.uhitinc += obj->spe;
 		break;
@@ -813,11 +948,25 @@ boolean gone;
 	case RIN_TELEPORT_CONTROL:
 	case RIN_POLYMORPH:
 	case RIN_POLYMORPH_CONTROL:
+	/* KMH, balance patch -- now an amulet
+	case RIN_DRAIN_RESISTANCE: */
+	/* KMH, balance patch -- added */
+	case RIN_MOOD:
 	case RIN_FREE_ACTION:                
 	case RIN_SLOW_DIGESTION:
 	case RIN_SUSTAIN_ABILITY:
 	case MEAT_RING:
 		break;
+	case RIN_SLEEPING:
+		if (!ESleeping)
+			HSleeping = 0;
+		break;
+#if 0
+	case RIN_INDIGESTION:
+		if (!EIndigestion)
+			HIndigestion = 0;
+		break;
+#endif
 	case RIN_WARNING:
 		see_monsters();
 		break;
@@ -851,6 +1000,15 @@ boolean gone;
 		break;
 	case RIN_GAIN_STRENGTH:
 		which = A_STR;
+		goto adjust_attrib;
+	case RIN_GAIN_INTELLIGENCE:
+		which = A_INT;
+		goto adjust_attrib;
+	case RIN_GAIN_WISDOM:
+		which = A_WIS;
+		goto adjust_attrib;
+	case RIN_GAIN_DEXTERITY:
+		which = A_DEX;
 		goto adjust_attrib;
 	case RIN_GAIN_CONSTITUTION:
 		which = A_CON;
@@ -908,12 +1066,12 @@ void
 Blindf_on(otmp)
 register struct obj *otmp;
 {
-	boolean already_blind = Blind, changed = FALSE;
+	long already_blind = Blind, changed = FALSE;
 
 	if (otmp == uwep)
-	    setuwep((struct obj *) 0);
+	    setuwep((struct obj *) 0, TRUE);
 	if (otmp == uswapwep)
-	    setuswapwep((struct obj *) 0);
+	    setuswapwep((struct obj *) 0, TRUE);
 	if (otmp == uquiver)
 	    setuqwep((struct obj *) 0);
 	setworn(otmp, W_TOOL);
@@ -971,6 +1129,7 @@ register struct obj *otmp;
 	    flags.botl = 1;
 	}
 }
+
 
 /* called in main to set intrinsics of worn start-up items */
 void
@@ -1221,6 +1380,9 @@ register struct obj *otmp;
 			(void) Cloak_off();
 		else if(is_shield(otmp))
 			(void) Shield_off();
+		else if (is_helmet(otmp))
+			/* [Finn E. Theodorsen] For fedoras */
+			(void) Helmet_off();
 		else setworn((struct obj *)0, otmp->owornmask & W_ARMOR);
 		off_msg(otmp);
 	}
@@ -1309,8 +1471,13 @@ boolean noisy;
 		    (uwep->otyp == BATTLE_AXE) ? c_axe : c_weapon);
 	    err++;
 	} else if (u.twoweap) {
-	    if (noisy)
+	    if (noisy) {
+		if (uwep && uswapwep)
 		You("cannot wear a shield while wielding two weapons.");
+		else
+		    You("cannot wear a shield while fighting with two %s.",
+			    makeplural(body_part(HAND)));
+	    }
 	    err++;
 	} else
 	    *mask = W_ARMS;
@@ -1433,9 +1600,9 @@ dowear()
 
 	otmp->known = TRUE;
 	if(otmp == uwep)
-		setuwep((struct obj *)0);
+		setuwep((struct obj *)0, TRUE);
 	if (otmp == uswapwep)
-		setuswapwep((struct obj *) 0);
+		setuswapwep((struct obj *) 0, TRUE);
 	if (otmp == uquiver)
 		setuqwep((struct obj *) 0);
 	setworn(otmp, mask);
@@ -1453,6 +1620,7 @@ dowear()
 #ifdef TOURIST
 		if (is_shirt(otmp)) (void) Shirt_on();
 #endif
+		if (is_helmet(otmp)) (void) Helmet_on();	/* fedoras */
 		on_msg(otmp);
 	}
 	takeoff_mask = taking_off = 0L;
@@ -1483,9 +1651,9 @@ doputon()
 		return(0);
 	}
 	if(otmp == uwep)
-		setuwep((struct obj *)0);
+		setuwep((struct obj *)0, TRUE);
 	if(otmp == uswapwep)
-		setuswapwep((struct obj *) 0);
+		setuswapwep((struct obj *) 0, TRUE);
 	if(otmp == uquiver)
 		setuqwep((struct obj *) 0);
 	if(otmp->oclass == RING_CLASS || otmp->otyp == MEAT_RING) {
@@ -1591,6 +1759,10 @@ doputon()
 
 #ifdef OVL0
 
+/* Limits of uac (conveniently equal to the limits of an schar ;) */
+#define UAC_MIN (-128)
+#define UAC_LIM 127
+
 void
 find_ac()
 {
@@ -1609,7 +1781,33 @@ find_ac()
 	if(uright && uright->otyp == RIN_PROTECTION) uac -= uright->spe;
 	if (HProtection & INTRINSIC) uac -= u.ublessed;
 	uac -= u.uspellprot;
-	if (uac < -128) uac = -128;	/* u.uac is an schar */
+
+/* STEPHEN WHITE'S NEW CODE */
+	/* Dexterity now affects AC */
+	if (ACURR(A_DEX) < 4) uac += 3;
+	else if (ACURR(A_DEX) < 6) uac += 2;
+	else if (ACURR(A_DEX) < 8) uac += 1;
+	else if (ACURR(A_DEX) < 14) uac -= 0;
+	else if (ACURR(A_DEX) < 21) uac -= ACURR(A_DEX)-14;
+	else if (ACURR(A_DEX) < 22) uac -= 6;
+	else if (ACURR(A_DEX) < 24) uac -= 7;
+	else uac -= 8;
+
+	if (Role_if(PM_MONK) && !uwep && (!uarm ||
+		uarm->otyp==ROBE ||
+		uarm->otyp==ROBE_OF_POWER ||
+		uarm->otyp==ROBE_OF_WEAKNESS ||
+		uarm->otyp==ROBE_OF_PROTECTION) && !uarms) {
+/*WAC cap off the Monk's ac bonus to -11 */
+            if (u.ulevel > 18) uac -= 11;
+            else uac -= (u.ulevel / 2) + 2;
+	}
+	if (Race_if(PM_DOPPELGANGER) && !uarm) uac -= (u.ulevel / 4) + 1;
+	if (Race_if(PM_HUMAN_WEREWOLF) && !uarm) uac -= (u.ulevel / 4) + 1;
+
+	/* Harlow - make sure it doesn't wrap around ;) */
+	uac = (uac < UAC_MIN ? UAC_MIN : (uac > UAC_LIM ? UAC_LIM : uac));
+	
 	if(uac != u.uac){
 		u.uac = uac;
 		flags.botl = 1;
@@ -1657,7 +1855,7 @@ glibr()
 			otherwep,
 			xfl ? "also " : "",
 			makeplural(body_part(HAND)));
-		setuswapwep((struct obj *)0);
+		setuswapwep((struct obj *)0, FALSE);
 		xfl++;
 		if (otmp->otyp != LOADSTONE || !otmp->cursed)
 			dropx(otmp);
@@ -1676,7 +1874,7 @@ glibr()
 			otherwep ? "other " : "", thiswep,
 			xfl ? "also " : "",
 			makeplural(body_part(HAND)));
-		setuwep((struct obj *)0);
+		setuwep((struct obj *)0, FALSE);
 		if (otmp->otyp != LOADSTONE || !otmp->cursed)
 			dropx(otmp);
 	}
@@ -1875,12 +2073,12 @@ do_takeoff()
 
 	if (taking_off == W_WEP) {
 	  if(!cursed(uwep)) {
-	    setuwep((struct obj *) 0);
+	    setuwep((struct obj *) 0, TRUE);
 	    You("are empty %s.", body_part(HANDED));
 	    u.twoweap = FALSE;
 	  }
 	} else if (taking_off == W_SWAPWEP) {
-	  setuswapwep((struct obj *) 0);
+	  setuswapwep((struct obj *) 0, TRUE);
 	  You("no longer have a second weapon readied.");
 	  u.twoweap = FALSE;
 	} else if (taking_off == W_QUIVER) {

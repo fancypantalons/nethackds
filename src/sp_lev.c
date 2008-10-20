@@ -69,15 +69,16 @@ static NEARDATA walk walklist[50];
 extern int min_rx, max_rx, min_ry, max_ry; /* from mkmap.c */
 
 static char Map[COLNO][ROWNO];
-static char robjects[10], rloc_x[10], rloc_y[10], rmonst[10];
+static char robjects[10], rloc_x[10][10], rloc_y[10][10], rmonst[10];
 static aligntyp	ralign[3] = { AM_CHAOTIC, AM_NEUTRAL, AM_LAWFUL };
 static NEARDATA xchar xstart, ystart;
 static NEARDATA char xsize, ysize;
+static lev_region rarea[10];
 
 STATIC_DCL void FDECL(set_wall_property, (XCHAR_P,XCHAR_P,XCHAR_P,XCHAR_P,int));
 STATIC_DCL int NDECL(rnddoor);
 STATIC_DCL int NDECL(rndtrap);
-STATIC_DCL void FDECL(get_location, (schar *,schar *,int));
+STATIC_DCL boolean FDECL(get_location, (schar *,schar *,int));
 STATIC_DCL void FDECL(sp_lev_shuffle, (char *,char *,int));
 STATIC_DCL void FDECL(light_region, (region *));
 STATIC_DCL void FDECL(load_common_data, (dlb *,int));
@@ -164,10 +165,11 @@ rndtrap()
  */
 #define DRY	0x1
 #define WET	0x2
+#define MOLTEN	0x4
 
 STATIC_DCL boolean FDECL(is_ok_location, (SCHAR_P, SCHAR_P, int));
 
-STATIC_OVL void
+STATIC_OVL boolean
 get_location(x, y, humidity)
 schar *x, *y;
 int humidity;
@@ -178,8 +180,67 @@ int humidity;
 		*x += xstart;
 		*y += ystart;
 	} else if (*x > -11) {		/* special locations */
-		*y = ystart + rloc_y[ - *y - 1];
-		*x = xstart + rloc_x[ - *x - 1];
+	    char ry = rloc_y[ - *x - 1][ - *y - 1];
+	    char rx = rloc_x[ - *x - 1][ - *y - 1];
+	    if (ry == (char)-1 || rx == (char)-1)
+		return FALSE;		/* nowhere */
+	    else {
+		*y = ystart + ry;
+		*x = xstart + rx;
+	    }
+	} else if (*x > -12) {		/* within random region */
+	    schar t = - *y - 1;
+
+	    do {
+		*x = rn2(rarea[t].inarea.x2 - rarea[t].inarea.x1 + 1) +
+		     rarea[t].inarea.x1;
+		*y = rn2(rarea[t].inarea.y2 - rarea[t].inarea.y1 + 1) +
+		     rarea[t].inarea.y1;
+		if (!rarea[t].in_islev) {
+		    *x += xstart;
+		    *y += ystart;
+		}
+		if (is_ok_location(*x,*y,humidity)) {
+		    int x1 = rarea[t].delarea.x1;
+		    int x2 = rarea[t].delarea.x2;
+		    int y1 = rarea[t].delarea.y1;
+		    int y2 = rarea[t].delarea.y2;
+		    if (!rarea[t].del_islev) {
+			x1 += xstart;
+			x2 += xstart;
+			y1 += ystart;
+			y2 += ystart;
+		    }
+		    if (!within_bounded_area(*x,*y,x1,y1,x2,y2)) break;
+		}
+	    } while (++cpt < 100);
+	    if (cpt >= 100) {
+		register int xx, yy;
+		for (xx = rarea[t].inarea.x1; xx < rarea[t].inarea.x2; xx++)
+		    for (yy = rarea[t].inarea.y1; yy < rarea[t].inarea.y2; yy++) {
+			*x = xx;
+			*y = yy;
+			if (!rarea[t].in_islev) {
+			    *x += xstart;
+			    *y += ystart;
+			}
+			if (is_ok_location(*x,*y,humidity)) {
+			    int x1 = rarea[t].delarea.x1;
+			    int x2 = rarea[t].delarea.x2;
+			    int y1 = rarea[t].delarea.y1;
+			    int y2 = rarea[t].delarea.y2;
+			    if (!rarea[t].del_islev) {
+				x1 += xstart;
+				x2 += xstart;
+				y1 += ystart;
+				y2 += ystart;
+			    }
+			    if (!within_bounded_area(*x,*y,x1,y1,x2,y2))
+				goto found_it;
+			}
+		    }
+		panic("get_location:  can't find a place!");
+	    }
 	} else {			/* random location */
 	    do {
 		*x = xstart + rn2((int)xsize);
@@ -204,6 +265,7 @@ found_it:;
 	    impossible("get_location:  (%d,%d) out of bounds", *x, *y);
 	    *x = x_maze_max; *y = y_maze_max;
 	}
+	return TRUE;
 }
 
 STATIC_OVL boolean
@@ -222,7 +284,11 @@ register int humidity;
 		return TRUE;
 	}
 	if (humidity & WET) {
-	    if (is_pool(x,y) || is_lava(x,y))
+	    if (is_pool(x,y))
+		return TRUE;
+	}
+	if (humidity & MOLTEN) {
+	    if (is_lava(x,y))
 		return TRUE;
 	}
 	return FALSE;
@@ -585,6 +651,7 @@ struct mkroom *broom;
 {
 	int	x, y;
 	int	trycnt = 0;
+	int	i;
 
 	if (dd->secret == -1)
 	    dd->secret = rn2(2);
@@ -654,7 +721,8 @@ struct mkroom *broom;
 		impossible("create_door: Can't find a proper place!");
 		return;
 	}
-	add_door(x,y,broom);
+	i = add_door(x,y,broom);
+	doors[i].arti_key = dd->arti_key;
 	levl[x][y].typ = (dd->secret ? SDOOR : DOOR);
 	levl[x][y].doormask = dd->mask;
 }
@@ -718,7 +786,8 @@ struct mkroom	*croom;
 	if (croom)
 	    get_free_room_loc(&x, &y, croom);
 	else
-	    get_location(&x, &y, DRY);
+	    if (!get_location(&x, &y, DRY))
+		return;
 
 	tm.x = x;
 	tm.y = y;
@@ -778,6 +847,30 @@ struct mkroom	*croom;
 	if (!class)
 	    pm = (struct permonst *) 0;
 	else if (m->id != NON_PM) {
+#if 0	/* OBSOLETE */
+	    if (flags.female && Role_if(PM_ELF) /*&& !u.uelf_drow*/ && m->id == PM_EARENDIL)
+		m->id = PM_ELWING;
+#endif
+	    /* in the Gnome Mines, make the gnomes & dwarves into            
+	       orcs, ogres, & zombies (because gnomes & dwarves are friendly...
+	       the mines would be hella easy otherwise) */
+		if (In_mines(&u.uz) && (
+#ifdef DWARF
+			Race_if(PM_DWARF) ||
+#endif
+			Race_if(PM_GNOME))) {
+		switch (m->id) {
+		  case PM_GNOME: m->id = PM_GNOME_ZOMBIE; break;
+		  case PM_GNOMISH_WIZARD: m->id = PM_ORC_SHAMAN; break;
+		  case PM_GNOME_LORD: m->id = PM_GNOME_MUMMY; break;
+		  case PM_GNOME_KING: m->id = PM_OGRE; break;
+#ifdef DWARF
+		  case PM_DWARF: m->id = PM_DWARF_ZOMBIE; break;
+		  case PM_DWARF_LORD: m->id = PM_DWARF_MUMMY; break;
+		  case PM_DWARF_KING: m->id = PM_WAR_ORC; break;
+#endif
+		}
+	    }
 	    pm = &mons[m->id];
 	    g_mvflags = (unsigned) mvitals[monsndx(pm)].mvflags;
 	    if ((pm->geno & G_UNIQ) && (g_mvflags & G_EXTINCT))
@@ -785,25 +878,27 @@ struct mkroom	*croom;
 	    else if (g_mvflags & G_GONE)	/* genocided or extinct */
 		pm = (struct permonst *) 0;	/* make random monster */
 	} else {
-	    pm = mkclass(class,G_NOGEN);
-	    /* if we can't get a specific monster type (pm == 0) then the
-	       class has been genocided, so settle for a random monster */
+	    pm = mkclass(class,G_NOGEN|MKC_ULIMIT);
+	    /* if we can't get a specific monster type (pm == 0) then all
+	       the monsters of acceptable difficulty in the given class
+	       have been genocided, so settle for a random monster */
 	}
-	if (In_mines(&u.uz) && pm && your_race(pm) &&
-			(Race_if(PM_DWARF) || Race_if(PM_GNOME)) && rn2(3))
-	    pm = (struct permonst *) 0;
-
 	x = m->x;
 	y = m->y;
 	if (croom)
 	    get_room_loc(&x, &y, croom);
 	else {
-	    if (!pm || !is_swimmer(pm))
-		get_location(&x, &y, DRY);
+	    boolean found;
+	    if (!pm || !is_swimmer(pm) && !likes_lava(pm))
+		found = get_location(&x, &y, DRY);
 	    else if (pm->mlet == S_EEL)
-		get_location(&x, &y, WET);
+		found = get_location(&x, &y, WET);
+	    else if (likes_lava(pm))
+		found = get_location(&x, &y, DRY|MOLTEN);
 	    else
-		get_location(&x, &y, DRY|WET);
+		found = get_location(&x, &y, DRY|WET);
+	    if (!found)
+		goto m_done;	/* nowhere */
 	}
 	/* try to find a close place if someone else is already there */
 	if (MON_AT(x,y) && enexto(&cc, x, y, pm))
@@ -921,7 +1016,8 @@ struct mkroom	*croom;
 	if (croom)
 	    get_room_loc(&x, &y, croom);
 	else
-	    get_location(&x, &y, DRY);
+	    if (!get_location(&x, &y, DRY))	/* nowhere */
+		goto o_done;
 
 	if (o->class >= 0)
 	    c = o->class;
@@ -945,9 +1041,11 @@ struct mkroom	*croom;
 		panic("create_object:  unexpected object class '%c'",c);
 
 	    /* KMH -- Create piles of gold properly */
-	    if (oclass == COIN_CLASS)
-		otmp = mkgold(0L, x, y);
-	    else
+	    /* Bruce Cox/WAC - some clean ups */
+	    if (oclass == COIN_CLASS && !o->containment) {
+		mkgold(0L, x, y);
+		otmp = g_at(x,y);
+	    } else
 		otmp = mkobj_at(oclass, x, y, !named);
 	}
 
@@ -963,9 +1061,16 @@ struct mkroom	*croom;
 	}
 
 	/*	corpsenm is "empty" if -1, random if -2, otherwise specific */
+	if (o->corpsenm != NON_PM) {
 	if (o->corpsenm == NON_PM - 1) otmp->corpsenm = rndmonnum();
-	else if (o->corpsenm != NON_PM) otmp->corpsenm = o->corpsenm;
+	    else otmp->corpsenm = o->corpsenm;
+	    otmp->owt = weight(otmp);
+	}
 
+	if (otmp->otyp == EGG && In_spiders(&u.uz)) {
+	    otmp->corpsenm = PM_GIANT_SPIDER;
+	    otmp->age = monstermoves;
+	}
 	/* assume we wouldn't be given an egg corpsenm unless it was
 	   hatchable */
 	if (otmp->otyp == EGG && otmp->corpsenm != NON_PM) {
@@ -1034,6 +1139,11 @@ struct mkroom	*croom;
 
 	stackobj(otmp);
 
+	if (o->oflags & OBJF_LIT)
+	    begin_burn(otmp, FALSE);
+	if (o->oflags & OBJF_BURIED)
+	    otmp = bury_an_obj(otmp);
+
     }		/* if (rn2(100) < o->chance) */
  o_done:
     Free(o->name.str);
@@ -1048,13 +1158,15 @@ engraving *e;
 struct mkroom *croom;
 {
 	xchar x, y;
+	boolean found = TRUE;
 
 	x = e->x,  y = e->y;
 	if (croom)
 	    get_room_loc(&x, &y, croom);
 	else
-	    get_location(&x, &y, DRY);
+	    found = get_location(&x, &y, DRY);
 
+	if (found)
 	make_engr_at(x, y, e->engr.str, 0L, e->etype);
 	free((genericptr_t) e->engr.str);
 }
@@ -1097,7 +1209,8 @@ create_altar(a, croom)
 	    if (croom->rtype != TEMPLE)
 		croom_is_temple = FALSE;
 	} else {
-	    get_location(&x, &y, DRY);
+	    if (!get_location(&x, &y, DRY))
+		return;		/* nowhere */
 	    if ((sproom = (schar) *in_rooms(x, y, TEMPLE)) != 0)
 		croom = &rooms[sproom - ROOMOFFSET];
 	    else
@@ -1161,7 +1274,8 @@ struct mkroom	*croom;
 	if (croom)
 	    get_room_loc(&x, &y, croom);
 	else
-	    get_location(&x, &y, DRY);
+	    if (!get_location(&x, &y, DRY))
+		return;		/* nowhere */
 
 	if (g->amount == -1)
 	    g->amount = rnd(200);
@@ -1193,7 +1307,8 @@ int		typ;
 	    if(trycnt > 200)
 		return;
 	} else {
-	    get_location(&x, &y, DRY);
+	    if (!get_location(&x, &y, DRY))
+		return;		/* nowhere */
 	}
 	/* Don't cover up an existing feature (particularly randomly
 	   placed stairs).  However, if the _same_ feature is already
@@ -1207,6 +1322,8 @@ int		typ;
 	    level.flags.nfountains++;
 	else if (typ == SINK)
 	    level.flags.nsinks++;
+/*      else if (typ == TOILET)
+	    level.flags.nsinks++;*/
 }
 
 /*
@@ -1485,6 +1602,9 @@ boolean prefilled;
 		case COURT:
 		case ZOO:
 		case BEEHIVE:
+		case LEMUREPIT:
+		case MIGOHIVE:
+		case FUNGUSFARM:
 		case MORGUE:
 		case BARRACKS:
 		    fill_zoo(croom);
@@ -1506,6 +1626,15 @@ boolean prefilled;
 		break;
 	    case BEEHIVE:
 		level.flags.has_beehive = TRUE;
+		break;
+	    case LEMUREPIT:
+		level.flags.has_lemurepit = TRUE;
+		break;
+	    case MIGOHIVE:
+		level.flags.has_migohive = TRUE;
+		break;
+	    case FUNGUSFARM:
+		level.flags.has_fungusfarm = TRUE;
 		break;
 	    case BARRACKS:
 		level.flags.has_barracks = TRUE;
@@ -1625,6 +1754,8 @@ room *r, *pr;
 		/* Then to the various elements (sinks, etc..) */
 		for(i = 0; i<r->nsink; i++)
 		    create_feature(r->sinks[i]->x, r->sinks[i]->y, aroom, SINK);
+/*              for(i = 0; i<r->ntoilet; i++)
+		    create_feature(r->toilets[i]->x, r->toilets[i]->y, aroom, TOILET);*/
 		for(i = 0; i<r->npool; i++)
 		    create_feature(r->pools[i]->x, r->pools[i]->y, aroom, POOL);
 		for(i = 0; i<r->nfountain; i++)
@@ -1739,6 +1870,10 @@ int typ;
 	    level.flags.shortsighted = 1;
 	if (lev_flags & ARBOREAL)
 	    level.flags.arboreal = 1;
+	if (lev_flags & SPOOKY)
+	    level.flags.spooky = 1;
+	if (lev_flags & LETHE)
+	    level.flags.lethe = 1;
 
 	/* Read message */
 	Fread((genericptr_t) &n, 1, sizeof(n), fd);
@@ -2228,6 +2363,7 @@ dlb *fd;
 	}
 
 	while(n--) {
+	    boolean found = TRUE;
 	    Fread((genericptr_t) &tmplregion, sizeof(tmplregion), 1, fd);
 	    if ((size = tmplregion.rname.len) != 0) {
 		tmplregion.rname.str = (char *) alloc((unsigned)size + 1);
@@ -2236,18 +2372,40 @@ dlb *fd;
 	    } else
 		tmplregion.rname.str = (char *) 0;
 	    if(!tmplregion.in_islev) {
-		get_location(&tmplregion.inarea.x1, &tmplregion.inarea.y1,
-								DRY|WET);
-		get_location(&tmplregion.inarea.x2, &tmplregion.inarea.y2,
-								DRY|WET);
+		found &= get_location(&tmplregion.inarea.x1,
+				      &tmplregion.inarea.y1, DRY|WET);
+		found &= get_location(&tmplregion.inarea.x2,
+				      &tmplregion.inarea.y2, DRY|WET);
 	    }
 	    if(!tmplregion.del_islev) {
-		get_location(&tmplregion.delarea.x1, &tmplregion.delarea.y1,
-								DRY|WET);
-		get_location(&tmplregion.delarea.x2, &tmplregion.delarea.y2,
-								DRY|WET);
+		found &= get_location(&tmplregion.delarea.x1,
+				      &tmplregion.delarea.y1, DRY|WET);
+		found &= get_location(&tmplregion.delarea.x2,
+				      &tmplregion.delarea.y2, DRY|WET);
 	    }
+	    if (!found)
+		panic("reading special level with region located nowhere");
 	    lregions[(int)n] = tmplregion;
+	}
+
+	/* random level region registers */
+	Fread((genericptr_t) &n, 1, sizeof(n), fd);	
+	if (n) {
+	    int tmpn = n;
+	    while(n--) {
+		boolean found = TRUE;
+		Fread((genericptr_t) &tmplregion, sizeof(tmplregion), 1, fd);
+		if ((size = tmplregion.rname.len) != 0) {
+		    tmplregion.rname.str = (char *) alloc((unsigned)size + 1);
+		    Fread((genericptr_t) tmplregion.rname.str, size, 1, fd);
+		    tmplregion.rname.str[size] = '\0';
+		} else
+		    tmplregion.rname.str = (char *) 0;
+		if (!found)
+		    panic("reading special level with random region located nowhere");
+		(void) memcpy((genericptr_t)&rarea[(int)tmpn - n - 1],
+			(genericptr_t)&tmplregion, sizeof(lev_region));
+	    }
 	}
 
 	Fread((genericptr_t) &n, 1, sizeof(n), fd);
@@ -2260,9 +2418,15 @@ dlb *fd;
 	Fread((genericptr_t) &n, 1, sizeof(n), fd);
 						/* Random locations */
 	if(n) {
-		Fread((genericptr_t)rloc_x, sizeof(*rloc_x), (int) n, fd);
-		Fread((genericptr_t)rloc_y, sizeof(*rloc_y), (int) n, fd);
-		sp_lev_shuffle(rloc_x, rloc_y, (int)n);
+		char nloc[10];
+		Fread((genericptr_t)nloc, sizeof(*nloc), (int) n, fd);
+		for(xi = 0; xi < n; xi++) {
+		    Fread((genericptr_t)rloc_x[xi], sizeof(*rloc_x[xi]),
+			    (int) nloc[xi], fd);
+		    Fread((genericptr_t)rloc_y[xi], sizeof(*rloc_y[xi]),
+			    (int) nloc[xi], fd);
+		    sp_lev_shuffle(rloc_x[xi], rloc_y[xi], (int)nloc[xi]);
+		}
 	}
 
 	Fread((genericptr_t) &n, 1, sizeof(n), fd);
@@ -2290,8 +2454,9 @@ dlb *fd;
 		    tmpregion.rlit = (rnd(1+abs(depth(&u.uz))) < 11 && rn2(77))
 			? TRUE : FALSE;
 
-		get_location(&tmpregion.x1, &tmpregion.y1, DRY|WET);
-		get_location(&tmpregion.x2, &tmpregion.y2, DRY|WET);
+		if (!get_location(&tmpregion.x1, &tmpregion.y1, DRY|WET) ||
+		  !get_location(&tmpregion.x2, &tmpregion.y2, DRY|WET))
+		    panic("reading special level with region located nowhere");
 
 		/* for an ordinary room, `prefilled' is a flag to force
 		   an actual room to be created (such rooms are used to
@@ -2342,7 +2507,7 @@ dlb *fd;
 		x = tmpdoor.x;	y = tmpdoor.y;
 		typ = tmpdoor.mask == -1 ? rnddoor() : tmpdoor.mask;
 
-		get_location(&x, &y, DRY);
+		if (get_location(&x, &y, DRY)) {
 		if(levl[x][y].typ != SDOOR)
 			levl[x][y].typ = DOOR;
 		else {
@@ -2351,15 +2516,32 @@ dlb *fd;
 		}
 		levl[x][y].doormask = typ;
 
+		    /* Fix random door alignment */
+
+		    if (y > 0 && (IS_WALL(levl[x][y-1].typ) ||
+				levl[x][y-1].horizontal))
+			levl[x][y].horizontal = 0;
+		}
+
 		/* Now the complicated part, list it with each subroom */
 		/* The dog move and mail daemon routines use this */
+		xi = -1;
 		while(croom->hx >= 0 && doorindex < DOORMAX) {
 		    if(croom->hx >= x-1 && croom->lx <= x+1 &&
 		       croom->hy >= y-1 && croom->ly <= y+1) {
 			/* Found it */
-			add_door(x, y, croom);
+			xi = add_door(x, y, croom);
+			doors[xi].arti_key = tmpdoor.arti_key;
 		    }
 		    croom++;
+		}
+		if (xi < 0) {	/* Not in any room */
+		    if (doorindex >= DOORMAX)
+			impossible("Too many doors?");
+		    else {
+			xi = add_door(x, y, (struct mkroom *)0);
+			doors[xi].arti_key = tmpdoor.arti_key;
+		    }
 		}
 	}
 
@@ -2382,10 +2564,10 @@ dlb *fd;
 		Fread((genericptr_t)&tmpdb, 1, sizeof(tmpdb), fd);
 
 		x = tmpdb.x;  y = tmpdb.y;
-		get_location(&x, &y, DRY|WET);
-
+		if (get_location(&x, &y, DRY|WET)) {
 		if (!create_drawbridge(x, y, tmpdb.dir, tmpdb.db_open))
 		    impossible("Cannot create drawbridge.");
+	}
 	}
 
 	Fread((genericptr_t) &n, 1, sizeof(n), fd);
@@ -2393,8 +2575,7 @@ dlb *fd;
 	while(n--) {
 		Fread((genericptr_t)&tmpwalk, 1, sizeof(tmpwalk), fd);
 
-		get_location(&tmpwalk.x, &tmpwalk.y, DRY|WET);
-
+		if (get_location(&tmpwalk.x, &tmpwalk.y, DRY|WET))
 		walklist[nwalk++] = tmpwalk;
 	}
 
@@ -2428,8 +2609,7 @@ dlb *fd;
 		Fread((genericptr_t)&tmplad, 1, sizeof(tmplad), fd);
 
 		x = tmplad.x;  y = tmplad.y;
-		get_location(&x, &y, DRY);
-
+		if (get_location(&x, &y, DRY)) {
 		levl[x][y].typ = LADDER;
 		if (tmplad.up == 1) {
 			xupladder = x;	yupladder = y;
@@ -2439,19 +2619,23 @@ dlb *fd;
 			levl[x][y].ladder = LA_DOWN;
 		}
 	}
+	}
 
 	prevstair.x = prevstair.y = 0;
 	Fread((genericptr_t) &n, 1, sizeof(n), fd);
 						/* Number of stairs */
 	while(n--) {
+		boolean found;
 		Fread((genericptr_t)&tmpstair, 1, sizeof(tmpstair), fd);
 
 		xi = 0;
 		do {
 		    x = tmpstair.x;  y = tmpstair.y;
-		    get_location(&x, &y, DRY);
-		} while(prevstair.x && xi++ < 100 &&
+		    found = get_location(&x, &y, DRY);
+		} while(found && prevstair.x && xi++ < 100 &&
 			distmin(x,y,prevstair.x,prevstair.y) <= 8);
+		if (!found)
+		    continue;
 		if ((badtrap = t_at(x,y)) != 0) deltrap(badtrap);
 		mkstairs(x, y, (char)tmpstair.up, (struct mkroom *)0);
 		prevstair.x = x;
@@ -2570,7 +2754,7 @@ dlb *fd;
 
 	    walkfrom(x, y);
     }
-    wallification(1, 0, COLNO-1, ROWNO-1);
+    wallification(1, 0, COLNO-1, ROWNO-1, FALSE);
 
     /*
      * If there's a significant portion of maze unused by the special level,
@@ -2636,7 +2820,7 @@ const char *name;
 	char c;
 	struct version_info vers_info;
 
-	fd = dlb_fopen(name, RDBMODE);
+	fd = dlb_fopen_area(FILE_AREA_UNSHARE, name, RDBMODE);
 	if (!fd) return FALSE;
 
 	Fread((genericptr_t) &vers_info, sizeof vers_info, 1, fd);

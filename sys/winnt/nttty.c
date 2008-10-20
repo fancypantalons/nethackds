@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)nttty.c	3.4	$Date: 2003/11/15 00:39:32 $   */
+/*	SCCS Id: @(#)nttty.c	3.4	$Date: 2003/12/11 09:49:08 $   */
 /* Copyright (c) NetHack PC Development Team 1993    */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -18,6 +18,19 @@
 #include <sys\types.h>
 #include <sys\stat.h>
 #include "win32api.h"
+
+/* Some defines missing from early mingw32/cygwin wincon.h */
+#if defined(__MINGW32__) && !defined(MOUSE_MOVED)
+#define FROM_LEFT_1ST_BUTTON_PRESSED    0x0001
+#define RIGHTMOST_BUTTON_PRESSED        0x0002
+#define FROM_LEFT_2ND_BUTTON_PRESSED    0x0004
+#define FROM_LEFT_3RD_BUTTON_PRESSED    0x0008
+#define FROM_LEFT_4TH_BUTTON_PRESSED    0x0010
+
+#define MOUSE_MOVED   0x0001
+#define DOUBLE_CLICK  0x0002
+#define MOUSE_WHEELED 0x0004
+#endif
 
 void FDECL(cmov, (int, int));
 void FDECL(nocmov, (int, int));
@@ -47,6 +60,15 @@ HANDLE hConOut;
 CONSOLE_SCREEN_BUFFER_INFO csbi, origcsbi;
 COORD ntcoord;
 INPUT_RECORD ir;
+
+/* [ALI] Flag for whether nttty_open() has been called. This is important
+ * because we shouldn't call tty_ routines unless the tty interface is active
+ * (nttty_open() is called by the tty interface initialization routine).
+ */
+static int TTYInitialized = FALSE;
+
+/* [ALI] Flag for whether hConIn is actually a console */
+static DWORD cmode;
 
 /* Flag for whether NetHack was launched via the GUI, not the command line.
  * The reason we care at all, is so that we can get
@@ -114,6 +136,7 @@ KEYHANDLERNAME pKeyHandlerName;
 #endif
 int ttycolors[CLR_MAX];
 # ifdef TEXTCOLOR
+int ttycolors[CLR_MAX];
 static void NDECL(init_ttycolor);
 # endif
 static void NDECL(really_move_cursor);
@@ -238,20 +261,69 @@ DWORD ctrltype;
 	}
 }
 
+/*
+ * Check that we have valid standard I/O and allocate a console if not.
+ * Called by nttty_open below and msmsg in pcsys.c for WIN32CON port.
+ */
+void
+nttty_check_stdio()
+{
+	int fd = fileno(stdin);
+	HWND wnd;
+	HWND (*get_console_window)(VOID);
+	MSG msg;
+	if (fd < 0 || (HANDLE)_get_osfhandle(fd) == INVALID_HANDLE_VALUE) {
+		CloseHandle((HANDLE)_get_osfhandle(fd));
+		close(fd);
+		fd = fileno(stdout);
+		CloseHandle((HANDLE)_get_osfhandle(fd));
+		close(fd);
+		fd = fileno(stderr);
+		CloseHandle((HANDLE)_get_osfhandle(fd));
+		close(fd);
+		AllocConsole();
+		freopen("CONIN$", "r", stdin);
+		freopen("CONOUT$", "w", stdout);
+		freopen("CONOUT$", "w", stderr);
+		setbuf(stderr, NULL);
+		/*
+		 * If we were started by eg., explorer, then the new console
+		 * window will not have the focus and MS-Windows will continue
+		 * to wait for us to open a new window and start processing
+		 * events. We want our new console to become the foreground
+		 * window and for the cursor to return to normal (which we
+		 * achieve by calling PeekMessage so MS-Windows knows we have
+		 * started processing events).
+		 */
+		get_console_window = (HWND (*)(VOID)) GetProcAddress(
+				GetModuleHandle("kernel32"),
+				"GetConsoleWindow");	/* Win2K and above */
+		if (get_console_window)
+			wnd = get_console_window();
+		else {
+			/* This works, but is hardly ideal */
+			char buf[64];
+			sprintf(buf, "Slash'EM TTY - %lX",
+					GetCurrentProcessId());
+			SetConsoleTitle(buf);
+			wnd = FindWindow(NULL, buf);
+		}
+		SetConsoleTitle("Slash'EM TTY");
+		if (wnd) {
+			SetForegroundWindow(wnd);
+			PeekMessage(&msg, wnd, 0, 0, PM_NOREMOVE);
+		}
+	}
+}
+
 /* called by init_tty in wintty.c for WIN32CON port only */
 void
 nttty_open()
 {
         HANDLE hStdOut;
-        DWORD cmode;
         long mask;
 
-	load_keyboard_handler();
-	/* Initialize the function pointer that points to
-         * the kbhit() equivalent, in this TTY case nttty_kbhit()
-         */
-	nt_kbhit = nttty_kbhit;
-
+	nttty_check_stdio();
         /* The following 6 lines of code were suggested by 
          * Bob Landau of Microsoft WIN32 Developer support,
          * as the only current means of determining whether
@@ -259,9 +331,16 @@ nttty_open()
          * the NT program manager. M. Allison
          */
         hStdOut = GetStdHandle( STD_OUTPUT_HANDLE );
-        GetConsoleScreenBufferInfo( hStdOut, &origcsbi);
+        if (GetConsoleScreenBufferInfo( hStdOut, &origcsbi))
         GUILaunched = ((origcsbi.dwCursorPosition.X == 0) &&
                            (origcsbi.dwCursorPosition.Y == 0));
+	else {
+	    GUILaunched = 0;
+	    origcsbi.srWindow.Left = 0;
+	    origcsbi.srWindow.Right = 80;
+	    origcsbi.srWindow.Top = 0;
+	    origcsbi.srWindow.Bottom = 25;
+	}
         if ((origcsbi.dwSize.X <= 0) || (origcsbi.dwSize.Y <= 0))
             GUILaunched = 0;
 
@@ -279,7 +358,8 @@ nttty_open()
 			0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,0);
 #endif       
 
-	GetConsoleMode(hConIn,&cmode);
+	if (!GetConsoleMode(hConIn,&cmode))
+		cmode = 0;
 #ifdef NO_MOUSE_ALLOWED
 	mask = ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT |
 	       ENABLE_MOUSE_INPUT | ENABLE_ECHO_INPUT | ENABLE_WINDOW_INPUT;   
@@ -292,14 +372,23 @@ nttty_open()
 #ifndef NO_MOUSE_ALLOWED
 	cmode |= ENABLE_MOUSE_INPUT;
 #endif
-	SetConsoleMode(hConIn,cmode);
-	if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE)) {
+	if (!SetConsoleMode(hConIn,cmode))
+		/* Unable to set control mode */
+		cmode = 0;
+	if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE))
 		/* Unable to set control handler */
-		cmode = 0; 	/* just to have a statement to break on for debugger */
+		cmode = 0;
+	if (cmode) {
+		load_keyboard_handler();
+		/* Initialize the function pointer that points to
+		 * the kbhit() equivalent, in this TTY case nttty_kbhit()
+		 */
+		nt_kbhit = nttty_kbhit;
 	}
 	get_scr_size();
 	cursor.X = cursor.Y = 0;
 	really_move_cursor();
+	TTYInitialized = TRUE;
 }
 
 int process_keystroke(ir, valid, numberpad, portdebug)
@@ -325,10 +414,13 @@ nttty_kbhit()
 void
 get_scr_size()
 {
-	GetConsoleScreenBufferInfo(hConOut, &csbi);
-  
+	if (GetConsoleScreenBufferInfo(hConOut, &csbi)) {
 	LI = csbi.srWindow.Bottom - (csbi.srWindow.Top + 1);
 	CO = csbi.srWindow.Right - (csbi.srWindow.Left + 1);
+	} else {
+	    LI = 25;
+	    CO = 80;
+	}
 
 	if ( (LI < 25) || (CO < 80) ) {
 		COORD newcoord;
@@ -349,8 +441,13 @@ tgetch()
 	int mod;
 	coord cc;
 	DWORD count;
+    if (!cmode) {
+	char c;
+	return ReadFile(hConIn,&c,1,&count,NULL) && count ? c : EOF;
+    } else {
 	really_move_cursor();
 	return pCheckInput(hConIn, &ir, &count, iflags.num_pad, 0, &mod, &cc);
+    }
 }
 
 int
@@ -360,6 +457,11 @@ int *x, *y, *mod;
 	int ch;
 	coord cc;
 	DWORD count;
+    if (!cmode) {
+	char ch;
+	*mod = 0;
+	return ReadFile(hConIn,&ch,1,&count,NULL) && count ? ch : '\032';
+    } else {
 	really_move_cursor();
 	ch = pCheckInput(hConIn, &ir, &count, iflags.num_pad, 1, mod, &cc);
 	if (!ch) {
@@ -367,6 +469,7 @@ int *x, *y, *mod;
 		*y = cc.y;
 	}
 	return ch;
+    }
 }
 
 static void
@@ -517,8 +620,10 @@ clear_screen()
 void
 home()
 {
+	if (TTYInitialized) {
 	cursor.X = cursor.Y = 0;
 	ttyDisplay->curx = ttyDisplay->cury = 0;
+	}
 }
 
 
@@ -931,6 +1036,7 @@ msmsg VA_DECL(const char *, fmt)
 	VA_INIT(fmt, const char *);
 	Vsprintf(buf, fmt, VA_ARGS);
 	VA_END();
+	nttty_check_stdio();
 	xputs(buf);
 	if (ttyDisplay) curs(BASE_WINDOW, cursor.X+1, cursor.Y);
 	return;

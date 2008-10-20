@@ -49,8 +49,7 @@
  * No item may be in more than one of these slots.
  */
 
-
-STATIC_DCL int FDECL(ready_weapon, (struct obj *));
+STATIC_DCL int FDECL(ready_weapon, (struct obj *, BOOLEAN_P));
 
 /* used by will_weld() */
 /* probably should be renamed */
@@ -79,10 +78,15 @@ STATIC_DCL int FDECL(ready_weapon, (struct obj *));
  * If the item is being moved from another slot, it is the caller's
  * responsibility to handle that.  It's also the caller's responsibility
  * to print the appropriate messages.
+ *
+ * MRKR: It now takes an extra flag put_away which is true if the 
+ *       unwielded weapon is being put back into the inventory 
+ *       (rather than dropped, destroyed, etc)
  */
 void
-setuwep(obj)
+setuwep(obj, put_away)
 register struct obj *obj;
+boolean put_away;
 {
 	struct obj *olduwep = uwep;
 
@@ -91,7 +95,8 @@ register struct obj *obj;
 	 * *whenever* Sunsword is unwielded, from whatever cause.
 	 */
 	setworn(obj, W_WEP);
-	if (uwep == obj && artifact_light(olduwep) && olduwep->lamplit) {
+	if (uwep == obj && olduwep && olduwep->oartifact == ART_SUNSWORD &&
+		olduwep->lamplit) {
 	    end_burn(olduwep, FALSE);
 	    if (!Blind) pline("%s glowing.", Tobjnam(olduwep, "stop"));
 	}
@@ -109,12 +114,19 @@ register struct obj *obj;
 				) : !is_weptool(obj);
 	} else
 		unweapon = TRUE;	/* for "bare hands" message */
+
+	
+	/* MRKR: Handle any special effects of unwielding a weapon */
+	if (olduwep && olduwep != uwep)
+	    unwield(olduwep, put_away);
+
 	update_inventory();
 }
 
 STATIC_OVL int
-ready_weapon(wep)
+ready_weapon(wep, put_away)
 struct obj *wep;
+boolean put_away;
 {
 	/* Separated function so swapping works easily */
 	int res = 0;
@@ -123,7 +135,7 @@ struct obj *wep;
 	    /* No weapon */
 	    if (uwep) {
 		You("are empty %s.", body_part(HANDED));
-		setuwep((struct obj *) 0);
+		setuwep((struct obj *) 0, put_away);
 		res++;
 	    } else
 		You("are already empty %s.", body_part(HANDED));
@@ -142,6 +154,11 @@ struct obj *wep;
 		    wep->otyp == BATTLE_AXE ? "axe" : "weapon");
 	else if (wep->oartifact && !touch_artifact(wep, &youmonst)) {
 	    res++;	/* takes a turn even though it doesn't get wielded */
+	} else if (tech_inuse(T_EVISCERATE)) {
+		/* WAC - if you have 'L' has claws out and wields weapon,
+		 * can't retract claws
+		 */
+		You("can't retract your claws!");
 	} else {
 	    /* Weapon WILL be wielded after this point */
 	    res++;
@@ -168,12 +185,12 @@ struct obj *wep;
 		prinv((char *)0, wep, 0L);
 		wep->owornmask = dummy;
 	    }
-	    setuwep(wep);
+	    setuwep(wep, put_away);
 
 	    /* KMH -- Talking artifacts are finally implemented */
 	    arti_speak(wep);
 
-	    if (artifact_light(wep) && !wep->lamplit) {
+	    if (wep->oartifact == ART_SUNSWORD && !wep->lamplit) {
 		begin_burn(wep, FALSE);
 		if (!Blind)
 		    pline("%s to glow brilliantly!", Tobjnam(wep, "begin"));
@@ -212,10 +229,15 @@ register struct obj *obj;
 }
 
 void
-setuswapwep(obj)
+setuswapwep(obj, put_away)
 register struct obj *obj;
+boolean put_away;
 {
+	struct obj *oldswapwep = uswapwep;
 	setworn(obj, W_SWAPWEP);
+
+	if (oldswapwep && oldswapwep != uswapwep)
+	    unwield(oldswapwep, put_away);
 	update_inventory();
 }
 
@@ -275,9 +297,9 @@ dowield()
 
 	/* Set your new primary weapon */
 	oldwep = uwep;
-	result = ready_weapon(wep);
+	result = ready_weapon(wep, TRUE);
 	if (flags.pushweapon && oldwep && uwep != oldwep)
-		setuswapwep(oldwep);
+		setuswapwep(oldwep, TRUE);
 	untwoweapon();
 
 	return (result);
@@ -304,17 +326,20 @@ doswapweapon()
 	/* Unwield your current secondary weapon */
 	oldwep = uwep;
 	oldswap = uswapwep;
-	setuswapwep((struct obj *) 0);
+	if (uswapwep)
+		unwield(uswapwep, FALSE);
+	u.twoweap = 0;
+	setuswapwep((struct obj *) 0, FALSE);
 
 	/* Set your new primary weapon */
-	result = ready_weapon(oldswap);
+	result = ready_weapon(oldswap, TRUE);
 
 	/* Set your new secondary weapon */
 	if (uwep == oldwep)
 		/* Wield failed for some reason */
-		setuswapwep(oldswap);
+		setuswapwep(oldswap, FALSE);
 	else {
-		setuswapwep(oldwep);
+		setuswapwep(oldwep, FALSE);
 		if (uswapwep)
 			prinv((char *)0, uswapwep, 0L);
 		else
@@ -339,8 +364,9 @@ dowieldquiver()
 	/* will_weld(), touch_petrifies(), etc. */
 	multi = 0;
 
+	/* Slash'EM has used Q for quiver since it started */
 	/* Because 'Q' used to be quit... */
-	if (flags.suppress_alert < FEATURE_NOTICE_VER(3,3,0))
+	if (flags.suppress_alert < FEATURE_NOTICE_VER(0,0,0))
 		pline("Note: Please use #quit if you wish to exit the game.");
 
 	/* Prompt for a new quiver */
@@ -380,7 +406,7 @@ dowieldquiver()
 
 		/* Check if it's the secondary weapon */
 		if (newquiver == uswapwep) {
-			setuswapwep((struct obj *) 0);
+			setuswapwep((struct obj *) 0, TRUE);
 			untwoweapon();
 		}
 
@@ -454,59 +480,101 @@ const char *verb;	/* "rub",&c */
 	if (uswapwep == obj) return FALSE;
     } else {
 	You("now wield %s.", doname(obj));
-	setuwep(obj);
+	setuwep(obj, TRUE);
     }
     if (uwep != obj) return FALSE;	/* rewielded old object after dying */
     /* applying weapon or tool that gets wielded ends two-weapon combat */
     if (u.twoweap)
 	untwoweapon();
-    if (obj->oclass != WEAPON_CLASS)
+    if (obj->oclass != WEAPON_CLASS && !is_weptool(obj))
 	unweapon = TRUE;
     return TRUE;
 }
 
+/* WAC
+ * For the purposes of SLASH'EM, artifacts should be wieldable in either hand
+ */
 int
 can_twoweapon()
 {
+	char buf[BUFSZ];
+	const char *what;
+	boolean disallowed_by_race;
+	boolean disallowed_by_role;
 	struct obj *otmp;
 
-#define NOT_WEAPON(obj) (!is_weptool(obj) && obj->oclass != WEAPON_CLASS)
-	if (!could_twoweap(youmonst.data)) {
+#define NOT_WEAPON(obj) (obj && !is_weptool(obj) && obj->oclass != WEAPON_CLASS)
+	if (!could_twoweap(youmonst.data) && (uwep || uswapwep)) {
+	    what = uwep && uswapwep ? "two weapons" : "more than one weapon";
+	    if (cantwield(youmonst.data))
+		pline("Don't be ridiculous!");
+	    else if (Upolyd)
+		You_cant("use %s in your current form.", what);
+	    else {
+		disallowed_by_role = P_MAX_SKILL(P_TWO_WEAPON_COMBAT) < P_BASIC;
+		disallowed_by_race = youmonst.data->mattk[1].aatyp != AT_WEAP;
+		*buf = '\0';
+		if (!disallowed_by_role)
+		    Strcpy(buf, disallowed_by_race ? urace.noun : urace.adj);
+		if (disallowed_by_role || !disallowed_by_race) {
+		    if (!disallowed_by_role)
+			Strcat(buf, " ");
+		    Strcat(buf, (flags.female && urole.name.f) ?
+			    urole.name.f : urole.name.m);
+		}
+		pline("%s aren't able to use %s at once.",
+			makeplural(upstart(buf)), what);
+	    }
+	} else if (cantwield(youmonst.data))
+	    pline("Don't be ridiculous!");
+	else if (youmonst.data->mattk[1].aatyp != AT_WEAP &&
+		youmonst.data->mattk[1].aatyp != AT_CLAW) {
 		if (Upolyd)
-		    You_cant("use two weapons in your current form.");
+		You_cant("fight with two %s in your current form.",
+			makeplural(body_part(HAND)));
 		else
-		    pline("%s aren't able to use two weapons at once.",
-			  makeplural((flags.female && urole.name.f) ?
-				     urole.name.f : urole.name.m));
-	} else if (!uwep || !uswapwep)
-		Your("%s%s%s empty.", uwep ? "left " : uswapwep ? "right " : "",
-			body_part(HAND), (!uwep && !uswapwep) ? "s are" : " is");
-	else if (NOT_WEAPON(uwep) || NOT_WEAPON(uswapwep)) {
+		pline("%s aren't able to fight two-handed.",
+			upstart(makeplural(urace.noun)));
+	} else if (NOT_WEAPON(uwep) || NOT_WEAPON(uswapwep)) {
 		otmp = NOT_WEAPON(uwep) ? uwep : uswapwep;
 		pline("%s %s.", Yname2(otmp),
 		    is_plural(otmp) ? "aren't weapons" : "isn't a weapon");
-	} else if (bimanual(uwep) || bimanual(uswapwep)) {
-		otmp = bimanual(uwep) ? uwep : uswapwep;
+	} else if ((uwep && bimanual(uwep)) || (uswapwep && bimanual(uswapwep))) {
+	    otmp = (uwep && bimanual(uwep)) ? uwep : uswapwep;
 		pline("%s isn't one-handed.", Yname2(otmp));
-	} else if (uarms)
-		You_cant("use two weapons while wearing a shield.");
-	else if (uswapwep->oartifact)
-		pline("%s %s being held second to another weapon!",
-			Yname2(uswapwep), otense(uswapwep, "resist"));
-	else if (!uarmg && !Stone_resistance && (uswapwep->otyp == CORPSE &&
-		    touch_petrifies(&mons[uswapwep->corpsenm]))) {
+	} else if (uarms) {
+	    if (uwep || uswapwep)
+		what = uwep && uswapwep ?  "use two weapons" :
+		    "use more than one weapon";
+	    else {
+		sprintf(buf, "fight with two %s", makeplural(body_part(HAND)));
+		what = buf;
+	    }
+	    You_cant("%s while wearing a shield.", what);
+	}
+        /* WAC:  TODO: cannot wield conflicting alignment artifacts*/
+#if 0
+  	else if (uswapwep->oartifact && ...)
+	    pline("%s resists being held second to another weapon!",
+		    Yname2(uswapwep));
+#endif
+	else if (!uarmg && !Stone_resistance && 
+		(uswapwep && uswapwep->otyp == CORPSE &&                   
+                (touch_petrifies(&mons[uswapwep->corpsenm])))) {
 		char kbuf[BUFSZ];
 
 		You("wield the %s corpse with your bare %s.",
 		    mons[uswapwep->corpsenm].mname, body_part(HAND));
 		Sprintf(kbuf, "%s corpse", an(mons[uswapwep->corpsenm].mname));
 		instapetrify(kbuf);
-	} else if (Glib || uswapwep->cursed) {
+        } else if (uswapwep && (Glib || uswapwep->cursed)) {
 		if (!Glib)
 			uswapwep->bknown = TRUE;
 		drop_uswapwep();
 	} else
-		return (TRUE);
+	    return (TRUE); /* Passes all the checks */
+	
+	/* Otherwise */
 	return (FALSE);
 }
 
@@ -519,6 +587,7 @@ drop_uswapwep()
 	/* Avoid trashing makeplural's static buffer */
 	Strcpy(str, makeplural(body_part(HAND)));
 	Your("%s from your %s!",  aobjnam(obj, "slip"), str);
+	setuswapwep((struct obj *) 0, FALSE);
 	dropx(obj);
 }
 
@@ -527,7 +596,15 @@ dotwoweapon()
 {
 	/* You can always toggle it off */
 	if (u.twoweap) {
+		if (uwep)
 		You("switch to your primary weapon.");
+		else if (uswapwep) {
+		    You("are empty %s.", body_part(HANDED));
+		    unweapon = TRUE;
+		} else
+		    You("switch to your right %s.", body_part(HAND));
+		if (uswapwep)
+		    unwield(uswapwep, TRUE);
 		u.twoweap = 0;
 		update_inventory();
 		return (0);
@@ -536,7 +613,17 @@ dotwoweapon()
 	/* May we use two weapons? */
 	if (can_twoweapon()) {
 		/* Success! */
+		if (uwep && uswapwep)
 		You("begin two-weapon combat.");
+		else if (uwep || uswapwep) {
+		    You("begin fighting with a weapon and your %s %s.",
+			    uwep ? "left" : "right", body_part(HAND));
+		    unweapon = FALSE;
+		} else if (Upolyd)
+		    You("begin fighting with two %s.",
+			    makeplural(body_part(HAND)));
+		else
+		    You("begin two-handed combat.");
 		u.twoweap = 1;
 		update_inventory();
 		return (rnd(20) > ACURR(A_DEX));
@@ -558,6 +645,7 @@ uwepgone()
 		    end_burn(uwep, FALSE);
 		    if (!Blind) pline("%s glowing.", Tobjnam(uwep, "stop"));
 		}
+		unwield(uwep, FALSE);
 		setworn((struct obj *)0, W_WEP);
 		unweapon = TRUE;
 		update_inventory();
@@ -586,7 +674,16 @@ void
 untwoweapon()
 {
 	if (u.twoweap) {
+		if (uwep && uswapwep)
 		You("can no longer use two weapons at once.");
+		else if (cantwield(youmonst.data))
+		    You("can no longer control which %s to fight with.",
+			    body_part(HAND));
+		else
+		    You("can no longer use two %s to fight.",
+			    makeplural(body_part(HAND)));
+		if (uswapwep)
+		    unwield(uswapwep, TRUE);
 		u.twoweap = FALSE;
 		update_inventory();
 	}
@@ -795,6 +892,18 @@ register struct obj *obj;
 		bimanual(obj) ? (const char *)makeplural(body_part(HAND))
 				: body_part(HAND));
 	obj->owornmask = savewornmask;
+}
+
+void
+unwield(obj, put_away)
+register struct obj *obj;
+boolean put_away;
+{
+    /* MRKR: Extinguish torches when they are put away */
+    if (put_away && obj->otyp == TORCH && obj->lamplit) {
+	You("extinguish %s before putting it away.", yname(obj));
+	end_burn(obj, TRUE);
+    }
 }
 
 /*wield.c*/

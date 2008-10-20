@@ -111,6 +111,10 @@ boolean pushing;
 		    You("are hit by molten lava%c",
 			Fire_resistance ? '.' : '!');
 			burn_away_slime();
+		    if (Slimed) {
+			pline("The slime is burned off!");
+			Slimed =0;
+		    }
 		    losehp(d((Fire_resistance ? 1 : 3), 6),
 			   "molten lava", KILLED_BY);
 		} else if (!fills_up && flags.verbose &&
@@ -159,7 +163,7 @@ const char *verb;
 		    if (mtmp) {
 			if (!passes_walls(mtmp->data) &&
 				!throws_rocks(mtmp->data)) {
-			    if (hmon(mtmp, obj, TRUE) && !is_whirly(mtmp->data))
+			    if (hmon(mtmp, obj, 3) && !is_whirly(mtmp->data))
 				return FALSE;	/* still alive */
 			}
 			mtmp->mtrapped = 0;
@@ -222,8 +226,15 @@ const char *verb;
 				The(xname(obj)), otense(obj, "tumble"),
 				the_your[t->madeby_u]);
 	}
+#ifdef LIGHTSABERS
+	if (is_lightsaber(obj) && obj->lamplit) {
+		if (cansee(x, y)) You("see %s deactivate.", an(xname(obj)));
+		lightsaber_deactivate(obj, TRUE);
+	}
+#endif
 	return FALSE;
 }
+
 
 #endif /* OVL0 */
 #ifdef OVLB
@@ -295,8 +306,15 @@ giveback:
 	    case RIN_SHOCK_RESISTANCE:
 		pline("Static electricity surrounds the sink.");
 		break;
+/* KMH, balance patch -- now an amulet
+	    case RIN_DRAIN_RESISTANCE:
+		pline("The sink looks weaker for a moment, but it passes.");
+		break; */
 	    case RIN_CONFLICT:
 		You_hear("loud noises coming from the drain.");
+		break;
+	    case RIN_SLEEPING:		/* ALI */
+		You_hear("loud snores coming from the drain.");
 		break;
 	    case RIN_SUSTAIN_ABILITY:	/* KMH */
 		pline_The("water flow seems fixed.");
@@ -308,6 +326,15 @@ giveback:
 	    case RIN_GAIN_CONSTITUTION:
 		pline_The("water flow seems %ser now.",
 			(obj->spe<0) ? "less" : "great");
+		break;
+	    case RIN_GAIN_INTELLIGENCE:
+	    case RIN_GAIN_WISDOM:
+		pline("The water flow seems %ser now.",
+			(obj->spe<0) ? "dull" : "quick");
+		break;
+	    case RIN_GAIN_DEXTERITY:
+		pline("The water flow seems %ser now.",
+			(obj->spe<0) ? "slow" : "fast");
 		break;
 	    case RIN_INCREASE_ACCURACY:	/* KMH */
 		pline_The("water flow %s the drain.",
@@ -377,6 +404,9 @@ giveback:
 		case RIN_WARNING:
 		    pline_The("sink glows %s for a moment.", hcolor(NH_WHITE));
 		    break;
+		case RIN_MOOD:
+			pline_The("sink looks groovy.");
+			break;
 		case RIN_TELEPORTATION:
 		    pline_The("sink momentarily vanishes.");
 		    break;
@@ -419,6 +449,7 @@ register const char *word;
 				something);
 		return(FALSE);
 	}
+	/* KMH, balance patch -- removed stone of rotting */        
 	if (obj->otyp == LOADSTONE && obj->cursed) {
 		/* getobj() kludge sets corpsenm to user's specified count
 		   when refusing to split a stack of cursed loadstones */
@@ -465,13 +496,13 @@ register struct obj *obj;
 			weldmsg(obj);
 			return(0);
 		}
-		setuwep((struct obj *)0);
+		setuwep((struct obj *)0, FALSE);
+	}
+	if (obj == uswapwep) {
+		setuswapwep((struct obj *)0, FALSE);
 	}
 	if(obj == uquiver) {
 		setuqwep((struct obj *)0);
-	}
-	if (obj == uswapwep) {
-		setuswapwep((struct obj *)0);
 	}
 
 	if (u.uswallow) {
@@ -537,9 +568,9 @@ void
 dropy(obj)
 register struct obj *obj;
 {
-	if (obj == uwep) setuwep((struct obj *)0);
+	if (obj == uwep) setuwep((struct obj *)0, FALSE);
 	if (obj == uquiver) setuqwep((struct obj *)0);
-	if (obj == uswapwep) setuswapwep((struct obj *)0);
+	if (obj == uswapwep) setuswapwep((struct obj *)0, FALSE);
 
 	if (!u.uswallow && flooreffects(obj,u.ux,u.uy,"drop")) return;
 	/* uswallow check done by GAN 01/29/87 */
@@ -755,6 +786,12 @@ dodown()
 		    (u.ux == sstairs.sx && u.uy == sstairs.sy && !sstairs.up)),
 		ladder_down = (u.ux == xdnladder && u.uy == ydnladder);
 
+	if (Role_if(PM_GNOME) && on_level(&mineend_level,&u.uz)) {
+		pline("The staircase is filled with tons of rubble and debris.");
+		pline("Poor Ruggo!");
+		return (0);
+	}
+
 #ifdef STEED
 	if (u.usteed && !u.usteed->mcanmove) {
 		pline("%s won't move!", Monnam(u.usteed));
@@ -911,7 +948,7 @@ currentlevel_rewrite()
 	if (!savelev(fd, ledger_no(&u.uz), COUNT_SAVE)) {
 		(void) close(fd);
 		delete_levelfile(ledger_no(&u.uz));
-		pline("NetHack is out of disk space for making levels!");
+		pline("Slash'EM is out of disk space for making levels!");
 		You("can save, quit, or continue playing.");
 		return -1;
 	}
@@ -949,6 +986,10 @@ register xchar x, y;
 }
 */
 
+#ifdef BLACKMARKET
+d_level new_dlevel = {0, 0};
+#endif
+
 void
 goto_level(newlevel, at_stairs, falling, portal)
 d_level *newlevel;
@@ -976,6 +1017,10 @@ boolean at_stairs, falling, portal;
 	if (new_ledger <= 0)
 		done(ESCAPED);	/* in fact < 0 is impossible */
 
+#ifdef BLACKMARKET
+	assign_level(&new_dlevel, newlevel);
+#endif
+
 	/* If you have the amulet and are trying to get out of Gehennom, going
 	 * up a set of stairs sometimes does some very strange things!
 	 * Biased against law and towards chaos, but not nearly as strongly
@@ -987,33 +1032,34 @@ boolean at_stairs, falling, portal;
 	 *	 -1    8.33   4.17   0.0	 -1    6.25   8.33  12.5
 	 *	 -2    8.33   4.17   0.0	 -2    6.25   8.33   0.0
 	 *	 -3    8.33   4.17   0.0	 -3    6.25   0.0    0.0
-	 */
-	if (Inhell && up && u.uhave.amulet && !newdungeon && !portal &&
-				(dunlev(&u.uz) < dunlevs_in_dungeon(&u.uz)-3)) {
-		if (!rn2(4)) {
-		    int odds = 3 + (int)u.ualign.type,		/* 2..4 */
-			diff = odds <= 1 ? 0 : rn2(odds);	/* paranoia */
-
-		    if (diff != 0) {
-			assign_rnd_level(newlevel, &u.uz, diff);
-			/* if inside the tower, stay inside */
-			if (was_in_W_tower &&
-			    !On_W_tower_level(newlevel)) diff = 0;
-		    }
-		    if (diff == 0)
-			assign_level(newlevel, &u.uz);
-
-		    new_ledger = ledger_no(newlevel);
-
-		    pline("A mysterious force momentarily surrounds you...");
-		    if (on_level(newlevel, &u.uz)) {
-			(void) safe_teleds(FALSE);
-			(void) next_to_u();
-			return;
-		    } else
-			at_stairs = at_ladder = FALSE;
-		}
-	}
+	 * [Tom] I removed this... it's indescribably annoying.         
+	 *
+	 * if (Inhell && up && u.uhave.amulet && !newdungeon && !portal &&
+	 *			(dunlev(&u.uz) < dunlevs_in_dungeon(&u.uz)-3)) {
+	 *	if (!rn2(4)) {
+	 *	    int odds = 3 + (int)u.ualign.type,          * 2..4 *
+	 *		diff = odds <= 1 ? 0 : rn2(odds);       * paranoia *
+	 *
+	 *	    if (diff != 0) {
+	 *		assign_rnd_level(newlevel, &u.uz, diff);
+	 *		* if inside the tower, stay inside *
+	 *		if (was_in_W_tower &&
+	 *		    !On_W_tower_level(newlevel)) diff = 0;
+	 *	    }
+	 *	    if (diff == 0)
+	 *		assign_level(newlevel, &u.uz);
+ 	 *
+	 *	    new_ledger = ledger_no(newlevel);
+ 	 *
+	 *	    pline("A mysterious force momentarily surrounds you...");
+	 *	    if (on_level(newlevel, &u.uz)) {
+	 *		(void) safe_teleds(FALSE);
+	 *		(void) next_to_u();
+	 *		return;
+	 *	    } else
+	 *		at_stairs = at_ladder = FALSE;
+	 *	}
+	}*/
 
 	/* Prevent the player from going past the first quest level unless
 	 * (s)he has been given the go-ahead by the leader.
@@ -1035,7 +1081,7 @@ boolean at_stairs, falling, portal;
 	if (Punished) unplacebc();
 	u.utrap = 0;				/* needed in level_tele */
 	fill_pit(u.ux, u.uy);
-	u.ustuck = 0;				/* idem */
+	setustuck(0);				/* idem */
 	u.uinwater = 0;
 	u.uundetected = 0;	/* not hidden, even if means are available */
 	keepdogs(FALSE);
@@ -1112,6 +1158,11 @@ boolean at_stairs, falling, portal;
 		getlev(fd, hackpid, new_ledger, FALSE);
 		(void) close(fd);
 	}
+
+#ifdef ALLEG_FX
+        if (iflags.usealleg) nh_fade_out(portal);
+#endif
+
 	/* do this prior to level-change pline messages */
 	vision_reset();		/* clear old level's line-of-sight */
 	vision_full_recalc = 0;	/* don't let that reenable vision yet */
@@ -1167,12 +1218,12 @@ boolean at_stairs, falling, portal;
 		    if (Punished) {
 			drag_down();
 			if (carried(uball)) {
-			    if (uwep == uball)
-				setuwep((struct obj *)0);
 			    if (uswapwep == uball)
-				setuswapwep((struct obj *)0);
+				setuswapwep((struct obj *)0, FALSE);
 			    if (uquiver == uball)
 				setuqwep((struct obj *)0);
+			    if (uwep == uball)
+				setuwep((struct obj *)0, FALSE);
 			    freeinv(uball);
 			}
 		    }
@@ -1265,6 +1316,10 @@ boolean at_stairs, falling, portal;
 	vision_reset();		/* reset the blockages */
 	docrt();		/* does a full vision recalc */
 	flush_screen(-1);
+
+#ifdef ALLEG_FX
+        if (iflags.usealleg) nh_fade_in(portal);
+#endif
 
 	/*
 	 *  Move all plines beyond the screen reset.
@@ -1367,7 +1422,7 @@ final_level()
 	int i;
 
 	/* reset monster hostility relative to player */
-	for (mtmp = fmon; mtmp; mtmp = mtmp->nmon)
+	for(mtmp = fmon; mtmp; mtmp = mtmp->nmon)
 	    if (!DEADMONSTER(mtmp)) reset_hostility(mtmp);
 
 	/* create some player-monsters */
@@ -1380,11 +1435,10 @@ final_level()
 	    for (i = rnd(4); i > 0; --i) {
 		mm.x = u.ux;
 		mm.y = u.uy;
-		if (enexto(&mm, mm.x, mm.y, &mons[PM_ANGEL]))
+		if(enexto(&mm, mm.x, mm.y, &mons[PM_ANGEL]))
 		    (void) mk_roamer(&mons[PM_ANGEL], u.ualign.type,
 				     mm.x, mm.y, FALSE);
 	    }
-
 	} else if (u.ualign.record > 8) {	/* fervent */
 	    pline("A voice whispers: \"Thou hast been worthy of me!\"");
 	    mm.x = u.ux;
@@ -1486,8 +1540,9 @@ deferred_goto()
  * corpse is gone.
  */
 boolean
-revive_corpse(corpse)
+revive_corpse(corpse, moldy)
 struct obj *corpse;
+boolean moldy;
 {
     struct monst *mtmp, *mcarry;
     boolean is_uwep, chewed;
@@ -1509,30 +1564,48 @@ struct obj *corpse;
 	/* container_where is the outermost container's location even if nested */
 	if (container_where == OBJ_MINVENT && mtmp2) mcarry = mtmp2;
     }
-    mtmp = revive(corpse);	/* corpse is gone if successful */
+    mtmp = revive(corpse);      /* corpse is gone if successful && quan == 1 */
 
     if (mtmp) {
-	chewed = (mtmp->mhp < mtmp->mhpmax);
+	/*
+	 * [ALI] Override revive's HP calculation. The HP that a mold starts
+	 * with do not depend on the HP of the monster whose corpse it grew on.
+	 */
+	if (moldy)
+	    mtmp->mhp = mtmp->mhpmax;
+	chewed = !moldy && (mtmp->mhp < mtmp->mhpmax);
 	if (chewed) cname = cname_buf;	/* include "bite-covered" prefix */
 	switch (where) {
 	    case OBJ_INVENT:
-		if (is_uwep)
+		if (is_uwep) {
+		    if (moldy) {
+			Your("weapon goes moldy.");
+			pline("%s writhes out of your grasp!", Monnam(mtmp));
+		    }
+		    else
 		    pline_The("%s writhes out of your grasp!", cname);
+		}
 		else
 		    You_feel("squirming in your backpack!");
 		break;
 
 	    case OBJ_FLOOR:
-		if (cansee(mtmp->mx, mtmp->my))
+		if (cansee(mtmp->mx, mtmp->my)) {
+		    if (moldy)
+			pline("%s grows on a moldy corpse!",
+			  Amonnam(mtmp));
+		    else
 		    pline("%s rises from the dead!", chewed ?
 			  Adjmonnam(mtmp, "bite-covered") : Monnam(mtmp));
+		}
 		break;
 
 	    case OBJ_MINVENT:		/* probably a nymph's */
 		if (cansee(mtmp->mx, mtmp->my)) {
 		    if (canseemon(mcarry))
-			pline("Startled, %s drops %s as it revives!",
-			      mon_nam(mcarry), an(cname));
+			pline("Startled, %s drops %s as it %s!",
+			      mon_nam(mcarry), moldy ? "a corpse" : an(cname),
+			      moldy ? "goes moldy" : "revives");
 		    else
 			pline("%s suddenly appears!", chewed ?
 			      Adjmonnam(mtmp, "bite-covered") : Monnam(mtmp));
@@ -1548,7 +1621,7 @@ struct obj *corpse;
 	   	} else if (container_where == OBJ_INVENT && container) {
 		        char sackname[BUFSZ];
 		        Strcpy(sackname, an(xname(container)));
-	   		pline("%s %s out of %s in your pack!",
+	   		pline("%s %ss out of %s in your pack!",
 	   			Blind ? Something : Amonnam(mtmp),
 				locomotion(mtmp->data,"writhes"),
 	   			sackname);
@@ -1576,13 +1649,95 @@ revive_mon(arg, timeout)
 genericptr_t arg;
 long timeout;
 {
+#if defined(MAC_MPW)
+# pragma unused ( timeout )
+#endif
     struct obj *body = (struct obj *) arg;
 
     /* if we succeed, the corpse is gone, otherwise, rot it away */
-    if (!revive_corpse(body)) {
+    if (!revive_corpse(body, FALSE)) {
 	if (is_rider(&mons[body->corpsenm]))
 	    You_feel("less hassled.");
 	(void) start_timer(250L - (monstermoves-body->age),
+					TIMER_OBJECT, ROT_CORPSE, arg);
+    }
+}
+
+/* Revive the corpse as a mold via a timeout. */
+/*ARGSUSED*/
+void
+moldy_corpse(arg, timeout)
+genericptr_t arg;
+long timeout;
+{
+    int pmtype, oldtyp, oldquan, oldnamelth;
+    struct obj *body = (struct obj *) arg;
+
+    /* Turn the corpse into a mold corpse if molds are available */
+    oldtyp = body->corpsenm;
+    oldnamelth = body->onamelth;
+
+    /* Weight towards non-motile fungi.
+     */
+    pmtype = pm_mkclass(S_FUNGUS, 0);
+    if ((pmtype != -1) && (mons[pmtype].mmove)) pmtype = pm_mkclass(S_FUNGUS, 0);
+
+    /* [ALI] Molds don't grow in adverse conditions.  If it ever
+     * becomes possible for molds to grow in containers we should
+     * check for iceboxes here as well.
+     */
+    if ((body->where == OBJ_FLOOR || body->where==OBJ_BURIED) &&
+      (is_pool(body->ox, body->oy) || is_lava(body->ox, body->oy) ||
+      is_ice(body->ox, body->oy)))
+	pmtype = -1;
+
+    if (pmtype != -1) {
+	/* We don't want special case revivals */
+	if (cant_create(&pmtype, TRUE) || (body->oxlth &&
+				(body->oattached == OATTACHED_MONST)))
+	    pmtype = -1; /* cantcreate might have changed it so change it back */
+    	else {
+	    	body->corpsenm = pmtype;
+		body->onamelth = 0;	/* Molds shouldn't be named */
+
+		/* oeaten isn't used for hp calc here, and zeroing it 
+		 * prevents eaten_stat() from worrying when you've eaten more
+		 * from the corpse than the newly grown mold's nutrition
+		 * value.
+		 */
+		body->oeaten = 0;
+
+		/* [ALI] If we allow revive_corpse() to get rid of revived
+		 * corpses from hero's inventory then we run into problems
+		 * with unpaid corpses.
+		 */
+		if (body->where == OBJ_INVENT)
+		    body->quan++;
+		oldquan = body->quan;
+	    	if (revive_corpse(body, TRUE)) {
+		    if (oldquan != 1) {		/* Corpse still valid */
+			body->corpsenm = oldtyp;
+			if (body->where == OBJ_INVENT) {
+			    useup(body);
+			    oldquan--;
+			}
+		    }
+		    if (oldquan == 1)
+			body = (struct obj *)0;	/* Corpse gone */
+		}
+    	}
+    }
+    
+    /* If revive_corpse succeeds, it handles the reviving corpse.
+     * If there was more than one corpse, or the revive failed,
+     * set the remaining corpse(s) to rot away normally.
+     * Revive_corpse handles genocides
+     */
+    if (body) {
+    	body->corpsenm = oldtyp; /* Fixup corpse after (attempted) revival */
+	body->onamelth = oldnamelth;
+	body->owt = weight(body);
+	(void) start_timer(250L - (monstermoves-peek_at_iced_corpse_age(body)),
 					TIMER_OBJECT, ROT_CORPSE, arg);
     }
 }
@@ -1649,6 +1804,7 @@ register int timex;
 		flags.botl = 1;
 	}
 
+	/* KMH, intrinsics patch */
 	if(!Wounded_legs || (HWounded_legs & TIMEOUT))
 		HWounded_legs = timex;
 	EWounded_legs = side;

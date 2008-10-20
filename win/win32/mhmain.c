@@ -766,11 +766,11 @@ LRESULT onWMCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
             break;
         }
 		case IDM_HELP_LONG:	
-			display_file(HELP, TRUE);  
+			display_file(NH_HELP, TRUE);  
 			break;
 		
 		case IDM_HELP_COMMANDS:	
-			display_file(SHELP, TRUE);  
+			display_file(NH_SHELP, TRUE);  
 			break;
 		
 		case IDM_HELP_HISTORY:
@@ -790,7 +790,7 @@ LRESULT onWMCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 			break;
 		
 		case IDM_HELP_OPTIONS_LONG:
-			display_file(OPTIONFILE, TRUE);  
+			display_file(NH_OPTIONFILE, TRUE);  
 			break;
 		
 		case IDM_HELP_EXTCMD:
@@ -798,7 +798,7 @@ LRESULT onWMCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 			break;
 		
 		case IDM_HELP_LICENSE:
-			display_file(LICENSE, TRUE);  
+			display_file(NH_LICENSE, TRUE);  
 			break;
 
 		case IDM_HELP_PORTHELP:

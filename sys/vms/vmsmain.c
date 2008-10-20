@@ -189,7 +189,7 @@ char *argv[];
 		(void) signal(SIGINT, (SIG_RET_TYPE) done1);
 #ifdef NEWS
 		if(iflags.news) {
-		    display_file(NEWS, FALSE);
+		    display_file_area(NEWS_AREA, NEWS, FALSE);
 		    iflags.news = FALSE; /* in case dorecover() fails */
 		}
 #endif
@@ -244,6 +244,7 @@ char *argv[];
 		argc--;
 		switch(argv[0][1]){
 		case 'D':
+		case 'Z':
 #ifdef WIZARD
 			if(!strcmpi(nh_getenv("USER"), WIZARD_NAME)) {
 				wizard = TRUE;
@@ -301,6 +302,28 @@ char *argv[];
 				argv++;
 			    if ((i = str2race(argv[0])) >= 0)
 			    	flags.initrace = i;
+			}
+			break;
+		case 'g': /* gender */
+			if (argv[0][2]) {
+			    if ((i = str2gend(&argv[0][2])) >= 0)
+			    	flags.initgend = i;
+			} else if (argc > 1) {
+				argc--;
+				argv++;
+			    if ((i = str2gend(argv[0])) >= 0)
+			    	flags.initgend = i;
+			}
+			break;
+		case 'a': /* alignment */
+			if (argv[0][2]) {
+			    if ((i = str2align(&argv[0][2])) >= 0)
+			    	flags.initalign = i;
+			} else if (argc > 1) {
+				argc--;
+				argv++;
+			    if ((i = str2align(argv[0])) >= 0)
+			    	flags.initalign = i;
 			}
 			break;
 		case '@':
@@ -433,7 +456,7 @@ port_help()
 	 * Display VMS-specific help.   Just show contents of the helpfile
 	 * named by PORT_HELP.
 	 */
-	display_file(PORT_HELP, TRUE);
+	display_file_area(FILE_AREA_SHARE, PORT_HELP, TRUE);
 }
 #endif /* PORT_HELP */
 

@@ -141,33 +141,57 @@ SYSOBJ = ioctl.o unixmain.o unixtty.o unixunix.o unixres.o
 #LINK = gcc
 #LFLAGS = -Xlinker -soname=_APP_
 
+# flags for debugging:
+# CFLAGS = -g -I../include
+
+CFLAGS = -O -I../include
+LFLAGS =
+
 # Only used for the Gnome interface.
 # When including the Gnome interface, you need to include gnome specific
 # directories.  The ones given below is the usual spot for linux systems.
 # The paths are for glibconfig.h and gnomesupport.h respectively.
 #
-GNOMEINC=-I/usr/lib/glib/include -I/usr/lib/gnome-libs/include -I../win/gnome
+#GNOMEINC=-I/usr/lib/glib/include -I/usr/lib/gnome-libs/include -I../win/gnome
+GNOMEINC=`gnome-config gnome --cflags` -I../win/gnome
 
-# flags for debugging:
-# CFLAGS = -g -I../include
-
-CFLAGS = -O -I../include
-LFLAGS = 
+# QT windowing system
+# Gentoo
+# QTDIR = /usr/qt/2
+# SuSE 6.1
+# QTDIR = /usr/lib/qt
+# RedHat 6.1
+# QTDIR = /usr/lib/qt-2.0.1
+#
+QTLIBDIR=$(QTDIR)/lib
+QTINCDIR=$(QTDIR)/include
+QTBINDIR=$(QTDIR)/bin
+# SuSE 6.1
+# KDELIBDIR=/opt/kde/lib
+# KDEINCDIR=/opt/kde/include
+# RedHat 6.1
+KDELIBDIR=/usr/lib
+KDEINCDIR=/usr/include/kde
+# CFLAGS = -O -I../include
+# LFLAGS = -L/usr/X11/lib -L$(QTLIBDIR) -L$(KDELIBDIR)
 
 # The Qt and Be window systems are written in C++, while the rest of
 # NetHack is standard C.  If using Qt, uncomment the LINK line here to get
 # the C++ libraries linked in.
-CXXFLAGS = $(CFLAGS) -I. -I$(QTDIR)/include
+CXXFLAGS = $(CFLAGS) -I. -I$(QTINCDIR)
+# Qt is C++, so define the compiler and linker thus required:
 CXX=g++
 #LINK=g++
 #	For cross-compiling, eg. with gcc on Linux (see also CC further up):
 #CXX=arm-linux-g++
 #LINK=arm-linux-gcc
 
+# GTK windowing system
+WINGTKCONFIG=PKG_CONFIG_PATH=/usr/devel/lib/pkgconfig pkg-config gtk+-2.0
+WINGTKCFLAGS=`$(WINGTKCONFIG) --cflags`
+
 # Set the WINSRC, WINOBJ, and WINLIB lines to correspond to your desired
 # combination of windowing systems.  Also set windowing systems in config.h.
-# Note that if you are including multiple tiled window systems, you don't
-# want two copies of tile.o, so comment out all but the first.
 #
 # files for a straight tty port using no native windowing system
 WINTTYSRC = ../win/tty/getline.c ../win/tty/termcap.c ../win/tty/topl.c \
@@ -175,18 +199,30 @@ WINTTYSRC = ../win/tty/getline.c ../win/tty/termcap.c ../win/tty/topl.c \
 WINTTYOBJ = getline.o termcap.o topl.o wintty.o
 #
 # files for an X11 port
-# (tile.c is a generated source file)
+# (tile.c is included in the defn. for WINCSRC, below)
 WINX11SRC = ../win/X11/Window.c ../win/X11/dialogs.c ../win/X11/winX.c \
 	../win/X11/winmap.c  ../win/X11/winmenu.c ../win/X11/winmesg.c \
 	../win/X11/winmisc.c ../win/X11/winstat.c ../win/X11/wintext.c \
-	../win/X11/winval.c tile.c
+	../win/X11/winval.c
 WINX11OBJ = Window.o dialogs.o winX.o winmap.o winmenu.o winmesg.o \
-	winmisc.o winstat.o wintext.o winval.o tile.o
+	winmisc.o winstat.o wintext.o winval.o nhwin.a
 #
 # Files for a Qt port
 #
 WINQTSRC = ../win/Qt/qt_win.cpp ../win/Qt/qt_clust.cpp ../win/Qt/qttableview.cpp
-WINQTOBJ = qt_win.o qt_clust.o qttableview.o tile.o
+WINQTOBJ = qt_win.o qt_clust.o qttableview.o nhwin.a
+#
+# files for a GTK port
+#
+WINGTKSRC = ../win/gtk/gtk.c ../win/gtk/gtkgetlin.c \
+	../win/gtk/gtkstatus.c ../win/gtk/gtkmenu.c ../win/gtk/gtkyn.c \
+	../win/gtk/gtkextcmd.c ../win/gtk/gtkmap.c ../win/gtk/gtkmessage.c \
+	../win/gtk/gtkmisc.c ../win/gtk/gtktile.c ../win/gtk/xshmmap.c \
+	../win/gtk/gtkhackrc.c ../win/gtk/gtkprefs.c ../win/gtk/gtkprogress.c \
+	../win/gtk/gtkext.c ../win/gtk/gtkint.c
+WINGTKOBJ = gtk.o gtkgetlin.o gtkstatus.o gtkmenu.o gtkyn.o gtkextcmd.o \
+ 	gtkmap.o gtktile.o gtkmessage.o gtkmisc.o xshmmap.o gtkhackrc.o \
+	gtkprefs.o gtkprogress.o gtkext.o gtkint.o nhwin.a
 #
 # Files for a Gnome port
 #
@@ -198,24 +234,94 @@ WINGNOMESRC = ../win/gnome/gnaskstr.c ../win/gnome/gnbind.c \
 	../win/gnome/gnworn.c
 WINGNOMEOBJ = gnaskstr.o gnbind.o gnglyph.o gnmain.o gnmap.o gnmenu.o \
 	gnmesg.o gnopts.o gnplayer.o gnsignal.o gnstatus.o gntext.o \
-	gnyesno.o gnworn.o tile.o
+      gnyesno.o gnworn.o nhwin.a
 #
 # Files for a Gem port
 WINGEMSRC = ../win/gem/wingem.c ../win/gem/wingem1.c ../win/gem/load_img.c \
-	../win/gem/gr_rect.c tile.c
-WINGEMOBJ = wingem.o wingem1.o load_img.o gr_rect.o tile.o
+	../win/gem/gr_rect.c
+WINGEMOBJ = wingem.o wingem1.o load_img.o gr_rect.o nhwin.a
 #
 # Files for a BeOS InterfaceKit port -- not ready for prime time
 WINBESRC =
 WINBEOBJ =
 #WINBESRC = ../win/BeOS/winbe.cpp ../win/BeOS/NHWindow.cpp \
-#	../win/BeOS/NHMenuWindow.cpp ../win/BeOS/NHMapWindow.cpp tile.c
-#WINBEOBJ = winbe.o NHWindow.o NHMenuWindow.o NHMapWindow.o tile.o
+#     ../win/BeOS/NHMenuWindow.cpp ../win/BeOS/NHMapWindow.cpp
+#WINBEOBJ = winbe.o NHWindow.o NHMenuWindow.o NHMapWindow.o nhwin.a
+#
+# Files for a proxy interface
+WINPROXYSRC = ../win/proxy/winproxy.c ../win/proxy/callback.c
+WINPROXYOBJ = winproxy.o callback.o nhwin.a
+#
+# Common files for proxy window interface and plug-in window interfaces.
+PROXYCOMSRC = ../win/proxy/nhext.c ../win/proxy/nhxdr.c \
+	../win/proxy/nhextxdr.c ../win/proxy/nhextio.c ../win/proxy/nhextnb.c \
+	../win/proxy/compxdr.c
+PROXYCOMOBJ = nhext.o nhxdr.o nhextxdr.o nhextio.o nhextnb.o compxdr.o
+#
+# Common files that are also shared with non-proxy window interfaces
+PROXYSHRSRC = ../win/proxy/md5.c
+PROXYSHROBJ = md5.o
+#
+# Files for the proxy utility modules. These are provided for use with window
+# ports that support the proxy interface. The GTK window interface needs
+# these files regardless of whether proxy support is enabled or not.
+PROXYUTLSRC = ../win/proxy/dlbh.c ../win/proxy/mapid.c \
+	../win/proxy/riputil.c ../win/proxy/getopt.c ../win/proxy/glyphmap.c
+PROXYUTLOBJ = dlbh.o mapid.o riputil.o getopt.o glyphmap.o
+#
+# Files for plug-in window interfaces. These are needed to support external
+# window ports and provide the interface to the game executable.  Currently,
+# only the GTK window interface supports plug-in window interfaces.
+PROXYCLNTSRC = ../win/proxy/proxysvc.c ../win/proxy/proxycb.c \
+	../win/proxy/prxymap.c ../win/proxy/prxychar.c ../win/proxy/prxytile.c \
+	../win/proxy/prxyconn.c
+PROXYCLNTOBJ = proxysvc.o proxycb.o prxymap.o prxychar.o prxytile.o prxyconn.o
+#
+# Files for the SDL/GL window port
+WINGLSRC = ../win/gl/gl_conf.c ../win/gl/gl_emul.c  \
+    ../win/gl/gl_font.c ../win/gl/gl_hardw.c ../win/gl/gl_image.c  \
+    ../win/gl/gl_main.c ../win/gl/gl_map.c ../win/gl/gl_menu.c  \
+    ../win/gl/gl_opt.c ../win/gl/gl_role.c ../win/gl/gl_rendu.c  \
+    ../win/gl/gl_softw.c ../win/gl/gl_stat.c ../win/gl/gl_text.c  \
+    ../win/gl/gl_tile.c  ../win/gl/gl_unit.c ../win/gl/gl_win.c
+WINGLOBJ = gl_conf.o gl_emul.o gl_font.o gl_hardw.o \
+    gl_image.o gl_main.o gl_map.o gl_menu.o gl_opt.o \
+    gl_rendu.o gl_role.o gl_softw.o gl_stat.o \
+    gl_text.o gl_tile.o gl_unit.o gl_win.o nhwin.a
+SDLGL_CFLAGS = `sdl-config --cflags`
 
-#
-#
+# Use these declarations if you only want to support the TTY windowing system
 WINSRC = $(WINTTYSRC)
 WINOBJ = $(WINTTYOBJ)
+# Use these declarations if you want to support the X11 windowing system
+# WINSRC = $(WINTTYSRC) $(WINX11SRC)
+# WINOBJ = $(WINTTYOBJ) $(WINX11OBJ)
+# Use these declarations if you want to support the Qt windowing system
+# WINSRC = $(WINTTYSRC) $(WINQTSRC)
+# WINOBJ = $(WINTTYOBJ) $(WINQTOBJ)
+# Use these declarations if you want to support a conventional
+# GTK windowing system (only useful if not installing setuid or setgid)
+# WINSRC = $(WINTTYSRC) $(WINGTKSRC) $(PROXYUTLSRC)
+# WINOBJ = $(WINTTYOBJ) $(WINGTKOBJ) $(PROXYUTLOBJ)
+# Use these declarations if you want to support external windowing systems
+# and a proxified GTK windowing system (see Install.GTK)
+# WINSRC = $(WINTTYSRC) $(WINGTKSRC) \
+#	$(WINPROXYSRC) $(PROXYUTLSRC) $(PROXYCOMSRC) $(PROXYCLNTSRC)
+# WINOBJ = $(WINTTYOBJ) $(WINGTKOBJ) \
+#	$(WINPROXYOBJ) $(PROXYUTLOBJ) $(PROXYCOMOBJ) $(PROXYCLNTOBJ)
+# Use these declarations to only support the SDL/GL windowing systems
+# WINSRC = $(WINGLSRC)
+# WINOBJ = $(WINGLOBJ)
+# Use these declarations if you want to support external windowing systems
+# WINSRC = $(WINTTYSRC) $(WINPROXYSRC) $(PROXYUTLSRC) $(PROXYCOMSRC)
+# WINOBJ = $(WINTTYOBJ) $(WINPROXYOBJ) $(PROXYUTLOBJ) $(PROXYCOMOBJ)
+# Use these declarations if you want to support all standard windowing systems
+# WINSRC = $(WINTTYSRC) $(WINPROXYSRC) $(PROXYUTLSRC) $(PROXYCOMSRC) \
+#	$(WINX11SRC) $(WINQTSRC) $(WINGTKSRC) $(WINGLSRC) $(WINGNOMESRC)
+# WINOBJ = $(WINTTYOBJ) $(WINPROXYOBJ) $(PROXYUTLOBJ) $(PROXYCOMOBJ) \
+#	$(WINX11OBJ) $(WINQTOBJ) $(WINGTKOBJ) $(WINGLOBJ) $(WINGNOMEOBJ)
+#
+# You must also change the definition of WINLIB (below) to match these
 
 # on some systems the termcap library is in -ltermcap or -lcurses
 # on 386 Xenix, the -ltermlib tputs() seems not to work; use -lcurses instead
@@ -241,10 +347,13 @@ WINX11LIB = -lXaw -lXmu -lXext -lXt -lX11
 # WINX11LIB = -lXaw -lXmu -lXpm -lXext -lXt -lX11 -lSM -lICE -lm # BSD/OS 2.0
 #
 # libraries for Qt
-WINQTLIB = -L$(QTDIR)/lib -lqt
+WINQTLIB = -L$(QTLIBDIR) -lqt
 #
 # libraries for KDE (with Qt)
 WINKDELIB = -lkdecore -lkdeui -lXext
+#
+# libraries for GTK
+WINGTKLIB = `$(WINGTKCONFIG) --libs`
 #
 # libraries for Gnome
 WINGNOMELIB = -lgnomeui -lgnome -lart_lgpl -lgtk -lgdk -lpopt
@@ -254,8 +363,33 @@ WINGEMLIB = -le_gem -lgem
 #
 # libraries for BeOS 
 WINBELIB = -lbe
+#
+# libraries for SDL/GL window port
+WINSDLLIB = `sdl-config --libs` -lz -lpng
+WINGLLIB = -lGL
+#
+# libraries for proxy
+WINPROXYLIB = -lpthread
 
+# Use this declaration if you only want to support the TTY windowing system
 WINLIB = $(WINTTYLIB)
+# Use this declaration if you want to support the X11 windowing system
+# WINLIB = $(WINTTYLIB) $(WINX11LIB)
+# Use this declaration if you want to support the Qt windowing system
+# WINLIB = $(WINTTYLIB) $(WINQTLIB)
+# Use this declaration if you want to support a conventional
+# GTK windowing system (only useful if not installing setuid or setgid)
+# WINLIB = $(WINTTYLIB) $(WINGTKLIB)
+# Use this declaration if you want to support external windowing systems
+# and a proxified GTK windowing system (see Install.GTK)
+# WINLIB = $(WINTTYLIB) $(WINGTKLIB) $(WINPROXYLIB)
+# Use this declaration to only support the SDL/GL windowing system
+# WINLIB = $(WINGLLIB)
+# Use this declaration if you want to support external windowing systems
+# WINLIB = $(WINTTYLIB) $(WINPROXYLIB)
+# Use this declaration if you want to support all standard windowing systems
+# WINLIB = $(WINTTYLIB) $(WINPROXYLIB) $(WINGTKLIB) \
+#	$(WINX11LIB) $(WINQTLIB) $(WINGNOMELIB) $(WINSDLLIB) $(WINGLLIB) 
 
 # any other strange libraries your system needs (for Sysunix only -- the more
 # specialized targets should already be right)
@@ -285,8 +419,8 @@ WINLIB = $(WINTTYLIB)
 LIBS =
 
 # make NetHack
-GAME     = nethack
-# GAME     = nethack.prg
+GAME     = slashem
+# GAME     = slashem.prg
 
 # if you defined RANDOM in unixconf.h/tosconf.h since your system did not come
 # with a reasonable random number generator
@@ -326,7 +460,8 @@ HACKCSRC = allmain.c alloc.c apply.c artifact.c attrib.c ball.c bones.c \
 	   rnd.c role.c rumors.c save.c shk.c shknam.c sit.c sounds.c sp_lev.c \
 	   spell.c steal.c steed.c teleport.c timeout.c topten.c track.c trap.c \
 	   u_init.c uhitm.c vault.c version.c vision.c weapon.c were.c wield.c \
-	   windows.c wizard.c worm.c worn.c write.c zap.c
+	   windows.c wizard.c worm.c worn.c write.c zap.c \
+	   gypsy.c tech.c
 
 # all operating-system-dependent .c (for dependencies and such)
 SYSCSRC = ../sys/atari/tos.c ../sys/share/pcmain.c ../sys/share/pcsys.c \
@@ -334,11 +469,13 @@ SYSCSRC = ../sys/atari/tos.c ../sys/share/pcmain.c ../sys/share/pcsys.c \
 	../sys/share/ioctl.c ../sys/share/unixtty.c ../sys/unix/unixmain.c \
 	../sys/unix/unixunix.c ../sys/unix/unixres.c ../sys/be/bemain.c
 
-# generated source files (tile.c is handled separately via WINxxxSRC)
+# generated source files (tile.c is handled separately)
 GENCSRC = monstr.c vis_tab.c	#tile.c
 
 # all windowing-system-dependent .c (for dependencies and such)
-WINCSRC = $(WINTTYSRC) $(WINX11SRC) $(WINGNOMESRC) $(WINGEMSRC)
+WINCSRC = $(WINTTYSRC) $(WINX11SRC) $(WINGTKSRC) $(WINGNOMESRC) $(WINGEMSRC) \
+	$(WINPROXYSRC) $(PROXYUTLSRC) $(PROXYCLNTSRC) $(PROXYCOMSRC) \
+	$(PROXYSHRSRC) $(WINGLSRC) tile.c
 # all windowing-system-dependent .cpp (for dependencies and such)
 WINCXXSRC = $(WINQTSRC) $(WINBESRC)
 
@@ -367,9 +504,9 @@ HSOURCES = $(HACKINCL) date.h onames.h pm.h vis_tab.h\
 		lev_comp.h dgn_comp.h dgn_file.h
 
 # the following .o's _must_ be made before any others (for makedefs)
-FIRSTOBJ = monst.o objects.o
+FIRSTOBJ = monst.o objects.o alloc.o
 
-HOBJ = $(FIRSTOBJ) allmain.o alloc.o apply.o artifact.o attrib.o ball.o \
+HOBJ = $(FIRSTOBJ) allmain.o apply.o artifact.o attrib.o ball.o \
 	bones.o botl.o cmd.o dbridge.o decl.o detect.o dig.o display.o dlb.o \
 	do.o do_name.o do_wear.o dog.o dogmove.o dokick.o dothrow.o \
 	drawing.o dungeon.o eat.o end.o engrave.o exper.o explode.o \
@@ -384,6 +521,7 @@ HOBJ = $(FIRSTOBJ) allmain.o alloc.o apply.o artifact.o attrib.o ball.o \
 	steal.o steed.o teleport.o timeout.o topten.o track.o trap.o u_init.o \
 	uhitm.o vault.o vision.o vis_tab.o weapon.o were.o wield.o windows.o \
 	wizard.o worm.o worn.o write.o zap.o \
+	gypsy.o tech.o \
 	$(RANDOBJ) $(SYSOBJ) $(WINOBJ) version.o
 # the .o files from the HACKCSRC, SYSSRC, and WINSRC lists
 
@@ -392,7 +530,7 @@ $(GAME):	$(SYSTEM)
 
 Sysunix:	$(HOBJ) Makefile
 	@echo "Loading ..."
-	$(LINK) $(LFLAGS) -o $(GAME) $(HOBJ) $(WINLIB) $(LIBS)
+	@$(LINK) $(LFLAGS) -o $(GAME) $(HOBJ) $(WINLIB) $(LIBS)
 	@touch Sysunix
 
 Sys3B2:	$(HOBJ) Makefile
@@ -444,7 +582,6 @@ DUMB.Setup:	../include/extern.h
 
 all:	$(GAME)
 
-
 #	dependencies for makedefs and its outputs, which the util
 #	Makefile is responsible for keeping up to date
 #
@@ -459,15 +596,27 @@ objects.o:
 	$(CC) $(CFLAGS) -c objects.c
 	@rm -f $(MAKEDEFS)
 
+../include/filename.h: $(MAKEDEFS)
+	../util/makedefs -f
+
 # Qt windowport meta-object-compiler output
 qt_kde0.moc: ../include/qt_kde0.h
-	$(QTDIR)/bin/moc -o qt_kde0.moc ../include/qt_kde0.h
+	$(QTBINDIR)/moc -o qt_kde0.moc ../include/qt_kde0.h
 
 qt_win.moc: ../include/qt_win.h
-	$(QTDIR)/bin/moc -o qt_win.moc ../include/qt_win.h
+	$(QTBINDIR)/moc -o qt_win.moc ../include/qt_win.h
 
 qttableview.moc: ../include/qttableview.h
 	$(QTDIR)/bin/moc -o qttableview.moc ../include/qttableview.h
+
+# NetHack windows library for modules needed by more than one windows
+# interface.
+nhwin.a:	tile.o $(PROXYSHROBJ)
+	$(AR) cr nhwin.a tile.o $(PROXYSHROBJ)
+
+# NetHack proxy library for external window interfaces.
+nhproxy.a:      $(PROXYCLNTOBJ) $(PROXYCOMOBJ) $(PROXYSHROBJ)
+	$(AR) cr nhproxy.a $(PROXYCLNTOBJ) $(PROXYCOMOBJ) $(PROXYSHROBJ)
 
 $(MAKEDEFS): ../util/makedefs.c  $(CONFIG_H) ../include/permonst.h \
 		../include/objclass.h ../include/monsym.h \
@@ -520,14 +669,14 @@ tags: $(CSOURCES)
 	@( cd ../util ; $(MAKE) tags )
 
 clean:
-	-rm -f *.o $(HACK_H) $(CONFIG_H)
+	-rm -f *.o nhwin.a $(HACK_H) $(CONFIG_H)
 
 spotless: clean
 	-rm -f a.out core $(GAME) Sys*
 	-rm -f ../include/date.h ../include/onames.h ../include/pm.h
 	-rm -f monstr.c ../include/vis_tab.h vis_tab.c tile.c *.moc
 	-rm -f ../win/gnome/gn_rip.h
-
+	-rm -f ../include/filename.h
 
 depend: ../sys/unix/depend.awk \
 		$(SYSCSRC) $(WINCSRC) $(WINCXXSRC) $(GENCSRC) $(HACKCSRC)
@@ -562,19 +711,19 @@ $(HACK_H): ../include/hack.h $(CONFIG_H) ../include/align.h \
 		../include/permonst.h ../include/monattk.h \
 		../include/monflag.h ../include/mondata.h ../include/pm.h \
 		../include/wintype.h ../include/decl.h ../include/quest.h \
-		../include/spell.h ../include/color.h ../include/obj.h \
+		../include/obj.h ../include/spell.h ../include/tech.h \
 		../include/you.h ../include/attrib.h ../include/monst.h \
-		../include/skills.h ../include/onames.h ../include/timeout.h \
-		../include/trap.h ../include/flag.h ../include/rm.h \
-		../include/vision.h ../include/display.h ../include/engrave.h \
-		../include/rect.h ../include/region.h ../include/winprocs.h \
-		../include/wintty.h ../include/trampoli.h
+		../include/skills.h ../include/onames.h ../include/color.h \
+		../include/timeout.h ../include/trap.h ../include/flag.h \
+		../include/rm.h ../include/vision.h ../include/display.h \
+		../include/engrave.h ../include/rect.h ../include/region.h \
+		../include/winprocs.h ../include/wintty.h ../include/trampoli.h
 	touch $(HACK_H)
 #
 tos.o: ../sys/atari/tos.c $(HACK_H) ../include/tcap.h
 	$(CC) $(CFLAGS) -c ../sys/atari/tos.c
 pcmain.o: ../sys/share/pcmain.c $(HACK_H) ../include/dlb.h \
-		#../include/win32api.h
+		../include/patchlevel.h #../include/win32api.h
 	$(CC) $(CFLAGS) -c ../sys/share/pcmain.c
 pcsys.o: ../sys/share/pcsys.c $(HACK_H)
 	$(CC) $(CFLAGS) -c ../sys/share/pcsys.c
@@ -615,7 +764,7 @@ winX.o: ../win/X11/winX.c $(HACK_H) ../include/winX.h ../include/dlb.h \
 		../win/X11/nh56icon ../win/X11/nh32icon
 	$(CC) $(CFLAGS) -c ../win/X11/winX.c
 winmap.o: ../win/X11/winmap.c ../include/xwindow.h $(HACK_H) ../include/dlb.h \
-		../include/winX.h ../include/tile2x11.h
+		../include/winX.h ../include/patchlevel.h ../include/tile2x11.h
 	$(CC) $(CFLAGS) -c ../win/X11/winmap.c
 winmenu.o: ../win/X11/winmenu.c $(HACK_H) ../include/winX.h
 	$(CC) $(CFLAGS) -c ../win/X11/winmenu.c
@@ -630,7 +779,63 @@ wintext.o: ../win/X11/wintext.c $(HACK_H) ../include/winX.h ../include/xwindow.h
 	$(CC) $(CFLAGS) -c ../win/X11/wintext.c
 winval.o: ../win/X11/winval.c $(HACK_H) ../include/winX.h
 	$(CC) $(CFLAGS) -c ../win/X11/winval.c
-tile.o: tile.c $(HACK_H)
+gtk.o: ../win/gtk/gtk.c ../include/md5.h ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/func_tab.h \
+		../include/dlb.h ../include/patchlevel.h ../include/proxycb.h \
+		../include/prxyclnt.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtk.c
+gtkgetlin.o: ../win/gtk/gtkgetlin.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkgetlin.c
+gtkstatus.o: ../win/gtk/gtkstatus.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkstatus.c
+gtkmenu.o: ../win/gtk/gtkmenu.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/patchlevel.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkmenu.c
+gtkyn.o: ../win/gtk/gtkyn.c ../include/winGTK.h $(HACK_H) ../include/nhxdr.h \
+		../include/proxycom.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkyn.c
+gtkextcmd.o: ../win/gtk/gtkextcmd.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/proxycb.h \
+		../include/func_tab.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkextcmd.c
+gtkmap.o: ../win/gtk/gtkmap.c ../include/winGTK.h $(HACK_H) ../include/nhxdr.h \
+		../include/proxycom.h ../include/dlb.h ../include/patchlevel.h \
+		../include/proxycb.h ../include/prxyclnt.h \
+		../win/gtk/gtkprogress.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkmap.c
+gtkmessage.o: ../win/gtk/gtkmessage.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkmessage.c
+gtkmisc.o: ../win/gtk/gtkmisc.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/proxycb.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkmisc.c
+gtktile.o: ../win/gtk/gtktile.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/dlb.h \
+		../include/proxycb.h ../include/prxyclnt.h \
+		../win/gtk/gtkprogress.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtktile.c
+xshmmap.o: ../win/gtk/xshmmap.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/xshmmap.c
+gtkhackrc.o: ../win/gtk/gtkhackrc.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/prxyclnt.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkhackrc.c
+gtkprefs.o: ../win/gtk/gtkprefs.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h ../include/patchlevel.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkprefs.c
+gtkprogress.o: ../win/gtk/gtkprogress.c ../include/winGTK.h $(HACK_H) \
+		../include/nhxdr.h ../include/proxycom.h \
+		../win/gtk/gtkprogress.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkprogress.c
+gtkext.o: ../win/gtk/gtkext.c ../include/winGTK.h $(HACK_H) ../include/nhxdr.h \
+		../include/proxycom.h ../include/prxyclnt.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkext.c
+gtkint.o: ../win/gtk/gtkint.c ../include/winGTK.h $(HACK_H) ../include/nhxdr.h \
+		../include/proxycom.h ../include/prxyclnt.h \
+		../include/func_tab.h ../include/dlb.h ../include/patchlevel.h
+	$(CC) $(CFLAGS) $(WINGTKCFLAGS) -c ../win/gtk/gtkint.c
 gnaskstr.o: ../win/gnome/gnaskstr.c ../win/gnome/gnaskstr.h \
 		../win/gnome/gnmain.h
 	$(CC) $(CFLAGS) $(GNOMEINC) -c ../win/gnome/gnaskstr.c
@@ -638,7 +843,7 @@ gnbind.o: ../win/gnome/gnbind.c ../win/gnome/gnbind.h ../win/gnome/gnmain.h \
 		../win/gnome/gnmenu.h ../win/gnome/gnaskstr.h \
 		../win/gnome/gnyesno.h
 	$(CC) $(CFLAGS) $(GNOMEINC) -c ../win/gnome/gnbind.c
-gnglyph.o: ../win/gnome/gnglyph.c ../win/gnome/gnglyph.h ../include/tile2x11.h
+gnglyph.o: ../win/gnome/gnglyph.c ../win/gnome/gnglyph.h
 	$(CC) $(CFLAGS) $(GNOMEINC) -c ../win/gnome/gnglyph.c
 gnmain.o: ../win/gnome/gnmain.c ../win/gnome/gnmain.h ../win/gnome/gnsignal.h \
 		../win/gnome/gnbind.h ../win/gnome/gnopts.h $(HACK_H) \
@@ -683,10 +888,111 @@ load_img.o: ../win/gem/load_img.c ../include/load_img.h
 	$(CC) $(CFLAGS) -c ../win/gem/load_img.c
 gr_rect.o: ../win/gem/gr_rect.c ../include/gr_rect.h
 	$(CC) $(CFLAGS) -c ../win/gem/gr_rect.c
+winproxy.o: ../win/proxy/winproxy.c $(HACK_H) ../include/patchlevel.h \
+		../include/date.h ../include/nhxdr.h ../include/proxycom.h \
+		../include/winproxy.h #../include/win32api.h
+	$(CC) $(CFLAGS) -c ../win/proxy/winproxy.c
+callback.o: ../win/proxy/callback.c $(HACK_H) ../include/func_tab.h \
+		../include/md5.h ../include/nhxdr.h ../include/proxycom.h \
+		../include/winproxy.h
+	$(CC) $(CFLAGS) -c ../win/proxy/callback.c
+dlbh.o: ../win/proxy/dlbh.c $(HACK_H) ../include/dlb.h
+	$(CC) $(CFLAGS) -c ../win/proxy/dlbh.c
+mapid.o: ../win/proxy/mapid.c $(HACK_H) ../include/nhxdr.h ../include/winproxy.h
+	$(CC) $(CFLAGS) -c ../win/proxy/mapid.c
+riputil.o: ../win/proxy/riputil.c $(HACK_H)
+	$(CC) $(CFLAGS) -c ../win/proxy/riputil.c
+getopt.o: ../win/proxy/getopt.c $(HACK_H)
+	$(CC) $(CFLAGS) -c ../win/proxy/getopt.c
+glyphmap.o: ../win/proxy/glyphmap.c $(HACK_H) ../include/nhxdr.h \
+		../include/proxycom.h ../include/winproxy.h
+	$(CC) $(CFLAGS) -c ../win/proxy/glyphmap.c
+proxysvc.o: ../win/proxy/proxysvc.c ../include/nhxdr.h ../include/proxycom.h \
+		../include/proxycb.h ../include/prxyclnt.h
+	$(CC) $(CFLAGS) -c ../win/proxy/proxysvc.c
+proxycb.o: ../win/proxy/proxycb.c ../include/nhxdr.h ../include/proxycom.h \
+		../include/proxycb.h
+	$(CC) $(CFLAGS) -c ../win/proxy/proxycb.c
+prxymap.o: ../win/proxy/prxymap.c ../include/nhxdr.h ../include/proxycom.h \
+		../include/prxyclnt.h
+	$(CC) $(CFLAGS) -c ../win/proxy/prxymap.c
+prxychar.o: ../win/proxy/prxychar.c ../include/nhxdr.h ../include/proxycom.h \
+		../include/prxyclnt.h
+	$(CC) $(CFLAGS) -c ../win/proxy/prxychar.c
+prxytile.o: ../win/proxy/prxytile.c ../include/nhxdr.h ../include/proxycom.h \
+		../include/prxyclnt.h ../include/proxycb.h
+	$(CC) $(CFLAGS) -c ../win/proxy/prxytile.c
+prxyconn.o: ../win/proxy/prxyconn.c ../include/nhxdr.h ../include/proxycom.h \
+		../include/prxyclnt.h
+	$(CC) $(CFLAGS) -c ../win/proxy/prxyconn.c
+nhext.o: ../win/proxy/nhext.c ../include/nhxdr.h ../include/proxycom.h
+	$(CC) $(CFLAGS) -c ../win/proxy/nhext.c
+nhxdr.o: ../win/proxy/nhxdr.c ../include/nhxdr.h
+	$(CC) $(CFLAGS) -c ../win/proxy/nhxdr.c
+nhextxdr.o: ../win/proxy/nhextxdr.c ../include/nhxdr.h
+	$(CC) $(CFLAGS) -c ../win/proxy/nhextxdr.c
+nhextio.o: ../win/proxy/nhextio.c ../include/nhxdr.h
+	$(CC) $(CFLAGS) -c ../win/proxy/nhextio.c
+nhextnb.o: ../win/proxy/nhextnb.c ../include/nhxdr.h
+	$(CC) $(CFLAGS) -c ../win/proxy/nhextnb.c
+compxdr.o: ../win/proxy/compxdr.c ../include/nhxdr.h ../include/proxycom.h
+	$(CC) $(CFLAGS) -c ../win/proxy/compxdr.c
+md5.o: ../win/proxy/md5.c ../include/md5.h
+	$(CC) $(CFLAGS) -c ../win/proxy/md5.c
+gl_conf.o: ../win/gl/gl_conf.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_conf.c
+gl_emul.o: ../win/gl/gl_emul.c $(HACK_H) ../include/winGL.h \
+		../include/func_tab.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_emul.c
+gl_font.o: ../win/gl/gl_font.c $(HACK_H) ../include/patchlevel.h \
+		../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_font.c
+gl_hardw.o: ../win/gl/gl_hardw.c $(HACK_H) ../include/patchlevel.h \
+		../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_hardw.c
+gl_image.o: ../win/gl/gl_image.c $(HACK_H) ../include/patchlevel.h \
+		../include/dlb.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_image.c
+gl_main.o: ../win/gl/gl_main.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_main.c
+gl_map.o: ../win/gl/gl_map.c $(HACK_H) ../include/patchlevel.h \
+		../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_map.c
+gl_menu.o: ../win/gl/gl_menu.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_menu.c
+gl_opt.o: ../win/gl/gl_opt.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/date.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_opt.c
+gl_role.o: ../win/gl/gl_role.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_role.c
+gl_rendu.o: ../win/gl/gl_rendu.c $(HACK_H) ../include/patchlevel.h \
+		../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_rendu.c
+gl_softw.o: ../win/gl/gl_softw.c $(HACK_H) ../include/patchlevel.h \
+		../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_softw.c
+gl_stat.o: ../win/gl/gl_stat.c $(HACK_H) ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_stat.c
+gl_text.o: ../win/gl/gl_text.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_text.c
+gl_tile.o: ../win/gl/gl_tile.c $(HACK_H) ../include/patchlevel.h \
+		../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_tile.c
+gl_unit.o: ../win/gl/gl_unit.c $(HACK_H) ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_unit.c
+gl_win.o: ../win/gl/gl_win.c $(HACK_H) ../include/dlb.h \
+		../include/patchlevel.h ../include/winGL.h
+	$(CC) $(CFLAGS) $(SDLGL_CFLAGS) -c ../win/gl/gl_win.c
 tile.o: tile.c $(HACK_H)
 qt_win.o: ../win/Qt/qt_win.cpp $(HACK_H) ../include/func_tab.h \
-		../include/dlb.h ../include/patchlevel.h ../include/tile2x11.h \
-		../include/qt_win.h ../include/qt_clust.h ../include/qt_kde0.h \
+		../include/dlb.h ../include/date.h ../include/patchlevel.h \
+		../include/tile2x11.h ../include/qt_win.h \
+		../include/qt_clust.h ../include/qt_kde0.h \
 		../include/qt_xpms.h qt_win.moc qt_kde0.moc qttableview.moc
 	$(CXX) $(CXXFLAGS) -c ../win/Qt/qt_win.cpp
 qt_clust.o: ../win/Qt/qt_clust.cpp ../include/qt_clust.h
@@ -695,7 +1001,7 @@ qttableview.o: ../win/Qt/qttableview.cpp ../include/qttableview.h
 	$(CXX) $(CXXFLAGS) -c ../win/Qt/qttableview.cpp
 monstr.o: monstr.c $(CONFIG_H)
 vis_tab.o: vis_tab.c $(CONFIG_H) ../include/vis_tab.h
-allmain.o: allmain.c $(HACK_H)
+allmain.o: allmain.c $(HACK_H) ../include/patchlevel.h
 alloc.o: alloc.c $(CONFIG_H)
 apply.o: apply.c $(HACK_H) ../include/edog.h
 artifact.o: artifact.c $(HACK_H) ../include/artifact.h ../include/artilist.h
@@ -713,8 +1019,9 @@ dlb.o: dlb.c $(CONFIG_H) ../include/dlb.h
 do.o: do.c $(HACK_H) ../include/lev.h
 do_name.o: do_name.c $(HACK_H)
 do_wear.o: do_wear.c $(HACK_H)
-dog.o: dog.c $(HACK_H) ../include/edog.h
-dogmove.o: dogmove.c $(HACK_H) ../include/mfndpos.h ../include/edog.h
+dog.o: dog.c $(HACK_H) ../include/edog.h ../include/emin.h ../include/epri.h
+dogmove.o: dogmove.c $(HACK_H) ../include/mfndpos.h ../include/edog.h \
+		../include/emin.h ../include/epri.h
 dokick.o: dokick.c $(HACK_H) ../include/eshk.h
 dothrow.o: dothrow.c $(HACK_H) ../include/edog.h
 drawing.o: drawing.c $(HACK_H) ../include/tcap.h
@@ -725,7 +1032,8 @@ engrave.o: engrave.c $(HACK_H) ../include/lev.h
 exper.o: exper.c $(HACK_H)
 explode.o: explode.c $(HACK_H)
 extralev.o: extralev.c $(HACK_H)
-files.o: files.c $(HACK_H) ../include/dlb.h
+files.o: files.c $(HACK_H) ../include/dlb.h ../include/filename.h \
+		../include/winGL.h ../include/winproxy.h
 fountain.o: fountain.c $(HACK_H)
 hack.o: hack.c $(HACK_H)
 hacklib.o: hacklib.c $(HACK_H)
@@ -745,14 +1053,15 @@ mkmap.o: mkmap.c $(HACK_H) ../include/sp_lev.h
 mkmaze.o: mkmaze.c $(HACK_H) ../include/sp_lev.h ../include/lev.h
 mkobj.o: mkobj.c $(HACK_H)
 mkroom.o: mkroom.c $(HACK_H)
-mon.o: mon.c $(HACK_H) ../include/mfndpos.h ../include/edog.h
+mon.o: mon.c $(HACK_H) ../include/mfndpos.h ../include/edog.h \
+		../include/artifact.h
 mondata.o: mondata.c $(HACK_H) ../include/eshk.h ../include/epri.h
 monmove.o: monmove.c $(HACK_H) ../include/mfndpos.h ../include/artifact.h \
 		../include/epri.h
 monst.o: monst.c $(CONFIG_H) ../include/permonst.h ../include/align.h \
 		../include/monattk.h ../include/monflag.h ../include/monsym.h \
 		../include/dungeon.h ../include/eshk.h ../include/vault.h \
-		../include/epri.h ../include/color.h
+		../include/epri.h ../include/egyp.h ../include/color.h
 mplayer.o: mplayer.c $(HACK_H)
 mthrowu.o: mthrowu.c $(HACK_H)
 muse.o: muse.c $(HACK_H) ../include/edog.h
@@ -762,7 +1071,8 @@ objects.o: objects.c $(CONFIG_H) ../include/obj.h ../include/objclass.h \
 		../include/prop.h ../include/skills.h ../include/color.h
 objnam.o: objnam.c $(HACK_H)
 options.o: options.c $(CONFIG_H) ../include/objclass.h ../include/flag.h \
-		$(HACK_H) ../include/tcap.h
+		$(HACK_H) ../include/tcap.h ../include/winGL.h \
+		../include/filename.h
 pager.o: pager.c $(HACK_H) ../include/dlb.h
 pickup.o: pickup.c $(HACK_H)
 pline.o: pline.c $(HACK_H) ../include/epri.h ../include/edog.h
@@ -787,7 +1097,7 @@ shknam.o: shknam.c $(HACK_H) ../include/eshk.h
 sit.o: sit.c $(HACK_H) ../include/artifact.h
 sounds.o: sounds.c $(HACK_H) ../include/edog.h
 sp_lev.o: sp_lev.c $(HACK_H) ../include/dlb.h ../include/sp_lev.h
-spell.o: spell.c $(HACK_H)
+spell.o: spell.c $(HACK_H) ../include/edog.h
 steal.o: steal.c $(HACK_H)
 steed.o: steed.c $(HACK_H)
 teleport.o: teleport.c $(HACK_H)
@@ -803,12 +1113,15 @@ vision.o: vision.c $(HACK_H) ../include/vis_tab.h
 weapon.o: weapon.c $(HACK_H)
 were.o: were.c $(HACK_H)
 wield.o: wield.c $(HACK_H)
-windows.o: windows.c $(HACK_H) ../include/wingem.h ../include/winGnome.h
+windows.o: windows.c $(HACK_H) ../include/wingem.h ../include/winGnome.h \
+		../include/winGL.h ../include/winproxy.h
 wizard.o: wizard.c $(HACK_H) ../include/qtext.h ../include/epri.h
 worm.o: worm.c $(HACK_H) ../include/lev.h
 worn.o: worn.c $(HACK_H)
 write.o: write.c $(HACK_H)
 zap.o: zap.c $(HACK_H)
+gypsy.o: gypsy.c $(HACK_H) ../include/egyp.h ../include/qtext.h
+tech.o: tech.c $(HACK_H)
 # DEPENDENCIES MUST END AT END OF FILE
 # IF YOU PUT STUFF HERE IT WILL GO AWAY
 # see make depend above

@@ -6,6 +6,7 @@
 #ifndef UNIXCONF_H
 #define UNIXCONF_H
 
+
 /*
  * Some include files are in a different place under SYSV
  *	BSD		   SYSV
@@ -86,6 +87,62 @@
 /* #define VPIX_MUSIC */	/* play real music through speaker on systems
 				   with built-in VPIX support */
 
+/*
+ * ALI
+ *
+ * File areas can be used to place different Slash'EM files in different
+ * directories. This is necessary to comply with Linux's FSSTD 1.2 and its
+ * replacement FHS 2.0. Currently, these are only implemented for UNIX, but
+ * other ports could follow suit by including similar defines in their port
+ * specific config files and implementing the relevent functions.
+ *
+ * File areas are supposed to be opaque; that is the core system does not
+ * interpret them in any way, it simply passes them to the port specific
+ * functions to handle. This means that while the obvious mapping is onto
+ * directories, there is nothing in the core code that assumes this. Non-UNIX
+ * ports in particular may find that a more general mapping is desirable.
+ *
+ * The following file areas are supported:
+ *
+ * FILE_AREA_SAVE	For save files (R/W)
+ * FILE_AREA_BONES	For bones files (R/W)
+ * FILE_AREA_LEVL	For level files (R/W)
+ * FILE_AREA_VAR	For other files which may be modified by Slash'EM
+ * FILE_AREA_SHARE	For read-only, architechure independent, files 
+ * FILE_AREA_UNSHARE	For read-only, architechure dependent, files 
+ * FILE_AREA_DOC	For human-readable documentation
+ */
+
+/* #define FILE_AREAS */		/* Use file areas */
+
+#ifdef FILE_AREAS
+
+/*
+ * File areas compatible with Linux's FSSTND 1.2.
+ * Note: This has been superceeded by FHS 2.0, but is included because
+ * many systems still seem to use it.
+ */
+
+/* #define FILE_AREA_VAR	"/var/lib/games/slashem/" */
+/* #define FILE_AREA_SAVE	"/var/lib/games/slashem/save/" */
+/* #define FILE_AREA_SHARE	"/usr/lib/games/slashem/" */
+/* #define FILE_AREA_UNSHARE	"/usr/lib/games/slashem/" */
+/* #define FILE_AREA_DOC	"/usr/doc/slashem/" */
+
+/*
+ * File areas compatible with FHS 2.0
+ */
+
+#define FILE_AREA_VAR		"/var/games/slashem/"
+#define FILE_AREA_SAVE		"/var/games/slashem/save/"
+#define FILE_AREA_SHARE		"/usr/share/games/slashem/"
+#define FILE_AREA_UNSHARE	"/usr/lib/games/slashem/"
+#define FILE_AREA_DOC		"/usr/share/doc/slashem/"
+
+#define FILE_AREA_BONES		FILE_AREA_VAR
+#define FILE_AREA_LEVL		FILE_AREA_VAR
+
+#endif /* FILE_AREAS */
 
 /*
  * The next two defines are intended mainly for the Andrew File System,
@@ -96,14 +153,14 @@
  */
 
 /* #define NO_FILE_LINKS */	/* if no hard links */
-/* #define LOCKDIR "/usr/games/lib/nethackdir" */	/* where to put locks */
 
-/*
- * If you want the static parts of your playground on a read-only file
- * system, define VAR_PLAYGROUND to be where the variable parts are kept.
- */
-/* #define VAR_PLAYGROUND "/var/lib/games/nethack" */
-
+#ifdef NO_FILE_LINKS
+# ifdef FILE_AREAS
+# define LOCKDIR FILE_AREA_VAR			/* where to put locks */
+# else
+# define LOCKDIR "/usr/games/lib/nethackdir"	/* where to put locks */
+# endif
+#endif
 
 /*
  * Define DEF_PAGER as your default pager, e.g. "/bin/cat" or "/usr/ucb/more"
@@ -112,6 +169,12 @@
  * (This might be preferable for security reasons.)
  * #define DEF_PAGER	".../mydir/mypager"
  */
+
+/*
+ * If you want the static parts of your playground on a read-only file
+ * system, define VAR_PLAYGROUND to be where the variable parts are kept.
+ */
+/* #define VAR_PLAYGROUND "/var/lib/games/nethack" */
 
 
 
@@ -133,6 +196,10 @@
  * a fine-grained timer.
  */
 /* #define TIMED_DELAY */	/* usleep() */
+
+# ifdef TEXTCOLOR
+#  define VIDEOSHADES
+# endif
 #endif
 
 /*
@@ -264,6 +331,7 @@
 #endif
 
 #define HLOCK	"perm"	/* an empty file used for locking purposes */
+#define HLOCK_AREA	FILE_AREA_VAR
 
 #ifndef REDO
 #define Getchar nhgetch
@@ -271,6 +339,14 @@
 #define tgetch getchar
 
 #define SHELL		/* do not delete the '!' command */
+
+/* -AJA- Escaping to a shell doesn't work when SDL port is running
+ *       fullscreen (makes the computer seem frozen).  Undefining
+ *       `SHELL' is a bit blunt though...
+ */
+#if defined(GL_GRAPHICS) || defined(SDL_GRAPHICS)
+#undef SHELL
+#endif
 
 #include "system.h"
 
@@ -301,14 +377,14 @@
 #endif
 
 /* Use the high quality random number routines. */
-#if defined(BSD) || defined(LINUX) || defined(ULTRIX) || defined(CYGWIN32) || defined(RANDOM) || defined(__APPLE__)
+#if defined(BSD) || defined(LINUX) || defined(ULTRIX) || defined(CYGWIN32) || defined(RANDOM)
 #define Rand()	random()
 #else
 #define Rand()	lrand48()
 #endif
 
 #ifdef TIMED_DELAY
-# if defined(SUNOS4) || defined(LINUX) || (defined(BSD) && !defined(ULTRIX))
+# if defined(SUNOS4) || defined(LINUX) || defined(SVR4) /* [max] added SVR4 */
 # define msleep(k) usleep((k)*1000)
 # endif
 # ifdef ULTRIX
@@ -346,6 +422,15 @@
 # endif	/* BSD || SVR4 */
 #endif /* LINUX */
 #endif	/* GNOME_GRAPHICS */
+
+#if defined(MENU_COLOR) && defined(USE_REGEX_MATCH)
+# include <regex.h>
+# ifndef RE_NO_GNU_OPS
+#  define POSIX_REGEX
+# else
+#  define GNU_REGEX
+# endif
+#endif
 
 #endif /* UNIXCONF_H */
 #endif /* UNIX */

@@ -29,17 +29,15 @@
 extern char *FDECL(tilename, (int, int));
 
 #if BITCOUNT==4
-#define MAX_X 320		/* 2 per byte, 4 bits per pixel */
-#define MAX_Y 480
-#else
-# if (TILE_X==32)
-#define MAX_X (32 * 40)
+#define MAX_X 640		/* 2 per byte, 4 bits per pixel */
 #define MAX_Y 960
-# else
-#define MAX_X 640		/* 1 per byte, 8 bits per pixel */
-#define MAX_Y 480
-# endif
+#else
+#define MAX_X (40 * 128)	
+#define MAX_Y (40 * 128) /* Arbitrarily large */
 #endif	
+
+#define MAX_X_TILES 40
+#define MAX_Y_TILES 120
 
 /* GCC fix by Paolo Bonzini 1999/03/28 */
 #ifdef __GNUC__
@@ -107,52 +105,36 @@ typedef struct tagRGBQ {
 #endif /* __GNUC__ */
 
 #pragma pack(1)
+
 struct tagBMP{
     BITMAPFILEHEADER bmfh;
     BITMAPINFOHEADER bmih;
-#if BITCOUNT==4
-#define RGBQUAD_COUNT 16
-    RGBQUAD          bmaColors[RGBQUAD_COUNT];
-#else
-#if (TILE_X==32)
-#define RGBQUAD_COUNT 256
-#else
-#define RGBQUAD_COUNT 16
-#endif
-    RGBQUAD          bmaColors[RGBQUAD_COUNT];
-#endif
-#if (COLORS_IN_USE==16)
-    uchar            packtile[MAX_Y][MAX_X];
-#else
-    uchar            packtile[MAX_Y][MAX_X];
-/*    uchar            packtile[TILE_Y][TILE_X]; */
-#endif
-} PACK bmp;
+} PACK bmp_head;
+
+#define MAX_RGBQUAD_COUNT 256
+
+/* WAC split the header from the colormap and pixel data
+ * to accomodate variable sized BMP files
+ */
+
+RGBQUAD          bmaColors[MAX_RGBQUAD_COUNT];
+
+uchar            packtile[MAX_Y][MAX_X];
+
 #pragma pack()
 
-#define BMPFILESIZE (sizeof(struct tagBMP))
-
+#define BMPFILESIZE ((sizeof(struct tagBMP)) + \
+					 (sizeof(RGBQUAD) * rgbquad_count) + \
+					 (sizeof(uchar) * maxbmp_x * (yoffset + tile_y)))
 FILE *tibfile2;
 
-pixel tilepixels[TILE_Y][TILE_X];
+/*pixel tilepixels[TILE_Y][TILE_X];*/
+pixel tilepixels[MAX_TILE_Y][MAX_TILE_X];
 
 static void FDECL(build_bmfh,(BITMAPFILEHEADER *));
 static void FDECL(build_bmih,(BITMAPINFOHEADER *));
-static void FDECL(build_bmptile,(pixel (*)[TILE_X]));
+static void FDECL(build_bmptile,(pixel (*)[MAX_TILE_X]));
 
-char *tilefiles[] = {
-#if (TILE_X == 32)
-		"../win/share/mon32.txt",
-		"../win/share/obj32.txt",
-		"../win/share/oth32.txt"
-#else
-		"../win/share/monsters.txt",
-		"../win/share/objects.txt",
-		"../win/share/other.txt"
-#endif
-};
-
-int num_colors = 0;
 int tilecount;
 int max_tiles_in_row = 40;
 int tiles_in_row;
@@ -160,6 +142,8 @@ int filenum;
 int initflag;
 int yoffset,xoffset;
 char bmpname[128];
+int maxbmp_x = -1, maxbmp_y = -1;
+int rgbquad_count = -1;
 FILE *fp;
 
 int
@@ -169,8 +153,8 @@ char *argv[];
 {
 	int i, j;
 
-	if (argc != 2) {
-		Fprintf(stderr, "usage: %s outfile.bmp\n", argv[0]);
+	if (argc < 3) {
+		Fprintf(stderr, "usage: %s outfile.bmp txt_file1 [txt_file2 ...]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	} else
 		strcpy(bmpname, argv[1]);
@@ -187,35 +171,34 @@ char *argv[];
 	tilecount = 0;
 	xoffset = yoffset = 0;
 	initflag = 0;
-	filenum = 0;
+	filenum = 2;
 	fp = fopen(bmpname,"wb");
 	if (!fp) {
 	    printf("Error creating tile file %s, aborting.\n",bmpname);
 	    exit(1);
 	}
-	while (filenum < (sizeof(tilefiles) / sizeof(char *))) {
-		if (!fopen_text_file(tilefiles[filenum], RDTMODE)) {
+	while ((filenum) < argc) {
+		if (!fopen_text_file(argv[(filenum)],RDTMODE)) {
 			Fprintf(stderr,
 				"usage: tile2bmp (from the util directory)\n");
 			exit(EXIT_FAILURE);
 		}
-		num_colors = colorsinmap;
-		if (num_colors > 62) {
-			Fprintf(stderr, "too many colors (%d)\n", num_colors);
+		if (colorsinmap > 256) {
+			Fprintf(stderr, "too many colors (%d)\n", colorsinmap);
 			exit(EXIT_FAILURE);
 		}
 		if (!initflag) {
-		    build_bmfh(&bmp.bmfh);
-		    build_bmih(&bmp.bmih);
-		    for (i = 0; i < MAX_Y; ++i)
-		    	for (j = 0; j < MAX_X; ++j)
-		    		bmp.packtile[i][j] = (uchar)0;
-		    for (i = 0; i < num_colors; i++) {
-			    bmp.bmaColors[i].rgbRed = ColorMap[CM_RED][i];
-			    bmp.bmaColors[i].rgbGreen = ColorMap[CM_GREEN][i];
-			    bmp.bmaColors[i].rgbBlue = ColorMap[CM_BLUE][i];
-			    bmp.bmaColors[i].rgbReserved = 0;
+			maxbmp_x = tile_x * 40; /* CONSTANT */
+			maxbmp_y = MAX_Y;
+
+			if (maxbmp_x > MAX_X || maxbmp_y > MAX_Y) {
+				Fprintf(stderr, "Calculated dimensions (%ix%i) larger than max (%ix%i).  Increase MAX_X, MAX_Y\n",
+						maxbmp_x, maxbmp_y, MAX_X, MAX_Y);
+				exit(EXIT_FAILURE);
 		    }
+		    for (i = 0; i < maxbmp_y; ++i)
+		    	for (j = 0; j < maxbmp_x; ++j)
+		    		packtile[i][j] = (uchar)0;
 		    initflag = 1;
 		}
 /*		printf("Colormap initialized\n"); */
@@ -223,19 +206,72 @@ char *argv[];
 			build_bmptile(tilepixels);
 			tilecount++;
 #if BITCOUNT==4
-			xoffset += (TILE_X / 2);
+			xoffset += (tile_x / 2);
 #else
-			xoffset += TILE_X;
+			xoffset += tile_x;
 #endif
-			if (xoffset >= MAX_X) {
-				yoffset += TILE_Y;
+			if (xoffset >= maxbmp_x) {
+				yoffset += tile_y;
 				xoffset = 0;
+				if ((yoffset+tile_y) > maxbmp_y) {
+					Fprintf(stderr,
+						"Too many tiles (increase MAX_X_TILES or MAX_Y_TILES)\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 		}
 		(void) fclose_text_file();
 		++filenum;
 	}
-	fwrite(&bmp, sizeof(bmp), 1, fp);
+
+	if (tilecount<1) {
+	    Fprintf(stderr,"No tiles created! (check line end character sequence for your OS).\n");
+	    fclose(fp);
+	    unlink(bmpname);
+		exit(EXIT_FAILURE);
+	}
+
+	/* fill the rest with the checkerboard */
+	for (j=0; j < tile_y; j++)
+	{
+		for (i = xoffset; i < maxbmp_x; i+=2) {
+		  int y = (maxbmp_y - 1) - (j + yoffset);
+#if BITCOUNT==4
+		  packtile[y][i] = 	(uchar)((1+y)&1) | (uchar)(((0+y)&1)<<4);
+#else
+		  packtile[y][i] = (uchar)((0+y)&1);
+		  packtile[y][i+1] = (uchar)((1+y)&1);
+#endif
+		}
+	}
+
+	if (colorsinmap <= 16)
+		rgbquad_count = 16;
+	else if (colorsinmap <= 256)
+		rgbquad_count = 256;
+
+	for (i = 0; i < colorsinmap; i++) {
+		bmaColors[i].rgbRed = MainColorMap[CM_RED][i];
+		bmaColors[i].rgbGreen = MainColorMap[CM_GREEN][i];
+		bmaColors[i].rgbBlue = MainColorMap[CM_BLUE][i];
+		bmaColors[i].rgbReserved = 0;
+	}
+	
+
+    build_bmfh(&bmp_head.bmfh);
+    build_bmih(&bmp_head.bmih);
+
+	fwrite(&bmp_head, sizeof(bmp_head), 1, fp);
+
+	for (i = 0; i < rgbquad_count; i++)
+		fwrite(&bmaColors[i], sizeof(RGBQUAD), 1, fp);
+
+	/* packtile[][] is filled bottom up, but is written top-down
+	 * starting at the topmost line used
+	 */
+	for (i = (maxbmp_y - (tile_y + yoffset)); i < maxbmp_y; i++)
+		for (j = 0; j < maxbmp_x; j++)
+			fwrite(&packtile[i][j], sizeof(uchar), 1, fp);
 	fclose(fp);
 	Fprintf(stderr, "Total of %d tiles written to %s.\n",
 		tilecount, bmpname);
@@ -254,8 +290,8 @@ BITMAPFILEHEADER *pbmfh;
 	pbmfh->bfSize = lelong(BMPFILESIZE);
 	pbmfh->bfReserved1 = (UINT)0;
 	pbmfh->bfReserved2 = (UINT)0;
-	pbmfh->bfOffBits = lelong(sizeof(bmp.bmfh) + sizeof(bmp.bmih) +
-			   (RGBQUAD_COUNT * sizeof(RGBQUAD)));
+	pbmfh->bfOffBits = lelong(sizeof(bmp_head.bmfh) + sizeof(bmp_head.bmih) +
+			   (rgbquad_count * sizeof(RGBQUAD)));
 }
 
 static void
@@ -264,13 +300,13 @@ BITMAPINFOHEADER *pbmih;
 {
 	WORD cClrBits;
 	int w,h;
-	pbmih->biSize = lelong(sizeof(bmp.bmih));
+	pbmih->biSize = lelong(sizeof(bmp_head.bmih));
 #if BITCOUNT==4
-	pbmih->biWidth = lelong(w = MAX_X * 2);
+	pbmih->biWidth = lelong(w = maxbmp_x * 2);
 #else
-	pbmih->biWidth = lelong(w = MAX_X);
+	pbmih->biWidth = lelong(w = maxbmp_x);
 #endif
-	pbmih->biHeight = lelong(h = MAX_Y);
+	pbmih->biHeight = lelong(h = yoffset + tile_y);
 	pbmih->biPlanes = leshort(1);
 #if BITCOUNT==4
 	pbmih->biBitCount = leshort(4);
@@ -293,47 +329,48 @@ BITMAPINFOHEADER *pbmih;
 	pbmih->biCompression = lelong(BI_RGB);
 	pbmih->biXPelsPerMeter = lelong(0);
 	pbmih->biYPelsPerMeter = lelong(0);
-#if (TILE_X==32)
+	if (tile_x == 32)
+	{
 	if (cClrBits < 24) 
         	pbmih->biClrUsed = lelong(1<<cClrBits);
-#else
-	pbmih->biClrUsed = lelong(RGBQUAD_COUNT); 
-#endif
+	} else {
+		pbmih->biClrUsed = lelong(rgbquad_count); 
+	}
 
-#if (TILE_X==16)
+	if (tile_x == 16) {
 	pbmih->biSizeImage = lelong(0);
-#else
+	} else {
 	pbmih->biSizeImage = lelong(((w * cClrBits +31) & ~31) /8 * h);
-#endif
+	}
  	pbmih->biClrImportant = (DWORD)0;
 }
 
 static void
 build_bmptile(pixels)
-pixel (*pixels)[TILE_X];
+pixel (*pixels)[MAX_TILE_X];
 {
 	int cur_x, cur_y, cur_color;
 	int x,y;
 
-	for (cur_y = 0; cur_y < TILE_Y; cur_y++) {
-	 for (cur_x = 0; cur_x < TILE_X; cur_x++) {
-	  for (cur_color = 0; cur_color < num_colors; cur_color++) {
-	   if (ColorMap[CM_RED][cur_color] == pixels[cur_y][cur_x].r &&
-	      ColorMap[CM_GREEN][cur_color]== pixels[cur_y][cur_x].g &&
-	      ColorMap[CM_BLUE][cur_color] == pixels[cur_y][cur_x].b)
+	for (cur_y = 0; cur_y < tile_y; cur_y++) {
+	 for (cur_x = 0; cur_x < tile_x; cur_x++) {
+	  for (cur_color = 0; cur_color < colorsinmap; cur_color++) {
+	   if (MainColorMap[CM_RED][cur_color] == pixels[cur_y][cur_x].r &&
+	      MainColorMap[CM_GREEN][cur_color]== pixels[cur_y][cur_x].g &&
+	      MainColorMap[CM_BLUE][cur_color] == pixels[cur_y][cur_x].b)
 		break;
 	  }
-	  if (cur_color >= num_colors)
+	  if (cur_color >= colorsinmap)
 		Fprintf(stderr, "color not in colormap!\n");
-	  y = (MAX_Y - 1) - (cur_y + yoffset);
+	  y = (maxbmp_y - 1) - (cur_y + yoffset);
 #if BITCOUNT==4
 	  x = (cur_x / 2) + xoffset;
-	  bmp.packtile[y][x] = cur_x%2 ?
-		(uchar)(bmp.packtile[y][x] | cur_color) :
+	  packtile[y][x] = cur_x%2 ?
+		(uchar)(packtile[y][x] | cur_color) :
 		(uchar)(cur_color<<4);
 #else
 	  x = cur_x + xoffset;
-	  bmp.packtile[y][x] = (uchar)cur_color;
+	  packtile[y][x] = (uchar)cur_color;
 #endif
 	 }
 	}

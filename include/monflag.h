@@ -48,6 +48,11 @@
 #define MS_SPELL	37	/* spellcaster not matching any of the above */
 #define MS_WERE		38	/* lycanthrope in human form */
 #define MS_BOAST	39	/* giants */
+#define MS_GYPSY	40	/* gypsies */
+#define MS_SHEEP	41	/* sheep */
+#define MS_CHICKEN	42	/* chicken */
+#define MS_COW		43	/* cows and bulls */
+#define MS_PARROT	44	/* parrots */
 
 
 #define MR_FIRE		0x01	/* resists fire */
@@ -58,6 +63,7 @@
 #define MR_POISON	0x20	/* resists poison */
 #define MR_ACID		0x40	/* resists acid */
 #define MR_STONE	0x80	/* resists petrification */
+
 /* other resistances: magic, sickness */
 /* other conveyances: teleport, teleport control, telepathy */
 
@@ -69,6 +75,23 @@
 #define MR2_DISPLACED	0x1000	/* displaced */
 #define MR2_STRENGTH	0x2000	/* gauntlets of power */
 #define MR2_FUMBLING	0x4000	/* clumsy */
+
+/* more type resistances */
+#define MR_DEATH	0x00400000L	/* resists death magic */
+#define MR_DRAIN	0x00800000L	/* resists level drain */
+
+#define MR_PLUSONE	0x01000000L	/* need +1 weapon to hit */
+#define MR_PLUSTWO	0x02000000L	/* need +2 weapon to hit */
+#define MR_PLUSTHREE	0x04000000L	/* need +3 weapon to hit */
+#define MR_PLUSFOUR	0x08000000L	/* need +4 weapon to hit */
+
+/* Doesn't really belong under resistances, but ... */
+#define MR_HITASONE	0x10000000L	/* hits ceatures as +1 weapon */
+#define MR_HITASTWO	0x20000000L	/* hits ceatures as +2 weapon */
+#define MR_HITASTHREE	0x40000000L	/* hits ceatures as +3 weapon */
+#define MR_HITASFOUR	0x80000000L	/* hits ceatures as +4 weapon */
+
+#define MR_TYPEMASK	0xFFC000FFL	/* bits to take from mresists */
 
 
 #define M1_FLY		0x00000001L	/* can fly or float */
@@ -111,18 +134,20 @@
 
 #define M2_NOPOLY	0x00000001L	/* players mayn't poly into one */
 #define M2_UNDEAD	0x00000002L	/* is walking dead */
-#define M2_WERE		0x00000004L	/* is a lycanthrope */
+#define M2_MERC		0x00000004L	/* is a guard or soldier */
 #define M2_HUMAN	0x00000008L	/* is a human */
 #define M2_ELF		0x00000010L	/* is an elf */
 #define M2_DWARF	0x00000020L	/* is a dwarf */
 #define M2_GNOME	0x00000040L	/* is a gnome */
 #define M2_ORC		0x00000080L	/* is an orc */
-#define M2_DEMON	0x00000100L	/* is a demon */
-#define M2_MERC		0x00000200L	/* is a guard or soldier */
-#define M2_LORD		0x00000400L	/* is a lord to its kind */
-#define M2_PRINCE	0x00000800L	/* is an overlord to its kind */
-#define M2_MINION	0x00001000L	/* is a minion of a deity */
-#define M2_GIANT	0x00002000L	/* is a giant */
+#define M2_HOBBIT	0x00000100L	/* is a hobbit */
+#define M2_WERE		0x00000200L	/* is a lycanthrope */
+#define M2_VAMPIRE	0x00000400L	/* is a vampire */
+#define M2_LORD		0x00000800L	/* is a lord to its kind */
+#define M2_PRINCE	0x00001000L	/* is an overlord to its kind */
+#define M2_MINION	0x00002000L	/* is a minion of a deity */
+#define M2_GIANT	0x00004000L	/* is a giant */
+#define M2_DEMON	0x00008000L	/* is a demon */
 #define M2_MALE		0x00010000L	/* always male */
 #define M2_FEMALE	0x00020000L	/* always female */
 #define M2_NEUTER	0x00040000L	/* neither male nor female */
@@ -160,6 +185,11 @@
 #define M3_INFRAVISION	0x0100		/* has infravision */
 #define M3_INFRAVISIBLE 0x0200		/* visible by infravision */
 
+/* [DS] Lethe */
+#define M3_TRAITOR	0x0400L			/* Capable of treachery */
+#define M3_NOTAME	0x0800L			/* Cannot be tamed */
+
+
 #define MZ_TINY		0		/* < 2' */
 #define MZ_SMALL	1		/* 2-4' */
 #define MZ_MEDIUM	2		/* 4-7' */
@@ -176,9 +206,13 @@
 #define MH_DWARF	M2_DWARF
 #define MH_GNOME	M2_GNOME
 #define MH_ORC		M2_ORC
+#define MH_HOBBIT	M2_HOBBIT
+#define MH_WERE		M2_WERE
+#define MH_VAMPIRE	M2_VAMPIRE
 
 
 /* for mons[].geno (constant during game) */
+#define G_VLGROUP	0x2000		/* appear in very large groups normally */
 #define G_UNIQ		0x1000		/* generated only once */
 #define G_NOHELL	0x0800		/* not generated in "hell" */
 #define G_HELL		0x0400		/* generated only in "hell" */
@@ -198,4 +232,7 @@
 #define MV_KNOWS_EGG	0x0008		/* player recognizes egg of this
 					   monster type */
 
+/* Additional flag for mkclass() */
+#define MKC_ULIMIT	0x10000		/* place an upper limit on difficulty
+					   of generated monster */
 #endif /* MONFLAG_H */

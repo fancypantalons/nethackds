@@ -29,6 +29,7 @@ d_level *lev;
 		   /* no bones on the last or multiway branch levels */
 		   /* in any dungeon (level 1 isn't multiway).       */
 		|| Is_botlevel(lev) || (Is_branchlev(lev) && lev->dlevel > 1)
+		|| (lev->dlevel < 2)  /* no bones on 1st level */
 		   /* no bones in the invocation level               */
 		|| (In_hell(lev) && lev->dlevel == dunlevs_in_dungeon(lev) - 1)
 		);
@@ -82,6 +83,7 @@ boolean restore;
 			otmp->rknown = 0;
 			otmp->invlet = 0;
 			otmp->no_charge = 0;
+			otmp->was_thrown = 0;
 
 			if (otmp->otyp == SLIME_MOLD) goodfruit(otmp->spe);
 #ifdef MAIL
@@ -113,6 +115,17 @@ boolean restore;
 			} else if (otmp->otyp == SPE_BOOK_OF_THE_DEAD) {
 			    otmp->otyp = SPE_BLANK_PAPER;
 			    curse(otmp);
+			} else if (otmp->oartifact == ART_KEY_OF_LAW ||
+				   otmp->oartifact == ART_KEY_OF_NEUTRALITY ||
+				   otmp->oartifact == ART_KEY_OF_CHAOS ||
+				   otmp->oartifact == ART_NIGHTHORN ||
+				   otmp->oartifact == ART_EYE_OF_THE_BEHOLDER ||
+				   otmp->oartifact == ART_HAND_OF_VECNA ||
+				   otmp->oartifact == ART_THIEFBANE) {
+			    /* Guaranteed artifacts become ordinary objects */
+			    otmp->oartifact = 0;
+			    otmp->onamelth = 0;
+			    *ONAME(otmp) = '\0';
 			}
 		}
 	}
@@ -163,6 +176,10 @@ can_make_bones()
 {
 	register struct trap *ttmp;
 
+#ifdef NO_BONES
+        return FALSE;
+#endif
+
         if (wizard)
             return TRUE;
 	if (ledger_no(&u.uz) <= 0 || ledger_no(&u.uz) > maxledgerno())
@@ -178,12 +195,16 @@ can_make_bones()
 		if (ttmp->ttyp == MAGIC_PORTAL) return FALSE;
 	}
 
+	/* Several variant authors have experimented with bones probabilities */
+	/* KMH -- Restored to NetHack's chances, to limit abuse and for fairness */
+	/* to both low-level and high-level characters */
 	if(depth(&u.uz) <= 0 ||		/* bulletproofing for endgame */
 	   (!rn2(1 + (depth(&u.uz)>>2))	/* fewer ghosts on low levels */
 #ifdef WIZARD
 		&& !wizard
 #endif
 		)) return FALSE;
+
 	/* don't let multiple restarts generate multiple copies of objects
 	 * in bones files */
 	if (discover) return FALSE;
@@ -231,8 +252,32 @@ struct obj *corpse;
 	    mptr = mtmp->data;
 	    if (mtmp->iswiz || mptr == &mons[PM_MEDUSA] ||
 		    mptr->msound == MS_NEMESIS || mptr->msound == MS_LEADER ||
-		    mptr == &mons[PM_VLAD_THE_IMPALER])
+		    mptr == &mons[PM_VLAD_THE_IMPALER] ||
+		    mptr == &mons[PM_NIGHTMARE] ||
+		    mptr == &mons[PM_BEHOLDER] || mptr == &mons[PM_VECNA] ||
+		    mptr == &mons[PM_CTHULHU]) {
+		/* Since these monsters may be carrying indestructible 
+		 * artifacts, free inventory specifically here to avoid
+		 * the indestructible sanity check in discard_minvent.
+		 * Similar considerations cause the necessity to avoid
+		 * calling delete_contents on containers which are
+		 * directly in a monster's inventory (indestructable
+		 * objects would be dropped on the floor).
+		 */
+		struct obj *otmp, *curr;
+	    	while ((otmp = mtmp->minvent) != 0) {
+		    while (Has_contents(otmp)) {
+			while (Has_contents(otmp->cobj))
+			    delete_contents(otmp->cobj);
+			curr = otmp->cobj;
+			obj_extract_self(curr);
+			obfree(curr, (struct obj *)0);
+		    }
+		    obj_extract_self(otmp);
+		    obfree(otmp, (struct obj *)0);
+		}
 		mongone(mtmp);
+	}
 	}
 #ifdef STEED
 	if (u.usteed) dismount_steed(DISMOUNT_BONES);
@@ -314,7 +359,7 @@ struct obj *corpse;
 	for(x=0; x<COLNO; x++) for(y=0; y<ROWNO; y++) {
 	    levl[x][y].seenv = 0;
 	    levl[x][y].waslit = 0;
-	    levl[x][y].glyph = cmap_to_glyph(S_stone);
+	    clear_memory_glyph(x, y, S_stone);
 	}
 
 	fd = create_bonesfile(&u.uz, &bonesid, whynot);
@@ -380,11 +425,16 @@ getbones()
 	register int ok;
 	char c, *bonesid, oldbonesid[10];
 
+#ifdef NO_BONES
+	return(0);
+#endif
+
 	if(discover)		/* save bones files for real games */
 		return(0);
 
 	/* wizard check added by GAN 02/05/87 */
 	if(rn2(3)	/* only once in three times do we find bones */
+
 #ifdef WIZARD
 		&& !wizard
 #endif

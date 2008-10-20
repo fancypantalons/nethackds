@@ -4,6 +4,8 @@
 
 #include "hack.h"
 #include "edog.h"
+#include "emin.h"
+#include "epri.h"
 
 #ifdef OVLB
 
@@ -124,6 +126,40 @@ boolean quietly;
 	return mtmp;
 }
 
+
+struct monst *
+make_helper(mnum,x,y)
+	int mnum;
+	xchar x, y;
+{
+	struct permonst *pm;
+	struct monst *mtmp = 0;
+	int trycnt = 100;
+
+	do {
+		pm = &mons[mnum];
+
+		pm->pxlth += sizeof (struct edog);
+		mtmp = makemon(pm, x, y, NO_MM_FLAGS);
+		pm->pxlth -= sizeof (struct edog);
+	} while (!mtmp && --trycnt > 0);
+
+	if(!mtmp) return((struct monst *) 0); /* genocided */
+
+	initedog(mtmp);
+	mtmp->msleeping = 0;
+	set_malign(mtmp); /* more alignment changes */
+	newsym(mtmp->mx, mtmp->my);
+
+	/* must wield weapon immediately since pets will otherwise drop it */
+	if (mtmp->mtame && attacktype(mtmp->data, AT_WEAP)) {
+		mtmp->weapon_check = NEED_HTH_WEAPON;
+		(void) mon_wield_item(mtmp);
+	}
+	return (mtmp);
+}
+
+
 struct monst *
 makedog()
 {
@@ -132,16 +168,35 @@ makedog()
 	register struct obj *otmp;
 #endif
 	const char *petname;
-	int   pettype;
+	int   pettype, petsym;
 	static int petname_used = 0;
 
 	if (preferred_pet == 'n') return((struct monst *) 0);
 
 	pettype = pet_type();
-	if (pettype == PM_LITTLE_DOG)
-		petname = dogname;
+	petsym = mons[pettype].mlet;
+	if (pettype == PM_WINTER_WOLF_CUB)
+		petname = wolfname;
+	else if (pettype == PM_GHOUL)
+		petname = ghoulname;
 	else if (pettype == PM_PONY)
 		petname = horsename;
+#if 0
+	else if (petsym == S_BAT)
+		petname = batname;
+	else if (petsym == S_SNAKE)
+		petname = snakename;
+	else if (petsym == S_RODENT)
+		petname = ratname;
+	else if (pettype == PM_GIANT_BADGER)
+		petname = badgername;
+	else if (pettype == PM_BABY_RED_DRAGON)
+		petname = reddragonname;
+	else if (pettype == PM_BABY_WHITE_DRAGON)
+		petname = whitedragonname;
+#endif
+	else if (petsym == S_DOG)
+		petname = dogname;
 	else
 		petname = catname;
 
@@ -324,9 +379,8 @@ boolean with_you;
 		if (t) {
 		    xlocale = t->tx,  ylocale = t->ty;
 		    break;
-		} else {
-		    impossible("mon_arrive: no corresponding portal?");
-		} /*FALLTHRU*/
+		} else impossible("mon_arrive: no corresponding portal?");
+		/*FALLTHRU*/
 	 default:
 	 case MIGR_RANDOM:	xlocale = ylocale = 0;
 		    break;
@@ -443,12 +497,23 @@ long nmv;		/* number of moves */
 	if (imv > mtmp->mspec_used) mtmp->mspec_used = 0;
 	else mtmp->mspec_used -= imv;
 
-	/* reduce tameness for every 150 moves you are separated */
-	if (mtmp->mtame) {
-	    int wilder = (imv + 75) / 150;
-	    if (mtmp->mtame > wilder) mtmp->mtame -= wilder;	/* less tame */
-	    else if (mtmp->mtame > rn2(wilder)) mtmp->mtame = 0;  /* untame */
-	    else mtmp->mtame = mtmp->mpeaceful = 0;		/* hostile! */
+		   /*                    
+			*      M1_MINDLESS __
+			*      M2_UNDEAD     |
+			*      M2_WERE       |-- These types will go ferral
+			*      M2_DEMON      |
+			*      M1_ANIMAL   --
+			*/
+ 
+			if (is_animal(mtmp->data) || mindless(mtmp->data) ||
+			    is_demon(mtmp->data)  || is_undead(mtmp->data) ||
+			    is_were(mtmp->data)) { 
+				/* reduce tameness for every 
+				 * 150 moves you are away 
+				 */
+				if (mtmp->mtame > nmv/150) 
+					mtmp->mtame -= nmv/150;
+				else mtmp->mtame = 0;
 	}
 	/* check to see if it would have died as a pet; if so, go wild instead
 	 * of dying the next time we call dog_move()
@@ -488,6 +553,9 @@ boolean pets_only;	/* true for ascension or final escape */
 	register struct obj *obj;
 	int num_segs;
 	boolean stay_behind;
+#ifdef BLACKMARKET
+	extern d_level new_dlevel;	/* in do.c */
+#endif /* BLACKMARKET */
 
 	for (mtmp = fmon; mtmp; mtmp = mtmp2) {
 	    mtmp2 = mtmp->nmon;
@@ -515,6 +583,14 @@ boolean pets_only;	/* true for ascension or final escape */
 			if (canseemon(mtmp))
 			    pline("%s is still eating.", Monnam(mtmp));
 			stay_behind = TRUE;
+#ifdef BLACKMARKET                
+		} else if (mtmp->mtame && 
+		    (Is_blackmarket(&new_dlevel) || Is_blackmarket(&u.uz))) {
+			pline("%s can't follow you %s.",
+			      Monnam(mtmp), Is_blackmarket(&u.uz) ?
+			      "through the portal" : "into the Black Market");
+			stay_behind = TRUE;
+#endif /* BLACKMARKET */
 		} else if (mon_has_amulet(mtmp)) {
 			if (canseemon(mtmp))
 			    pline("%s seems very disoriented for a moment.",
@@ -655,18 +731,31 @@ register struct obj *obj;
 	if (is_quest_artifact(obj) || obj_resists(obj, 0, 95))
 	    return (obj->cursed ? TABU : APPORT);
 
+	/* KMH -- Koalas can only eat eucalyptus */
+	if (mon->data == &mons[PM_KOALA])
+		return (obj->otyp == EUCALYPTUS_LEAF ? DOGFOOD : APPORT);
+
 	switch(obj->oclass) {
 	case FOOD_CLASS:
 	    if (obj->otyp == CORPSE &&
 		((touch_petrifies(&mons[obj->corpsenm]) && !resists_ston(mon))
 		 || is_rider(fptr)))
 		    return TABU;
-
 	    /* Ghouls only eat old corpses... yum! */
-	    if (mon->data == &mons[PM_GHOUL])
+	    if (mon->data == &mons[PM_GHOUL] || mon->data == &mons[PM_GHAST]) {
+		return (obj->otyp == CORPSE && obj->corpsenm != PM_ACID_BLOB &&
+		  peek_at_iced_corpse_age(obj) + 5*rn1(20,10) <= monstermoves) ?
+			DOGFOOD : TABU;
+	    }
+	    /* vampires only "eat" very fresh corpses ... 
+	     * Assume meat -> blood
+	     */
+	    if (is_vampire(mon->data)) {
 		return (obj->otyp == CORPSE &&
-			peek_at_iced_corpse_age(obj) + 50L <= monstermoves) ?
+		  has_blood(&mons[obj->corpsenm]) && !obj->oeaten &&
+	    	  peek_at_iced_corpse_age(obj) + 5 >= monstermoves) ?
 				DOGFOOD : TABU;
+	    }
 
 	    if (!carni && !herbi)
 		    return (obj->cursed ? UNDEF : APPORT);
@@ -687,6 +776,10 @@ register struct obj *obj;
 			return POISON;
 		    return (carni ? CADAVER : MANFOOD);
 		case CORPSE:
+                    /* WAC add don't eat own class*/
+		    if (mons[obj->corpsenm].mlet == mon->data->mlet)
+			return (starving && carni ? ACCFOOD : TABU);
+		    else
 		   if ((peek_at_iced_corpse_age(obj) + 50L <= monstermoves
 					    && obj->corpsenm != PM_LIZARD
 					    && obj->corpsenm != PM_LICHEN
@@ -722,7 +815,11 @@ register struct obj *obj;
 	    if (hates_silver(mon->data) &&
 		objects[obj->otyp].oc_material == SILVER)
 		return(TABU);
-	    if (mon->data == &mons[PM_GELATINOUS_CUBE] && is_organic(obj))
+		/* KMH -- Taz likes organics, too! */
+	    if ((mon->data == &mons[PM_GELATINOUS_CUBE] ||
+		mon->data == &mons[PM_SHOGGOTH] ||
+		mon->data == &mons[PM_GIANT_SHOGGOTH] ||
+	    	mon->data == &mons[PM_TASMANIAN_DEVIL]) && is_organic(obj))
 		return(ACCFOOD);
 	    if (metallivorous(mon->data) && is_metallic(obj) && (is_rustprone(obj) || mon->data != &mons[PM_RUST_MONSTER])) {
 		/* Non-rustproofed ferrous based metals are preferred. */
@@ -755,6 +852,7 @@ register struct obj *obj;
 
 	/* worst case, at least it'll be peaceful. */
 	mtmp->mpeaceful = 1;
+	mtmp->mtraitor  = 0;	/* No longer a traitor */
 	set_malign(mtmp);
 	if(flags.moonphase == FULL_MOON && night() && rn2(6) && obj
 						&& mtmp->data->mlet == S_DOG)
@@ -803,8 +901,12 @@ register struct obj *obj;
 	if (mtmp->mtame || !mtmp->mcanmove ||
 	    /* monsters with conflicting structures cannot be tamed */
 	    mtmp->isshk || mtmp->isgd || mtmp->ispriest || mtmp->isminion ||
+	    /* KMH -- Added gypsy */
+	    mtmp->isgyp ||
 	    is_covetous(mtmp->data) || is_human(mtmp->data) ||
 	    (is_demon(mtmp->data) && !is_demon(youmonst.data)) ||
+	    /* Mik -- New flag to indicate which things cannot be tamed... */
+	    cannot_be_tamed(mtmp->data) ||
 	    (obj && dogfood(mtmp, obj) >= MANFOOD)) return (struct monst *)0;
 
 	if (mtmp->m_id == quest_status.leader_m_id)
@@ -834,6 +936,36 @@ register struct obj *obj;
 		(void) mon_wield_item(mtmp2);
 	}
 	return(mtmp2);
+}
+
+int make_pet_minion(mnum,alignment)
+int mnum;
+aligntyp alignment;
+{
+    register struct monst *mon;
+    register struct monst *mtmp2;
+    mon = makemon(&mons[mnum], u.ux, u.uy, NO_MM_FLAGS);
+    if (!mon) return 0;
+    /* now tame that puppy... */
+    mtmp2 = newmonst(sizeof(struct edog) + mon->mnamelth);
+    *mtmp2 = *mon;
+    mtmp2->mxlth = sizeof(struct edog);
+    if(mon->mnamelth) Strcpy(NAME(mtmp2), NAME(mon));
+    initedog(mtmp2);
+    replmon(mon,mtmp2);
+    newsym(mtmp2->mx, mtmp2->my);
+    mtmp2->mpeaceful = 1;
+    set_malign(mtmp2);
+    mtmp2->mtame = 10;
+    /* this section names the creature "of ______" */
+    if (mons[mnum].pxlth == 0) {
+	mtmp2->isminion = TRUE;
+	EMIN(mtmp2)->min_align = alignment;
+    } else if (mnum == PM_ANGEL) {
+	 mtmp2->isminion = TRUE;
+	 EPRI(mtmp2)->shralign = alignment;
+    }
+    return 1;
 }
 
 /*
@@ -929,6 +1061,9 @@ struct monst *mtmp;
 	if (mtmp->mx != 0) {
 	    if (mtmp->mtame && rn2(mtmp->mtame)) yelp(mtmp);
 	    else growl(mtmp);	/* give them a moment's worry */
+	
+	    /* Give monster a chance to betray you now */
+	    if (mtmp->mtame) betrayed(mtmp);
 	
 	    if (!mtmp->mtame) newsym(mtmp->mx, mtmp->my);
 	}

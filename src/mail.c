@@ -53,6 +53,7 @@ int mustgetmail = -1;
 /* DON'T trust all Unices to declare getpwuid() in <pwd.h> */
 #  if !defined(_BULL_SOURCE) && !defined(__sgi) && !defined(_M_UNIX)
 #   if !defined(SUNOS4) && !(defined(ULTRIX) && defined(__GNUC__))
+#    if !defined(LINUX)
 /* DO trust all SVR4 to typedef uid_t in <sys/types.h> (probably to a long) */
 #    if defined(POSIX_TYPES) || defined(SVR4) || defined(HPUX)
 extern struct passwd *FDECL(getpwuid,(uid_t));
@@ -60,6 +61,7 @@ extern struct passwd *FDECL(getpwuid,(uid_t));
 extern struct passwd *FDECL(getpwuid,(int));
 #    endif
 #   endif
+#  endif
 #  endif
 static struct stat omstat,nmstat;
 static char *mailbox = (char *)0;
@@ -421,7 +423,7 @@ ckmailstatus()
 {
 	if (u.uswallow || !flags.biff) return;
 	if (mustgetmail < 0) {
-#if defined(AMIGA) || defined(MSDOS) || defined(TOS)
+#if defined(AMIGA) || defined(MSDOS) || defined(TOS) || defined(OS2)
 	    mustgetmail=(moves<2000)?(100+rn2(2000)):(2000+rn2(3000));
 #endif
 	    return;
@@ -439,25 +441,19 @@ void
 readmail(otmp)
 struct obj *otmp;
 {
-    static char *junk[] = {
-    "Please disregard previous letter.",
-    "Welcome to NetHack.",
-#ifdef AMIGA
-    "Only Amiga makes it possible.",
-    "CATS have all the answers.",
-#endif
-    "Report bugs to <devteam@nethack.org>.",
-    "Invitation: Visit the NetHack web site at http://www.nethack.org!"
-    };
-
+    const char *line;
+    char buf[BUFSZ];
+    line = getrumor(bcsign(otmp), buf, TRUE);
+    if (!*line)
+	   line = "NetHack rumors file closed for renovation.";
     if (Blind) {
 	pline("Unfortunately you cannot see what it says.");
     } else
-	pline("It reads:  \"%s\"", junk[rn2(SIZE(junk))]);
+	pline("It reads:  \"%s\"", line);
 
 }
 
-# endif /* !UNIX && !VMS && !LAN_MAIL */
+# endif /* !UNIX && !VMS */
 
 # ifdef UNIX
 
@@ -514,7 +510,7 @@ struct obj *otmp;
 	}
 #  else
 #   ifndef AMS				/* AMS mailboxes are directories */
-	display_file(mailbox, TRUE);
+	display_file_area(NULL, mailbox, TRUE);
 #   endif /* AMS */
 #  endif /* DEF_MAILREADER */
 
@@ -536,7 +532,7 @@ ckmailstatus()
 {
     struct mail_info *brdcst;
 
-    if (u.uswallow || !flags.biff) return;
+    if(u.uswallow || !flags.biff) return;
 
     while (broadcasts > 0) {	/* process all trapped broadcasts [until] */
 	broadcasts--;

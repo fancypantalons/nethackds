@@ -40,7 +40,7 @@ const char *goal;
 }
 
 int
-getpos(cc, force, goal)
+getpos(cc,force,goal)
 coord *cc;
 boolean force;
 const char *goal;
@@ -142,7 +142,7 @@ const char *goal;
 			    lo_x = (pass == 0 && ty == lo_y) ? cx + 1 : 1;
 			    hi_x = (pass == 1 && ty == hi_y) ? cx : COLNO - 1;
 			    for (tx = lo_x; tx <= hi_x; tx++) {
-				k = levl[tx][ty].glyph;
+				k = glyph_at(tx, ty);
 				if (glyph_is_cmap(k) &&
 					matching[glyph_to_cmap(k)]) {
 				    cx = tx,  cy = ty;
@@ -355,7 +355,7 @@ const char *name;
 	   precedes this `if' statement, a gcc bug will miscompile the
 	   test on vax (`insv' instruction used to store bitfield does
 	   not set condition codes, but optimizer behaves as if it did).
-	   gcc-2.7.2.1 finally fixed this. */
+	   gcc-2.7.2.1 finally fixed this.... */
 	if (oname_size) {
 	    if (name)
 		Strcpy(ONAME(otmp), name);
@@ -887,10 +887,9 @@ char *outbuf;
 
 static const char * const bogusmons[] = {
 	"jumbo shrimp", "giant pigmy", "gnu", "killer penguin",
-	"giant cockroach", "giant slug", "maggot", "pterodactyl",
-	"tyrannosaurus rex", "basilisk", "beholder", "nightmare",
-	"efreeti", "marid", "rot grub", "bookworm", "master lichen",
-	"shadow", "hologram", "jester", "attorney", "sleazoid",
+	"giant cockroach", "giant slug", "pterodactyl",
+	"tyrannosaurus rex", "rot grub", "bookworm", "master lichen",
+	"hologram", "jester", "attorney", "sleazoid",
 	"killer tomato", "amazon", "robot", "battlemech",
 	"rhinovirus", "harpy", "lion-dog", "rat-ant", "Y2K bug",
 						/* misc. */
@@ -901,13 +900,13 @@ static const char * const bogusmons[] = {
 	"emu", "kestrel", "xeroc", "venus flytrap",
 						/* Rogue */
 	"creeping coins",			/* Wizardry */
-	"hydra", "siren",			/* Greek legend */
+	"siren",                                /* Greek legend */
 	"killer bunny",				/* Monty Python */
 	"rodent of unusual size",		/* The Princess Bride */
 	"Smokey the bear",	/* "Only you can prevent forest fires!" */
 	"Luggage",				/* Discworld */
 	"Ent",					/* Lord of the Rings */
-	"tangle tree", "nickelpede", "wiggle",	/* Xanth */
+	"tangle tree", "wiggle",                /* Xanth */
 	"white rabbit", "snark",		/* Lewis Carroll */
 	"pushmi-pullyu",			/* Dr. Doolittle */
 	"smurf",				/* The Smurfs */
@@ -932,13 +931,25 @@ static const char * const bogusmons[] = {
 	"witch doctor", "one-eyed one-horned flying purple people eater",
 						/* 50's rock 'n' roll */
 	"Barney the dinosaur",			/* saccharine kiddy TV */
-	"Morgoth",				/* Angband */
+	"Azog the Orc King", "Morgoth",		/* Angband */
+
+	/*[Tom] new wacky names */
+	"commando", "green beret", "sherman tank", 
+						/* Military */
+	"Jedi knight", "tie fighter", "protocol droid", "R2 unit", "Emperor",
+						/* Star Wars */
 	"Vorlon",				/* Babylon 5 */
+	"keg","Diet Pepsi",
+						/* drinks */
 	"questing beast",		/* King Arthur */
 	"Predator",				/* Movie */
+	"green light", "automobile", "invisible Wizard of Yendor",
+	"piece of yellowish-brown glass", "wand of nothing",
+	"ocean","ballpoint pen","paper cut",	
+						/* misc */
+	"Rune", "Gurk", "Yuval",		/* people I know */
 	"mother-in-law"				/* common pest */
 };
-
 
 /* Return a random monster name, for hallucination.
  * KNOWN BUG: May be a proper name (Godzilla, Barney), may not

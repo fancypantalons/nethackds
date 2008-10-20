@@ -30,6 +30,8 @@ E NEARDATA int multi;
 #if 0
 E NEARDATA int warnlevel;
 #endif
+E NEARDATA int lastuse;
+E NEARDATA int nextuse;
 E NEARDATA int nroom;
 E NEARDATA int nsubroom;
 E NEARDATA int occtime;
@@ -51,6 +53,7 @@ E struct dgn_topology {		/* special dungeon levels for speed */
     d_level	d_rogue_level;
 #endif
     d_level	d_medusa_level;
+    d_level     d_mineend_level;
     d_level	d_stronghold_level;
     d_level	d_valley_level;
     d_level	d_wiz1_level;
@@ -59,6 +62,10 @@ E struct dgn_topology {		/* special dungeon levels for speed */
     d_level	d_juiblex_level;
     d_level	d_orcus_level;
     d_level	d_baalzebub_level;	/* unused */
+    d_level     d_demogorgon_level;      /* unused */
+    d_level     d_dispater_level;      /* unused */
+    d_level     d_geryon_level;      /* unused */
+    d_level     d_yeenoghu_level;      /* unused */
     d_level	d_asmodeus_level;	/* unused */
     d_level	d_portal_level;		/* only in goto_level() [do.c] */
     d_level	d_sanctum_level;
@@ -70,8 +77,15 @@ E struct dgn_topology {		/* special dungeon levels for speed */
     xchar	d_tower_dnum;
     xchar	d_sokoban_dnum;
     xchar	d_mines_dnum, d_quest_dnum;
+    xchar       d_spiders_dnum;
+    d_level	d_lawful_quest_level;
+    d_level	d_neutral_quest_level;
+    d_level	d_chaotic_quest_level;
     d_level	d_qstart_level, d_qlocate_level, d_nemesis_level;
     d_level	d_knox_level;
+#ifdef BLACKMARKET
+    d_level     d_blackmarket_level;
+#endif /* BLACKMARKET */
 } dungeon_topology;
 /* macros for accesing the dungeon levels by their old names */
 #define oracle_level		(dungeon_topology.d_oracle_level)
@@ -82,12 +96,17 @@ E struct dgn_topology {		/* special dungeon levels for speed */
 #define medusa_level		(dungeon_topology.d_medusa_level)
 #define stronghold_level	(dungeon_topology.d_stronghold_level)
 #define valley_level		(dungeon_topology.d_valley_level)
+#define mineend_level           (dungeon_topology.d_mineend_level)
 #define wiz1_level		(dungeon_topology.d_wiz1_level)
 #define wiz2_level		(dungeon_topology.d_wiz2_level)
 #define wiz3_level		(dungeon_topology.d_wiz3_level)
 #define juiblex_level		(dungeon_topology.d_juiblex_level)
 #define orcus_level		(dungeon_topology.d_orcus_level)
 #define baalzebub_level		(dungeon_topology.d_baalzebub_level)
+#define yeenoghu_level          (dungeon_topology.d_yeenoghu_level)
+#define geryon_level            (dungeon_topology.d_geryon_level)
+#define dispater_level          (dungeon_topology.d_dispater_level)
+#define demogorgon_level        (dungeon_topology.d_demogorgon_level)
 #define asmodeus_level		(dungeon_topology.d_asmodeus_level)
 #define portal_level		(dungeon_topology.d_portal_level)
 #define sanctum_level		(dungeon_topology.d_sanctum_level)
@@ -104,6 +123,13 @@ E struct dgn_topology {		/* special dungeon levels for speed */
 #define qlocate_level		(dungeon_topology.d_qlocate_level)
 #define nemesis_level		(dungeon_topology.d_nemesis_level)
 #define knox_level		(dungeon_topology.d_knox_level)
+#define spiders_dnum		(dungeon_topology.d_spiders_dnum)
+#define lawful_quest_level	(dungeon_topology.d_lawful_quest_level)
+#define neutral_quest_level	(dungeon_topology.d_neutral_quest_level)
+#define chaotic_quest_level	(dungeon_topology.d_chaotic_quest_level)
+#ifdef BLACKMARKET
+#define blackmarket_level	(dungeon_topology.d_blackmarket_level)
+#endif /* BLACKMARKET */
 
 E NEARDATA stairway dnstair, upstair;		/* stairs up and down */
 #define xdnstair	(dnstair.sx)
@@ -128,9 +154,6 @@ E NEARDATA s_level *sp_levchn;
 
 #include "quest.h"
 E struct q_score quest_status;
-
-E NEARDATA char pl_character[PL_CSIZ];
-E NEARDATA char pl_race;		/* character's race */
 
 E NEARDATA char pl_fruit[PL_FSIZ];
 E NEARDATA int current_fruit;
@@ -188,7 +211,17 @@ E const char *configfile;
 E NEARDATA char plname[PL_NSIZ];
 E NEARDATA char dogname[];
 E NEARDATA char catname[];
+E NEARDATA char ghoulname[];
 E NEARDATA char horsename[];
+E NEARDATA char wolfname[];
+#if 0
+E NEARDATA char batname[];
+E NEARDATA char snakename[];
+E NEARDATA char ratname[];
+E NEARDATA char badgername[];
+E NEARDATA char reddragonname[];
+E NEARDATA char whitedragonname[];
+#endif
 E char preferred_pet;
 E const char *occtxt;			/* defined when occupation != NULL */
 E const char *nomovemsg;
@@ -218,29 +251,22 @@ E NEARDATA boolean stoned;
 E NEARDATA boolean unweapon;
 E NEARDATA boolean mrg_to_wielded;
 E NEARDATA struct obj *current_wand;
+E NEARDATA boolean defer_see_monsters;
 
 E NEARDATA boolean in_steed_dismounting;
 
 E const int shield_static[];
 
-#include "spell.h"
-E NEARDATA struct spell spl_book[];	/* sized in decl.c */
 
-#include "color.h"
-#ifdef TEXTCOLOR
-E const int zapcolors[];
-#endif
-
-E const char def_oc_syms[MAXOCLASSES];	/* default class symbols */
-E uchar oc_syms[MAXOCLASSES];		/* current class symbols */
-E const char def_monsyms[MAXMCLASSES];	/* default class symbols */
-E uchar monsyms[MAXMCLASSES];		/* current class symbols */
-
+/*** Objects ***/
 #include "obj.h"
-E NEARDATA struct obj *invent,
-	*uarm, *uarmc, *uarmh, *uarms, *uarmg, *uarmf,
+
+E NEARDATA struct obj *invent, *uarm, *uarmc, *uarmh, *uarms, *uarmg, *uarmf,
 #ifdef TOURIST
 	*uarmu,				/* under-wear, so to speak */
+#endif
+#ifdef STEED
+	*usaddle,
 #endif
 	*uskin, *uamul, *uleft, *uright, *ublindf,
 	*uwep, *uswapwep, *uquiver;
@@ -250,40 +276,55 @@ E NEARDATA struct obj *uball;
 E NEARDATA struct obj *migrating_objs;
 E NEARDATA struct obj *billobjs;
 E NEARDATA struct obj zeroobj;		/* init'd and defined in decl.c */
+E NEARDATA struct obj thisplace;	/* init'd and defined in decl.c */
+
+#include "spell.h"
+E NEARDATA struct spell spl_book[];	/* sized in decl.c */
+
+#ifndef TECH_H
+#include "tech.h"
+#endif
+E NEARDATA struct tech tech_list[];     /* sized in decl.c */
+
+
+/*** The player ***/
+E NEARDATA char pl_character[PL_CSIZ];
+E NEARDATA char pl_race;		/* character's race */
+/* KMH, role patch -- more maintainable when declared as an array */
+E const char pl_classes[];
 
 #include "you.h"
-E NEARDATA struct you u;
-
 #include "onames.h"
-#ifndef PM_H		/* (pm.h has already been included via youprop.h) */
+
+E NEARDATA struct you u;
+E NEARDATA struct Role urole;
+
+
+/*** Monsters ***/
+#ifndef PM_H
 #include "pm.h"
 #endif
 
+E NEARDATA struct permonst playermon, *uasmon;
+					/* also decl'd extern in permonst.h */
+					/* init'd in monst.c */
+
 E NEARDATA struct monst youmonst;	/* init'd and defined in decl.c */
 E NEARDATA struct monst *mydogs, *migrating_mons;
+
+E NEARDATA struct permonst upermonst;	/* init'd in decl.c, 
+					 * defined in polyself.c 
+					 */
 
 E NEARDATA struct mvitals {
 	uchar	born;
 	uchar	died;
 	uchar	mvflags;
+#ifdef EATEN_MEMORY
+	uchar	eaten;		/* WAC -- eaten memory */
+#endif
 } mvitals[NUMMONS];
 
-E NEARDATA struct c_color_names {
-    const char	*const c_black, *const c_amber, *const c_golden,
-		*const c_light_blue,*const c_red, *const c_green,
-		*const c_silver, *const c_blue, *const c_purple,
-		*const c_white;
-} c_color_names;
-#define NH_BLACK		c_color_names.c_black
-#define NH_AMBER		c_color_names.c_amber
-#define NH_GOLDEN		c_color_names.c_golden
-#define NH_LIGHT_BLUE		c_color_names.c_light_blue
-#define NH_RED			c_color_names.c_red
-#define NH_GREEN		c_color_names.c_green
-#define NH_SILVER		c_color_names.c_silver
-#define NH_BLUE			c_color_names.c_blue
-#define NH_PURPLE		c_color_names.c_purple
-#define NH_WHITE		c_color_names.c_white
 
 /* The names of the colors used for gems, etc. */
 E const char *c_obj_colors[];
@@ -307,6 +348,8 @@ E struct c_common_strings {
 #define vision_clears	   c_common_strings.c_vision_clears
 #define the_your	   c_common_strings.c_the_your
 
+E const char no_elbow_room[];
+
 /* material strings */
 E const char *materialnm[];
 
@@ -323,11 +366,40 @@ E const char *materialnm[];
 #define SUPPRESS_SADDLE		0x08
 #define EXACT_NAME		0x0F
 
-/* Vision */
+
+/*** Vision ***/
 E NEARDATA boolean vision_full_recalc;	/* TRUE if need vision recalc */
 E NEARDATA char **viz_array;		/* could see/in sight row pointers */
 
-/* Window system stuff */
+
+/*** Window system stuff ***/
+#include "color.h"
+#ifdef TEXTCOLOR
+E const int zapcolors[];
+#endif
+
+E const char def_oc_syms[MAXOCLASSES];	/* default class symbols */
+E uchar oc_syms[MAXOCLASSES];		/* current class symbols */
+E const char def_monsyms[MAXMCLASSES];	/* default class symbols */
+E uchar monsyms[MAXMCLASSES];		/* current class symbols */
+
+E NEARDATA struct c_color_names {
+    const char	*const c_black, *const c_amber, *const c_golden,
+		*const c_light_blue,*const c_red, *const c_green,
+		*const c_silver, *const c_blue, *const c_purple,
+		*const c_white;
+} c_color_names;
+#define NH_BLACK		c_color_names.c_black
+#define NH_AMBER		c_color_names.c_amber
+#define NH_GOLDEN		c_color_names.c_golden
+#define NH_LIGHT_BLUE		c_color_names.c_light_blue
+#define NH_RED			c_color_names.c_red
+#define NH_GREEN		c_color_names.c_green
+#define NH_SILVER		c_color_names.c_silver
+#define NH_BLUE			c_color_names.c_blue
+#define NH_PURPLE		c_color_names.c_purple
+#define NH_WHITE		c_color_names.c_white
+
 E NEARDATA winid WIN_MESSAGE, WIN_STATUS;
 E NEARDATA winid WIN_MAP, WIN_INVEN;
 E char toplines[];
@@ -341,6 +413,29 @@ E struct tc_gbl_data {	/* also declared in tcap.h */
 #define LI tc_gbl_data.tc_LI
 #define CO tc_gbl_data.tc_CO
 #endif
+
+E struct authentication {
+    char prog[BUFSZ];
+    char args[BUFSZ];
+} authentication;
+
+#define MAXNOTILESETS		20
+#ifndef TILESET_MAX_FILENAME
+#define TILESET_MAX_FILENAME	256
+#endif
+
+#define TILESET_TRANSPARENT	1
+#define TILESET_PSEUDO3D	2
+
+E struct tileset {
+    char name[PL_PSIZ];
+    char file[TILESET_MAX_FILENAME];
+    unsigned long flags;
+    void *data;				/* For windowing port's use */
+} tilesets[MAXNOTILESETS];
+E int no_tilesets;
+E struct tileset def_tilesets[];
+E char tileset[PL_PSIZ];
 
 /* xxxexplain[] is in drawing.c */
 E const char * const monexplain[], invisexplain[], * const objexplain[], * const oclass_names[];
@@ -376,6 +471,7 @@ E char *fqn_prefix[PREFIX_COUNT];
 #ifdef PREFIXES_IN_USE
 E char *fqn_prefix_names[PREFIX_COUNT];
 #endif
+
 
 #ifdef AUTOPICKUP_EXCEPTIONS
 struct autopickup_exception {

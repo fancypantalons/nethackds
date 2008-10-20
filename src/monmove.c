@@ -15,6 +15,8 @@ STATIC_DCL int FDECL(disturb,(struct monst *));
 STATIC_DCL void FDECL(distfleeck,(struct monst *,int *,int *,int *));
 STATIC_DCL int FDECL(m_arrival, (struct monst *));
 STATIC_DCL void FDECL(watch_on_duty,(struct monst *));
+/* WAC for breath door busting */
+static int FDECL(bust_door_breath, (struct monst *));
 
 #endif /* OVL0 */
 #ifdef OVLB
@@ -64,7 +66,19 @@ register struct monst *mtmp;
 			verbalize("Halt, thief!  You're under arrest!");
 			(void) angry_guards(!(flags.soundok));
 		  } else {
+			int i;
 			verbalize("Hey, stop picking that lock!");
+			/* [ALI] Since marking a door as warned will have
+			 * the side effect of trapping the door, it must be
+			 * included in the doors[] array in order that trap
+			 * detection will find it.
+			 */
+			for(i = doorindex - 1; i >= 0; i--)
+			    if (x == doors[i].x && y == doors[i].y)
+				break;
+			if (i < 0)
+			    i = add_door(x, y, (struct mkroom *)0);
+			if (i >= 0)
 			levl[x][y].looted |=  D_WARNED;
 		  }
 		  stop_occupation();
@@ -81,15 +95,15 @@ register struct monst *mtmp;
 
 int
 dochugw(mtmp)
-	register struct monst *mtmp;
+register struct monst *mtmp;
 {
 	register int x = mtmp->mx, y = mtmp->my;
 	boolean already_saw_mon = !occupation ? 0 : canspotmon(mtmp);
 	int rd = dochug(mtmp);
 #if 0
 	/* part of the original warning code which was replaced in 3.3.1 */
+	register struct permonst *mdat = mtmp->data;        
 	int dd;
-
 	if(Warning && !rd && !mtmp->mpeaceful &&
 			(dd = distu(mtmp->mx,mtmp->my)) < distu(x,y) &&
 			dd < 100 && !canseemon(mtmp)) {
@@ -101,6 +115,30 @@ dochugw(mtmp)
 		warnlevel = 100;
 	    else if ((int) (mtmp->m_lev / 4) > warnlevel)
 		warnlevel = (mtmp->m_lev / 4);
+	/* STEPHEN WHITE'S NEW CODE */
+	} else if(Undead_warning && !rd && !mtmp->mpeaceful &&
+		  (dd = distu(mtmp->mx,mtmp->my)) < distu(x,y) &&
+		   dd < 100 && !canseemon(mtmp) && is_undead(mdat)) {
+			/* 
+			 * The value of warnlevel coresponds to the 8 
+			 * cardinal directions, see mon.c.
+			 */
+			if(((mtmp->mx - u.ux) < 0) && ((mtmp->my - u.uy) < 0))
+				warnlevel = 101;
+			if(((mtmp->mx - u.ux) == 0) && ((mtmp->my - u.uy) < 0))
+				warnlevel = 102;
+			if(((mtmp->mx - u.ux) > 0) && ((mtmp->my - u.uy) < 0))
+				warnlevel = 103;
+			if(((mtmp->mx - u.ux) < 0) && ((mtmp->my - u.uy) == 0))
+				warnlevel = 104;
+			if(((mtmp->mx - u.ux) > 0) && ((mtmp->my - u.uy) == 0))
+				warnlevel = 105;
+			if(((mtmp->mx - u.ux) < 0) && ((mtmp->my - u.uy) > 0))
+				warnlevel = 106;
+			if(((mtmp->mx - u.ux) == 0) && ((mtmp->my - u.uy) > 0))
+				warnlevel = 107;
+			if(((mtmp->mx - u.ux) > 0) && ((mtmp->my - u.uy) > 0))
+				warnlevel = 108;
 	}
 #endif /* 0 */
 
@@ -119,7 +157,6 @@ dochugw(mtmp)
 	    mtmp->mcanmove &&
 	    !noattacks(mtmp->data) && !onscary(u.ux, u.uy, mtmp))
 		stop_occupation();
-
 	return(rd);
 }
 
@@ -134,6 +171,7 @@ struct monst *mtmp;
 	if (mtmp->isshk || mtmp->isgd || mtmp->iswiz || !mtmp->mcansee ||
 	    mtmp->mpeaceful || mtmp->data->mlet == S_HUMAN ||
 	    is_lminion(mtmp) || mtmp->data == &mons[PM_ANGEL] ||
+	    mtmp->data == &mons[PM_CTHULHU] ||
 	    is_rider(mtmp->data) || mtmp->data == &mons[PM_MINOTAUR])
 		return(FALSE);
 
@@ -141,7 +179,7 @@ struct monst *mtmp;
 #ifdef ELBERETH
 			 || sengr_at("Elbereth", x, y)
 #endif
-			 || (mtmp->data->mlet == S_VAMPIRE
+			 || (is_vampire(mtmp->data)
 			     && IS_ALTAR(levl[x][y].typ)));
 }
 
@@ -154,8 +192,13 @@ mon_regen(mon, digest_meal)
 struct monst *mon;
 boolean digest_meal;
 {
-	if (mon->mhp < mon->mhpmax &&
+	if (mon->mhp < mon->mhpmax && !is_golem(mon->data) &&
 	    (moves % 20 == 0 || regenerates(mon->data))) mon->mhp++;
+	if (mon->m_en < mon->m_enmax && 
+	    (moves % 20 == 0 || (rn2(mon->m_lev + 5) > 15))) {
+	    	mon->m_en += rn1((mon->m_lev % 10 + 1),1);
+	    	if (mon->m_en > mon->m_enmax) mon->m_en = mon->m_enmax;
+	}
 	if (mon->mspec_used) mon->mspec_used--;
 	if (digest_meal) {
 	    if (mon->meating) mon->meating--;
@@ -187,6 +230,7 @@ disturb(mtmp)
 		(!Stealth || (mtmp->data == &mons[PM_ETTIN] && rn2(10))) &&
 		(!(mtmp->data->mlet == S_NYMPH
 			|| mtmp->data == &mons[PM_JABBERWOCK]
+			|| mtmp->data == &mons[PM_VORPAL_JABBERWOCK]
 #if 0	/* DEFERRED */
 			|| mtmp->data == &mons[PM_VORPAL_JABBERWOCK]
 #endif
@@ -402,7 +446,9 @@ register struct monst *mtmp;
 	if (mdat == &mons[PM_WATCHMAN] || mdat == &mons[PM_WATCH_CAPTAIN])
 		watch_on_duty(mtmp);
 
-	else if (is_mind_flayer(mdat) && !rn2(20)) {
+	/* [DS] Cthulhu also uses psychic blasts */
+	else if ((is_mind_flayer(mdat) || mdat == &mons[PM_CTHULHU]) 
+			&& !rn2(20)) {
 		struct monst *m2, *nmon = (struct monst *)0;
 
 		if (canseemon(mtmp))
@@ -423,7 +469,9 @@ register struct monst *mtmp;
 				pline("It locks on to your %s!",
 					m_sen ? "telepathy" :
 					Blind_telepat ? "latent telepathy" : "mind");
-				dmg = rnd(15);
+				dmg = (mdat == &mons[PM_CTHULHU])?
+					rn1(10, 10) :
+					rn1(4, 4);
 				if (Half_spell_damage) dmg = (dmg+1) / 2;
 				losehp(dmg, "psychic blast", KILLED_BY_AN);
 			}
@@ -440,6 +488,9 @@ register struct monst *mtmp;
 				    pline("It locks on to %s.", mon_nam(m2));
 				m2->mhp -= rnd(15);
 				if (m2->mhp <= 0)
+				    if (mtmp->uexp)
+					mon_xkilled(m2, "", AD_DRIN);
+				    else
 				    monkilled(m2, "", AD_DRIN);
 				else
 				    m2->msleeping = 0;
@@ -478,6 +529,7 @@ toofar:
 	if(!nearby || mtmp->mflee || scared ||
 	   mtmp->mconf || mtmp->mstun || (mtmp->minvis && !rn2(3)) ||
 	   (mdat->mlet == S_LEPRECHAUN && !u.ugold && (mtmp->mgold || rn2(2))) ||
+
 #else
         if (mdat->mlet == S_LEPRECHAUN) {
 	    ygold = findgold(invent);
@@ -488,7 +540,11 @@ toofar:
 	   mtmp->mconf || mtmp->mstun || (mtmp->minvis && !rn2(3)) ||
 	   (mdat->mlet == S_LEPRECHAUN && !ygold && (lepgold || rn2(2))) ||
 #endif
-	   (is_wanderer(mdat) && !rn2(4)) || (Conflict && !mtmp->iswiz) ||
+	   (is_wanderer(mdat) && !rn2(4)) || (Conflict && !mtmp->iswiz
+#ifdef BLACKMARKET
+	   && !Is_blackmarket(&u.uz)
+#endif
+	   ) ||
 	   (!mtmp->mcansee && !rn2(4)) || mtmp->mpeaceful) {
 		/* Possibly cast an undirected spell if not attacking you */
 		/* note that most of the time castmu() will pick a directed
@@ -511,7 +567,6 @@ toofar:
 
 		tmp = m_move(mtmp, 0);
 		distfleeck(mtmp,&inrange,&nearby,&scared);	/* recalc */
-
 		switch (tmp) {
 		    case 0:	/* no movement, but it can still attack you */
 		    case 3:	/* absolutely no movement */
@@ -548,7 +603,11 @@ toofar:
 /*	Now, attack the player if possible - one attack set per monst	*/
 
 	if (!mtmp->mpeaceful ||
-	    (Conflict && !resist(mtmp, RING_CLASS, 0, 0))) {
+	    (Conflict && !resist(mtmp, RING_CLASS, 0, 0)
+#ifdef BLACKMARKET
+		&& !Is_blackmarket(&u.uz)
+#endif
+	)) {
 	    if(inrange && !noattacks(mdat) && u.uhp > 0 && !scared && tmp != 3)
 		if(mattacku(mtmp)) return(1); /* monster died (e.g. exploded) */
 
@@ -558,14 +617,15 @@ toofar:
 	if (!mtmp->msleeping && mtmp->mcanmove && nearby)
 	    quest_talk(mtmp);
 	/* extra emotional attack for vile monsters */
-	if (inrange && mtmp->data->msound == MS_CUSS && !mtmp->mpeaceful &&
+	    if(inrange && mtmp->data->msound == MS_CUSS && !mtmp->mpeaceful &&
 		couldsee(mtmp->mx, mtmp->my) && !mtmp->minvis && !rn2(5))
 	    cuss(mtmp);
 
 	return(tmp == 2);
 }
 
-static NEARDATA const char practical[] = { WEAPON_CLASS, ARMOR_CLASS, GEM_CLASS, FOOD_CLASS, 0 };
+static NEARDATA const char practical[] = { 
+	WEAPON_CLASS, ARMOR_CLASS, GEM_CLASS, FOOD_CLASS, 0 };
 static NEARDATA const char magical[] = {
 	AMULET_CLASS, POTION_CLASS, SCROLL_CLASS, WAND_CLASS, RING_CLASS,
 	SPBOOK_CLASS, 0 };
@@ -616,12 +676,14 @@ register int after;
 	    if(i >= 2) { newsym(mtmp->mx,mtmp->my); return(2); }/* it died */
 	    if(i == 1) return(0);	/* still in trap, so didn't move */
 	}
+
 	ptr = mtmp->data; /* mintrap() can change mtmp->data -dlc */
 
 	if (mtmp->meating) {
 	    mtmp->meating--;
 	    return 3;			/* still eating */
 	}
+
 	if (hides_under(ptr) && OBJ_AT(mtmp->mx, mtmp->my) && rn2(10))
 	    return 0;		/* do not leave hiding place */
 
@@ -637,7 +699,11 @@ register int after;
 	can_open = !(nohands(ptr) || verysmall(ptr));
 	can_unlock = ((can_open && m_carrying(mtmp, SKELETON_KEY)) ||
 		      mtmp->iswiz || is_rider(ptr));
-	doorbuster = is_giant(ptr);
+/*        doorbuster = is_giant(ptr);*/
+
+	/* WAC add dragon breath */
+	doorbuster = is_giant(ptr) || (bust_door_breath(mtmp) != -1);
+
 	if(mtmp->wormno) goto not_special;
 	/* my dog gets special treatment */
 	if(mtmp->mtame) {
@@ -894,7 +960,7 @@ not_special:
 	/* unicorn may not be able to avoid hero on a noteleport level */
 	if (is_unicorn(ptr) && !level.flags.noteleport) flag |= NOTONL;
 	if (passes_walls(ptr)) flag |= (ALLOW_WALL | ALLOW_ROCK);
-	if (passes_bars(ptr)) flag |= ALLOW_BARS;
+	if (passes_bars(ptr) && !In_sokoban(&u.uz)) flag |= ALLOW_BARS;
 	if (can_tunnel) flag |= ALLOW_DIG;
 	if (is_human(ptr) || ptr == &mons[PM_MINOTAUR]) flag |= ALLOW_SSM;
 	if (is_undead(ptr) && ptr->mlet != S_GHOST) flag |= NOGARLIC;
@@ -1027,6 +1093,7 @@ not_special:
 	        return 3;
 	    remove_monster(omx, omy);
 	    place_monster(mtmp, nix, niy);
+
 	    for(j = MTSZ-1; j > 0; j--)
 		mtmp->mtrack[j] = mtmp->mtrack[j-1];
 	    mtmp->mtrack[0].x = omx;
@@ -1102,6 +1169,12 @@ postmov:
 			}
 		    } else if (here->doormask & (D_LOCKED|D_CLOSED)) {
 			/* mfndpos guarantees this must be a doorbuster */
+				/* WAC do dragons and breathers */
+				if (bust_door_breath(mtmp) != -1) {
+				        (void) breamspot(mtmp,
+				                 &ptr->mattk[bust_door_breath(mtmp)],
+				                 (nix-omx), (niy-omy));
+				} else
 			if(btrapped) {
 			    here->doormask = D_NODOOR;
 			    newsym(mtmp->mx, mtmp->my);
@@ -1175,9 +1248,12 @@ postmov:
 		if(g_at(mtmp->mx,mtmp->my) && likegold) mpickgold(mtmp);
 
 		/* Maybe a cube ate just about anything */
-		if (ptr == &mons[PM_GELATINOUS_CUBE]) {
+		/* KMH -- Taz likes organics, too! */
+		if (ptr == &mons[PM_GELATINOUS_CUBE] ||
+			ptr == &mons[PM_TASMANIAN_DEVIL]) {
 		    if (meatobj(mtmp) == 2) return 2;	/* it died */
 		}
+		if (ptr == &mons[PM_GHOUL] || ptr == &mons[PM_GHAST]) meatcorpse(mtmp);
 
 		if(!*in_rooms(mtmp->mx, mtmp->my, SHOPBASE) || !rn2(25)) {
 		    boolean picked = FALSE;
@@ -1363,6 +1439,29 @@ struct monst *mtmp;
 	}
 	return TRUE;
 }
+
+static int
+bust_door_breath(mtmp)
+	register struct monst        *mtmp;
+{
+	struct permonst *ptr = mtmp->data;
+	int     i;
+
+
+	if (mtmp->mcan || mtmp->mspec_used) return (-1); /* Cancelled/used up */
+
+	for(i = 0; i < NATTK; i++)
+            if ((ptr->mattk[i].aatyp == AT_BREA) &&
+                (ptr->mattk[i].adtyp == AD_ACID ||
+                ptr->mattk[i].adtyp == AD_MAGM ||
+                ptr->mattk[i].adtyp == AD_DISN ||
+                ptr->mattk[i].adtyp == AD_ELEC ||
+                ptr->mattk[i].adtyp == AD_FIRE ||
+                ptr->mattk[i].adtyp == AD_COLD)) return(i);
+
+        return(-1);
+}
+
 
 #endif /* OVL0 */
 

@@ -8,7 +8,7 @@ STATIC_DCL void FDECL(center, (int, char *));
 
 extern const char * const killed_by_prefix[];	/* from topten.c */
 
-#if defined(TTY_GRAPHICS) || defined(X11_GRAPHICS) || defined(GEM_GRAPHICS) || defined(MSWIN_GRAPHICS)
+#if defined(TTY_GRAPHICS) || defined(X11_GRAPHICS) || defined(GEM_GRAPHICS) || defined(MSWIN_GRAPHICS) || defined(GTK_GRAPHICS)
 # define TEXT_TOMBSTONE
 #endif
 #if defined(mac) || defined(__BEOS__) || defined(WIN32_GRAPHICS)
@@ -120,11 +120,25 @@ int how;
 	switch (killer_format) {
 		default: impossible("bad killer format?");
 		case KILLED_BY_AN:
-			Strcpy(buf, killed_by_prefix[how]);
+                      if (Instant_Death) {
+                        Strcpy(buf, "instantly ");
+                        strcat(buf, killed_by_prefix[how]);
+                      }
+                      else if (Quick_Death) {
+                        Strcpy(buf, "quickly ");
+                        strcat(buf, killed_by_prefix[how]);
+                      } else Strcpy(buf, killed_by_prefix[how]);
 			Strcat(buf, an(killer));
 			break;
 		case KILLED_BY:
-			Strcpy(buf, killed_by_prefix[how]);
+                      if (Instant_Death) {
+                        Strcpy(buf, "instantly ");
+                        strcat(buf, killed_by_prefix[how]);
+                      }
+                      else if (Quick_Death) {
+                        Strcpy(buf, "quickly ");
+                        strcat(buf, killed_by_prefix[how]);
+                      } else Strcpy(buf, killed_by_prefix[how]);
 			Strcat(buf, killer);
 			break;
 		case NO_KILLER_PREFIX:

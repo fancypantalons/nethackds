@@ -1,5 +1,5 @@
 
-This document describes the installation of NetHack with an X11 interface.
+This document describes the installation of Slash'EM with an X11 interface.
 
 There are no explicit UNIX dependencies in this code, but we have only
 tested it under UNIX, using X11R4, X11R5, or X11R6.  We have two reports
@@ -28,7 +28,7 @@ little reason to do so.  The X11 version almost requires a config file
 for full effect, so you can just as well set windowtype there; also, you
 or someone else might just possibly be stuck in a situation where you can't
 use the X version -- over a non-blindingly-fast modem, say.)  You may also
-want to define USE_XPM or GRAPHIC_TOMBSTONE as discussed below.
+want to define USE_XPM, GRAPHIC_TOMBSTONE as discussed below.
 
 In src/Makefile, add $(WINX11SRC), $(WINX11OBJ), and $(WINX11LIB) to
 WINSRC, WINOBJ, and WINLIB respectively, and compile.  This will give you
@@ -37,21 +37,19 @@ an executable supporting both X11 and tty windowing.
 
 If you want to use the optional tiles (multicolored pictures instead of a
 replacement font), you will need to have the win/share files and change
-the VARDATND setting in the top Makefile to contain the tile files before
-you do your 'make all'.
-
-If you get a linker error referring to `substitute_tiles' then most
-likely you have overlooked the WINSRC, WINOBJ, WINLIB step above.
-Alternatively, you are building with more than one non-tty interface
-specified but haven't followed the direction in src/Makefile to remove
-all but one instance of tile.o from the WINxxxOBJ values used for WINOBJ.
+the CNF_SHARE_DATND setting in the top Makefile to contain the tile files before
+you do your 'make all'. Include x11tiles for the 16x16 tile set and x11bigtiles
+for the 32x32 set. The available tile sets should be defined in the
+configuration file. The tiles option can then be used to select the initial
+tile set or unset to use ASCII characters. See win/x11/slashem.rc and
+the Guidebook for more information.
 
 When using tiles, you have the option of defining USE_XPM in config.h.
-This causes NetHack to use the XPM file format for the "x11tiles" file
+This causes Slash'EM to use the XPM file format for the "x11(big)tiles" file
 rather than a custom format.  Since the XPM format can be processed by
 existing tools such as PBMPlus and XV, you can modify the tiles to suit
 your environment.  However, you need to make sure the number of tiles
-in each row of the image remains the same (currently 40), as the code
+in each row and column of the image remains the same, as the code
 depends on this to calculate the size of each tile. For example, you may
 magnify them for display on high-resolution screens using the following
 command:
@@ -67,14 +65,14 @@ in src/Makefile.
 If you define USE_XPM in config.h, you may also define GRAPHIC_TOMBSTONE
 which causes the closing tombstone to be displayed from the image file
 specified by the "tombstone" X resource (rip.xpm by default).  In this
-case, make sure the top Makefile VARDATND also contains rip.xpm.
+case, make sure the top Makefile CNF_SHARE_X11ND also contains rip.xpm.
 
 
 Whether or not you install tile support, you can provide support for
 special graphics symbols via alternate fonts.  (The fonts and tiles
 cannot be used at the same time, but the same executable handles both.)
-The two included X11 fonts use the general NetHack map area remapping
-to represent object/dungeon/trap/effect characters (see win/X11/nethack.rc
+The two included X11 fonts use the general Slash'EM map area remapping
+to represent object/dungeon/trap/effect characters (see win/X11/slashem.rc
 and the Guidebook) as monocolored symbols and monsters as monocolored
 letters.  For instance, a ruby potion will show up as a potion symbol in
 red.  It's easier to see the difference between fonts and tiles than to
@@ -83,7 +81,7 @@ you already know which you prefer, we suggest installing the optional files
 for both possibilities and letting each person decide for themselves.
 
 To use the included fonts, you will need to install one or both of them
-and then use the symbol mappings found in nethack.rc.  The fonts are found
+and then use the symbol mappings found in slashem.rc.  The fonts are found
 in nh10.bdf and ibm.bdf.  You first need to convert the bdf files to whatever
 form your X11 server recognizes (usually using a command called bdftosnf
 for R4 servers or bdftopcf for R5 servers).  Then run mkfontdir on the
@@ -101,6 +99,9 @@ though it may clutter your X11 font search path after playing several games,
 so this method is not recommended.  See the note below for the alternative
 installation procedure for Sun's OpenWindows.
 
+If you're using file areas, then the fonts can go in any sensible directory.
+FILE_AREA_SHARE is suggested for pcf fonts and FILE_AREA_UNSHARE for snf fonts.
+
 
 If your X11 include files and libraries are not installed in a standard
 place (i.e. /usr/include/X11 and /usr/lib respectively) you will need to
@@ -109,16 +110,23 @@ prepend an appropriate -I<idirectory> parameter to CFLAGS and a
 find the include and library files for X11.
 
 
-Finally, to ensure NetHack's windows look the way they were intended to
-look, make sure the top Makefile VARDATND also contains NetHack.ad.  If it
-does, running nethack will automatically take the appropriate steps to
-cause this file to be used to initialize NetHack's X11 resources.
+Finally, to ensure SlashEM's windows look the way they were intended to
+look, make sure the top Makefile CNF_SHARE_X11ND also contains
+SlashEM.ad. If it does, running slashem will automatically take the
+appropriate steps to cause this file to be used to initialize SlashEM's
+X11 resources. Alternatively, each person may append the contents of
+this file to their .Xdefaults file. A second alternative is copy
+SlashEM.ad to SlashEM in GAMEDIR (or FILE_AREA_SHARE) (from the top
+Makefile) and add a line to nethack.sh specifying this additional
+applications defaults directory:
+	XAPPLRESDIR=$HACKDIR; export XAPPLRESDIR
+(Replace $HACKDIR with the value of FILE_AREA_SHARE if appropriate.)
 
 
 Three icon suggestions to the window manager are supported:  nh72, nh56,
 and nh32.  Data for them comes from the source files nh72icon, nh56icon,
 and nh32icon; they are compiled into the program via #includes in winX.c.
-Selection between them is controlled by the "icon" resource in NetHack.ad;
+Selection between them is controlled by the "icon" resource in SlashEM.ad;
 the default is nh72.
 
 
@@ -156,7 +164,7 @@ Notes for Sun's OpenWindows:
 	installation, you have the various "xset fp+" options outlined
 	above for standard X.
 
-    4.  Something must still be done with the NetHack.ad file -- all three
+    4.  Something must still be done with the SlashEM.ad file -- all three
 	of the possibilities mentioned for standard X11 should work.
 
 
@@ -178,17 +186,17 @@ Notes for XFree86 - (on linux and BSD386 platforms)
 
 File				Description
 ---------	---------------------------------------------------------------
-nethack.rc	- A sample configuration file for fonts nh10 and ibm.
+slashem.rc	- A sample configuration file for fonts nh10 and ibm.
 nh10.bdf	- A modified version of the 10x20 standard font.
 ibm.bdf		- A modified version of one of the ibm (8x14) nethack font.
-		  Must be used in conjunction with NetHack.ad or nethack.rc.
+		  Must be used in conjunction with SlashEM.ad or slashem.rc.
 nh32icon	- A 32x32 icon bitmap for use with window managers.
 nh56icon	- A 56x56 icon bitmap for use with window managers.
 nh72icon	- A 72x72 icon bitmap for use with window managers.
 nh_icon.xpm	- A color icon for use with window managers.
-NetHack.ad	- A sample .Xdefaults for a color screen.
-../../include/Window.h
-../../include/WindowP.h
+SlashEM.ad	- A sample .Xdefaults for a color screen.
+../../include/xwindow.h
+../../include/xwindowp.h
 Window.c	- A bare-bones widget that has 16 colors and a drawing canvas.
 ../../include/winX.h
 		- Defines for the X window-port.

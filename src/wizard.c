@@ -26,12 +26,17 @@ STATIC_DCL long FDECL(strategy, (struct monst *));
 static NEARDATA const int nasties[] = {
 	PM_COCKATRICE, PM_ETTIN, PM_STALKER, PM_MINOTAUR, PM_RED_DRAGON,
 	PM_BLACK_DRAGON, PM_GREEN_DRAGON, PM_OWLBEAR, PM_PURPLE_WORM,
-	PM_ROCK_TROLL, PM_XAN, PM_GREMLIN, PM_UMBER_HULK, PM_VAMPIRE_LORD,
-	PM_XORN, PM_ZRUTY, PM_ELF_LORD, PM_ELVENKING, PM_YELLOW_DRAGON,
+        PM_ROCK_TROLL, PM_XAN, PM_GREMLIN, PM_UMBER_HULK, /* PM_VAMPIRE_LORD,*/
+/* WAC replaced vamp lords with mages :) */
+        PM_VAMPIRE_MAGE,
+	PM_XORN, /*PM_ZRUTY,*/ PM_ELF_LORD, PM_ELVENKING, PM_YELLOW_DRAGON,
 	PM_LEOCROTTA, PM_BALUCHITHERIUM, PM_CARNIVOROUS_APE, PM_FIRE_GIANT,
 	PM_COUATL, PM_CAPTAIN, PM_WINGED_GARGOYLE, PM_MASTER_MIND_FLAYER,
-	PM_FIRE_ELEMENTAL, PM_JABBERWOCK, PM_ARCH_LICH, PM_OGRE_KING,
-	PM_OLOG_HAI, PM_IRON_GOLEM, PM_OCHRE_JELLY, PM_GREEN_SLIME,
+	PM_FIRE_ELEMENTAL, PM_JABBERWOCK, PM_MASTER_LICH, PM_OGRE_KING,
+	PM_OLOG_HAI, PM_IRON_GOLEM, PM_OCHRE_JELLY,
+        /* [Tom] added my "worst" monsters... heh heh */
+        PM_RHAUMBUSUN, PM_BASILISK, PM_PYROLISK, PM_GREEN_SLIME, PM_DEMON_ORC,
+        PM_MASTODON, PM_ROT_WORM, PM_SNOW_ORC, PM_SILVER_DRAGON, 
 	PM_DISENCHANTER
 	};
 
@@ -113,11 +118,8 @@ register struct monst *mtmp;
 	register struct obj *otmp;
 
 	for(otmp = mtmp->minvent; otmp; otmp = otmp->nobj)
-		if(otmp->otyp == AMULET_OF_YENDOR ||
-			is_quest_artifact(otmp) ||
-			otmp->otyp == BELL_OF_OPENING ||
-			otmp->otyp == CANDELABRUM_OF_INVOCATION ||
-			otmp->otyp == SPE_BOOK_OF_THE_DEAD) return(1);
+		if (evades_destruction(otmp) || is_quest_artifact(otmp))
+			return 1;
 	return(0);
 }
 

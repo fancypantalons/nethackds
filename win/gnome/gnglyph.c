@@ -3,7 +3,11 @@
 /* NetHack may be freely redistributed.  See license for details. */
 
 #include "gnglyph.h"
-#include "tile2x11.h"
+
+/* from tile.c */
+extern int tiles_per_row;
+extern int tiles_per_col;
+extern int total_tiles_used;
 
 /* from tile.c */
 extern int total_tiles_used;
@@ -31,14 +35,14 @@ static GdkImlibImage** ghack_tiles = NULL;
  *
  * NOTES:
  *     The glyphs (tiles) must be in the image in a certain way: the
- *     glyphs must be stacked such that the resultant image is
- *     TILE_X * TILES_PER_ROW wide, and
- *     TILE_Y * (number of glyphs) / TILES_PER_ROW high (rounded up).
- *     In this sense, TILE_X == TILE_Y, and can be any reasonable integer
- *     say, 16 <= TILE_X <= 64.  Because the glyph number is tightly
+ *     glyphs must be arranged such that the resultant image is
+ *     TILE_X * tiles_per_row wide, and TILE_Y * tiles_per_col high.
+ *     In this sense, TILE_X and TILE_Y can be any reasonable integers--
+ *     say, 16 <= TILE_X,Y <= 64.  Because the glyph number is tightly
  *     coupled to the Nethack object it represents, the order of the
- *     glyphs in the image is imporant: Glyph 1 is at the top of the
- *     image, while Glyph N (the last glyph) is at the bottom.
+ *     glyphs in the image is imporant: Glyph 1 is at the top left of
+ *     the image, while Glyph N (the last glyph) is the last tile on the
+ *     bottom row.
  *
  *     What's the difference between a glyph and a tile?  Well, a
  *     tile is just an image.  A glyph is a tile that knows its
@@ -59,23 +63,18 @@ ghack_init_glyphs(const char *xpmFile)
     gdk_imlib_render(ghack_glyphs.im, ghack_glyphs.im->rgb_width,
 		     ghack_glyphs.im->rgb_height);
 
-    if ((ghack_glyphs.im->rgb_width % TILES_PER_ROW) != 0 ||
-	ghack_glyphs.im->rgb_width <= TILES_PER_ROW) {
-	g_error("%s is not a multiple of %d (number of tiles/row) pixels wide",
-		xpmFile, TILES_PER_ROW);
+    if ((ghack_glyphs.im->rgb_width % tiles_per_row) != 0 ||
+	ghack_glyphs.im->rgb_width <= tiles_per_row ||
+  	(ghack_glyphs.im->rgb_height % tiles_per_col) != 0 ||
+	ghack_glyphs.im->rgb_height <= tiles_per_col) {
+	g_error("%s is not a multiple of %d, %d (tiles/row, tiles/col) pixels wide",
+		xpmFile, tiles_per_row, tiles_per_col);
 	return -1;
     }
+    ghack_glyphs.width = ghack_glyphs.im->rgb_width / tiles_per_row;
+    ghack_glyphs.height = ghack_glyphs.im->rgb_height / tiles_per_col;
     ghack_glyphs.count = total_tiles_used;
-    if ((ghack_glyphs.count % TILES_PER_ROW) != 0) {
-	ghack_glyphs.count +=
-	    TILES_PER_ROW - (ghack_glyphs.count % TILES_PER_ROW);
-    }
-    ghack_glyphs.width = ghack_glyphs.im->rgb_width / TILES_PER_ROW;
-    ghack_glyphs.height =
-	ghack_glyphs.im->rgb_height / (ghack_glyphs.count / TILES_PER_ROW);
 
-
-    /* Assume the tiles are organized in rows of TILES_PER_ROW */
     ghack_tiles = g_new0( GdkImlibImage*, ghack_glyphs.count );
     return (ghack_tiles == NULL) ? -1 : 0;
 }
@@ -207,8 +206,8 @@ ghack_image_from_glyph( int glyph, gboolean force )
 #endif
       if (ghack_glyphs.im->pixmap == NULL)
 	  g_warning( "Aiiee!  ghack_glyphs.im->pixmap==NULL!!!!\n");
-      src_x = (tile % TILES_PER_ROW) * ghack_glyphs.width;
-      src_y = (tile / TILES_PER_ROW) * ghack_glyphs.height;
+      src_x = tile % tiles_per_row * ghack_glyphs.width;
+      src_y = tile / tiles_per_row * ghack_glyphs.height;
       ghack_tiles[tile] = gdk_imlib_crop_and_clone_image(ghack_glyphs.im,
 	      src_x, src_y,
 	      ghack_glyphs.width,

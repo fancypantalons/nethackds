@@ -975,7 +975,7 @@ char** argv;
     XtSetArg(args[num_args], XtNallowShellResize, True);	num_args++;
     toplevel = XtAppInitialize(
 		    &app_context,
-		    "NetHack",			/* application class */
+		    DEF_GAME_NAME,		/* application class */
 		    (XrmOptionDescList)0, 0,	/* options list */
 		    argcp, (String *)argv,	/* command line args */
 		    (String *)0,		/* fallback resources */
@@ -1336,7 +1336,12 @@ dismiss_file(w, event, params, num_params)
 }
 
 void
+#ifdef FILE_AREAS
+X11_display_file(area, str, complain)
+    const char *area;
+#else
 X11_display_file(str, complain)
+#endif
     const char *str;
     boolean complain;
 {
@@ -1354,7 +1359,11 @@ X11_display_file(str, complain)
     int charcount;
 
     /* Use the port-independent file opener to see if the file exists. */
+#ifdef FILE_AREAS
+    fp = dlb_fopen_area(area, str, RDTMODE);
+#else
     fp = dlb_fopen(str, RDTMODE);
+#endif
 
     if (!fp) {
 	if(complain) pline("Cannot open %s.  Sorry.", str);
@@ -1388,7 +1397,11 @@ X11_display_file(str, complain)
     textlines = (char *) alloc((unsigned int) charcount);
     textlines[0] = '\0';
 
+#ifdef FILE_AREAS
+    fp = dlb_fopen_area(area, str, RDTMODE);
+#else
     fp = dlb_fopen(str, RDTMODE);
+#endif
 
     while (dlb_fgets(line, LLEN, fp)) {
 	(void) strcat(textlines, line);
@@ -1750,7 +1763,7 @@ init_standard_windows()
 
     num_args = 0;
     XtSetArg(args[num_args], XtNallowShellResize, True);	num_args++;
-    form = XtCreateManagedWidget("nethack",
+    form = XtCreateManagedWidget(DEF_GAME_NAME,
 				panedWidgetClass,
 				toplevel, args, num_args);
 

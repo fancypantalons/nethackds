@@ -110,13 +110,22 @@ dosit()
 	    You("sit in the water.");
 	    if (!rn2(10) && uarm)
 		(void) rust_dmg(uarm, "armor", 1, TRUE, &youmonst);
-	    if (!rn2(10) && uarmf && uarmf->otyp != WATER_WALKING_BOOTS)
+	    else if (!rn2(10) && uarmf && uarmf->otyp != WATER_WALKING_BOOTS)
 		(void) rust_dmg(uarm, "armor", 1, TRUE, &youmonst);
 #ifdef SINKS
 	} else if(IS_SINK(typ)) {
 
 	    You(sit_message, defsyms[S_sink].explanation);
 	    Your("%s gets wet.", humanoid(youmonst.data) ? "rump" : "underside");
+	} else if(IS_TOILET(typ)) {
+	    You(sit_message, defsyms[S_toilet].explanation);
+	    if ((!Sick) && (u.uhs > 0)) You("don't have to go...");
+	    else {
+			if (Role_if(PM_BARBARIAN) || Role_if(PM_CAVEMAN)) You("miss...");
+			else You("grunt.");
+			if (Sick) make_sick(0L, (char *)0, TRUE, SICK_ALL);
+			if (u.uhs == 0) morehungry(rn2(400)+200);
+	    }
 #endif
 	} else if(IS_ALTAR(typ)) {
 
@@ -145,6 +154,10 @@ dosit()
 		return 1;
 	    }
 	    pline_The("lava burns you!");
+	    if (Slimed) {
+	       pline("The slime is burned away!");
+	       Slimed = 0;
+	    }
 	    losehp(d((Fire_resistance ? 2 : 10), 10),
 		   "sitting on lava", KILLED_BY);
 
@@ -193,9 +206,10 @@ dosit()
 			take_gold();
 			break;
 		    case 6:
-			if(u.uluck + rn2(5) < 0) {
+/* ------------===========STEPHEN WHITE'S NEW CODE============------------ */                                                
+			if(u.uluck < 7) {
 			    You_feel("your luck is changing.");
-			    change_luck(1);
+			    change_luck(5);
 			} else	    makewish();
 			break;
 		    case 7:

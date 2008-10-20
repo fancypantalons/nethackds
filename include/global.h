@@ -7,25 +7,46 @@
 
 #include <stdio.h>
 
-
-/* #define BETA	*/	/* if a beta-test copy	[MRS] */
+/* #define ALPHA */	/* if an alpha-test copy */
+/* #define BETA */	/* if an alpha- or beta-test copy */
+/* #define OBJ_SANITY *//* Object sanity checks for all players */
 
 /*
- * Files expected to exist in the playground directory.
+ * Files expected to exist in the playground directory if file areas are not
+ * enabled and in the named areas otherwise.
+ * [WAC] - put a NH_ prefix on all the names to prevent conflicts
  */
 
-#define RECORD	      "record"	/* file containing list of topscorers */
-#define HELP	      "help"	/* file containing command descriptions */
-#define SHELP	      "hh"	/* abbreviated form of the same */
-#define DEBUGHELP     "wizhelp" /* file containing debug mode cmds */
-#define RUMORFILE     "rumors"	/* file with fortune cookies */
-#define ORACLEFILE    "oracles" /* file with oracular information */
-#define DATAFILE      "data"	/* file giving the meaning of symbols used */
-#define CMDHELPFILE   "cmdhelp" /* file telling what commands do */
-#define HISTORY       "history" /* file giving nethack's history */
-#define LICENSE       "license" /* file with license information */
-#define OPTIONFILE    "opthelp" /* file explaining runtime options */
-#define OPTIONS_USED  "options" /* compile-time options, for #version */
+#define NH_RECORD		"record"  /* a file containing list of topscorers */
+#define NH_RECORD_AREA	FILE_AREA_VAR
+#define NH_HELP		"help"	  /* a file containing command descriptions */
+#define NH_HELP_AREA	FILE_AREA_SHARE
+#define NH_SHELP		"hh"		/* abbreviated form of the same */
+#define NH_SHELP_AREA	FILE_AREA_SHARE
+#define NH_DEBUGHELP	"wizhelp"	/* a file containing debug mode cmds */
+#define NH_DEBUGHELP_AREA	FILE_AREA_SHARE
+#define NH_RUMORFILE	"rumors"	/* a file with fortune cookies */
+#define NH_RUMORAREA	FILE_AREA_SHARE
+#define NH_ORACLEFILE	"oracles"	/* a file with oracular information */
+#define NH_ORACLEAREA	FILE_AREA_SHARE
+#define NH_DATAFILE	"data"	/* a file giving the meaning of symbols used */
+#define NH_DATAAREA	FILE_AREA_SHARE
+#define NH_CMDHELPFILE	"cmdhelp"	/* file telling what commands do */
+#define NH_CMDHELPAREA	FILE_AREA_SHARE
+#define NH_HISTORY		"history"	/* a file giving nethack's history */
+#define NH_HISTORY_AREA	FILE_AREA_SHARE
+#define NH_LICENSE		"license"	/* file with license information */
+#define NH_LICENSE_AREA	FILE_AREA_DOC
+#define NH_OPTIONFILE	"opthelp"	/* a file explaining runtime options */
+#define NH_OPTIONAREA	FILE_AREA_SHARE
+#define NH_OPTIONS_USED	"options"	/* compile-time options, for #version */
+#define NH_OPTIONS_USED_AREA FILE_AREA_SHARE
+#ifdef SHORT_FILENAMES
+# define NH_GUIDEBOOK       "guideboo.txt"        /* Nethack Guidebook*/
+#else
+#define NH_GUIDEBOOK       "Guidebook.txt"       /* Nethack Guidebook*/
+#endif
+#define NH_GUIDEBOOK_AREA	FILE_AREA_DOC
 
 #define LEV_EXT ".lev"		/* extension for special level files */
 
@@ -62,7 +83,7 @@ typedef xchar	boolean;		/* 0 or 1 */
 #endif
 
 #ifndef STRNCMPI
-# ifndef __SASC_60		/* SAS/C already shifts to stricmp */
+# if !defined(__SASC_60) && !defined(__MINGW32__) /* SAS/C already shifts to stricmp */
 #  define strcmpi(a,b) strncmpi((a),(b),-1)
 # endif
 #endif
@@ -186,6 +207,33 @@ typedef xchar	boolean;		/* 0 or 1 */
 #include "ndsconf.h"
 #endif
 
+#ifndef FILE_AREAS
+
+#define fopen_datafile_area(area, filename, mode, use_spfx) \
+ 		fopen_datafile(filename, mode, use_spfx)
+#define lock_file_area(area, filename, prefix, retryct) \
+ 		lock_file(filename, prefix, retryct)
+#define unlock_file_area(area, filename) unlock_file(filename)
+#define dlb_fopen_area(area, name, mode) dlb_fopen(name, mode)
+
+/*
+ * ALI
+ *
+ * By defining these, functions can pass them around even though they're
+ * not actually used. This can make the code easier to read at the cost
+ * of some efficiency. Given the high overhead of dealing with files anyway,
+ * this is often a good trade-off.
+ */
+
+#define FILE_AREA_VAR		NULL
+#define FILE_AREA_SAVE		NULL
+#define FILE_AREA_LEVL		NULL
+#define FILE_AREA_BONES		NULL
+#define FILE_AREA_SHARE		NULL
+#define FILE_AREA_UNSHARE	NULL
+
+#endif
+
 /* Displayable name of this port; don't redefine if defined in *conf.h */
 #ifndef PORT_ID
 # ifdef AMIGA
@@ -193,6 +241,15 @@ typedef xchar	boolean;		/* 0 or 1 */
 # endif
 # ifdef MAC
 #  define PORT_ID	"Mac"
+#  if 0
+#  ifdef MAC_MPW_PPC
+#   define PORT_SUB_ID "PPC"
+#  else
+#   ifdef MAC_MPW_68K
+#    define PORT_SUB_ID "68K"
+#   endif
+#  endif
+#  endif
 # endif
 # ifdef MSDOS
 #  ifdef PC9800
@@ -225,7 +282,7 @@ typedef xchar	boolean;		/* 0 or 1 */
 # ifdef WIN32
 #  define PORT_ID	"Windows"
 #  ifndef PORT_SUB_ID
-#   ifdef MSWIN_GRAPHICS
+#   if defined(MSWIN_GRAPHICS) || defined(GTK_GRAPHICS)
 #    define PORT_SUB_ID	"graphical"
 #   else
 #    define PORT_SUB_ID	"tty"
@@ -266,7 +323,12 @@ typedef xchar	boolean;		/* 0 or 1 */
 #  define USE_TILES		/* glyph2tile[] will be available */
 # endif
 #endif
-#if defined(AMII_GRAPHICS) || defined(GEM_GRAPHICS) || defined(NDS_GRAPHICS)
+#if defined(AMII_GRAPHICS) || defined(GEM_GRAPHICS) || defined(GTK_GRAPHICS) || defined(NDS_GRAPHICS)
+# ifndef USE_TILES
+#  define USE_TILES
+# endif
+#endif
+#if defined(GL_GRAPHICS) || defined(SDL_GRAPHICS)
 # ifndef USE_TILES
 #  define USE_TILES
 # endif
@@ -287,6 +349,14 @@ typedef xchar	boolean;		/* 0 or 1 */
 #ifdef MONITOR_HEAP
 extern long *FDECL(nhalloc, (unsigned int,const char *,int));
 extern void FDECL(nhfree, (genericptr_t,const char *,int));
+#ifdef INTERNAL_MALLOC
+extern void FDECL(monitor_heap_push, (const char *, int));
+extern unsigned long FDECL(monitor_heap_pop, (const char *, int, unsigned long));
+extern void FDECL(monitor_heap_set_subid, (const char *, int ));
+extern size_t NDECL(monitor_heap_getmem);
+extern boolean FDECL(monitor_heap_trace, (boolean flag));
+extern void NDECL(monitor_heap_mark);
+#endif
 # ifndef __FILE__
 #  define __FILE__ ""
 # endif
@@ -307,7 +377,6 @@ struct version_info {
 	unsigned long	entity_count;	/* # of monsters and objects */
 	unsigned long	struct_sizes;	/* size of key structs */
 };
-
 
 /*
  * Configurable internal parameters.
@@ -336,10 +405,10 @@ struct version_info {
 #define PL_PSIZ		63	/* player-given names for pets, other
 				 * monsters, objects */
 
-#define MAXDUNGEON	16	/* current maximum number of dungeons */
-#define MAXLEVEL	32	/* max number of levels in one dungeon */
+#define MAXDUNGEON	32	/* current maximum number of dungeons */
+#define MAXLEVEL	50	/* max number of levels in one dungeon */
 #define MAXSTAIRS	1	/* max # of special stairways in a dungeon */
-#define ALIGNWEIGHT	4	/* generation weight of alignment */
+#define ALIGNWEIGHT	10	/* generation weight of alignment */
 
 #define MAXULEV		30	/* max character experience level */
 

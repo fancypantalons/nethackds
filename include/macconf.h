@@ -25,16 +25,18 @@
 #ifndef __powerc
 # define MAC68K		/* 68K mac (non-powerpc) */
 #endif
-#ifndef TARGET_API_MAC_CARBON
-# define TARGET_API_MAC_CARBON 0
-#endif
 
+#ifndef MAC_MPW
+# ifndef TARGET_API_MAC_CARBON
+# define TARGET_API_MAC_CARBON 0
+# endif
+#endif
 
 #ifndef __MACH__
 #define RANDOM
 #endif
 #define NO_SIGNAL		/* You wouldn't believe our signals ... */
-#define FILENAME 256
+#define FILENAMELEN 256
 #define NO_TERMS		/* For tty port (see wintty.h) */
 
 #define TEXTCOLOR		/* For Mac TTY interface */
@@ -64,8 +66,11 @@
  * We could use the PSN under sys 7 here ...
  * ...but it wouldn't matter...
  */
-#define getpid() 1
-#define getuid() 1
+#ifndef __MWERKS__
+# define getpid() 1
+# define getuid() 1
+#endif
+
 #define index strchr
 #define rindex strrchr
 
@@ -91,9 +96,6 @@ extern void error(const char *,...);
 # define read macread
 # define write macwrite
 # define lseek macseek
-#ifdef __MWERKS__
-# define unlink _unlink
-#endif
 #endif
 
 #define YY_NEVER_INTERACTIVE 1
@@ -104,7 +106,8 @@ extern void error(const char *,...);
 # define SAVE_TYPE 'SAVE'
 # define PREF_TYPE 'PREF'
 # define DATA_TYPE 'DATA'
-# define MAC_CREATOR 'nh31' /* Registered with DTS ! */
+# define LOGF_TYPE 'ttro' /* read-only text */
+# define MAC_CREATOR 'slEm' /* Registered with DTS */
 # define TEXT_CREATOR 'ttxt' /* Something the user can actually edit */
 
 /*

@@ -4,9 +4,11 @@
 
 #include "hack.h"
 
+
 /* KMH -- Copied from pray.c; this really belongs in a header file */
 #define DEVOUT 14
 #define STRIDENT 4
+
 
 #define Your_Own_Role(mndx) \
 	((mndx) == urole.malenum || \
@@ -19,18 +21,26 @@
 
 boolean	known;
 
-static NEARDATA const char readable[] =
-		   { ALL_CLASSES, SCROLL_CLASS, SPBOOK_CLASS, 0 };
+static NEARDATA const char readable[] = {
+		   SCROLL_CLASS, SPBOOK_CLASS, RING_CLASS, 0 };
 static const char all_count[] = { ALLOW_COUNT, ALL_CLASSES, 0 };
 
+
+#if 0
+static const char *warnings[] = {
+	"white", "pink", "red", "ruby", "purple", "black"
+};
+#endif
+
+#if 0
 static void FDECL(wand_explode, (struct obj *));
+#endif
 static void NDECL(do_class_genocide);
 static void FDECL(stripspe,(struct obj *));
 static void FDECL(p_glow1,(struct obj *));
 static void FDECL(p_glow2,(struct obj *,const char *));
 static void FDECL(randomize,(int *, int));
 static void FDECL(forget_single_object, (int));
-static void FDECL(forget, (int));
 static void FDECL(maybe_tame, (struct monst *,struct obj *));
 
 STATIC_PTR void FDECL(set_lit, (int,int,genericptr_t));
@@ -40,19 +50,90 @@ doread()
 {
 	register struct obj *scroll;
 	register boolean confused;
+	char class_list[SIZE(readable) + 3];
+	char *cp = class_list;
+	struct engr *ep = engr_at(u.ux, u.uy);
+	boolean cant_see = Blind;
+	struct obj otemp;
+
+	*cp++ = ALL_CLASSES;
+	*cp++ = ALLOW_FLOOROBJ;
+	if (!u.uswallow && ep && ep->engr_txt[0])
+	    *cp++ = ALLOW_THISPLACE;
+	Strcpy(cp, readable);
 
 	known = FALSE;
 	if(check_capacity((char *)0)) return (0);
-	scroll = getobj(readable, "read");
+	scroll = getobj(class_list, "read");
 	if(!scroll) return(0);
+
+	if (scroll == &thisplace) {
+	    (void) sense_engr_at(u.ux, u.uy, TRUE);
+	    return 0;
+	}
+
+#ifdef INVISIBLE_OBJECTS
+	if (scroll->oinvis && !See_invisible)
+	    cant_see = TRUE;
+#endif
+
+	/* KMH -- some rings can be read, even while illiterate */
+	if (scroll->oclass == RING_CLASS) {
+	    const char *clr = (char *)0;
+
+	    if (cant_see) {
+		You("cannot see it!");
+		return 0;
+	    }
+	    if (scroll->where != OBJ_INVENT || !(scroll->owornmask & W_RING)) {
+		pline("Perhaps you should put it on first.");
+		return 0;
+	    }
+	    if (scroll->dknown && objects[scroll->otyp].oc_name_known)
+		switch (scroll->otyp) {
+#if 0	/* Not yet supported under 3.3.1 style warning system */
+		    case RIN_WARNING:
+			if (warnlevel >= 100)
+			    clr = "light blue";
+			else if (warnlevel >= SIZE(warnings))
+			    clr = warnings[SIZE(warnings)-1];
+			else
+			    clr = warnings[warnlevel];
+			break;
+#endif
+		    case RIN_MOOD:
+			if (u.ualign.record >= DEVOUT)
+			    clr = "green";	/* well-pleased */
+			else if (u.ualign.record >= STRIDENT)
+			    clr = "yellow";	/* pleased */
+			else if (u.ualign.record > 0)
+			    clr = "orange";	/* satisfied */
+			else
+			    clr = "red";	/* you've been naughty */
+			break;
+		    default:
+			break;
+		}
+	    if (!clr)
+		pline("There seems to be nothing special about this ring.");
+	    else if (scroll->cursed)
+		pline("It appears dark.");
+	    else
+		pline("It glows %s!", hcolor(clr));
+	    return 1;
+	}
 
 	/* outrumor has its own blindness check */
 	if(scroll->otyp == FORTUNE_COOKIE) {
+	    long save_Blinded = Blinded;
 	    if(flags.verbose)
 		You("break up the cookie and throw away the pieces.");
+	    Blinded = cant_see;	/* Treat invisible fortunes as if blind */
 	    outrumor(bcsign(scroll), BY_COOKIE);
-	    if (!Blind) u.uconduct.literate++;
-	    useup(scroll);
+	    Blinded = save_Blinded;
+	    if (!cant_see) u.uconduct.literate++;
+	    if (carried(scroll)) useup(scroll);
+	    else useupf(scroll, 1L);
 	    return(1);
 #ifdef TOURIST
 	} else if (scroll->otyp == T_SHIRT) {
@@ -77,7 +158,7 @@ doread()
 	    char buf[BUFSZ];
 	    int erosion;
 
-	    if (Blind) {
+	    if (cant_see) {
 		You_cant("feel any Braille writing.");
 		return 0;
 	    }
@@ -105,6 +186,17 @@ doread()
 		what = "formula on the scroll";
 	    if (what) {
 		pline("Being blind, you cannot read the %s.", what);
+		return(0);
+	    }
+	} else if (cant_see) {
+	    if (scroll->oclass == SPBOOK_CLASS)
+	    {
+		You_cant("read the mystic runes in the invisible spellbook.");
+		return(0);
+	    }
+	    else if (!scroll->dknown)
+	    {
+		You_cant("read the formula on the invisible scroll.");
 		return(0);
 	    }
 	}
@@ -137,6 +229,20 @@ doread()
 			is_silent(youmonst.data) ? "understand" : "pronounce");
 	  }
 	}
+	/*
+	 * When reading scrolls of teleportation off the floor special
+	 * care needs to be taken so that the scroll is used up before
+	 * a potential level teleport occurs.
+	 */
+	if (scroll->otyp == SCR_TELEPORTATION) {
+	    otemp = *scroll;
+	    otemp.where = OBJ_FREE;
+	    otemp.nobj = (struct obj *)0;
+	    if (carried(scroll)) useup(scroll);
+	    else if (mcarried(scroll)) m_useup(scroll->ocarry, scroll);
+	    else useupf(scroll, 1L);
+	    scroll = &otemp;
+	}
 	if(!seffects(scroll))  {
 		if(!objects[scroll->otyp].oc_name_known) {
 		    if(known) {
@@ -145,8 +251,16 @@ doread()
 		    } else if(!objects[scroll->otyp].oc_uname)
 			docall(scroll);
 		}
-		if(scroll->otyp != SCR_BLANK_PAPER)
-			useup(scroll);
+		if (spell_skilltype(scroll->otyp) != P_NONE) {
+			use_skill(spell_skilltype(scroll->otyp), 
+				(scroll->blessed ? 2 : 1));
+		}
+		if(scroll->otyp != SCR_BLANK_PAPER &&
+		  scroll->otyp != SCR_TELEPORTATION) {
+		    if (carried(scroll)) useup(scroll);
+		    else if (mcarried(scroll)) m_useup(scroll->ocarry, scroll);
+		    else useupf(scroll, 1L);
+		}
 		else scroll->in_use = FALSE;
 	}
 	return(1);
@@ -193,11 +307,15 @@ boolean
 is_chargeable(obj)
 struct obj *obj;
 {
-	if (obj->oclass == WAND_CLASS) return TRUE;
+	if (obj->oclass == WAND_CLASS || obj->oclass == SPBOOK_CLASS) return TRUE;
 	/* known && !uname is possible after amnesia/mind flayer */
 	if (obj->oclass == RING_CLASS)
 	    return (boolean)(objects[obj->otyp].oc_charged &&
 			(obj->known || objects[obj->otyp].oc_uname));
+#ifdef LIGHTSABERS
+	if (is_lightsaber(obj))
+	    return TRUE;
+#endif
 	if (is_weptool(obj))	/* specific check before general tools */
 	    return FALSE;
 	if (obj->oclass == TOOL_CLASS)
@@ -221,6 +339,7 @@ int curse_bless;
 	is_blessed = curse_bless > 0;
 
 	if (obj->oclass == WAND_CLASS) {
+
 	    /* undo any prior cancellation, even when is_cursed */
 	    if (obj->spe == -1) obj->spe = 0;
 
@@ -241,7 +360,8 @@ int curse_bless;
 	    n = (int)obj->recharged;
 	    if (n > 0 && (obj->otyp == WAN_WISHING ||
 		    (n * n * n > rn2(7*7*7)))) {	/* recharge_limit */
-		wand_explode(obj);
+		Your("%s vibrates violently, and explodes!",xname(obj));
+		wand_explode(obj, FALSE);
 		return;
 	    }
 	    /* didn't explode, so increment the recharge count */
@@ -260,9 +380,62 @@ int curse_bless;
 		if (obj->spe < n) obj->spe = n;
 		else obj->spe++;
 		if (obj->otyp == WAN_WISHING && obj->spe > 3) {
-		    wand_explode(obj);
+		    Your("%s vibrates violently, and explodes!",xname(obj));
+		    wand_explode(obj, FALSE);
 		    return;
 		}
+		if (obj->spe >= lim) p_glow2(obj, NH_BLUE);
+		else p_glow1(obj);
+	    }
+
+	} else if (obj->oclass == SPBOOK_CLASS) {
+
+	    if (obj->otyp == SPE_BOOK_OF_THE_DEAD) {
+	    	pline(nothing_happens);
+		return;
+	    }
+   
+	    /*
+	     * Recharging might cause spellbooks to crumble.
+	     *	 v = number of previous recharges
+	     *	       v = percentage chance to crumble on this attempt
+	     *	               v = cumulative odds for crumbling
+	     *	 0 :   0       0
+	     *	 1 :   0.15    0.15
+	     *	 2 :   0.73    0.87
+	     *	 3 :   1.97    2.82
+	     *	 4 :   4.08    6.79
+	     *	 5 :   7.29   13.58
+	     *	 6 :  11.81   23.79
+	     *	 7 :  17.86   37.40
+	     *	 8 :  25.17   53.16
+	     *	 9 :  33.03   68.63
+	     *	10 :  40.68   81.39
+	     *	11 :  47.64   90.26
+	     *	12 :  53.72   95.49
+	     *	13 :  58.90   98.15
+	     *	14 :  63.29   99.32
+	     */
+	    n = (int)obj->recharged;
+	    if (n > 0 && (n * n * n > rn2(7*7*7))) {	/* recharge_limit */
+		Your("%s crumbles to dust!", xname(obj));
+		useup(obj);
+		    return;
+		}
+	    /* didn't crumble, so possibly increment the recharge count */
+	    if (!rn2(2)) obj->recharged = (unsigned)(n + 1);
+
+	    /* now handle the actual recharging */
+	    if (is_cursed) {
+		stripspe(obj);
+  	    } else {
+		int lim = (objects[obj->otyp].oc_dir != NODIR) ? 8 : 15;
+
+		n = rn1(5, lim + 1 - 5);
+		if (!is_blessed) n = rnd(n);
+
+		if (obj->spe < n) obj->spe = n;
+		else obj->spe++;
 		if (obj->spe >= lim) p_glow2(obj, NH_BLUE);
 		else p_glow1(obj);
 	    }
@@ -369,6 +542,31 @@ int curse_bless;
 		    p_glow1(obj);
 		}
 		break;
+#ifdef LIGHTSABERS
+	    case GREEN_LIGHTSABER:
+#ifdef D_SABER
+	    case BLUE_LIGHTSABER:
+#endif
+	    case RED_LIGHTSABER:
+	    case RED_DOUBLE_LIGHTSABER:
+		if (is_cursed) {
+		    if (obj->lamplit) {
+			end_burn(obj, TRUE);
+			obj->age = 0;
+			if (!Blind)
+			    pline("%s deactivates!", The(xname(obj)));
+		    } else
+			obj->age = 0;
+		} else if (is_blessed) {
+		    obj->age = 1500;
+		    p_glow2(obj, NH_BLUE);
+		} else {
+		    obj->age += 750;
+		    if (obj->age > 1500) obj->age = 1500;
+		    p_glow1(obj);
+		}
+		break;
+#endif
 	    case CRYSTAL_BALL:
 		if (is_cursed) stripspe(obj);
 		else if (is_blessed) {
@@ -520,7 +718,7 @@ forget_map(howmuch)
 		/* Zonk all memory of this location. */
 		levl[zx][zy].seenv = 0;
 		levl[zx][zy].waslit = 0;
-		levl[zx][zy].glyph = cmap_to_glyph(S_stone);
+		clear_memory_glyph(zx, zy, S_stone);
 	    }
 }
 
@@ -597,7 +795,7 @@ forget_levels(percent)
  *	howmuch & ALL_MAP	= forget whole map
  *	howmuch & ALL_SPELLS	= forget all spells
  */
-static void
+void
 forget(howmuch)
 int howmuch;
 {
@@ -633,7 +831,11 @@ maybe_tame(mtmp, sobj)
 struct monst *mtmp;
 struct obj *sobj;
 {
+#ifdef BLACKMARKET                            
+	if (sobj->cursed || Is_blackmarket(&u.uz)) {
+#else
 	if (sobj->cursed) {
+#endif
 	    setmangry(mtmp);
 	} else {
 	    if (mtmp->isshk)
@@ -665,6 +867,7 @@ register struct obj	*sobj;
 		else readmail(sobj);
 		break;
 #endif
+	case SPE_ENCHANT_ARMOR:
 	case SCR_ENCHANT_ARMOR:
 	    {
 		register schar s;
@@ -706,7 +909,9 @@ register struct obj	*sobj;
 		}
 		/* elven armor vibrates warningly when enchanted beyond a limit */
 		special_armor = is_elven_armor(otmp) ||
-			(Role_if(PM_WIZARD) && otmp->otyp == CORNUTHAUM);
+		  (Role_if(PM_WIZARD) && otmp->otyp == CORNUTHAUM) ||
+		  (Role_if(PM_VALKYRIE) && otmp->otyp == GAUNTLETS_OF_POWER);
+
 		if (sobj->cursed)
 		    same_color =
 			(otmp->otyp == BLACK_DRAGON_SCALE_MAIL ||
@@ -720,6 +925,7 @@ register struct obj	*sobj;
 
 		/* KMH -- catch underflow */
 		s = sobj->cursed ? -otmp->spe : otmp->spe;
+		
 		if (s > (special_armor ? 5 : 3) && rn2(s)) {
 		Your("%s violently %s%s%s for a while, then %s.",
 		     xname(otmp),
@@ -737,9 +943,15 @@ register struct obj	*sobj;
 			useup(otmp);
 			break;
 		}
+
+		/* KMH, balance patch -- Restore the NetHack success rate */
+		/* We'll introduce a disenchantment attack later */
 		s = sobj->cursed ? -1 :
 		    otmp->spe >= 9 ? (rn2(otmp->spe) == 0) :
 		    sobj->blessed ? rnd(3-otmp->spe/3) : 1;
+/*		s = sobj->cursed ? -rnd(2) :
+		    otmp->spe >= 3 ? (rn2(otmp->spe) == 0) :
+		    sobj->blessed ? rnd(2) : 1;*/
 		if (s >= 0 && otmp->otyp >= GRAY_DRAGON_SCALES &&
 					otmp->otyp <= YELLOW_DRAGON_SCALES) {
 			/* dragon scales get turned into dragon scale mail */
@@ -888,15 +1100,19 @@ register struct obj	*sobj;
 		pline("This scroll seems to be blank.");
 	    known = TRUE;
 	    break;
+	/* KMH, balance patch -- removed
+	case SCR_TRAP_DETECTION:
+		if (!sobj->cursed) return(trap_detect(sobj));
+	    break;*/
 	case SCR_REMOVE_CURSE:
 	case SPE_REMOVE_CURSE:
 	    {	register struct obj *obj;
-		if(confused)
+		if(confused) {
 		    if (Hallucination)
 			You_feel("the power of the Force against you!");
 		    else
 			You_feel("like you need some help.");
-		else
+		} else
 		    if (Hallucination)
 			You_feel("in touch with the Universal Oneness.");
 		    else
@@ -937,6 +1153,7 @@ register struct obj	*sobj;
 			}
 			if (sobj->blessed || wornmask ||
 			     obj->otyp == LOADSTONE ||
+			     obj->otyp == HEALTHSTONE ||
 			     (obj->otyp == LEASH && obj->leashmon)) {
 			    if(confused) blessorcurse(obj, 2);
 			    else uncurse(obj);
@@ -957,6 +1174,75 @@ register struct obj	*sobj;
 	     * monsters are not visible
 	     */
 	    break;
+	case SPE_SUMMON_UNDEAD:        
+	    {
+		int cnt = 1, oldmulti = multi;
+                struct monst *mtmp;
+		multi = 0;
+  
+		if(!rn2(73) && !sobj->blessed) cnt += rnd(4);
+		if(confused || sobj->cursed) cnt += 12;
+		while(cnt--) {
+#ifdef WIZARD
+		    if(!wizard || !(mtmp = create_particular()))
+#endif
+		    switch (rn2(10)+1) {
+		    case 1:
+			mtmp = makemon(mkclass(S_VAMPIRE,0), u.ux, u.uy, NO_MM_FLAGS);
+			break;
+		    case 2:
+		    case 3:
+		    case 4:
+		    case 5:
+			mtmp = makemon(mkclass(S_ZOMBIE,0), u.ux, u.uy, NO_MM_FLAGS);
+			break;
+		    case 6:
+		    case 7:
+		    case 8:
+			mtmp = makemon(mkclass(S_MUMMY,0), u.ux, u.uy, NO_MM_FLAGS);
+			break;
+		    case 9:
+			mtmp = makemon(mkclass(S_GHOST,0), u.ux, u.uy, NO_MM_FLAGS);
+			break;
+		    case 10:
+			mtmp = makemon(mkclass(S_WRAITH,0), u.ux, u.uy, NO_MM_FLAGS);
+			break;
+		    }
+		    /* WAC Give N a shot at controlling the beasties
+		     * (if not cursed <g>).  Check curse status in case
+		     * this ever becomes a scroll
+		     */
+		    if (mtmp)
+			if (!sobj->cursed && Role_if(PM_NECROMANCER)) {
+			    if (!resist(mtmp, sobj->oclass, 0, TELL)) {
+				mtmp = tamedog(mtmp, (struct obj *) 0);
+				if (mtmp) You("dominate %s!", mon_nam(mtmp));
+			    }
+			} else setmangry(mtmp);
+		}
+		multi = oldmulti;
+		/* WAC Give those who know command undead a shot at control.
+		 * Since spell is area affect,  do this after all undead
+		 * are summoned
+		 */
+		if (!Role_if(PM_NECROMANCER) && !(sobj->cursed)) {
+		    if (objects[SPE_COMMAND_UNDEAD].oc_name_known) {
+			int sp_no;
+			for (sp_no = 0; sp_no < MAXSPELL; sp_no++)
+			    if (spl_book[sp_no].sp_id == SPE_COMMAND_UNDEAD) {
+				You("try to command %s", mon_nam(mtmp));
+				spelleffects(sp_no, TRUE);
+				break;
+			    }
+			if (sp_no == MAXSPELL)
+			    You("don't seem to have the spell command undead memorized!");
+		    } else You("don't know how to command undead...");
+		}
+		/* flush monsters before asking for identification */
+		flush_screen(0);
+		break;
+	    }
+	case SPE_ENCHANT_WEAPON:
 	case SCR_ENCHANT_WEAPON:
 		if(uwep && (uwep->oclass == WEAPON_CLASS || is_weptool(uwep))
 			&& confused) {
@@ -978,11 +1264,17 @@ register struct obj	*sobj;
 			    Your("%s as good as new!",
 				 aobjnam(uwep, Blind ? "feel" : "look"));
 			}
+		/* KMH, balance patch -- Restore the NetHack success rate */
 		} else return !chwepon(sobj,
 				       sobj->cursed ? -1 :
 				       !uwep ? 1 :
 				       uwep->spe >= 9 ? (rn2(uwep->spe) == 0) :
 				       sobj->blessed ? rnd(3-uwep->spe/3) : 1);
+/*		else return !chwepon(sobj,
+				       sobj->cursed ? -rnd(2) :
+				       !uwep ? 1 :
+				       uwep->spe >= 3 ? (rn2(uwep->spe) == 0) :
+				       sobj->blessed ? rnd(2) : 1);*/
 		break;
 	case SCR_TAMING:
 	case SPE_CHARM_MONSTER:
@@ -995,6 +1287,21 @@ register struct obj	*sobj;
 		    for (i = -bd; i <= bd; i++) for(j = -bd; j <= bd; j++) {
 			if (!isok(u.ux + i, u.uy + j)) continue;
 			if ((mtmp = m_at(u.ux + i, u.uy + j)) != 0)
+			    maybe_tame(mtmp, sobj);
+		    }
+		}
+		break;
+	case SPE_COMMAND_UNDEAD:
+		if (u.uswallow) {
+		    if (is_undead(u.ustuck->data)) maybe_tame(u.ustuck, sobj);
+		} else {
+		    int i, j, bd = confused ? 5 : 1;
+		    struct monst *mtmp;
+
+		    for(i = -bd; i <= bd; i++) for(j = -bd; j <= bd; j++) {
+			if (!isok(u.ux + i, u.uy + j)) continue;
+			if ((mtmp = m_at(u.ux + i, u.uy + j)) != 0 &&
+				is_undead(mtmp->data))
 			    maybe_tame(mtmp, sobj);
 		    }
 		}
@@ -1014,8 +1321,10 @@ register struct obj	*sobj;
 		else {
 			if (sobj->blessed && !Teleport_control) {
 				known = TRUE;
-				if (yn("Do you wish to teleport?")=='n')
-					break;
+				HTeleport_control = 2;
+				/* if (yn("Do you wish to teleport?")=='n')
+				 *         break;
+				 */
 			}
 			tele();
 			if(Teleport_control || !couldsee(u.ux0, u.uy0) ||
@@ -1046,7 +1355,8 @@ register struct obj	*sobj;
 			if (cval == 1 && sobj->blessed && Luck > 0) ++cval;
 		} else	cval = 1;
 		if(!objects[sobj->otyp].oc_name_known) more_experienced(0,10);
-		useup(sobj);
+		if (carried(sobj)) useup(sobj);
+		else useupf(sobj, 1L);
 		makeknown(SCR_IDENTIFY);
 	id:
 		if(invent && !confused) {
@@ -1099,6 +1409,8 @@ register struct obj	*sobj;
 		cval = (sobj->cursed && !confused);
 		if(cval) HConfusion = 1;	/* to screw up map */
 		do_mapping();
+		if (sobj->blessed && !cval) /* objects, too, pal! */
+		  object_detect(sobj,0);
 		if(cval) {
 		    HConfusion = 0;		/* restore */
 		    pline("Unfortunately, you can't grasp the details.");
@@ -1125,7 +1437,8 @@ register struct obj	*sobj;
 		 */
 		cval = bcsign(sobj);
 		if(!objects[sobj->otyp].oc_name_known) more_experienced(0,10);
-		useup(sobj);
+		if (carried(sobj)) useup(sobj);
+		else useupf(sobj, 1L);
 		makeknown(SCR_FIRE);
 		if(confused) {
 		    if(Fire_resistance) {
@@ -1148,7 +1461,7 @@ register struct obj	*sobj;
 		    pline_The("scroll erupts in a tower of flame!");
 		    burn_away_slime();
 		}
-		explode(u.ux, u.uy, 11, (2*(rn1(3, 3) + 2 * cval) + 1)/3,
+		explode(u.ux, u.uy, ZT_SPELL(ZT_FIRE), (2*(rn1(3, 3) + 2 * cval) + 1)/3,
 							SCROLL_CLASS, EXPL_FIERY);
 		return(1);
 	case SCR_EARTH:
@@ -1301,6 +1614,7 @@ register struct obj	*sobj;
 	return(0);
 }
 
+#if 0
 static void
 wand_explode(obj)
 register struct obj *obj;
@@ -1312,6 +1626,7 @@ register struct obj *obj;
     useup(obj);
     exercise(A_STR, FALSE);
 }
+#endif
 
 /*
  * Low-level lit-field update routine.
@@ -1404,6 +1719,7 @@ do_it:
 	} else
 #endif
 	    do_clear_area(u.ux,u.uy,
+		obj->oartifact ? 12 :
 		(obj && obj->oclass==SCROLL_CLASS && obj->blessed) ? 9 : 5,
 		set_lit, (genericptr_t)(on ? &is_lit : (char *)0));
 
@@ -1427,6 +1743,12 @@ do_it:
 static void
 do_class_genocide()
 {
+/*WAC adding windowstuff*/
+        winid tmpwin;
+	anything any;
+        int n;
+	menu_item *selected;
+
 	int i, j, immunecnt, gonecnt, goodcnt, class, feel_dead = 0;
 	char buf[BUFSZ];
 	boolean gameover = FALSE;	/* true iff killed self */
@@ -1437,7 +1759,7 @@ do_class_genocide()
 			return;
 		}
 		do {
-		    getlin("What class of monsters do you wish to genocide?",
+                    getlin("What class of monsters do you wish to genocide? [? for help]",
 			buf);
 		    (void)mungspaces(buf);
 		} while (buf[0]=='\033' || !buf[0]);
@@ -1446,9 +1768,30 @@ do_class_genocide()
 		    !strcmpi(buf, "nothing")) return;
 
 		if (strlen(buf) == 1) {
+		    /*WAC adding "help" for those who use graphical displays*/
+                    if (buf[0]=='?'){
+                        tmpwin = create_nhwindow(NHW_MENU);
+                        start_menu(tmpwin);           
+                        any.a_void = 0;         /* zero out all bits */
+                        for (i = 1; i < (MAXMCLASSES - MISCMCLASSES); i++) {
+                           any.a_int = i;        /* must be non-zero */
+			   if (monexplain[i])
+			       add_menu(tmpwin, NO_GLYPH, &any,
+				   def_monsyms[i], 0, ATR_NONE,
+				   an(monexplain[i]), MENU_UNSELECTED);
+                        }
+                        end_menu(tmpwin, "Monster Types");
+                        n = 0;
+                        while (n == 0) n = select_menu(tmpwin, PICK_ONE,
+                                &selected);
+                        destroy_nhwindow(tmpwin);
+                        if (n== -1) continue;  /*user hit escape*/
+                        class = selected[0].item.a_int;
+                    } else {
 		    if (buf[0] == ILLOBJ_SYM)
 			buf[0] = def_monsyms[S_MIMIC];
 		    class = def_char_to_monclass(buf[0]);
+                    }
 		} else {
 		    char buf2[BUFSZ];
 
@@ -1734,6 +2077,7 @@ punish(sobj)
 register struct obj	*sobj;
 {
 	/* KMH -- Punishment is still okay when you are riding */
+	/* KMH -- Punishment is still okay when you are riding */
 	You("are being punished for your misbehavior!");
 	if(Punished){
 		Your("iron ball gets heavier.");
@@ -1803,14 +2147,13 @@ boolean revival;
  * "strange object" (']') symbol produces a random monster rather
  * than a mimic; this behavior quirk is useful so don't "fix" it...
  */
-boolean
+struct monst *
 create_particular()
 {
 	char buf[BUFSZ], *bufp, monclass = MAXMCLASSES;
 	int which, tries, i;
 	struct permonst *whichpm;
-	struct monst *mtmp;
-	boolean madeany = FALSE;
+	struct monst *mtmp = (struct monst *)0;
 	boolean maketame, makepeaceful, makehostile;
 
 	tries = 0;
@@ -1820,7 +2163,7 @@ create_particular()
 	    getlin("Create what kind of monster? [type the name or symbol]",
 		   buf);
 	    bufp = mungspaces(buf);
-	    if (*bufp == '\033') return FALSE;
+	    if (*bufp == '\033') return (struct monst *)0;
 	    /* allow the initial disposition to be specified */
 	    if (!strncmpi(bufp, "tame ", 5)) {
 		bufp += 5;
@@ -1866,10 +2209,9 @@ create_particular()
 			set_malign(mtmp);
 		    }
 		}
-		if (mtmp) madeany = TRUE;
 	    }
 	}
-	return madeany;
+	return mtmp;
 }
 #endif /* WIZARD */
 

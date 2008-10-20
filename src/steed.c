@@ -359,54 +359,6 @@ exercise_steed()
 	return;
 }
 
-
-/* The player kicks or whips the steed */
-void
-kick_steed()
-{
-	char He[4];
-	if (!u.usteed)
-	    return;
-
-	/* [ALI] Various effects of kicking sleeping/paralyzed steeds */
-	if (u.usteed->msleeping || !u.usteed->mcanmove) {
-	    /* We assume a message has just been output of the form
-	     * "You kick <steed>."
-	     */
-	    Strcpy(He, mhe(u.usteed));
-	    *He = highc(*He);
-	    if ((u.usteed->mcanmove || u.usteed->mfrozen) && !rn2(2)) {
-		if (u.usteed->mcanmove)
-		    u.usteed->msleeping = 0;
-		else if (u.usteed->mfrozen > 2)
-		    u.usteed->mfrozen -= 2;
-		else {
-		    u.usteed->mfrozen = 0;
-		    u.usteed->mcanmove = 1;
-		}
-		if (u.usteed->msleeping || !u.usteed->mcanmove)
-		    pline("%s stirs.", He);
-		else
-		    pline("%s rouses %sself!", He, mhim(u.usteed));
-	    } else
-		pline("%s does not respond.", He);
-	    return;
-	}
-
-	/* Make the steed less tame and check if it resists */
-	if (u.usteed->mtame) u.usteed->mtame--;
-	if (!u.usteed->mtame && u.usteed->mleashed) m_unleash(u.usteed, TRUE);
-	if (!u.usteed->mtame || (u.ulevel+u.usteed->mtame < rnd(MAXULEV/2+5))) {
-	    newsym(u.usteed->mx, u.usteed->my);
-	    dismount_steed(DISMOUNT_THROWN);
-	    return;
-	}
-
-	pline("%s gallops!", Monnam(u.usteed));
-	u.ugallop += rn1(20, 30);
-	return;
-}
-
 /*
  * Try to find a dismount point adjacent to the steed's location.
  * If all else fails, try enexto().  Use enexto() as a last resort because
@@ -455,6 +407,53 @@ int forceit;
 	return FALSE;
 
     return found;
+}
+
+/* The player kicks or whips the steed */
+void
+kick_steed()
+{
+	char He[4];
+	if (!u.usteed)
+	    return;
+
+	/* [ALI] Various effects of kicking sleeping/paralyzed steeds */
+	if (u.usteed->msleeping || !u.usteed->mcanmove) {
+	    /* We assume a message has just been output of the form
+	     * "You kick <steed>."
+	     */
+	    Strcpy(He, mhe(u.usteed));
+	    *He = highc(*He);
+	    if ((u.usteed->mcanmove || u.usteed->mfrozen) && !rn2(2)) {
+		if (u.usteed->mcanmove)
+		    u.usteed->msleeping = 0;
+		else if (u.usteed->mfrozen > 2)
+		    u.usteed->mfrozen -= 2;
+		else {
+		    u.usteed->mfrozen = 0;
+		    u.usteed->mcanmove = 1;
+		}
+		if (u.usteed->msleeping || !u.usteed->mcanmove)
+		    pline("%s stirs.", He);
+		else
+		    pline("%s rouses %sself!", He, mhim(u.usteed));
+	    } else
+		pline("%s does not respond.", He);
+	    return;
+	}
+
+	/* Make the steed less tame and check if it resists */
+	if (u.usteed->mtame) u.usteed->mtame--;
+	if (!u.usteed->mtame && u.usteed->mleashed) m_unleash(u.usteed, TRUE);
+	if (!u.usteed->mtame || (u.ulevel+u.usteed->mtame < rnd(MAXULEV/2+5))) {
+	    newsym(u.usteed->mx, u.usteed->my);
+	    dismount_steed(DISMOUNT_THROWN);
+	    return;
+	}
+
+	pline("%s gallops!", Monnam(u.usteed));
+	u.ugallop += rn1(20, 30);
+	return;
 }
 
 /* Stop riding the current steed */

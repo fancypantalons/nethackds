@@ -194,7 +194,9 @@ display_text_window(wp, blocking)
 #ifdef GRAPHIC_TOMBSTONE
     if (text_info->is_rip) {
 	Widget rip = create_ripout_widget(XtParent(wp->w));
+	if (rip) {
 	XtSetArg(args[num_args], XtNfromVert, rip);	num_args++;
+    }
     }
 #endif
 
@@ -593,15 +595,27 @@ create_ripout_widget(Widget parent)
     if (!rip_image) {
 	XpmAttributes attributes;
 	int errorcode;
+	char *rip_file;
 
 	attributes.valuemask = XpmCloseness;
 	attributes.closeness = 65535; /* Try anything */
-	errorcode = XpmReadFileToImage(XtDisplay(parent), appResources.tombstone, &rip_image, 0, &attributes);
+
+#ifndef FILE_AREAS
+	rip_file = appResources.tombstone;
+#else
+	rip_file = make_file_name(FILE_AREA_SHARE, appResources.tombstone);
+#endif
+	errorcode = XpmReadFileToImage(XtDisplay(parent), rip_file,
+	  &rip_image, 0, &attributes);
+#ifdef FILE_AREAS
+	free(rip_file);
+#endif
 	if (errorcode != XpmSuccess) {
 	    char buf[BUFSZ];
 	    Sprintf(buf, "Failed to load %s: %s", appResources.tombstone,
 			XpmGetErrorString(errorcode));
 	    X11_raw_print(buf);
+	    return (Widget)0;
 	}
 	rip_width = rip_image->width;
 	rip_height = rip_image->height;

@@ -5,16 +5,16 @@
 #ifndef QTEXT_H
 #define QTEXT_H
 
-#define N_HDR	16		/* Maximum number of categories */
+#define N_HDR	32		/* Maximum number of categories */
 				/* (i.e., num roles + 1) */
 #define LEN_HDR 3		/* Maximum length of a category name */
 
 struct qtmsg {
 	int	msgnum;
 	char	delivery;
-	long	offset,
-		size;
+	long	offset, size;
 };
+
 
 #ifdef MAKEDEFS_C	/***** MAKEDEFS *****/
 
@@ -44,7 +44,8 @@ struct	qthdr {
 #else	/***** !MAKEDEFS *****/
 
 struct	qtlists {
-	struct	qtmsg	*common,
+	struct qtmsg
+		*common,
 #if 0	/* UNUSED but available */
 			*chrace,
 #endif
@@ -98,7 +99,7 @@ struct	qtlists {
 /*
  *	Message defines for common text used in maledictions.
  */
-#define COMMON_ID	"-"	/* Common message id value */
+#define COMMON_ID	"-"	/* common message id value */
 
 #define QT_ANGELIC	10
 #define QTN_ANGELIC	10
@@ -107,6 +108,9 @@ struct	qtlists {
 #define QTN_DEMONIC	20
 
 #define QT_BANISHED	60
-#endif	/***** !MAKEDEFS *****/
+
+#define QT_GYPSY	100	/* KMH -- Gypsy fortunes */
+
+#endif	/* MAKEDEFS_C */
 
 #endif /* QTEXT_H */

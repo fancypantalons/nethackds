@@ -117,10 +117,25 @@ typedef struct branch {
 #define Is_rogue_level(x)	(on_level(x, &rogue_level))
 #define Is_stronghold(x)	(on_level(x, &stronghold_level))
 #define Is_bigroom(x)		(on_level(x, &bigroom_level))
+
+#define Is_demogorgon_level(x)  (on_level(x, &demogorgon_level))
+#define Is_yeenoghu_level(x)    (on_level(x, &yeenoghu_level))
+#define Is_geryon_level(x)      (on_level(x, &geryon_level))
+#define Is_dispater_level(x)    (on_level(x, &dispater_level))
+
+#define Is_lawful_quest(x)	(on_level(x, &lawful_quest_level))
+#define Is_neutral_quest(x)	(on_level(x, &neutral_quest_level))
+#define Is_chaotic_quest(x)	(on_level(x, &chaotic_quest_level))
+#define Is_aligned_quest(x)	(Is_lawful_quest(x) || Is_neutral_quest(x) || \
+				 Is_chaotic_quest(x))
+
 #define Is_qstart(x)		(on_level(x, &qstart_level))
 #define Is_qlocate(x)		(on_level(x, &qlocate_level))
 #define Is_nemesis(x)		(on_level(x, &nemesis_level))
 #define Is_knox(x)		(on_level(x, &knox_level))
+#ifdef BLACKMARKET
+#define Is_blackmarket(x)       (on_level(x, &blackmarket_level))
+#endif /* BLACKMARKET */
 
 #define In_sokoban(x)		((x)->dnum == sokoban_dnum)
 #define Inhell			In_hell(&u.uz)	/* now gehennom */
@@ -128,6 +143,7 @@ typedef struct branch {
 
 #define within_bounded_area(X,Y,LX,LY,HX,HY) \
 		((X) >= (LX) && (X) <= (HX) && (Y) >= (LY) && (Y) <= (HY))
+
 
 /* monster and object migration codes */
 

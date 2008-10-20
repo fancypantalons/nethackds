@@ -22,8 +22,10 @@ register struct monst *mon;
 		    const char *howler;
 
 		    switch (monsndx(mon->data)) {
-		    case PM_WEREWOLF:	howler = "wolf";    break;
-		    case PM_WEREJACKAL: howler = "jackal";  break;
+		    case PM_HUMAN_WEREWOLF:	howler = "wolf";    break;
+		    case PM_HUMAN_WEREJACKAL:	howler = "jackal";  break;
+		    case PM_HUMAN_WEREPANTHER:	howler = "panther"; break;
+		    case PM_HUMAN_WERETIGER:	howler = "tiger";   break;
 		    default:		howler = (char *)0; break;
 		    }
 		    if (howler)
@@ -38,9 +40,7 @@ register struct monst *mon;
 #endif /* OVL0 */
 #ifdef OVLB
 
-STATIC_DCL int FDECL(counter_were,(int));
-
-STATIC_OVL int
+int
 counter_were(pm)
 int pm;
 {
@@ -51,6 +51,14 @@ int pm;
 	    case PM_HUMAN_WEREJACKAL: return(PM_WEREJACKAL);
 	    case PM_WERERAT:	      return(PM_HUMAN_WERERAT);
 	    case PM_HUMAN_WERERAT:    return(PM_WERERAT);
+	    case PM_WEREPANTHER:      return(PM_HUMAN_WEREPANTHER);            
+	    case PM_HUMAN_WEREPANTHER:return(PM_WEREPANTHER);
+	    case PM_WERETIGER:        return(PM_HUMAN_WERETIGER);
+	    case PM_HUMAN_WERETIGER:  return(PM_WERETIGER);
+	    case PM_WERESNAKE:        return(PM_HUMAN_WERESNAKE);
+	    case PM_HUMAN_WERESNAKE:  return(PM_WERESNAKE);
+	    case PM_WERESPIDER:       return(PM_HUMAN_WERESPIDER);
+	    case PM_HUMAN_WERESPIDER: return(PM_WERESPIDER);
 	    default:		      return(0);
 	}
 }
@@ -84,6 +92,9 @@ register struct monst *mon;
 	newsym(mon->mx,mon->my);
 	mon_break_armor(mon, FALSE);
 	possibly_unwield(mon, FALSE);
+	(void) stop_timer(UNPOLY_MON, (genericptr_t) mon);
+	(void) start_timer(rn1(1000,1000), TIMER_MONSTER,
+		UNPOLY_MON, (genericptr_t) mon);
 }
 
 int
@@ -100,7 +111,12 @@ char *genbuf;
 	*visible = 0;
 	if(Protection_from_shape_changers && !yours)
 		return 0;
-	for(i = rnd(5); i > 0; i--) {
+	/*
+	 * Allow lycanthropes in normal form to summon hordes as well.  --ALI
+	 */
+	if (pm == PM_PLAYERMON)
+	    pm = urace.malenum;
+	for(i = rnd(2); i > 0; i--) {
 	   switch(pm) {
 
 		case PM_WERERAT:
@@ -117,6 +133,26 @@ char *genbuf;
 		case PM_HUMAN_WEREWOLF:
 			typ = rn2(5) ? PM_WOLF : PM_WINTER_WOLF ;
 			if (genbuf) Strcpy(genbuf, "wolf");
+			break;
+		case PM_WEREPANTHER:
+		case PM_HUMAN_WEREPANTHER:
+			typ = rn2(5) ? PM_JAGUAR : PM_PANTHER ;
+			if (genbuf) Strcpy(genbuf, "large cat");
+			break;
+		case PM_WERETIGER:
+		case PM_HUMAN_WERETIGER:
+			typ = rn2(5) ? PM_JAGUAR : PM_TIGER ;
+			if (genbuf) Strcpy(genbuf, "large cat");
+			break;
+		case PM_WERESNAKE:
+		case PM_HUMAN_WERESNAKE:
+			typ = rn2(5) ? PM_SNAKE : PM_PIT_VIPER ;
+			if (genbuf) Strcpy(genbuf, "snake");
+			break;
+		case PM_WERESPIDER:
+		case PM_HUMAN_WERESPIDER:
+			typ = rn2(5) ? PM_CAVE_SPIDER : PM_RECLUSE_SPIDER ;
+			if (genbuf) Strcpy(genbuf, "spider");
 			break;
 		default:
 			continue;
@@ -151,11 +187,32 @@ void
 you_unwere(purify)
 boolean purify;
 {
+	boolean in_wereform = (u.umonnum == u.ulycn);
+
 	if (purify) {
+	    if (Race_if(PM_HUMAN_WEREWOLF)) {
+		/* An attempt to purify you has been made! */
+		if (in_wereform && Unchanging) {
+		    killer_format = NO_KILLER_PREFIX;
+		    killer = "purified while stuck in creature form";
+		    pline_The("purification was deadly...");
+		    done(DIED);
+		} else {
+		    You_feel("very bad!");
+		    if (in_wereform)
+			rehumanize();
+		    (void) adjattrib(A_STR, -rn1(3,3), 2);
+		    (void) adjattrib(A_CON, -rn1(3,3), 1);
+		    losehp(u.uhp - (u.uhp > 10 ? rnd(5) : 1), "purification",
+			    KILLED_BY);
+		}
+		return;
+	    }
 	    You_feel("purified.");
 	    u.ulycn = NON_PM;	/* cure lycanthropy */
+	    upermonst.mflags2 &= ~M2_WERE;
 	}
-	if (!Unchanging && is_were(youmonst.data) &&
+	if (!Unchanging && in_wereform &&
 		(!Polymorph_control || yn("Remain in beast form?") == 'n'))
 	    rehumanize();
 }

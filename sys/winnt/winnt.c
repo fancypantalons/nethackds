@@ -1,19 +1,25 @@
-/*	SCCS Id: @(#)winnt.c	 3.4	 $Date: 2003/10/26 15:58:22 $		  */
+/*	SCCS Id: @(#)winnt.c	 3.4	 $Date: 2003/12/11 09:49:08 $		  */
 /* Copyright (c) NetHack PC Development Team 1993, 1994 */
 /* NetHack may be freely redistributed.  See license for details. */
+
+/* $Id: winnt.c,v 1.8 2003/12/11 09:49:08 j_ali Exp $ */
+/* Modifications copyright (c) Slash'EM Development Team 2002 */
 
 /*
  *  WIN32 system functions.
  *
  *  Initial Creation: Michael Allison - January 31/93
+ *  Add set_binary_mode: J. Ali Harlow - October 5/02
  *
  */
 
 #define NEED_VARARGS
 #include "hack.h"
+#ifndef __CYGWIN__
 #include <dos.h>
 #ifndef __BORLANDC__
 #include <direct.h>
+#endif
 #endif
 #include <ctype.h>
 #include "win32api.h"
@@ -26,12 +32,16 @@
 /*
  * The following WIN32 API routines are used in this file.
  *
+ * CloseHandle
+ * DuplicateHandle
+ * GetCurrentProcess
  * GetDiskFreeSpace
  * GetVolumeInformation
  * GetUserName
  * FindFirstFile
  * FindNextFile
  * FindClose
+ * SetStdHandle
  *
  */
 
@@ -120,6 +130,7 @@ char *file;
 /*
  * Chdrive() changes the default drive.
  */
+#ifndef __CYGWIN__
 void
 chdrive(str)
 char *str;
@@ -132,6 +143,7 @@ char *str;
 		_chdrive((drive - 'A') + 1);
 	}
 }
+#endif 
 
 static int
 max_filename()
@@ -184,6 +196,46 @@ int *lan_username_size;
 	else Strcpy(username_buffer, "NetHack");
 	if (lan_username_size) *lan_username_size = strlen(username_buffer);
 	return username_buffer;
+}
+
+/*
+ * This is used in pcmain.c to switch standard I/O to binary mode.
+ */
+int
+set_binary_mode(fd, mode)
+int fd, mode;
+{
+    int dfd, retval;
+    HANDLE h, dh;
+    /*
+     * Force the setting of binary mode by re-opening the file descriptor
+     * (Microsoft's supplied setmode() doesn't work).
+     */
+    h = (HANDLE)_get_osfhandle(fd);
+    if (h == INVALID_HANDLE_VALUE)
+	return FALSE;
+    if (!DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &dh,
+      0, FALSE, DUPLICATE_SAME_ACCESS))
+	return FALSE;
+    switch(fd) {
+	case 0:
+	    SetStdHandle(STD_INPUT_HANDLE, dh);
+	    break;
+	case 1:
+	    SetStdHandle(STD_OUTPUT_HANDLE, dh);
+	    break;
+	case 2:
+	    SetStdHandle(STD_ERROR_HANDLE, dh);
+	    break;
+    }
+    dfd = _open_osfhandle((long)dh, mode);
+    if (dfd < 0) {
+	CloseHandle(dh);
+	return FALSE;
+    }
+    retval = (dup2(dfd, fd) >= 0);
+    close(dfd);
+    return retval;
 }
 
 # if 0

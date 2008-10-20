@@ -18,6 +18,9 @@ long bytes_counted;
 static int count_only;
 #endif
 
+/*WAC boolean here to keep track of quit status*/
+boolean saverestore;
+
 #ifdef MICRO
 int dotcnt, dotrow;	/* also used in restore */
 #endif
@@ -48,12 +51,21 @@ static long nulls[10];
 #define HUP
 #endif
 
+#ifdef MENU_COLOR
+extern struct menucoloring *menu_colorings;
+#endif
+
 /* need to preserve these during save to avoid accessing freed memory */
 static unsigned ustuck_id = 0, usteed_id = 0;
 
 int
 dosave()
 {
+#ifdef KEEP_SAVE
+	/*WAC for reloading*/
+	register int fd;
+#endif
+
 	clear_nhwindow(WIN_MESSAGE);
 	if(yn("Really save?") == 'n') {
 		clear_nhwindow(WIN_MESSAGE);
@@ -64,15 +76,54 @@ dosave()
 #if defined(UNIX) || defined(VMS) || defined(__EMX__)
 		program_state.done_hup = 0;
 #endif
+#ifdef KEEP_SAVE
+                saverestore = FALSE;
+                if (flags.keep_savefile)
+                        if(yn("Really quit?") == 'n') saverestore = TRUE;
+                if(dosave0() && !saverestore) {
+#else
 		if(dosave0()) {
+#endif
 			program_state.something_worth_saving = 0;
 			u.uhp = -1;		/* universal game's over indicator */
 			/* make sure they see the Saving message */
 			display_nhwindow(WIN_MESSAGE, TRUE);
 			exit_nhwindows("Be seeing you...");
 			terminate(EXIT_SUCCESS);
-		} else (void)doredraw();
 	}
+/*WAC redraw later
+		else (void)doredraw();*/
+	}
+#ifdef KEEP_SAVE
+	if (saverestore) {
+/*WAC pulled this from pcmain.c - restore game from the file just saved*/
+		fd = create_levelfile(0);
+		if (fd < 0) {
+			raw_print("Cannot create lock file");
+		} else {
+			hackpid = 1;
+			write(fd, (genericptr_t) &hackpid, sizeof(hackpid));
+			close(fd);
+		}
+#ifdef MFLOPPY
+		level_info[0].where = ACTIVE;
+#endif
+
+		fd = restore_saved_game();
+		if (fd >= 0) dorecover(fd);
+		check_special_room(FALSE);
+		flags.move = 0;
+/*WAC correct these after restore*/
+		if(flags.moonphase == FULL_MOON)
+			change_luck(1);         
+		if(flags.friday13)
+			change_luck(-1);
+		if(iflags.window_inited)
+			clear_nhwindow(WIN_MESSAGE);
+	}
+	saverestore = FALSE;
+#endif
+	(void)doredraw();
 	return 0;
 }
 
@@ -134,14 +185,18 @@ dosave0()
 #endif
 
 	HUP if (iflags.window_inited) {
-	    uncompress(fq_save);
+	    uncompress_area(fq_save, SAVEF);
 	    fd = open_savefile();
 	    if (fd > 0) {
 		(void) close(fd);
 		clear_nhwindow(WIN_MESSAGE);
 		There("seems to be an old save file.");
 		if (yn("Overwrite the old file?") == 'n') {
-		    compress(fq_save);
+		    compress_area(fq_save, SAVEF);
+#ifdef KEEP_SAVE
+/*WAC don't restore if you didn't save*/
+			saverestore = FALSE;
+#endif
 		    return 0;
 		}
 	    }
@@ -167,12 +222,13 @@ dosave0()
 	if(iflags.window_inited)
 	    HUP clear_nhwindow(WIN_MESSAGE);
 
-#ifdef MICRO
+#if defined(MICRO) && defined(TTY_GRAPHICS)
+	if (!strncmpi("tty", windowprocs.name, 3)) {
 	dotcnt = 0;
 	dotrow = 2;
 	curs(WIN_MAP, 1, 1);
-	if (strncmpi("X11", windowprocs.name, 3))
 	  putstr(WIN_MAP, 0, "Saving:");
+	}
 #endif
 #ifdef MFLOPPY
 	/* make sure there is enough disk space */
@@ -210,7 +266,15 @@ dosave0()
 #ifdef STEED
 	usteed_id = (u.usteed ? u.usteed->m_id : 0);
 #endif
+
 	savelev(fd, ledger_no(&u.uz), WRITE_SAVE | FREE_SAVE);
+/*Keep things from beeing freed if not restoring*/
+/*
+#ifdef KEEP_SAVE
+	if (saverestore) savegamestate(fd, WRITE_SAVE);
+	else
+#endif
+*/
 	savegamestate(fd, WRITE_SAVE | FREE_SAVE);
 
 	/* While copying level files around, zero out u.uz to keep
@@ -223,7 +287,7 @@ dosave0()
 	/* these pointers are no longer valid, and at least u.usteed
 	 * may mislead place_monster() on other levels
 	 */
-	u.ustuck = (struct monst *)0;
+	setustuck((struct monst *)0);
 #ifdef STEED
 	u.usteed = (struct monst *)0;
 #endif
@@ -231,15 +295,13 @@ dosave0()
 	for(ltmp = (xchar)1; ltmp <= maxledgerno(); ltmp++) {
 		if (ltmp == ledger_no(&uz_save)) continue;
 		if (!(level_info[ltmp].flags & LFILE_EXISTS)) continue;
-#ifdef MICRO
+#if defined(MICRO) && defined(TTY_GRAPHICS)
 		curs(WIN_MAP, 1 + dotcnt++, dotrow);
 		if (dotcnt >= (COLNO - 1)) {
 			dotrow++;
 			dotcnt = 0;
 		}
-		if (strncmpi("X11", windowprocs.name, 3)){
 		  putstr(WIN_MAP, 0, ".");
-		}
 		mark_synch();
 #endif
 		ofd = open_levelfile(ltmp, whynot);
@@ -263,9 +325,10 @@ dosave0()
 	u.uz = uz_save;
 
 	/* get rid of current level --jgm */
+
 	delete_levelfile(ledger_no(&u.uz));
 	delete_levelfile(0);
-	compress(fq_save);
+	compress_area(FILE_AREA_SAVE, fq_save);
 	return(1);
 }
 
@@ -305,6 +368,8 @@ register int fd, mode;
 	bwrite(fd, (genericptr_t) &quest_status, sizeof(struct q_score));
 	bwrite(fd, (genericptr_t) spl_book,
 				sizeof(struct spell) * (MAXSPELL + 1));
+	bwrite(fd, (genericptr_t) tech_list,
+			sizeof(struct tech) * (MAXTECH + 1));
 	save_artifacts(fd);
 	save_oracles(fd, mode);
 	if(ustuck_id)
@@ -480,7 +545,15 @@ int mode;
 	    for (y = 0; y < ROWNO; y++) {
 		for (x = 0; x < COLNO; x++) {
 		    prm = &levl[x][y];
+#ifdef DISPLAY_LAYERS
+		    if (prm->mem_bg == rgrm->mem_bg
+			&& prm->mem_trap == rgrm->mem_trap
+			&& prm->mem_obj == rgrm->mem_obj
+			&& prm->mem_corpse == rgrm->mem_corpse
+			&& prm->mem_invis == rgrm->mem_invis
+#else
 		    if (prm->glyph == rgrm->glyph
+#endif
 			&& prm->typ == rgrm->typ
 			&& prm->seenv == rgrm->seenv
 			&& prm->horizontal == rgrm->horizontal
@@ -882,6 +955,7 @@ register struct monst *mtmp;
 
 	while (mtmp) {
 	    mtmp2 = mtmp->nmon;
+
 	    if (perform_bwrite(mode)) {
 		xl = mtmp->mxlth + mtmp->mnamelth;
 		bwrite(fd, (genericptr_t) &xl, sizeof(int));
@@ -943,15 +1017,40 @@ register int fd, mode;
 }
 
 /* also called by prscore(); this probably belongs in dungeon.c... */
+/*
+ * [ALI] Also called by init_dungeons() for the sake of the GTK interface
+ * and the display_score callback of the proxy interface. For this purpose,
+ * the previous dungeon must be discarded.
+ */
 void
 free_dungeons()
 {
-#ifdef FREE_ALL_MEMORY
+#if defined(FREE_ALL_MEMORY) || defined(GTK_GRAPHICS) || defined(PROXY_GRAPHICS)
 	savelevchn(0, FREE_SAVE);
 	save_dungeon(0, FALSE, TRUE);
 #endif
 	return;
 }
+
+#ifdef MENU_COLOR
+void
+free_menu_coloring()
+{
+   struct menucoloring *tmp = menu_colorings;
+   
+   while (tmp) {
+      struct menucoloring *tmp2 = tmp->next;
+#ifdef USE_REGEX_MATCH
+      (void) regfree(&tmp->match);
+#else
+      free(tmp->match);
+#endif
+      free(tmp);
+      tmp = tmp2;
+   }
+   return;
+}
+#endif
 
 void
 freedynamicdata()
@@ -959,6 +1058,9 @@ freedynamicdata()
 	unload_qtlist();
 	free_invbuf();	/* let_to_name (invent.c) */
 	free_youbuf();	/* You_buf,&c (pline.c) */
+#ifdef MENU_COLOR
+        free_menu_coloring();
+#endif
 	tmp_at(DISP_FREEMEM, 0);	/* temporary display effects */
 #ifdef FREE_ALL_MEMORY
 # define freeobjchn(X)	(saveobjchn(0, X, FREE_SAVE),  X = 0)

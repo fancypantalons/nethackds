@@ -29,6 +29,10 @@ STATIC_DCL boolean FDECL(tool_in_use, (struct obj *));
 #endif /* OVLB */
 STATIC_DCL char FDECL(obj_to_let,(struct obj *));
 
+/* define for getobj() */
+#define FOLLOW(curr, flags) \
+    (((flags) & BY_NEXTHERE) ? (curr)->nexthere : (curr)->nobj)
+
 #ifdef OVLB
 
 static int lastinvnr = 51;	/* 0 ... 51 (never saved&restored) */
@@ -116,6 +120,55 @@ reorder_invent()
 }
 
 #undef inv_rank
+
+/* KMH, balance patch -- Idea by Wolfgang von Hansen <wvh@geodesy.inka.de>.
+ * Harmless to character, yet deliciously evil.
+ * Somewhat expensive, so don't use it often.
+ *
+ * Some players who depend upon fixinv complained.  They take damage
+ * instead.
+ */
+int jumble_pack ()
+{
+	register struct obj *obj, *nobj, *otmp;
+	register char let;
+	register int dmg = 0;
+
+
+	for (obj = invent; obj; obj = nobj)
+	{
+		nobj = obj->nobj;
+		if (rn2(10))
+			/* Skip it */;
+		else if (flags.invlet_constant)
+			dmg += 2;
+		else {
+			/* Remove it from the inventory list (but don't touch the obj) */
+			extract_nobj(obj, &invent);
+
+			/* Determine the new letter */
+			let = rnd(52) + 'A';
+			if (let > 'Z')
+				let = let - 'Z' + 'a' - 1;
+
+			/* Does another object share this letter? */
+			for (otmp = invent; otmp; otmp = otmp->nobj)
+				if (otmp->invlet == let)
+					otmp->invlet = obj->invlet;
+
+			/* Add the item back into the inventory */
+			obj->invlet = let;
+			obj->nobj = invent; /* insert at beginning */
+			obj->where = OBJ_INVENT;
+			invent = obj;
+		}
+	}
+
+	/* Clean up */
+	reorder_invent();
+	return (dmg);
+}
+
 
 /* scan a list of objects to see whether another object will merge with
    one of them; used in pickup.c when all 52 inventory slots are in use,
@@ -270,6 +323,7 @@ struct obj *obj;
 		    artitouch();
 		}
 		set_artifact_intrinsic(obj, 1, W_ART);
+	
 	}
 }
 
@@ -291,6 +345,11 @@ struct obj *obj;
 		 * for correct calculation */
 		set_moreluck();
 	}
+
+	/* KMH, balance patch -- recalculate health if you've gained healthstones */
+	if (obj->otyp == HEALTHSTONE)
+		recalc_health();
+
 }
 
 /*
@@ -334,11 +393,10 @@ struct obj *obj;
 
 added:
 	addinv_core2(obj);
-	carry_obj_effects(obj);		/* carrying affects the obj */
+	carry_obj_effects(&youmonst, obj); /* carrying affects the obj */
 	update_inventory();
 	return(obj);
 }
-
 /*
  * Some objects are affected by being carried.
  * Make those adjustments here. Called _after_ the object
@@ -346,7 +404,8 @@ added:
  * and after hero's intrinsics have been updated.
  */
 void
-carry_obj_effects(obj)
+carry_obj_effects(mon, obj)
+struct monst *mon;
 struct obj *obj;
 {
 	/* Cursed figurines can spontaneously transform
@@ -358,6 +417,16 @@ struct obj *obj;
 			attach_fig_transform_timeout(obj);
 		    }
 	}
+	else if (obj->otyp == TORCH && obj->lamplit) {
+	  /* MRKR: extinguish torches before putting them */
+	  /*       away. Should monsters do the same?  */
+
+	  if (mon == &youmonst) {
+	    You("extinguish %s before putting it away.", 
+		yname(obj));
+	    end_burn(obj, TRUE);
+	  }
+	}	
 }
 
 #endif /* OVL1 */
@@ -377,7 +446,11 @@ const char *drop_fmt, *drop_arg, *hold_msg;
 {
 	char buf[BUFSZ];
 
+#ifndef INVISIBLE_OBJECTS
 	if (!Blind) obj->dknown = 1;	/* maximize mergibility */
+#else
+	if (!Blind && (!obj->oinvis || See_invisible)) obj->dknown = 1;
+#endif
 	if (obj->oartifact) {
 	    /* place_object may change these */
 	    boolean crysknife = (obj->otyp == CRYSKNIFE);
@@ -443,9 +516,10 @@ void
 useupall(obj)
 struct obj *obj;
 {
+	if (Has_contents(obj)) delete_contents(obj);
 	setnotworn(obj);
 	freeinv(obj);
-	obfree(obj, (struct obj *)0);	/* deletes contents also */
+	obfree(obj, (struct obj *)0);
 }
 
 void
@@ -454,7 +528,7 @@ register struct obj *obj;
 {
 	/*  Note:  This works correctly for containers because they */
 	/*	   (containers) don't merge.			    */
-	if (obj->quan > 1L) {
+	if(obj->quan > 1L){
 		obj->in_use = FALSE;	/* no longer in use */
 		obj->quan--;
 		obj->owt = weight(obj);
@@ -522,6 +596,9 @@ struct obj *obj;
 	} else if (confers_luck(obj)) {
 		set_moreluck();
 		flags.botl = 1;
+	} else if (obj->otyp == HEALTHSTONE) {
+	/* KMH, balance patch -- recalculate health if you've lost healthstones */
+		recalc_health();
 	} else if (obj->otyp == FIGURINE && obj->timed) {
 		(void) stop_timer(FIG_TRANSFORM, (genericptr_t) obj);
 	}
@@ -564,10 +641,7 @@ register struct obj *obj;
 {
 	boolean update_map;
 
-	if (obj->otyp == AMULET_OF_YENDOR ||
-			obj->otyp == CANDELABRUM_OF_INVOCATION ||
-			obj->otyp == BELL_OF_OPENING ||
-			obj->otyp == SPE_BOOK_OF_THE_DEAD) {
+	if (evades_destruction(obj)) {
 		/* player might be doing something stupid, but we
 		 * can't guarantee that.  assume special artifacts
 		 * are indestructible via drawbridges, and exploding
@@ -575,10 +649,12 @@ register struct obj *obj;
 		 */
 		return;
 	}
-	update_map = (obj->where == OBJ_FLOOR);
+	update_map = (obj->where == OBJ_FLOOR || Has_contents(obj) &&
+		(obj->where == OBJ_INVENT || obj->where == OBJ_MINVENT));
+	if (Has_contents(obj)) delete_contents(obj);
 	obj_extract_self(obj);
 	if (update_map) newsym(obj->ox, obj->oy);
-	obfree(obj, (struct obj *) 0);	/* frees contents also */
+	obfree(obj, (struct obj *) 0);
 }
 
 #endif /* OVL2 */
@@ -740,11 +816,133 @@ const char *action;
     return !strcmp(action, "wear") || !strcmp(action, "put on");
 }
 
+STATIC_OVL int
+ugly_checks(let, word, otmp)
+const char *let, *word;
+struct obj *otmp;
+{
+		register int otyp = otmp->otyp;
+		/* ugly check: remove inappropriate things */
+		if((taking_off(word) &&
+		    (!(otmp->owornmask & (W_ARMOR | W_RING | W_AMUL | W_TOOL))
+		     || (otmp==uarm && uarmc)
+#ifdef TOURIST
+		     || (otmp==uarmu && (uarm || uarmc))
+#endif
+		    ))
+		|| (putting_on(word) &&
+		     (otmp->owornmask & (W_ARMOR | W_RING | W_AMUL | W_TOOL)))
+							/* already worn */
+#if 0	/* 3.4.1 -- include currently wielded weapon among the choices */
+		|| (!strcmp(word, "wield") &&
+		    (otmp->owornmask & W_WEP))
+#endif
+		|| (!strcmp(word, "ready") &&
+		    (otmp == uwep || (otmp == uswapwep && u.twoweap)))
+		    ) {
+			return 1;
+		}
+
+		/* Second ugly check; unlike the first it won't trigger an
+		 * "else" in "you don't have anything else to ___".
+		 */
+                else if ((putting_on(word) &&
+		    ((otmp->oclass == FOOD_CLASS && otmp->otyp != MEAT_RING) ||
+		    (otmp->oclass == TOOL_CLASS &&
+		     otyp != BLINDFOLD && otyp != TOWEL && otyp != LENSES)))
+/*add check for improving*/
+                || ( (!strcmp(word, "wield") || !strcmp(word, "improve")) &&
+		    (otmp->oclass == TOOL_CLASS && !is_weptool(otmp)))
+		|| (!strcmp(word, "eat") && !is_edible(otmp))
+		|| (!strcmp(word, "revive") && otyp != CORPSE) /* revive */
+		|| (!strcmp(word, "sacrifice") &&
+		    (otyp != CORPSE &&
+		     otyp != SEVERED_HAND &&                    
+		     otyp != EYEBALL &&	/* KMH -- fixed */
+		     otyp != AMULET_OF_YENDOR && otyp != FAKE_AMULET_OF_YENDOR))
+		|| (!strcmp(word, "write with") &&
+		    (otmp->oclass == TOOL_CLASS &&
+#ifdef LIGHTSABERS
+		     (!is_lightsaber(otmp) || !otmp->lamplit) &&
+#endif
+		     otyp != MAGIC_MARKER && otyp != TOWEL))
+		|| (!strcmp(word, "tin") &&
+		    (otyp != CORPSE || !tinnable(otmp)))
+		|| (!strcmp(word, "rub") &&
+		    ((otmp->oclass == TOOL_CLASS &&
+		      otyp != OIL_LAMP && otyp != MAGIC_LAMP &&
+		      otyp != BRASS_LANTERN) ||
+		     (otmp->oclass == GEM_CLASS && !is_graystone(otmp))))
+		|| (!strncmp(word, "rub on the stone", 16) &&
+		    *let == GEM_CLASS &&	/* using known touchstone */
+		    otmp->dknown && objects[otyp].oc_name_known)
+		|| ((!strcmp(word, "use or apply") ||
+			!strcmp(word, "untrap with")) &&
+		     /* Picks, axes, pole-weapons, bullwhips */
+		    ((otmp->oclass == WEAPON_CLASS && !is_pick(otmp) &&
+#ifdef FIREARMS
+		      otyp != SUBMACHINE_GUN &&
+		      otyp != AUTO_SHOTGUN &&
+		      otyp != ASSAULT_RIFLE &&
+		      otyp != FRAG_GRENADE &&
+		      otyp != GAS_GRENADE &&
+		      otyp != STICK_OF_DYNAMITE &&
+#endif
+		      !is_axe(otmp) && !is_pole(otmp) && otyp != BULLWHIP) ||
+		    (otmp->oclass == POTION_CLASS &&
+		     /* only applicable potion is oil, and it will only
+			be offered as a choice when already discovered */
+		     (otyp != POT_OIL || !otmp->dknown ||
+		      !objects[POT_OIL].oc_name_known) &&
+		      /* water is only for untrapping */
+		     (strcmp(word, "untrap with") || 
+		      otyp != POT_WATER || !otmp->dknown ||
+		      !objects[POT_WATER].oc_name_known)) ||
+		     (otmp->oclass == FOOD_CLASS &&
+		      otyp != CREAM_PIE && otyp != EUCALYPTUS_LEAF) ||
+		     (otmp->oclass == GEM_CLASS && !is_graystone(otmp))))
+		|| (!strcmp(word, "invoke") &&
+		    (!otmp->oartifact && !objects[otyp].oc_unique &&
+		     (otyp != FAKE_AMULET_OF_YENDOR || otmp->known) &&
+		     otyp != CRYSTAL_BALL &&	/* #invoke synonym for apply */
+		   /* note: presenting the possibility of invoking non-artifact
+		      mirrors and/or lamps is a simply a cruel deception... */
+		     otyp != MIRROR && otyp != MAGIC_LAMP &&
+		     (otyp != OIL_LAMP ||	/* don't list known oil lamp */
+		      (otmp->dknown && objects[OIL_LAMP].oc_name_known))))
+		|| (!strcmp(word, "untrap with") &&
+		    (otmp->oclass == TOOL_CLASS && otyp != CAN_OF_GREASE))
+		|| (!strcmp(word, "charge") && !is_chargeable(otmp))
+		|| (!strcmp(word, "poison") && !is_poisonable(otmp))
+		|| ((!strcmp(word, "draw blood with") ||
+			!strcmp(word, "bandage your wounds with")) &&
+		    (otmp->oclass == TOOL_CLASS && otyp != MEDICAL_KIT))
+		    )
+			return 2;
+		else
+		    return 0;
+}
+
+/* List of valid classes for allow_ugly callback */
+static char valid_ugly_classes[MAXOCLASSES + 1];
+
+/* Action word for allow_ugly callback */
+static const char *ugly_word;
+
+STATIC_OVL boolean
+allow_ugly(obj)
+struct obj *obj;
+{
+    return index(valid_ugly_classes, obj->oclass) &&
+	   !ugly_checks(valid_ugly_classes, ugly_word, obj);
+}
+
 /*
  * getobj returns:
  *	struct obj *xxx:	object to do something with.
  *	(struct obj *) 0	error return: no object.
  *	&zeroobj		explicitly no object (as in w-).
+ *	&thisplace		this place (as in r.).
 #ifdef GOLDOBJ
 !!!! test if gold can be used in unusual ways (eaten etc.)
 !!!! may be able to remove "usegold"
@@ -767,11 +965,17 @@ register const char *let,*word;
 	boolean usegold = FALSE;	/* can't use gold because its illegal */
 	boolean allowall = FALSE;
 	boolean allownone = FALSE;
+	boolean allowfloor = FALSE;
+	boolean usefloor = FALSE;
+	boolean allowthisplace = FALSE;
 	boolean useboulder = FALSE;
 	xchar foox = 0;
 	long cnt;
 	boolean prezero = FALSE;
 	long dummymask;
+	int ugly;
+	struct obj *floorchain;
+	int floorfollow;
 
 	if(*let == ALLOW_COUNT) let++, allowcnt = 1;
 #ifndef GOLDOBJ
@@ -793,6 +997,20 @@ register const char *let,*word;
 
 	if(*let == ALL_CLASSES) let++, allowall = TRUE;
 	if(*let == ALLOW_NONE) let++, allownone = TRUE;
+	if(*let == ALLOW_FLOOROBJ) {
+	    let++;
+	    if (!u.uswallow) {
+		floorchain = can_reach_floorobj() ? level.objects[u.ux][u.uy] :
+			     (struct obj *)0;
+		floorfollow = BY_NEXTHERE;
+	    } else {
+		floorchain = u.ustuck->minvent;
+		floorfollow = 0;		/* nobj */
+	    }
+	    usefloor = TRUE;
+	    allowfloor = !!floorchain;
+	}
+	if(*let == ALLOW_THISPLACE) let++, allowthisplace = TRUE;
 	/* "ugly check" for reading fortune cookies, part 1 */
 	/* The normal 'ugly check' keeps the object on the inventory list.
 	 * We don't want to do that for shirts/cookies, so the check for
@@ -826,83 +1044,14 @@ register const char *let,*word;
 #endif
 		|| (useboulder && otmp->otyp == BOULDER)
 		) {
-		register int otyp = otmp->otyp;
 		bp[foo++] = otmp->invlet;
 
-		/* ugly check: remove inappropriate things */
-		if ((taking_off(word) &&
-		    (!(otmp->owornmask & (W_ARMOR | W_RING | W_AMUL | W_TOOL))
-		     || (otmp==uarm && uarmc)
-#ifdef TOURIST
-		     || (otmp==uarmu && (uarm || uarmc))
-#endif
-		    ))
-		|| (putting_on(word) &&
-		     (otmp->owornmask & (W_ARMOR | W_RING | W_AMUL | W_TOOL)))
-							/* already worn */
-#if 0	/* 3.4.1 -- include currently wielded weapon among the choices */
-		|| (!strcmp(word, "wield") &&
-		    (otmp->owornmask & W_WEP))
-#endif
-		|| (!strcmp(word, "ready") &&
-		    (otmp == uwep || (otmp == uswapwep && u.twoweap)))
-		    ) {
+		/* ugly checks */
+		ugly = ugly_checks(let, word, otmp);
+		if (ugly == 1) {
 			foo--;
 			foox++;
-		}
-
-		/* Second ugly check; unlike the first it won't trigger an
-		 * "else" in "you don't have anything else to ___".
-		 */
-		else if ((putting_on(word) &&
-		    ((otmp->oclass == FOOD_CLASS && otmp->otyp != MEAT_RING) ||
-		    (otmp->oclass == TOOL_CLASS &&
-		     otyp != BLINDFOLD && otyp != TOWEL && otyp != LENSES)))
-		|| (!strcmp(word, "wield") &&
-		    (otmp->oclass == TOOL_CLASS && !is_weptool(otmp)))
-		|| (!strcmp(word, "eat") && !is_edible(otmp))
-		|| (!strcmp(word, "sacrifice") &&
-		    (otyp != CORPSE &&
-		     otyp != AMULET_OF_YENDOR && otyp != FAKE_AMULET_OF_YENDOR))
-		|| (!strcmp(word, "write with") &&
-		    (otmp->oclass == TOOL_CLASS &&
-		     otyp != MAGIC_MARKER && otyp != TOWEL))
-		|| (!strcmp(word, "tin") &&
-		    (otyp != CORPSE || !tinnable(otmp)))
-		|| (!strcmp(word, "rub") &&
-		    ((otmp->oclass == TOOL_CLASS &&
-		      otyp != OIL_LAMP && otyp != MAGIC_LAMP &&
-		      otyp != BRASS_LANTERN) ||
-		     (otmp->oclass == GEM_CLASS && !is_graystone(otmp))))
-		|| (!strncmp(word, "rub on the stone", 16) &&
-		    *let == GEM_CLASS &&	/* using known touchstone */
-		    otmp->dknown && objects[otyp].oc_name_known)
-		|| ((!strcmp(word, "use or apply") ||
-			!strcmp(word, "untrap with")) &&
-		     /* Picks, axes, pole-weapons, bullwhips */
-		    ((otmp->oclass == WEAPON_CLASS && !is_pick(otmp) &&
-		      !is_axe(otmp) && !is_pole(otmp) && otyp != BULLWHIP) ||
-		     (otmp->oclass == POTION_CLASS &&
-		     /* only applicable potion is oil, and it will only
-			be offered as a choice when already discovered */
-		     (otyp != POT_OIL || !otmp->dknown ||
-		      !objects[POT_OIL].oc_name_known)) ||
-		     (otmp->oclass == FOOD_CLASS &&
-		      otyp != CREAM_PIE && otyp != EUCALYPTUS_LEAF) ||
-		     (otmp->oclass == GEM_CLASS && !is_graystone(otmp))))
-		|| (!strcmp(word, "invoke") &&
-		    (!otmp->oartifact && !objects[otyp].oc_unique &&
-		     (otyp != FAKE_AMULET_OF_YENDOR || otmp->known) &&
-		     otyp != CRYSTAL_BALL &&	/* #invoke synonym for apply */
-		   /* note: presenting the possibility of invoking non-artifact
-		      mirrors and/or lamps is a simply a cruel deception... */
-		     otyp != MIRROR && otyp != MAGIC_LAMP &&
-		     (otyp != OIL_LAMP ||	/* don't list known oil lamp */
-		      (otmp->dknown && objects[OIL_LAMP].oc_name_known))))
-		|| (!strcmp(word, "untrap with") &&
-		    (otmp->oclass == TOOL_CLASS && otyp != CAN_OF_GREASE))
-		|| (!strcmp(word, "charge") && !is_chargeable(otmp))
-		    )
+		} else if (ugly == 2)
 			foo--;
 		/* ugly check for unworn armor that can't be worn */
 		else if (putting_on(word) && *let == ARMOR_CLASS &&
@@ -932,24 +1081,52 @@ register const char *let,*word;
 		compactify(bp);
 	*ap = '\0';
 
+	if (allowfloor && !allowall) {
+	    if (usegold) {
+		valid_ugly_classes[0] = COIN_CLASS;
+		Strcpy(valid_ugly_classes + 1, let);
+	    } else
+		Strcpy(valid_ugly_classes, let);
+	    ugly_word = word;
+	    for (otmp = floorchain; otmp; otmp = FOLLOW(otmp, floorfollow))
+		if (allow_ugly(otmp))
+		    break;
+	    if (!otmp)
+		allowfloor = FALSE;
+	}
+
+	if(!foo && !allowall && !allownone &&
 #ifndef GOLDOBJ
-	if(!foo && !allowall && !allowgold && !allownone) {
-#else
-	if(!foo && !allowall && !allownone) {
+	   !allowgold &&
 #endif
+	   !allowfloor && !allowthisplace) {
 		You("don't have anything %sto %s.",
 			foox ? "else " : "", word);
 		return((struct obj *)0);
 	}
+	
 	for(;;) {
 		cnt = 0;
 		if (allowcnt == 2) allowcnt = 1;  /* abort previous count */
-		if(!buf[0]) {
-			Sprintf(qbuf, "What do you want to %s? [*]", word);
-		} else {
-			Sprintf(qbuf, "What do you want to %s? [%s or ?*]",
-				word, buf);
+		Sprintf(qbuf, "What do you want to %s? [", word);
+		bp = eos(qbuf);
+		if (buf[0]) {
+		    Sprintf(bp, "%s or ?", buf);
+		    bp = eos(bp);
 		}
+		*bp++ = '*';
+		if (allowfloor)
+		    *bp++ = ',';
+		if (allowthisplace)
+		    *bp++ = '.';
+		if (!buf[0] && bp[-2] != '[') {
+		    /* "*," -> "* or ,"; "*." -> "* or ."; "*,." -> "*, or ." */
+		    --bp;
+		    Sprintf(bp, " or %c", *bp);
+		    bp += 5;
+		}
+		*bp++ = ']';
+		*bp = '\0';
 #ifdef REDO
 		if (in_doagain)
 		    ilet = readchar();
@@ -1010,6 +1187,44 @@ register const char *let,*word;
 			return(mkgoldobj(cnt));
 #endif
 		}
+		if(ilet == '.') {
+		    if (allowthisplace)
+			return &thisplace;
+		    else {
+			pline(silly_thing_to, word);
+			return(struct obj *)0;
+		    }
+		}
+		if(ilet == ',') {
+		    int n;
+		    menu_item *pick_list;
+
+		    if (!usefloor) {
+			pline(silly_thing_to, word);
+			return(struct obj *)0;
+		    } else if (!allowfloor) {
+			if ((Levitation || Flying))
+				You("cannot reach the floor to %s while %sing.", word, Levitation ? "float" : "fly");
+			else
+				pline("There's nothing here to %s.", word);
+			return(struct obj *)0;
+		    }
+		    Sprintf(qbuf, "%s what?", word);
+		    n = query_objlist(qbuf, floorchain,
+			    floorfollow|INVORDER_SORT|SIGNAL_CANCEL, &pick_list,
+			    PICK_ONE, allowall ? allow_all : allow_ugly);
+		    if (n<0) {
+			if (flags.verbose)
+			    pline(Never_mind);
+			return (struct obj *)0;
+		    } else if (!n)
+			continue;
+		    otmp = pick_list->item.a_obj;
+		    if (allowcnt && pick_list->count < otmp->quan)
+			otmp = splitobj(otmp, pick_list->count);
+		    free((genericptr_t)pick_list);
+		    return otmp;
+		}
 		if(ilet == '?' || ilet == '*') {
 		    char *allowed_choices = (ilet == '?') ? lets : (char *)0;
 		    long ctmp = 0;
@@ -1031,6 +1246,7 @@ register const char *let,*word;
 		    }
 		    /* they typed a letter (not a space) at the prompt */
 		}
+		/* WAC - throw now takes a count to allow for single/controlled shooting */
 		if(allowcnt == 2 && !strcmp(word,"throw")) {
 		    /* permit counts for throwing gold, but don't accept
 		     * counts for other things since the throw code will
@@ -1040,9 +1256,15 @@ register const char *let,*word;
 #endif
 			allowcnt = 1;
 		    if(cnt == 0 && prezero) return((struct obj *)0);
+		    if (cnt == 1) {
+			save_cm = (char *) 1; /* Non zero */
+			multi = 0;
+		    }
 		    if(cnt > 1) {
-			You("can only throw one item at a time.");
-			continue;
+			/* You("can only throw one item at a time.");
+			continue; */
+			multi = cnt - 1;
+			cnt = 1;
 		    }
 		}
 #ifdef GOLDOBJ
@@ -1069,6 +1291,7 @@ register const char *let,*word;
 		}
 		break;
 	}
+
 	if(!allowall && let && !index(let,otmp->oclass)
 #ifdef GOLDOBJ
 	   && !(usegold && otmp->oclass == COIN_CLASS)
@@ -1432,7 +1655,11 @@ nextclass:
 		case 'y':
 			tmp = (*fn)(otmp);
 			if(tmp < 0) {
-			    if (otmp != otmpo) {
+			    if (container_gone(fn)) {
+				/* otmp caused magic bag to explode;
+				   both are now gone */
+				otmp = 0;		/* and return */
+			    } else if (otmp && otmp != otmpo) {
 				/* split occurred, merge again */
 				(void) merged(&otmpo, &otmp);
 			    }
@@ -1703,6 +1930,12 @@ long* out_cnt;
 	static winid local_win = WIN_ERR;	/* window for partial menus */
 	anything any;
 	menu_item *selected;
+#ifdef PROXY_GRAPHICS
+	static int busy = 0;
+	if (busy)
+	    return 0;
+	busy++;
+#endif
 
 	/* overriden by global flag */
 	if (flags.perm_invent) {
@@ -1730,6 +1963,9 @@ long* out_cnt;
 #else
 	    pline("Not carrying anything.");
 #endif
+#ifdef PROXY_GRAPHICS
+	    busy--;
+#endif
 	    return 0;
 	}
 
@@ -1750,6 +1986,9 @@ long* out_cnt;
 		    break;
 		}
 	    }
+#ifdef PROXY_GRAPHICS
+	    busy--;
+#endif
 	    return ret;
 	}
 
@@ -1793,6 +2032,9 @@ nextclass:
 	} else
 	    ret = !n ? '\0' : '\033';	/* cancelled */
 
+#ifdef PROXY_GRAPHICS
+	busy--;
+#endif
 	return ret;
 }
 
@@ -2116,6 +2358,8 @@ char *buf;
 #ifdef SINKS
 	else if (IS_SINK(ltyp))
 	    cmap = S_sink;				/* "sink" */
+	else if (IS_TOILET(ltyp))
+	    cmap = S_toilet;
 #endif
 	else if (IS_ALTAR(ltyp)) {
 	    Sprintf(altbuf, "altar to %s (%s)", a_gname(),
@@ -2157,7 +2401,7 @@ boolean picked_some;
 	struct obj *otmp;
 	struct trap *trap;
 	const char *verb = Blind ? "feel" : "see";
-	const char *dfeature = (char *)0;
+	const char *dfeature = (char*) 0;
 	char fbuf[BUFSZ], fbuf2[BUFSZ];
 	winid tmpwin;
 	boolean skip_objects = (obj_cnt >= 5), felt_cockatrice = FALSE;
@@ -2210,12 +2454,21 @@ boolean picked_some;
 		}
 	}
 
-	if (dfeature)
+	if (dfeature) {
 		Sprintf(fbuf, "There is %s here.", an(dfeature));
+		if (flags.suppress_alert < FEATURE_NOTICE_VER(0,0,7) &&
+			(IS_FOUNTAIN(levl[u.ux][u.uy].typ) ||
+#ifdef SINKS
+			 IS_SINK(levl[u.ux][u.uy].typ) ||
+			 IS_TOILET(levl[u.ux][u.uy].typ)
+#endif
+			))
+		    Strcat(fbuf, "  Use \"q.\" to drink from it.");
+	}
 
 	if (!otmp || is_lava(u.ux,u.uy) || (is_pool(u.ux,u.uy) && !Underwater)) {
 		if (dfeature) pline(fbuf);
-		read_engr_at(u.ux, u.uy); /* Eric Backus */
+		sense_engr_at(u.ux, u.uy, FALSE); /* Eric Backus */
 		if (!skip_objects && (Blind || !dfeature))
 		    You("%s no objects here.", verb);
 		return(!!Blind);
@@ -2224,14 +2477,14 @@ boolean picked_some;
 
 	if (skip_objects) {
 	    if (dfeature) pline(fbuf);
-	    read_engr_at(u.ux, u.uy); /* Eric Backus */
+	    sense_engr_at(u.ux, u.uy, FALSE); /* Eric Backus */
 	    There("are %s%s objects here.",
 		  (obj_cnt <= 10) ? "several" : "many",
 		  picked_some ? " more" : "");
 	} else if (!otmp->nexthere) {
 	    /* only one object */
 	    if (dfeature) pline(fbuf);
-	    read_engr_at(u.ux, u.uy); /* Eric Backus */
+	    sense_engr_at(u.ux, u.uy, FALSE); /* Eric Backus */
 #ifdef INVISIBLE_OBJECTS
 	    if (otmp->oinvis && !See_invisible) verb = "feel";
 #endif
@@ -2260,7 +2513,7 @@ boolean picked_some;
 	    display_nhwindow(tmpwin, TRUE);
 	    destroy_nhwindow(tmpwin);
 	    if (felt_cockatrice) feel_cockatrice(otmp, FALSE);
-	    read_engr_at(u.ux, u.uy); /* Eric Backus */
+	    sense_engr_at(u.ux, u.uy, FALSE); /* Eric Backus */
 	}
 	return(!!Blind);
 }
@@ -2334,8 +2587,12 @@ mergable(otmp, obj)	/* returns TRUE if obj  & otmp can be merged */
 	    obj->obroken != otmp->obroken ||
 	    obj->otrapped != otmp->otrapped ||
 	    obj->lamplit != otmp->lamplit ||
+	    flags.pickup_thrown && obj->was_thrown != otmp->was_thrown ||
 #ifdef INVISIBLE_OBJECTS
 		obj->oinvis != otmp->oinvis ||
+#endif
+#ifdef UNPOLYPILE
+	    obj->oldtyp != otmp->oldtyp ||
 #endif
 	    obj->greased != otmp->greased ||
 	    obj->oeroded != otmp->oeroded ||
@@ -2348,7 +2605,7 @@ mergable(otmp, obj)	/* returns TRUE if obj  & otmp can be merged */
 	    return FALSE;
 
 	if (obj->oclass == FOOD_CLASS && (obj->oeaten != otmp->oeaten ||
-					  obj->orotten != otmp->orotten))
+	  obj->odrained != otmp->odrained || obj->orotten != otmp->orotten))
 	    return(FALSE);
 
 	if (obj->otyp == CORPSE || obj->otyp == EGG || obj->otyp == TIN) {
@@ -2356,19 +2613,30 @@ mergable(otmp, obj)	/* returns TRUE if obj  & otmp can be merged */
 				return FALSE;
 	}
 
+	/* armed grenades do not merge */
+	if ((obj->timed || otmp->timed) && is_grenade(obj))
+	    return FALSE;
+
 	/* hatching eggs don't merge; ditto for revivable corpses */
-	if ((obj->otyp == EGG && (obj->timed || otmp->timed)) ||
+	if ((obj->timed || otmp->timed) && (obj->otyp == EGG ||
 	    (obj->otyp == CORPSE && otmp->corpsenm >= LOW_PM &&
-		is_reviver(&mons[otmp->corpsenm])))
+		 is_reviver(&mons[otmp->corpsenm]))))
 	    return FALSE;
 
 	/* allow candle merging only if their ages are close */
 	/* see begin_burn() for a reference for the magic "25" */
-	if (Is_candle(obj) && obj->age/25 != otmp->age/25)
+	/* [ALI] Slash'EM can't rely on using 25, because we
+	 * have chosen to reduce the cost of candles such that
+	 * the initial age is no longer a multiple of 25. The
+	 * simplest solution is just to use 20 instead, since
+	 * initial candle age is always a multiple of 20.
+	 */
+	if ((obj->otyp == TORCH || Is_candle(obj)) && obj->age/20 != otmp->age/20)
 	    return(FALSE);
 
 	/* burning potions of oil never merge */
-	if (obj->otyp == POT_OIL && obj->lamplit)
+	/* MRKR: nor do burning torches */
+	if ((obj->otyp == POT_OIL || obj->otyp == TORCH) && obj->lamplit)
 	    return FALSE;
 
 	/* don't merge surcharged item with base-cost item */
@@ -2422,12 +2690,40 @@ int
 doprwep()
 {
     if (!uwep) {
+	if (!u.twoweap){
 	You("are empty %s.", body_part(HANDED));
+	    return 0;
+	}
+	/* Avoid printing "right hand empty" and "other hand empty" */
+	if (!uswapwep) {
+	    You("are attacking with both %s.", makeplural(body_part(HAND)));
+	    return 0;
+	}
+	Your("right %s is empty.", body_part(HAND));
     } else {
 	prinv((char *)0, uwep, 0L);
-	if (u.twoweap) prinv((char *)0, uswapwep, 0L);
+    }
+    if (u.twoweap) {
+    	if (uswapwep)
+    	    prinv((char *)0, uswapwep, 0L);
+    	else
+    	    Your("other %s is empty.", body_part(HAND));
     }
     return 0;
+#if 0
+	if(!uwep && !uswapwep && !uquiver) You("are empty %s.", body_part(HANDED));
+	else {
+		char lets[3];
+		register int ct = 0;
+
+		if(uwep) lets[ct++] = obj_to_let(uwep);
+		if(uswapwep) lets[ct++] = obj_to_let(uswapwep);
+		if(uquiver) lets[ct++] = obj_to_let(uquiver);
+		lets[ct] = 0;
+		(void) display_inventory(lets, FALSE);
+    }
+    return 0;
+#endif
 }
 
 int
@@ -2546,14 +2842,17 @@ long numused;
 
 	/* burn_floor_paper() keeps an object pointer that it tries to
 	 * useupf() multiple times, so obj must survive if plural */
-	if (obj->quan > numused)
+	if (obj->quan > numused) {
 		otmp = splitobj(obj, numused);
+		obj->in_use = FALSE;		/* rest no longer in use */
+	}
 	else
 		otmp = obj;
 	if(costly_spot(otmp->ox, otmp->oy)) {
 	    if(index(u.urooms, *in_rooms(otmp->ox, otmp->oy, 0)))
 	        addtobill(otmp, FALSE, FALSE, FALSE);
-	    else (void)stolen_value(otmp, otmp->ox, otmp->oy, FALSE, FALSE);
+	    else (void)stolen_value(otmp, otmp->ox, otmp->oy, FALSE, FALSE,
+		    TRUE);
 	}
 	delobj(otmp);
 	if (at_u && u.uundetected && hides_under(youmonst.data))
@@ -2858,6 +3157,7 @@ char *title;
 /*
  * Display the contents of a container in inventory style.
  * Currently, this is only used for statues, via wand of probing.
+ * [ALI] Also used when looting medical kits.
  */
 struct obj *
 display_cinventory(obj)

@@ -35,5 +35,6 @@
 #define NO_TERMS
 #define ASCIIGRAPH
 #define TEXTCOLOR		/* Color text */
+#define FILENAMELEN     256
 
 #endif

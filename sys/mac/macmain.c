@@ -27,7 +27,7 @@
 static void finder_file_request(void);
 int main(void);
 
-#if __SC__ || __MRC__
+#if defined(MAC_MPW)
 QDGlobals qd;
 #endif
 
@@ -41,7 +41,9 @@ main (void)
 	windowprocs = mac_procs;
 	InitMac ();
 
-	hname = "Mac Hack";
+	theWindows = (NhWindow *) NewPtrClear (NUM_MACWINDOWS * sizeof (NhWindow));
+
+	hname = "Slash'EM";
 	hackpid = getpid();
 
 	/*
@@ -59,6 +61,7 @@ main (void)
 	setrandom();
 	initoptions();
 	init_nhwindows(&argc, (char **)&hname);
+	DimMenuBar();
 
 	/*
 	 * It seems you really want to play.
@@ -117,7 +120,7 @@ main (void)
 				if(yn("Do you want to keep the save file?") == 'n')
 					(void) delete_savefile();
 				else {
-					compress(fqname(SAVEF, SAVEPREFIX, 0));
+			    compress_area(FILE_AREA_SAVE, SAVEF);
 				}
 			}
 		}

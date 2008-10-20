@@ -70,6 +70,11 @@ boolean FDECL(fopen_gif_file, (const char *, const char *));
 boolean FDECL(read_gif_tile, (pixel(*)[]));
 int NDECL(fclose_gif_file);
 
+#ifdef INDEX
+static const char
+    *index_file = "index";
+#endif
+
 static int
 GetDataBlock(fd, buf)
 FILE		*fd;
@@ -516,7 +521,7 @@ int len;
 			xpos = 0;
 			++ypos;
 		}
-		if (ypos >= TILE_Y)
+		if (ypos >= tile_y)
 			break;
 	}
 }
@@ -542,19 +547,19 @@ const char *type;
 	}
 
 	read_header(gif_file);
-	if (GifScreen.Width % TILE_X) {
+	if (GifScreen.Width % tile_x) {
 		Fprintf(stderr, "error: width %d not divisible by %d\n",
-				GifScreen.Width, TILE_X);
+				GifScreen.Width, tile_x);
 		exit(EXIT_FAILURE);
 	}
-	tiles_across = GifScreen.Width / TILE_X;
+	tiles_across = GifScreen.Width / tile_x;
 	curr_tiles_across = 0;
-	if (GifScreen.Height % TILE_Y) {
+	if (GifScreen.Height % tile_y) {
 		Fprintf(stderr, "error: height %d not divisible by %d\n",
-				GifScreen.Height, TILE_Y);
+				GifScreen.Height, tile_y);
 		/* exit(EXIT_FAILURE) */;
 	}
-	tiles_down = GifScreen.Height / TILE_Y;
+	tiles_down = GifScreen.Height / tile_y;
 	curr_tiles_down = 0;
 
 	if (GifScreen.Interlace) {
@@ -564,8 +569,8 @@ const char *type;
 		image[i] = (pixel *) alloc(GifScreen.Width * sizeof(pixel));
 	    }
 	} else {
-	    image = (pixel **)alloc(TILE_Y * sizeof(pixel *));
-	    for (i = 0; i < TILE_Y; i++) {
+	    image = (pixel **)alloc(tile_y * sizeof(pixel *));
+	    for (i = 0; i < tile_y; i++) {
 		image[i] = (pixel *) alloc(GifScreen.Width * sizeof(pixel));
 	    }
 	}
@@ -596,7 +601,7 @@ const char *type;
 /* Read a tile.  Returns FALSE when there are no more tiles */
 boolean
 read_gif_tile(pixels)
-pixel (*pixels)[TILE_X];
+pixel (*pixels)[MAX_TILE_X];
 {
 	int i, j;
 
@@ -609,24 +614,24 @@ pixel (*pixels)[TILE_X];
 			ReadTileStrip(gif_file,GifScreen.Width);
 	}
 	if (GifScreen.Interlace) {
-		for (j = 0; j < TILE_Y; j++) {
-		    for (i = 0; i < TILE_X; i++) {
-			pixels[j][i] = image[curr_tiles_down*TILE_Y + j]
-					    [curr_tiles_across*TILE_X + i];
+		for (j = 0; j < tile_y; j++) {
+		    for (i = 0; i < tile_x; i++) {
+			pixels[j][i] = image[curr_tiles_down*tile_y + j]
+					    [curr_tiles_across*tile_x + i];
 		    }
 		}
 	} else {
-		for (j = 0; j < TILE_Y; j++) {
-		    for (i = 0; i < TILE_X; i++) {
-			pixels[j][i] = image[j][curr_tiles_across*TILE_X + i];
+		for (j = 0; j < tile_y; j++) {
+		    for (i = 0; i < tile_x; i++) {
+			pixels[j][i] = image[j][curr_tiles_across*tile_x + i];
 		    }
 		}
 	}
 	curr_tiles_across++;
 
 	/* check for "filler" tile */
-	for (j = 0; j < TILE_Y; j++) {
-		for (i = 0; i < TILE_X && i < 4; i += 2) {
+	for (j = 0; j < tile_y; j++) {
+		for (i = 0; i < tile_x && i < 4; i += 2) {
 			if (pixels[j][i].r != ColorMap[CM_RED][0] ||
 			    pixels[j][i].g != ColorMap[CM_GREEN][0] ||
 			    pixels[j][i].b != ColorMap[CM_BLUE][0] ||
@@ -650,7 +655,7 @@ fclose_gif_file()
 		}
 		free((genericptr_t)image);
 	} else {
-		for (i = 0; i < TILE_Y; i++) {
+		for (i = 0; i < tile_y; i++) {
 			free((genericptr_t)image[i]);
 		}
 		free((genericptr_t)image);
@@ -669,8 +674,28 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
-	pixel pixels[TILE_Y][TILE_X];
+	pixel pixels[MAX_TILE_Y][MAX_TILE_X];
 
+/*
+	tile_x = 16;
+	tile_y = 16;
+*/
+
+/*
+	tile_x = 32;
+	tile_y = 32;
+*/
+
+/*
+	tile_x = 48;
+	tile_y = 64;
+*/
+
+	tile_x = 128;
+	tile_y = 128;
+
+
+#ifndef INDEX
 	if (argc == 1) {
 		argc = SIZE(std_args);
 		argv = std_args;
@@ -678,8 +703,30 @@ char *argv[];
 		Fprintf(stderr, "usage: gif2txt giffile txtfile\n");
 		exit(EXIT_FAILURE);
 	}
+#else
+	if (argc != 4) {
+		Fprintf(stderr, "usage: igif2txt indexfile giffile txtfile\n");
+		exit(EXIT_FAILURE);
+	}
+#endif
 
 	while (argc > 1) {
+#ifdef INDEX
+		int i = 0, col, row;
+		FILE *fp;
+		char buf[BUFSZ];
+		char tilename[BUFSZ];
+		char *bufp, *bufs;
+		
+	        if ((fp = fopen(argv[1], "r")) == (FILE *)0)
+	        {
+	                Fprintf(stderr, "Could not open index file '%s'!\n", index_file);
+		        exit(EXIT_FAILURE);
+	        }
+	        argc--;
+	        argv++;
+#endif
+
 		if (!fopen_gif_file(argv[1], RDBMODE))
 			exit(EXIT_FAILURE);
 
@@ -690,8 +737,37 @@ char *argv[];
 			exit(EXIT_FAILURE);
 		}
 
+#ifdef INDEX
+        while(fgets(buf,120,fp))
+        {
+                /* find the ')'*/
+                bufs = index(buf, '(');
+                if (!bufs)
+                	continue;
+                	
+                /* find the ')'*/
+                bufp = index(buf, ')');
+                if (!bufp)
+                	continue;
+                *(bufp + 1) = '\0'; /* we only want everything up to the ) */
+
+		/* (tile name) */
+
+                sscanf (bufs, "(%[^)])", tilename);
+                Fprintf(stdout, "# tile %d (%s)\n", i, tilename);
+
+		if (read_gif_tile(pixels))
+			(void) write_text_tile_info(pixels, "tile", i, tilename);
+		else break;
+		
+                i++;
+        }
+
+#else
 		while (read_gif_tile(pixels))
 			(void) write_text_tile(pixels);
+
+#endif
 
 		(void) fclose_gif_file();
 		(void) fclose_text_file();

@@ -5,7 +5,7 @@
 #
 
 MAZE: "valley", ' '
-FLAGS: noteleport,hardfloor,nommap
+FLAGS: hardfloor
 GEOMETRY:center,center
 MAP
 ----------------------------------------------------------------------------
@@ -40,7 +40,6 @@ REGION:(37,09,43,14),unlit,"morgue",filled,true
 STAIR:(01,01),down
 # Branch location
 BRANCH:(66,17,66,17),(0,0,0,0)
-TELEPORT_REGION:(58,09,72,18),(0,0,0,0),down
 
 # Secret Doors
 DOOR:locked,(04,01)
@@ -282,7 +281,7 @@ MAP
 .|....|....|....|--...-+-------|.............
 .|....|....|....|..............+.............
 .|.........|....|..............|....|........
-.--+-...-+----+--....-------...--------.-+---
+.--+-...-+----+--....-------...--------.+----
 .....................|.....|.................
 .....................|.....|.................
 .--+----....-+---....|.....|...----------+---
@@ -333,7 +332,7 @@ DOOR:open,(31,03)
 DOOR:nodoor,(03,05)
 DOOR:closed,(09,05)
 DOOR:closed,(14,05)
-DOOR:closed,(41,05)
+DOOR:closed,(40,05)
 DOOR:open,(03,08)
 DOOR:nodoor,(13,08)
 DOOR:open,(41,08)
@@ -550,11 +549,365 @@ MONSTER:'L',random,random
 MONSTER:'V',random,random
 MONSTER:'V',random,random
 MONSTER:'V',random,random
+
+# [Tom]
+# The Yeenoghu level
+#
+MAZE:"yeenoghu",random
+FLAGS: noteleport
+GEOMETRY:right,center
+MAP
+-------------------------------------------------
+| ---------|  |----------|                       
+| |....S...|--|......|...------------            
+| |....|...|  |......-...S..........|           
+| |....|-------..........|...------S-------      
+---....|--|..............|...|............|----  
+..........S..............|---|.....\......S...|  
+---....|--|..............|...|............|----  
+| |....|-------..........|...--------------      
+| |....|...|  |......-...S..........|            
+| |....S...|--|......|...------------            
+| ---------|  |----------|                       
+-------------------------------------------------
+ENDMAP
+STAIR:levregion(01,00,15,20),levregion(15,1,70,16),up
+BRANCH:levregion(01,00,15,20),levregion(15,1,70,16)
+TELEPORT_REGION:levregion(01,00,15,20),levregion(15,1,70,16)
+NON_DIGGABLE:(00,00,46,12)
+MAZEWALK:(00,06),west
+STAIR:(44,06),down
+# The fellow in residence
+MONSTER:'&',"Yeenoghu",(35,06)
+# Some random weapons and armor.
+OBJECT:'[',random,random
+OBJECT:'[',random,random
+OBJECT:')',random,random
+OBJECT:')',random,random
+OBJECT:'*',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+# Some traps.
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"magic", random
+TRAP:"magic", random
+TRAP:"magic", random
+TRAP:"magic", random
+# Random monsters.
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghoul",random
+MONSTER:'Z',"ghast",random
+MONSTER:'Z',"ghast",random
+MONSTER:'Z',"ghast",random
+MONSTER:'Z',"ghast",random
+MONSTER:'Z',"ghast",random
+MONSTER:'Z',"ghast",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+MONSTER:'G',"gnoll",random
+
+# [Tom]
+# The Geryon level
+#
+MAZE:"geryon",random
+FLAGS: noteleport
+GEOMETRY:right,center
+MAP
+-------------------------------------------------
+| ------------|----------|                       
+| |....S......|..........|---------------------  
+| |....|......S..........S...|......|.........|  
+| |---S--------..........|...------S-----S-...|  
+---...........|..........|...S............|--S-  
+..............|-S--------|---|............|...|  
+---...........|..........|...|............|----  
+| |---------S--..........|...----------S-----    
+| |....|......|..........S..........|.......|    
+| |....S......|..........|----------|.......|    
+| ------------|----------|          ---------    
+-------------------------------------------------
+ENDMAP
+STAIR:levregion(01,00,15,20),levregion(15,1,70,16),up
+BRANCH:levregion(01,00,15,20),levregion(15,1,70,16)
+TELEPORT_REGION:levregion(01,00,15,20),levregion(15,1,70,16)
+NON_DIGGABLE:(00,00,46,12)
+MAZEWALK:(00,06),west
+STAIR:(44,06),down
+# The fellow in residence
+MONSTER:'&',"Geryon",(35,06)
+# Some random weapons and armor.
+OBJECT:'[',random,random
+OBJECT:'[',random,random
+OBJECT:')',random,random
+OBJECT:')',random,random
+OBJECT:'*',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+# Some traps.
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+# Random monsters.
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'H',"minotaur",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+
+# [Tom]
+# The Demogorgon level
+#
+MAZE:"demogorg",random
+FLAGS: noteleport
+GEOMETRY:right,center
+MAP
+-------------------------------------------------
+| ------------|------------------                
+| |}}}}}}}}}}}|}...}......}}}}}}|--------------  
+| |}}}}}}}}}}}|....}}...}...}}}}S...|.........|  
+| |-----}}-----...}...}.......}}|--S-----S-...|  
+---....}}}}...|.....}}....}..}}}|...|.....|--S-  
+.......}}}}...|-S----------------...|.....|...|  
+---..}}}}}}...|}..|      |...S..S...|.....|----  
+| |-}}}--------...|      |...-------|--S-----    
+| |}}}}|......S...|      |..........S.......|    
+| |}}}}S......|..}|      |----------|.......|    
+| ------------|----                 ---------    
+-------------------------------------------------
+ENDMAP
+STAIR:levregion(01,00,15,20),levregion(15,1,70,16),up
+BRANCH:levregion(01,00,15,20),levregion(15,1,70,16)
+TELEPORT_REGION:levregion(01,00,15,20),levregion(15,1,70,16)
+NON_DIGGABLE:(00,00,46,12)
+MAZEWALK:(00,06),west
+STAIR:(44,06),down
+# The fellow in residence
+MONSTER:'&',"Demogorgon",(06,06)
+# Some random weapons and armor.
+OBJECT:'*',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+# Random monsters.
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'P',random,random
+MONSTER:'j',random,random
+MONSTER:'j',random,random
+MONSTER:'j',random,random
+MONSTER:'j',random,random
+MONSTER:'j',random,random
+MONSTER:'j',random,random
+MONSTER:'j',random,random
+MONSTER:'F',random,random
+MONSTER:'F',random,random
+MONSTER:'F',random,random
+MONSTER:'F',random,random
+MONSTER:'F',random,random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"hezrou",random
+MONSTER:'&',"vrock",random
+MONSTER:'&',"vrock",random
+MONSTER:'&',"vrock",random
+MONSTER:'&',"vrock",random
+MONSTER:'&',"vrock",random
+MONSTER:'&',"vrock",random
+
+# [Tom]
+# The Dispater level
+#
+MAZE:"dispater",random
+FLAGS: noteleport
+GEOMETRY:right,center
+MAP
+-------------------------------------------------
+| ----------------------------------------|--    
+| |.....|.....................|...|...|...S.|    
+| |.--|.|.-------------------.|.|.|.|.|.|.|.|    
+| |...|.|...................|.|.|.|.|.|.|.|.|    
+----|.|.|-----------------|.|.|.|.|.|.|.|.|S---  
+....|.|.|.................|.|.|.|.|.|.|.|.|...|  
+---.|.|.|.|--------------.|.|.|.|.|.|.|.|.|----  
+| |.|.|.|.|...............|.|.|.|.|.|.|.|.| |    
+| |.|.|.|.|.--------------|.|.|.|.|.|.|.|.| |    
+| |...|...|.................|...|...|...|.| |    
+| -------------------------------------------    
+-------------------------------------------------
+ENDMAP
+STAIR:levregion(01,00,15,20),levregion(15,1,70,16),up
+BRANCH:levregion(01,00,15,20),levregion(15,1,70,16)
+TELEPORT_REGION:levregion(01,00,15,20),levregion(15,1,70,16)
+NON_DIGGABLE:(00,00,46,12)
+MAZEWALK:(00,06),west
+STAIR:(44,06),down
+# The fellow in residence
+MONSTER:'&',"Dispater",(18,06)
+# Some random weapons and armor.
+OBJECT:'[',random,random
+OBJECT:'[',random,random
+OBJECT:')',random,random
+OBJECT:')',random,random
+OBJECT:'*',random,random
+OBJECT:'!',random,random
+OBJECT:'!',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+OBJECT:'?',random,random
+# Some traps.
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+TRAP:"fire", random
+# Random monsters.
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"lemure",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"imp",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'i',"nupperibo",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"horned devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"barbed devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+MONSTER:'&',"bone devil",random
+
 #
 # The Sanctum Level
 #
 MAZE:"sanctum", ' '
-FLAGS: noteleport,hardfloor,nommap
+FLAGS: noteleport,hardfloor
 GEOMETRY:center,center
 MAP
 ----------------------------------------------------------------------------
@@ -653,7 +1006,7 @@ OBJECT:'?',random,random
 MONSTER:'&',"horned devil",(14,12),hostile
 MONSTER:'&',"barbed devil",(18,08),hostile
 MONSTER:'&',"erinys",(10,04),hostile
-MONSTER:'&',"marilith",(07,09),hostile
+MONSTER:'&',"marilith",(15,04),hostile
 MONSTER:'&',"nalfeshnee",(27,08),hostile
 # Moloch's horde
 MONSTER:'@',"aligned priest",(20,03),noalign,hostile

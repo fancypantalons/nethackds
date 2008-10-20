@@ -30,19 +30,27 @@ const struct worn {
 	{ W_TOOL, &ublindf },
 	{ W_BALL, &uball },
 	{ W_CHAIN, &uchain },
+#ifdef STEED
+	{ W_SADDLE, &usaddle },
+#endif
 	{ 0, 0 }
 };
 
+/* this only allows for one blocking property per item */
+/* KMH -- Added Hobbits & stealth */
 /* This only allows for one blocking item per property */
 #define w_blocks(o,m) \
 		((o->otyp == MUMMY_WRAPPING && ((m) & W_ARMC)) ? INVIS : \
 		 (o->otyp == CORNUTHAUM && ((m) & W_ARMH) && \
-			!Role_if(PM_WIZARD)) ? CLAIRVOYANT : 0)
+			!Role_if(PM_WIZARD)) ? CLAIRVOYANT : \
+		 (is_boots(o) && o->otyp != ELVEN_BOOTS && ((m) & W_ARMF) && \
+		 	Role_if(PM_HOBBIT)) ? STEALTH : 0)
 		/* note: monsters don't have clairvoyance, so your role
 		   has no significant effect on their use of w_blocks() */
 
-
-/* Updated to use the extrinsic and blocked fields. */
+/* KMH, intrinsic patch.
+ * Updated to use the extrinsic and blocked fields.
+ */
 void
 setworn(obj, mask)
 register struct obj *obj;
@@ -62,8 +70,11 @@ long mask;
 		if(oobj && !(oobj->owornmask & wp->w_mask))
 			impossible("Setworn: mask = %ld.", wp->w_mask);
 		if(oobj) {
-		    if (u.twoweap && (oobj->owornmask & (W_WEP|W_SWAPWEP)))
+		    if (u.twoweap && (oobj->owornmask & (W_WEP|W_SWAPWEP))) {
+			if (uswapwep)
+			    unwield(uswapwep, FALSE);
 			u.twoweap = 0;
+		    }
 		    oobj->owornmask &= ~wp->w_mask;
 		    if (wp->w_mask & ~(W_SWAPWEP|W_QUIVER)) {
 			/* leave as "x = x <op> y", here and below, for broken
@@ -104,7 +115,9 @@ long mask;
 }
 
 /* called e.g. when obj is destroyed */
-/* Updated to use the extrinsic and blocked fields. */
+/* KMH, intrinsic patch.
+ * Updated to use the extrinsic and blocked fields.
+ */
 void
 setnotworn(obj)
 register struct obj *obj;
@@ -113,7 +126,11 @@ register struct obj *obj;
 	register int p;
 
 	if (!obj) return;
-	if (obj == uwep || obj == uswapwep) u.twoweap = 0;
+	if (obj == uwep || obj == uswapwep) {
+	    if (uswapwep)
+		unwield(uswapwep, FALSE);
+	    u.twoweap = 0;
+	}
 	for(wp = worn; wp->w_mask; wp++)
 	    if(obj == *(wp->w_obj)) {
 		*(wp->w_obj) = 0;
@@ -214,7 +231,7 @@ struct obj *obj;
 boolean on, silently;
 {
     int unseen;
-    uchar mask;
+    unsigned long mask;
     struct obj *otmp;
     int which = (int) objects[obj->otyp].oc_oprop;
 
@@ -253,6 +270,9 @@ boolean on, silently;
 	 case JUMPING:
 	 case PROTECTION:
 	    break;
+	 case DRAIN_RES:
+	    mon->mintrinsics |= MR_DRAIN;
+	    break;
 	 default:
 	    if (which <= 8) {	/* 1 thru 8 correspond to MR_xxx mask values */
 		/* FIRE,COLD,SLEEP,DISINT,SHOCK,POISON,ACID,STONE */
@@ -274,6 +294,9 @@ boolean on, silently;
 	    in_mklev = save_in_mklev;
 	    break;
 	  }
+	 case DRAIN_RES:
+	    mask = MR_DRAIN;
+	    goto maybe_loose;
 	 case FIRE_RES:
 	 case COLD_RES:
 	 case SLEEP_RES:
@@ -283,6 +306,7 @@ boolean on, silently;
 	 case ACID_RES:
 	 case STONE_RES:
 	    mask = (uchar) (1 << (which - 1));
+ maybe_loose:
 	    /* If the monster doesn't have this resistance intrinsically,
 	       check whether any other worn item confers it.  Note that
 	       we don't currently check for anything conferred via simply
@@ -293,7 +317,7 @@ boolean on, silently;
 			    (int) objects[otmp->otyp].oc_oprop == which)
 			break;
 		if (!otmp)
-		    mon->mintrinsics &= ~((unsigned short) mask);
+		    mon->mintrinsics &= ~mask;
 	    }
 	    break;
 	 default:

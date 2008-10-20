@@ -42,15 +42,25 @@ struct flag {
 	boolean  female;
 	boolean  forcefight;
 	boolean  friday13;	/* it's Friday the 13th */
+	boolean  groundhogday;	/* KMH -- February 2 */
 	boolean  help;		/* look in data file for info about stuff */
 	boolean  ignintr;	/* ignore interrupts */
 #ifdef INSURANCE
 	boolean  ins_chkpt;	/* checkpoint as appropriate */
 #endif
 	boolean  invlet_constant; /* let objects keep their inventory symbol */
+#ifdef SHOW_WEIGHT
+	boolean  invweight;    /* show weight in inventory and when picking up */
+#endif
+
+/*WAC keep_save option*/
+#ifdef KEEP_SAVE
+	boolean  keep_savefile; /* Keep Old Save files*/
+#endif
 	boolean  legacy;	/* print game entry "story" */
 	boolean  lit_corridor;	/* show a dark corr as lit if it is in sight */
 	boolean  made_amulet;
+	boolean  menu_on_esc;	/* show menu when hitting esc */
 	boolean  mon_moving;	/* monsters' turn to move */
 	boolean  move;
 	boolean  mv;
@@ -63,6 +73,7 @@ struct flag {
 #endif
 	boolean  perm_invent;	/* keep full inventories up until dismissed */
 	boolean  pickup;	/* whether you pickup or move and look */
+	boolean  pickup_thrown;		/* auto-pickup items you threw */
 
 	boolean  pushweapon;	/* When wielding, push old weapon into second slot */
 	boolean  rest_on_space; /* space means rest */
@@ -72,6 +83,12 @@ struct flag {
 #endif
 #ifdef SCORE_ON_BOTL
 	boolean  showscore;	/* show score */
+#endif
+#ifdef SHOW_DMG
+	boolean  showdmg;       /* show damage */
+#endif
+#ifdef SHOW_WEIGHT
+	boolean  showweight;    /* show weight on status line */
 #endif
 	boolean  silent;	/* whether the bell rings or not */
 	boolean  sortpack;	/* sorted inventory */
@@ -98,22 +115,6 @@ struct flag {
 	int	 warnlevel;
 	int	 djinni_count, ghost_count;	/* potion effect tuning */
 	int	 pickup_burden;		/* maximum burden before prompt */
-	char	 inv_order[MAXOCLASSES];
-	char	 pickup_types[MAXOCLASSES];
-#define NUM_DISCLOSURE_OPTIONS		5
-#define DISCLOSE_PROMPT_DEFAULT_YES	'y'
-#define DISCLOSE_PROMPT_DEFAULT_NO	'n'
-#define DISCLOSE_YES_WITHOUT_PROMPT	'+'
-#define DISCLOSE_NO_WITHOUT_PROMPT	'-'
-	char	 end_disclose[NUM_DISCLOSURE_OPTIONS + 1];  /* disclose various info
-								upon exit */
-	char	 menu_style;	/* User interface style setting */
-#ifdef AMII_GRAPHICS
-	int numcols;
-	unsigned short amii_dripens[ 20 ]; /* DrawInfo Pens currently there are 13 in v39 */
-	AMII_COLOR_TYPE amii_curmap[ AMII_MAXCOLORS ]; /* colormap */
-#endif
-
 	/* KMH, role patch -- Variables used during startup.
 	 *
 	 * If the user wishes to select a role, race, gender, and/or alignment
@@ -146,6 +147,23 @@ struct flag {
 	int	 initalign;	/* starting alignment (index into aligns[])  */
 	int	 randomall;	/* randomly assign everything not specified */
 	int	 pantheon;	/* deity selection for priest character */
+	/* KMH, balance patch */
+	int      boot_count; /* boots from fishing pole */
+	char	 inv_order[MAXOCLASSES];
+	char	 pickup_types[MAXOCLASSES];
+#define NUM_DISCLOSURE_OPTIONS         5
+#define DISCLOSE_PROMPT_DEFAULT_YES    'y'
+#define DISCLOSE_PROMPT_DEFAULT_NO     'n'
+#define DISCLOSE_YES_WITHOUT_PROMPT    '+'
+#define DISCLOSE_NO_WITHOUT_PROMPT     '-'
+	char     end_disclose[NUM_DISCLOSURE_OPTIONS + 1];  /* disclose various info
+							       upon exit */
+	char	 menu_style;	/* User interface style setting */
+#ifdef AMII_GRAPHICS
+	int numcols;
+	unsigned short amii_dripens[ 20 ]; /* DrawInfo Pens currently there are 13 in v39 */
+	AMII_COLOR_TYPE amii_curmap[ AMII_MAXCOLORS ]; /* colormap */
+#endif
 };
 
 /*
@@ -183,6 +201,9 @@ struct instance_flags {
 	char prevmsg_window;	/* type of old message window to use */
 	boolean  extmenu;	/* extended commands use menu interface */
 #endif
+#ifdef MENU_COLOR
+        boolean use_menu_color; /* use color in menus; only if wc_color */
+#endif
 #ifdef MFLOPPY
 	boolean  checkspace;	/* check disk space before writing files */
 				/* (in iflags to allow restore after moving
@@ -208,6 +229,8 @@ struct instance_flags {
 	boolean traditional_view;
 #endif
 #ifdef MSDOS
+	boolean	hasalleg;	/* has a Allegor compatible adapter  */
+	boolean usealleg;	/* use the Allegro library           */
 	boolean hasvga;		/* has a vga adapter */
 	boolean usevga;		/* use the vga adapter */
 	boolean grmode;		/* currently in graphics mode */

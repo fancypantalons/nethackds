@@ -33,6 +33,28 @@ static const char *random_mesg[] = {
 	"You've got mail!", /* AOL */
 #endif
 	"As if!", /* Clueless */
+	/* [Tom] added these */
+	"Y?v?l s??ks!", /* just kidding... */
+	"T?m ?as h?r?",
+	/* Tsanth added these */
+	"Gazortenplatz", /* Tribute to David Fizz */
+	"John 3:16", /* You see this everywhere; why not here? */
+	"Exhale! Exhale! Exhale!", /* Prodigy */
+	"All you need is love.", /* The Beatles */
+	"Please don't feed the animals.", /* Various zoos around the world */
+	"....TCELES B HSUP   A magic spell?", /* Final Fantasy I (US) */
+	"Madam, in Eden, I'm Adam.", /* A palindrome */
+	"Two thumbs up!", /* Siskel & Ebert */
+	"Hello, World!", /* The First Program line */
+	"Turn around.", /* Various people at various times in history */
+	"You've got mail!", /* AOL */
+	"UY WUZ HERE", /* :] */
+	"Time flies when you're having fun.", /* Who said this first, anyway? */
+	"As if!", /* Clueless */
+	"How bizarre, how bizarre.", /* OMC */
+	"Silly rabbit, Trix are for kids!", /* Trix */
+ 	"I'll be back!", /* Terminator */
+ 	"That is not dead which can eternal lie.", /* HPL */
 };
 
 char *
@@ -273,9 +295,10 @@ register xchar x,y,cnt;
 #endif /* OVL1 */
 #ifdef OVL2
 
-void
-read_engr_at(x,y)
+boolean
+sense_engr_at(x,y,read_it)
 register int x,y;
+boolean read_it; /* Read any sensed engraving */
 {
 	register struct engr *ep = engr_at(x,y);
 	register int	sensed = 0;
@@ -332,20 +355,31 @@ register int x,y;
 				Something);
 		sensed = 1;
 	    }
-	    if (sensed) {
+	    if (sensed && !read_it &&
+			    flags.suppress_alert < FEATURE_NOTICE_VER(0,0,7)) {
+		pline("Use \"r.\" to read it.");
+	    } else if (sensed && read_it) {
 	    	char *et;
-	    	unsigned maxelen = BUFSZ - sizeof("You feel the words: \"\". ");
-	    	if (strlen(ep->engr_txt) > maxelen) {
-	    		(void) strncpy(buf,  ep->engr_txt, (int)maxelen);
+	    	unsigned len, maxelen = BUFSZ - sizeof("You feel the words: \"\". ");
+	    	len = strlen(ep->engr_txt);
+	    	if (len > maxelen) {
+	    		(void)strncpy(buf,  ep->engr_txt, (int)maxelen);
 			buf[maxelen] = '\0';
 			et = buf;
 		} else
 			et = ep->engr_txt;
+
+		/* If you can engrave an 'x', you can "read" it --ALI */
+		if (len != 1 || (!index(et, 'x') && !index(et, 'X')))
+			u.uconduct.literate++;
+
 		You("%s: \"%s\".",
 		      (Blind) ? "feel the words" : "read",  et);
 		if(flags.run > 1) nomul(0);
+		return TRUE;
 	    }
 	}
+	return FALSE;
 }
 
 #endif /* OVL2 */
@@ -610,8 +644,9 @@ doengrave()
 		    case WAN_LIGHT:
 		    case WAN_SECRET_DOOR_DETECTION:
 		    case WAN_CREATE_MONSTER:
-		    case WAN_WISHING:
+		    case WAN_CREATE_HORDE:
 		    case WAN_ENLIGHTENMENT:
+		    case WAN_WISHING:
 			zapnodir(otmp);
 			break;
 
@@ -638,6 +673,21 @@ doengrave()
 				   surface(u.ux, u.uy));
 			}
 			break;
+		    case WAN_HEALING:
+		    case WAN_EXTRA_HEALING:
+			if (!Blind) {
+			   Sprintf(post_engr_text,
+				   "The bugs on the %s look healthier!",
+				   surface(u.ux, u.uy));
+			}
+			break;
+		    case WAN_FEAR:
+			if (!Blind) {
+			   Sprintf(post_engr_text,
+				   "The bugs on the %s run away!",
+				   surface(u.ux, u.uy));
+			}
+			break;
 		    case WAN_POLYMORPH:
 			if(oep)  {
 			    if (!Blind) {
@@ -645,6 +695,29 @@ doengrave()
 				(void) random_engraving(buf);
 			    }
 			    dengr = TRUE;
+			}
+			break;
+		    case WAN_DRAINING:	/* KMH */
+			if (oep) {
+			    /*
+			     * [ALI] Wand of draining give messages like
+			     * either polymorph or cancellation/make
+			     * invisible depending on whether the
+			     * old engraving is completely wiped or not.
+			     * Note: Blindness has slightly different
+			     * effect than with wand of polymorph.
+			     */
+			    u_wipe_engr(5);
+			    oep = engr_at(u.ux,u.uy);
+			    if (!Blind) {
+				if (!oep)
+				    pline_The("engraving on the %s vanishes!",
+				      surface(u.ux,u.uy));
+				else {
+				    strcpy(buf, oep->engr_txt);
+				    dengr = TRUE;
+				}
+			    }
 			}
 			break;
 		    case WAN_NOTHING:
@@ -732,6 +805,18 @@ doengrave()
 				Blind ? "You feel the wand heat up." :
 					"Flames fly from the wand.");
 			break;
+		    case WAN_FIREBALL:
+			ptext = TRUE;
+			type  = BURN;
+			if(!objects[otmp->otyp].oc_name_known) {
+			if (flags.verbose)
+			    pline("This %s is a wand of fireballs!", xname(otmp));
+			    doknown = TRUE;
+			}
+			Strcpy(post_engr_text,
+				Blind ? "You feel the wand heat up." :
+					"Flames fly from the wand.");
+			break;
 		    case WAN_LIGHTNING:
 			ptext = TRUE;
 			type  = BURN;
@@ -760,7 +845,7 @@ doengrave()
 		break;
 
 	    case WEAPON_CLASS:
-		if (is_blade(otmp)) {
+		if(is_blade(otmp)) {
 		    if ((int)otmp->spe > -3)
 			type = ENGRAVE;
 		    else
@@ -774,6 +859,13 @@ doengrave()
 		"That is a bit difficult to engrave with, don't you think?");
 		    return(0);
 		}
+
+#ifdef LIGHTSABERS
+		if (is_lightsaber(otmp)) {
+		    if (otmp->lamplit) type = BURN;
+		    else Your("%s is deactivated!", aobjnam(otmp,"are"));
+		} else
+#endif
 		switch (otmp->otyp)  {
 		    case MAGIC_MARKER:
 			if (otmp->spe <= 0)
@@ -853,7 +945,7 @@ doengrave()
 	/* Something has changed the engraving here */
 	if (*buf) {
 	    make_engr_at(u.ux, u.uy, buf, moves, type);
-	    pline_The("engraving now reads: \"%s\".", buf);
+	    pline_The("engraving looks different now.");
 	    ptext = FALSE;
 	}
 
@@ -935,7 +1027,7 @@ doengrave()
 	    case DUST:
 		everb = (oep && !eow ? "add to the writing in" :
 				       "write in");
-		eloc = is_ice(u.ux,u.uy) ? "frost" : "dust";
+		eloc = (is_ice(u.ux,u.uy) ? "frost" : "dust");
 		break;
 	    case HEADSTONE:
 		everb = (oep && !eow ? "add to the epitaph on" :
@@ -1085,7 +1177,7 @@ doengrave()
 	/* Chop engraving down to size if necessary */
 	if (len > maxelen) {
 	    for (sp = ebuf; (maxelen && *sp); sp++)
-		if (!isspace(*sp)) maxelen--;
+		if (!isspace((int)*sp)) maxelen--;
 	    if (!maxelen && *sp) {
 		*sp = (char)0;
 		if (multi) nomovemsg = "You cannot write any more.";
@@ -1229,7 +1321,9 @@ static const char *epitaphs[] = {
 	"I made an ash of myself",
 	"Soon ripe. Soon rotten. Soon gone. But not forgotten.",
 	"Here lies the body of Jonathan Blake. Stepped on the gas instead of the brake.",
-	"Go away!"
+	"Go away!",
+	/* From SLASH'EM */
+	"This old man, he played one, he played knick-knack on my thumb."
 };
 
 /* Create a headstone at the given location.

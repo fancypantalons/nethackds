@@ -31,10 +31,19 @@ char oclass;
 
     if (obj->oclass == oclass) return obj;
 
-    if (Has_contents(obj)) {
+    /*
+     * Pills inside medical kits are specially handled (see apply.c).
+     * We don't want them to detect as food because then they will be
+     * shown as pink pills, which are something quite different. In
+     * practice the only other possible contents of medical kits are
+     * bandages and phials, neither of which is detectable by any
+     * means so we can simply avoid looking in medical kits.
+     */
+    if (Has_contents(obj) && obj->otyp != MEDICAL_KIT) {
 	for (otmp = obj->cobj; otmp; otmp = otmp->nobj)
 	    if (otmp->oclass == oclass) return otmp;
-	    else if (Has_contents(otmp) && (temp = o_in(otmp, oclass)))
+	    else if (Has_contents(otmp) && otmp->otyp != MEDICAL_KIT &&
+		    (temp = o_in(otmp, oclass)))
 		return temp;
     }
     return (struct obj *) 0;
@@ -686,7 +695,7 @@ register struct obj *sobj;
     register int door;
     int uw = u.uinwater;
     boolean found = FALSE;
-    coord cc;
+    int x, y;
 
     for (ttmp = ftrap; ttmp; ttmp = ttmp->ntrap) {
 	if (ttmp->tx != u.ux || ttmp->ty != u.uy)
@@ -701,9 +710,10 @@ register struct obj *sobj;
 	}
     }
     for (door = 0; door < doorindex; door++) {
-	cc = doors[door];
-	if (levl[cc.x][cc.y].doormask & D_TRAPPED) {
-	    if (cc.x != u.ux || cc.y != u.uy)
+	x = doors[door].x;
+	y = doors[door].y;
+	if (levl[x][y].doormask & D_TRAPPED) {
+	    if (x != u.ux || y != u.uy)
 		goto outtrapmap;
 	    else found = TRUE;
 	}
@@ -729,9 +739,10 @@ outtrapmap:
 	sense_trap((struct trap *)0, obj->ox, obj->oy, sobj && sobj->cursed);
 
     for (door = 0; door < doorindex; door++) {
-	cc = doors[door];
-	if (levl[cc.x][cc.y].doormask & D_TRAPPED)
-	sense_trap((struct trap *)0, cc.x, cc.y, sobj && sobj->cursed);
+	x = doors[door].x;
+	y = doors[door].y;
+	if (levl[x][y].doormask & D_TRAPPED)
+	sense_trap((struct trap *)0, x, y, sobj && sobj->cursed);
     }
 
     newsym(u.ux,u.uy);
@@ -752,22 +763,26 @@ d_level *where;
     register boolean indun = (u.uz.dnum == where->dnum);
 
     if (ll < 0) {
-	if (ll < (-8 - rn2(3)))
+	if (ll < (-8 - rn2(3))) {
 	    if (!indun)	return "far away";
 	    else	return "far below";
-	else if (ll < -1)
+	}
+	else if (ll < -1) {
 	    if (!indun)	return "away below you";
 	    else	return "below you";
+	}
 	else
 	    if (!indun)	return "in the distance";
 	    else	return "just below";
     } else if (ll > 0) {
-	if (ll > (8 + rn2(3)))
+	if (ll > (8 + rn2(3))) {
 	    if (!indun)	return "far away";
 	    else	return "far above";
-	else if (ll > 1)
+	}
+	else if (ll > 1) {
 	    if (!indun)	return "away above you";
 	    else	return "above you";
+	}
 	else
 	    if (!indun)	return "in the distance";
 	    else	return "just above";
@@ -925,10 +940,14 @@ register int x, y;
     }
 
     /* if we don't remember an object or trap there, map it */
+#ifdef DISPLAY_LAYERS
+    if (!lev->mem_obj && !lev->mem_trap) {
+#else
     if (lev->typ == ROOM ?
 	    (glyph_is_cmap(lev->glyph) && !glyph_is_trap(lev->glyph) &&
 		glyph_to_cmap(lev->glyph) != ROOM) :
 	    (!glyph_is_object(lev->glyph) && !glyph_is_trap(lev->glyph))) {
+#endif
 	if (level.flags.hero_memory) {
 	    magic_map_background(x,y,0);
 	    newsym(x,y);			/* show it, if not blocked */
@@ -997,7 +1016,6 @@ struct rm *lev;
 	lev->doormask = newmask;
 }
 
-
 STATIC_PTR void
 findone(zx,zy,num)
 int zx,zy;
@@ -1035,9 +1053,9 @@ genericptr_t num;
 			(*(int*)num)++;
 		}
 		if (!canspotmon(mtmp) &&
-				    !glyph_is_invisible(levl[zx][zy].glyph))
+				    !memory_is_invisible(zx, zy))
 			map_invisible(zx, zy);
-	} else if (glyph_is_invisible(levl[zx][zy].glyph)) {
+	} else if (memory_is_invisible(zx, zy)) {
 		unmap_object(zx, zy);
 		newsym(zx, zy);
 		(*(int*)num)++;
@@ -1139,7 +1157,12 @@ struct trap *trap;
     else
 	newsym(trap->tx, trap->ty);
 
+#ifdef DISPLAY_LAYERS
+    if (levl[trap->tx][trap->ty].mem_obj ||
+	    memory_is_invisible(trap->tx, trap->ty)) {
+#else
     if (levl[trap->tx][trap->ty].glyph != trap_to_glyph(trap)) {
+#endif
     	/* There's too much clutter to see your find otherwise */
 	cls();
 	map_trap(trap, 1);
@@ -1210,7 +1233,7 @@ register int aflag;
 				seemimic(mtmp);
 		find:		exercise(A_WIS, TRUE);
 				if (!canspotmon(mtmp)) {
-				    if (glyph_is_invisible(levl[x][y].glyph)) {
+				    if (memory_is_invisible(x, y)) {
 					/* found invisible monster in a square
 					 * which already has an 'I' in it.
 					 * Logically, this should still take
@@ -1240,7 +1263,7 @@ register int aflag;
 			 * feel_location() already did it
 			 */
 			if (!aflag && !mtmp && !Blind &&
-				    glyph_is_invisible(levl[x][y].glyph)) {
+				    memory_is_invisible(x, y)) {
 			    unmap_object(x,y);
 			    newsym(x,y);
 			}
@@ -1249,7 +1272,8 @@ register int aflag;
 			    nomul(0);
 
 			    if (trap->ttyp == STATUE_TRAP) {
-				if (activate_statue_trap(trap, x, y, FALSE))
+ 				mtmp = activate_statue_trap(trap, x, y, FALSE);
+ 				if (mtmp != (struct monst *)0) 
 				    exercise(A_WIS, TRUE);
 				return(1);
 			    } else {
@@ -1261,12 +1285,6 @@ register int aflag;
 	    }
 	}
 	return(1);
-}
-
-int
-dosearch()
-{
-	return(dosearch0(0));
 }
 
 /* Pre-map the sokoban levels */
@@ -1295,5 +1313,11 @@ sokoban_detect()
 	}
 }
 
+
+int
+dosearch()
+{
+	return(dosearch0(0));
+}
 
 /*detect.c*/

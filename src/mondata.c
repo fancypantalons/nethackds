@@ -20,9 +20,9 @@ int flag;
     if (flag == -1) return;		/* "don't care" */
 
     if (flag == 1)
-	mon->mintrinsics |= (ptr->mresists & 0x00FF);
+	mon->mintrinsics |= (ptr->mresists & MR_TYPEMASK);
     else
-	mon->mintrinsics = (ptr->mresists & 0x00FF);
+	mon->mintrinsics = (ptr->mresists & MR_TYPEMASK);
     return;
 }
 
@@ -71,7 +71,8 @@ struct monst *mon;
 	struct obj *wep = ((mon == &youmonst) ? uwep : MON_WEP(mon));
 
 	return (boolean)(is_undead(ptr) || is_demon(ptr) || is_were(ptr) ||
-			 ptr == &mons[PM_DEATH] ||
+			 ptr == &mons[PM_DEATH] || is_golem(ptr) ||
+			 resists_drain(mon) ||
 			 (wep && wep->oartifact && defends(AD_DRLI, wep)));
 }
 
@@ -99,7 +100,7 @@ struct monst *mon;
 	return FALSE;
 }
 
-/* TRUE iff monster is resistant to light-induced blindness */
+/* TRUE if monster is resistant to light-induced blindness */
 boolean
 resists_blnd(mon)
 struct monst *mon;
@@ -227,7 +228,7 @@ struct permonst *ptr;
 		attacktype(ptr, AT_MAGC));
 	   but that's too slow -dlc
 	 */
-	for (i = 0; i < NATTK; i++) {
+	for(i = 0; i < NATTK; i++) {
 	    atyp = ptr->mattk[i].aatyp;
 	    if (atyp >= AT_WEAP) return TRUE;
 	 /* assert(atyp < 32); */
@@ -235,16 +236,6 @@ struct permonst *ptr;
 	}
 
 	return FALSE;
-}
-
-boolean
-hates_silver(ptr)
-register struct permonst *ptr;
-/* returns TRUE if monster is especially affected by silver weapons */
-{
-	return((boolean)(is_were(ptr) || ptr->mlet==S_VAMPIRE || is_demon(ptr) ||
-		ptr == &mons[PM_SHADE] ||
-		(ptr->mlet==S_IMP && ptr != &mons[PM_TENGU])));
 }
 
 /* true iff the type of monster pass through iron bars */
@@ -307,6 +298,11 @@ num_horns(ptr)
 struct permonst *ptr;
 {
     switch (monsndx(ptr)) {
+    case PM_LAMB:
+    case PM_SHEEP:
+    case PM_GOAT:
+    case PM_COW:
+    case PM_BULL:
     case PM_HORNED_DEVIL:	/* ? "more than one" */
     case PM_MINOTAUR:
     case PM_ASMODEUS:
@@ -382,11 +378,13 @@ monsndx(ptr)		/* return an index into the mons array */
 {
 	register int	i;
 
+	if (ptr == &upermonst) return PM_PLAYERMON;
+
 	i = (int)(ptr - &mons[0]);
 	if (i < LOW_PM || i >= NUMMONS) {
 		/* ought to switch this to use `fmt_ptr' */
-	    panic("monsndx - could not index monster (%lx)",
-		  (unsigned long)ptr);
+	    panic("monsndx - could not index monster (%d)",
+		  i);
 	    return NON_PM;		/* will not get here */
 	}
 
@@ -448,6 +446,8 @@ const char *in_str;
 		{ "grey unicorn",	PM_GRAY_UNICORN },
 		{ "grey ooze",		PM_GRAY_OOZE },
 		{ "gray-elf",		PM_GREY_ELF },
+		{ "mindflayer",         PM_MIND_FLAYER },
+		{ "master mindflayer",  PM_MASTER_MIND_FLAYER },
 	    /* Hyphenated names */
 		{ "ki rin",		PM_KI_RIN },
 		{ "uruk hai",		PM_URUK_HAI },
@@ -471,9 +471,13 @@ const char *in_str;
 		{ "lurkers above",	PM_LURKER_ABOVE },
 		{ "cavemen",		PM_CAVEMAN },
 		{ "cavewomen",		PM_CAVEWOMAN },
+#ifndef ZOUTHERN
+/*		{ "zruties",            PM_ZRUTY },*/
+#endif
 		{ "djinn",		PM_DJINNI },
 		{ "mumakil",		PM_MUMAK },
 		{ "erinyes",		PM_ERINYS },
+		{ "giant lice",         PM_GIANT_LOUSE },	/* RJ */
 	    /* falsely caught by -ves check above */
 		{ "master of thief",	PM_MASTER_OF_THIEVES },
 	    /* end of list */
@@ -527,7 +531,7 @@ int
 pronoun_gender(mtmp)
 register struct monst *mtmp;
 {
-	if (is_neuter(mtmp->data) || !canspotmon(mtmp)) return 2;
+	if (!mtmp->isshk && (is_neuter(mtmp->data) || !canspotmon(mtmp))) return 2;
 	return (humanoid(mtmp->data) || (mtmp->data->geno & G_UNIQ) ||
 		type_is_pname(mtmp->data)) ? (int)mtmp->female : 2;
 }
@@ -553,14 +557,11 @@ struct monst *mtmp;
 }
 
 static const short grownups[][2] = {
-	{PM_CHICKATRICE, PM_COCKATRICE},
 	{PM_LITTLE_DOG, PM_DOG}, {PM_DOG, PM_LARGE_DOG},
 	{PM_HELL_HOUND_PUP, PM_HELL_HOUND},
-	{PM_WINTER_WOLF_CUB, PM_WINTER_WOLF},
 	{PM_KITTEN, PM_HOUSECAT}, {PM_HOUSECAT, PM_LARGE_CAT},
-	{PM_PONY, PM_HORSE}, {PM_HORSE, PM_WARHORSE},
 	{PM_KOBOLD, PM_LARGE_KOBOLD}, {PM_LARGE_KOBOLD, PM_KOBOLD_LORD},
-	{PM_GNOME, PM_GNOME_LORD}, {PM_GNOME_LORD, PM_GNOME_KING},
+	{PM_GNOME, PM_GNOME_LORD}, {PM_GNOME_LORD, PM_GNOME_WARRIOR},
 	{PM_DWARF, PM_DWARF_LORD}, {PM_DWARF_LORD, PM_DWARF_KING},
 	{PM_MIND_FLAYER, PM_MASTER_MIND_FLAYER},
 	{PM_ORC, PM_ORC_CAPTAIN}, {PM_HILL_ORC, PM_ORC_CAPTAIN},
@@ -573,13 +574,14 @@ static const short grownups[][2] = {
 	{PM_ELF_LORD, PM_ELVENKING},
 	{PM_LICH, PM_DEMILICH}, {PM_DEMILICH, PM_MASTER_LICH},
 	{PM_MASTER_LICH, PM_ARCH_LICH},
-	{PM_VAMPIRE, PM_VAMPIRE_LORD}, {PM_BAT, PM_GIANT_BAT},
+	{PM_VAMPIRE, PM_VAMPIRE_LORD}, {PM_VAMPIRE_LORD, PM_VAMPIRE_MAGE}, 
+	{PM_BAT, PM_GIANT_BAT},
+	{PM_CHICKATRICE, PM_COCKATRICE},
 	{PM_BABY_GRAY_DRAGON, PM_GRAY_DRAGON},
-	{PM_BABY_SILVER_DRAGON, PM_SILVER_DRAGON},
-#if 0	/* DEFERRED */
-	{PM_BABY_SHIMMERING_DRAGON, PM_SHIMMERING_DRAGON},
-#endif
 	{PM_BABY_RED_DRAGON, PM_RED_DRAGON},
+	{PM_BABY_SILVER_DRAGON, PM_SILVER_DRAGON},
+	{PM_BABY_DEEP_DRAGON, PM_DEEP_DRAGON},
+	{PM_BABY_SHIMMERING_DRAGON, PM_SHIMMERING_DRAGON},
 	{PM_BABY_WHITE_DRAGON, PM_WHITE_DRAGON},
 	{PM_BABY_ORANGE_DRAGON, PM_ORANGE_DRAGON},
 	{PM_BABY_BLACK_DRAGON, PM_BLACK_DRAGON},
@@ -610,6 +612,22 @@ static const short grownups[][2] = {
 	{PM_KOP_SERGEANT, PM_KOP_LIEUTENANT},
 	{PM_KOP_LIEUTENANT, PM_KOP_KAPTAIN},
 #endif
+	/* WAC -- added killer coin piles */
+	{PM_PILE_OF_KILLER_COINS, PM_LARGE_PILE_OF_KILLER_COINS},
+	{PM_LARGE_PILE_OF_KILLER_COINS,PM_HUGE_PILE_OF_KILLER_COINS},
+	/* KMH -- added more sequences */
+	{PM_DINGO_PUPPY, PM_DINGO}, {PM_DINGO, PM_LARGE_DINGO},
+	{PM_PONY, PM_HORSE}, {PM_HORSE, PM_WARHORSE},
+	{PM_LARVA, PM_MAGGOT}, {PM_MAGGOT, PM_DUNG_WORM},
+	{PM_WINTER_WOLF_CUB, PM_WINTER_WOLF},
+	{PM_GIANT_TICK, PM_GIANT_FLEA}, {PM_GIANT_FLEA, PM_GIANT_LOUSE},	/* RJ */
+	/* DS -- growing up, Lethe style */
+	{PM_DEEP_ONE, PM_DEEPER_ONE}, {PM_DEEPER_ONE, PM_DEEPEST_ONE},
+	{PM_LAMB, PM_SHEEP}, 
+	{PM_SHOGGOTH, PM_GIANT_SHOGGOTH},
+	{PM_GNOLL, PM_GNOLL_WARRIOR}, {PM_GNOLL_WARRIOR, PM_GNOLL_CHIEFTAIN},
+	{PM_MIGO_DRONE, PM_MIGO_WARRIOR},
+
 	{NON_PM,NON_PM}
 };
 

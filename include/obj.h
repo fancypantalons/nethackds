@@ -25,6 +25,9 @@ struct obj {
 	unsigned o_id;
 	xchar ox,oy;
 	short otyp;		/* object class number */
+#ifdef UNPOLYPILE
+	short oldtyp;	/* WAC for unpolymorph */
+#endif
 	unsigned owt;
 	long quan;		/* number of items */
 
@@ -41,6 +44,11 @@ struct obj {
 	char	oclass;		/* object class */
 	char	invlet;		/* designation in inventory */
 	char	oartifact;	/* artifact array index */
+	schar 	altmode; 	/* alternate modes - eg. SMG, double Lightsaber */
+				/* WP_MODEs are in decreasing speed */
+#define WP_MODE_AUTO	0	/* Max firing speed */
+#define WP_MODE_BURST	1	/* 1/3 of max rate */
+#define WP_MODE_SINGLE 	2	/* Single shot */
 
 	xchar where;		/* where the object thinks it is */
 #define OBJ_FREE	0		/* object not attached to anything */
@@ -72,6 +80,8 @@ struct obj {
 #define norevive oeroded2
 	Bitfield(oerodeproof,1); /* erodeproof weapon/armor */
 	Bitfield(olocked,1);	/* object is locked */
+#define oarmed olocked
+#define odrained olocked	/* drained corpse */
 	Bitfield(obroken,1);	/* lock has been broken */
 	Bitfield(otrapped,1);	/* container is trapped */
 				/* or accidental tripped rolling boulder trap */
@@ -88,10 +98,12 @@ struct obj {
 #define OATTACHED_MONST   1	/* monst struct in oextra */
 #define OATTACHED_M_ID    2	/* monst id in oextra */
 #define OATTACHED_UNUSED3 3
-
 	Bitfield(in_use,1);	/* for magic items before useup items */
 	Bitfield(bypass,1);	/* mark this as an object to be skipped by bhito() */
-	/* 6 free bits */
+
+	Bitfield(yours,1);	/* obj is yours (eg. thrown by you) */
+	Bitfield(was_thrown,1); /* thrown by the hero since last picked up */
+	/* ? free bits */
 
 	int	corpsenm;	/* type of corpse is mons[corpsenm] */
 #define leashmon  corpsenm	/* gets m_id of attached pet */
@@ -112,6 +124,29 @@ struct obj {
 #define newobj(xl)	(struct obj *)alloc((unsigned)(xl) + sizeof(struct obj))
 #define ONAME(otmp)	(((char *)(otmp)->oextra) + (otmp)->oxlth)
 
+/* All objects */
+#ifdef UNPOLYPILE
+#define is_hazy(otmp)	((otmp)->oldtyp != STRANGE_OBJECT)
+#endif
+/* [ALI] None of the objects listed here can be picked up by normal monsters.
+ * If any such objects need to be marked as indestructible then consideration
+ * will need to be given to what happens when such a monster disappears
+ * carrying the object.
+ */
+#define evades_destruction(otmp) ( \
+			(otmp)->otyp == AMULET_OF_YENDOR || \
+			(otmp)->otyp == CANDELABRUM_OF_INVOCATION || \
+			(otmp)->otyp == BELL_OF_OPENING || \
+			(otmp)->otyp == SPE_BOOK_OF_THE_DEAD || \
+			(otmp)->oartifact == ART_KEY_OF_LAW || \
+			(otmp)->oartifact == ART_KEY_OF_NEUTRALITY || \
+			(otmp)->oartifact == ART_KEY_OF_CHAOS)
+#ifdef INVISIBLE_OBJECTS
+#define always_visible(otmp) ( \
+			(otmp)->otyp == MUMMY_WRAPPING || \
+			(otmp)->oclass == COIN_CLASS)
+#endif
+
 /* Weapons and weapon-tools */
 /* KMH -- now based on skill categories.  Formerly:
  *	#define is_sword(otmp)	(otmp->oclass == WEAPON_CLASS && \
@@ -124,67 +159,90 @@ struct obj {
  *	#define is_multigen(otyp) (otyp <= SHURIKEN)
  *	#define is_poisonable(otyp) (otyp <= BEC_DE_CORBIN)
  */
-#define is_blade(otmp)	(otmp->oclass == WEAPON_CLASS && \
-			 objects[otmp->otyp].oc_skill >= P_DAGGER && \
-			 objects[otmp->otyp].oc_skill <= P_SABER)
-#define is_axe(otmp)	((otmp->oclass == WEAPON_CLASS || \
-			 otmp->oclass == TOOL_CLASS) && \
-			 objects[otmp->otyp].oc_skill == P_AXE)
-#define is_pick(otmp)	((otmp->oclass == WEAPON_CLASS || \
-			 otmp->oclass == TOOL_CLASS) && \
-			 objects[otmp->otyp].oc_skill == P_PICK_AXE)
-#define is_sword(otmp)	(otmp->oclass == WEAPON_CLASS && \
-			 objects[otmp->otyp].oc_skill >= P_SHORT_SWORD && \
-			 objects[otmp->otyp].oc_skill <= P_SABER)
-#define is_pole(otmp)	((otmp->oclass == WEAPON_CLASS || \
-			otmp->oclass == TOOL_CLASS) && \
-			 (objects[otmp->otyp].oc_skill == P_POLEARMS || \
-			 objects[otmp->otyp].oc_skill == P_LANCE))
-#define is_spear(otmp)	(otmp->oclass == WEAPON_CLASS && \
-			 objects[otmp->otyp].oc_skill >= P_SPEAR && \
-			 objects[otmp->otyp].oc_skill <= P_JAVELIN)
-#define is_launcher(otmp)	(otmp->oclass == WEAPON_CLASS && \
-			 objects[otmp->otyp].oc_skill >= P_BOW && \
-			 objects[otmp->otyp].oc_skill <= P_CROSSBOW)
-#define is_ammo(otmp)	((otmp->oclass == WEAPON_CLASS || \
-			 otmp->oclass == GEM_CLASS) && \
-			 objects[otmp->otyp].oc_skill >= -P_CROSSBOW && \
-			 objects[otmp->otyp].oc_skill <= -P_BOW)
-#define ammo_and_launcher(otmp,ltmp) \
-			 (is_ammo(otmp) && (ltmp) && \
-			 objects[(otmp)->otyp].oc_skill == -objects[(ltmp)->otyp].oc_skill)
-#define is_missile(otmp)	((otmp->oclass == WEAPON_CLASS || \
-			 otmp->oclass == TOOL_CLASS) && \
-			 objects[otmp->otyp].oc_skill >= -P_BOOMERANG && \
-			 objects[otmp->otyp].oc_skill <= -P_DART)
+
+#define is_sword(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill >= P_SHORT_SWORD && \
+			 objects[(otmp)->otyp].oc_skill <= P_SABER)
+#define is_blade(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill >= P_DAGGER && \
+			 objects[(otmp)->otyp].oc_skill <= P_SABER)
+#define is_pole(otmp)	(((otmp)->oclass == WEAPON_CLASS || \
+			(otmp)->oclass == TOOL_CLASS) && \
+			 (objects[(otmp)->otyp].oc_skill == P_POLEARMS || \
+			 objects[(otmp)->otyp].oc_skill == P_LANCE))
+#define is_spear(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill >= P_SPEAR && \
+			 objects[(otmp)->otyp].oc_skill <= P_JAVELIN)
+#define is_axe(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill == P_AXE)
+#define is_launcher(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill >= P_BOW && \
+			 objects[(otmp)->otyp].oc_skill <= P_CROSSBOW)
+#define is_ammo(otmp)	(((otmp)->oclass == WEAPON_CLASS || \
+			 (otmp)->oclass == GEM_CLASS) && \
+			 objects[(otmp)->otyp].oc_skill >= -P_CROSSBOW && \
+			 objects[(otmp)->otyp].oc_skill <= -P_BOW)
+#define is_missile(otmp)	(((otmp)->oclass == WEAPON_CLASS || \
+			 (otmp)->oclass == TOOL_CLASS) && \
+			 objects[(otmp)->otyp].oc_skill >= -P_BOOMERANG && \
+			 objects[(otmp)->otyp].oc_skill <= -P_DART)
+#define is_grenade(otmp)	(is_ammo(otmp) && \
+			 	 objects[(otmp)->otyp].w_ammotyp == WP_GRENADE)
+#define is_multigen(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill >= -P_SHURIKEN && \
+			 objects[(otmp)->otyp].oc_skill <= -P_BOW)
+#ifdef FIREARMS
+#define is_unpoisonable_firearm_ammo(otmp)	\
+			 (is_bullet(otmp) || (otmp)->otyp == STICK_OF_DYNAMITE)
+#else
+#define is_unpoisonable_firearm_ammo(otmp)	0
+#endif
+#define is_poisonable(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 (objects[(otmp)->otyp].oc_skill <= P_SABER || \
+			 (objects[(otmp)->otyp].oc_skill >= P_POLEARMS && \
+			 objects[(otmp)->otyp].oc_skill <= P_LANCE)) && \
+			 !is_unpoisonable_firearm_ammo(otmp))
+#define uslinging()	(uwep && objects[uwep->otyp].oc_skill == P_SLING)
 #define is_weptool(o)	((o)->oclass == TOOL_CLASS && \
 			 objects[(o)->otyp].oc_skill != P_NONE)
-#define bimanual(otmp)	((otmp->oclass == WEAPON_CLASS || \
-			 otmp->oclass == TOOL_CLASS) && \
-			 objects[otmp->otyp].oc_bimanual)
-#define is_multigen(otmp)	(otmp->oclass == WEAPON_CLASS && \
-			 objects[otmp->otyp].oc_skill >= -P_SHURIKEN && \
-			 objects[otmp->otyp].oc_skill <= -P_BOW)
-#define is_poisonable(otmp)	(otmp->oclass == WEAPON_CLASS && \
-			 objects[otmp->otyp].oc_skill >= -P_SHURIKEN && \
-			 objects[otmp->otyp].oc_skill <= -P_BOW)
-#define uslinging()	(uwep && objects[uwep->otyp].oc_skill == P_SLING)
+#define is_pick(otmp)	(((otmp)->oclass == WEAPON_CLASS || \
+			 (otmp)->oclass == TOOL_CLASS) && \
+			 objects[(otmp)->otyp].oc_skill == P_PICK_AXE)
+#define ammo_and_launcher(otmp,ltmp) \
+			(is_ammo(otmp) && (ltmp) && \
+			objects[(otmp)->otyp].oc_skill == -objects[(ltmp)->otyp].oc_skill && \
+			  objects[(otmp)->otyp].w_ammotyp == objects[(ltmp)->otyp].w_ammotyp)
+#define bimanual(otmp)	(((otmp)->oclass == WEAPON_CLASS || \
+			  (otmp)->oclass == TOOL_CLASS) && \
+			 objects[(otmp)->otyp].oc_bimanual)
+
+#ifdef LIGHTSABERS
+#define is_lightsaber(otmp) (objects[(otmp)->otyp].oc_skill == P_LIGHTSABER)
+#endif
+
+#ifdef FIREARMS
+#define is_firearm(otmp) \
+			((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill == P_FIREARM)
+#define is_bullet(otmp)	((otmp)->oclass == WEAPON_CLASS && \
+			 objects[(otmp)->otyp].oc_skill == -P_FIREARM)
+#endif
 
 /* Armor */
-#define is_shield(otmp) (otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_SHIELD)
-#define is_helmet(otmp) (otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_HELM)
-#define is_boots(otmp)	(otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_BOOTS)
-#define is_gloves(otmp) (otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_GLOVES)
-#define is_cloak(otmp)	(otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_CLOAK)
-#define is_shirt(otmp)	(otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_SHIRT)
-#define is_suit(otmp)	(otmp->oclass == ARMOR_CLASS && \
-			 objects[otmp->otyp].oc_armcat == ARM_SUIT)
+#define is_shield(otmp) ((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_SHIELD)
+#define is_helmet(otmp) ((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_HELM)
+#define is_boots(otmp)	((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_BOOTS)
+#define is_gloves(otmp) ((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_GLOVES)
+#define is_cloak(otmp)	((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_CLOAK)
+#define is_shirt(otmp)	((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_SHIRT)
+#define is_suit(otmp)	((otmp)->oclass == ARMOR_CLASS && \
+			 objects[(otmp)->otyp].oc_armcat == ARM_SUIT)
 #define is_elven_armor(otmp)	((otmp)->otyp == ELVEN_LEATHER_HELM\
 				|| (otmp)->otyp == ELVEN_MITHRIL_COAT\
 				|| (otmp)->otyp == ELVEN_CLOAK\
@@ -207,20 +265,28 @@ struct obj {
 #define MAX_EGG_HATCH_TIME 200	/* longest an egg can remain unhatched */
 #define stale_egg(egg)	((monstermoves - (egg)->age) > (2*MAX_EGG_HATCH_TIME))
 #define ofood(o) ((o)->otyp == CORPSE || (o)->otyp == EGG || (o)->otyp == TIN)
-#define polyfodder(obj) (ofood(obj) && \
-			 pm_to_cham((obj)->corpsenm) != CHAM_ORDINARY)
+#define polyfodder(obj)	(ofood(obj) && (obj)->corpsenm == PM_CHAMELEON)
 #define mlevelgain(obj) (ofood(obj) && (obj)->corpsenm == PM_WRAITH)
 #define mhealup(obj)	(ofood(obj) && (obj)->corpsenm == PM_NURSE)
+#define drainlevel(corpse) (mons[(corpse)->corpsenm].cnutrit*4/5)
 
 /* Containers */
 #define carried(o)	((o)->where == OBJ_INVENT)
 #define mcarried(o)	((o)->where == OBJ_MINVENT)
 #define Has_contents(o) (/* (Is_container(o) || (o)->otyp == STATUE) && */ \
 			 (o)->cobj != (struct obj *)0)
-#define Is_container(o) ((o)->otyp >= LARGE_BOX && (o)->otyp <= BAG_OF_TRICKS)
-#define Is_box(otmp)	(otmp->otyp == LARGE_BOX || otmp->otyp == CHEST)
-#define Is_mbag(otmp)	(otmp->otyp == BAG_OF_HOLDING || \
-			 otmp->otyp == BAG_OF_TRICKS)
+#define Is_container(o) ((o)->otyp == MEDICAL_KIT || \
+			 (o)->otyp >= LARGE_BOX && (o)->otyp <= BAG_OF_TRICKS)
+#define Is_box(otmp)	((otmp)->otyp == LARGE_BOX || (otmp)->otyp == CHEST)
+#ifdef WALLET_O_P
+#define Is_mbag(otmp)	((otmp)->otyp == BAG_OF_HOLDING || \
+                         ((otmp)->oartifact && \
+                          (otmp)->oartifact == ART_WALLET_OF_PERSEUS) || \
+  			             (otmp)->otyp == BAG_OF_TRICKS)
+#else
+#define Is_mbag(otmp)	((otmp)->otyp == BAG_OF_HOLDING || \
+  			 (otmp)->otyp == BAG_OF_TRICKS)
+#endif
 
 /* dragon gear */
 #define Is_dragon_scales(obj)	((obj)->otyp >= GRAY_DRAGON_SCALES && \
@@ -261,14 +327,17 @@ struct obj {
 #define is_gnomish_obj(otmp)	(is_gnomish_armor(otmp))
 
 /* Light sources */
-#define Is_candle(otmp) (otmp->otyp == TALLOW_CANDLE || \
-			 otmp->otyp == WAX_CANDLE)
-#define MAX_OIL_IN_FLASK 400	/* maximum amount of oil in a potion of oil */
+#define Is_candle(otmp)	((otmp)->otyp == TALLOW_CANDLE || \
+			 (otmp)->otyp == WAX_CANDLE || \
+			 (otmp)->otyp == MAGIC_CANDLE)
+/* maximum amount of oil in a potion of oil */
+#define MAX_OIL_IN_FLASK 400
 
 /* MAGIC_LAMP intentionally excluded below */
 /* age field of this is relative age rather than absolute */
 #define age_is_relative(otmp)	((otmp)->otyp == BRASS_LANTERN\
 				|| (otmp)->otyp == OIL_LAMP\
+				|| (otmp)->otyp == TORCH\
 				|| (otmp)->otyp == CANDELABRUM_OF_INVOCATION\
 				|| (otmp)->otyp == TALLOW_CANDLE\
 				|| (otmp)->otyp == WAX_CANDLE\
@@ -276,16 +345,20 @@ struct obj {
 /* object can be ignited */
 #define ignitable(otmp)	((otmp)->otyp == BRASS_LANTERN\
 				|| (otmp)->otyp == OIL_LAMP\
+				|| (otmp)->otyp == TORCH\
 				|| (otmp)->otyp == CANDELABRUM_OF_INVOCATION\
 				|| (otmp)->otyp == TALLOW_CANDLE\
 				|| (otmp)->otyp == WAX_CANDLE\
+				|| (otmp)->otyp == MAGIC_CANDLE\
 				|| (otmp)->otyp == POT_OIL)
 
 /* special stones */
 #define is_graystone(obj)	((obj)->otyp == LUCKSTONE || \
 				 (obj)->otyp == LOADSTONE || \
 				 (obj)->otyp == FLINT     || \
-				 (obj)->otyp == TOUCHSTONE)
+				 (obj)->otyp == TOUCHSTONE || \
+				 (obj)->otyp == HEALTHSTONE || \
+				 (obj)->otyp == WHETSTONE)
 
 /* misc */
 #ifdef KOPS

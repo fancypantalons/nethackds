@@ -53,17 +53,17 @@ FILE *tibfile1;
 #endif
 
 #ifdef PACKED_FILE
-char packtile[TILE_Y][TILE_X];
+char packtile[MAX_TILE_Y][MAX_TILE_X];
 FILE *tibfile2;
 #endif
 
 int num_colors;
-pixel pixels[TILE_Y][TILE_X];
+pixel pixels[MAX_TILE_Y][MAX_TILE_X];
 struct tibhdr_struct tibheader;
 
 static void FDECL(write_tibtile, (int));
 static void FDECL(write_tibheader, (FILE *, struct tibhdr_struct *));
-static void FDECL(build_tibtile,  (pixel (*)[TILE_X]));
+static void FDECL(build_tibtile,  (pixel (*)[MAX_TILE_X]));
 
 #ifndef OVERVIEW_FILE
 char *tilefiles[] = {	"../win/share/monsters.txt",
@@ -215,7 +215,7 @@ struct tibhdr_struct *tibhdr;
 
 static void
 build_tibtile(pixels)
-pixel (*pixels)[TILE_X];
+pixel (*pixels)[MAX_TILE_X];
 {
 	int i, j, k, co_off;
 	unsigned char co_mask,tmp;
@@ -226,8 +226,8 @@ pixel (*pixels)[TILE_X];
 	memset((void *)&planetile,0,
 		sizeof(struct overview_planar_cell_struct));
 #endif
-	for (j = 0; j < TILE_Y; j++) {
-		for (i = 0; i < TILE_X; i++) {
+	for (j = 0; j < tile_y; j++) {
+		for (i = 0; i < tile_x; i++) {
 			for (k = 0; k < num_colors; k++) {				
 				if (ColorMap[CM_RED][k] == pixels[j][i].r &&
 				    ColorMap[CM_GREEN][k] == pixels[j][i].g &&

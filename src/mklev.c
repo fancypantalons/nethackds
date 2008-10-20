@@ -21,6 +21,7 @@
 STATIC_DCL void FDECL(mkfount,(int,struct mkroom *));
 #ifdef SINKS
 STATIC_DCL void FDECL(mksink,(struct mkroom *));
+STATIC_DCL void FDECL(mktoilet,(struct mkroom *));
 #endif
 STATIC_DCL void FDECL(mkaltar,(struct mkroom *));
 STATIC_DCL void FDECL(mkgrave,(struct mkroom *));
@@ -181,7 +182,7 @@ do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, is_room)
 		levl[lowx-1][hiy+1].typ = BLCORNER;
 		levl[hix+1][hiy+1].typ = BRCORNER;
 	    } else {	/* a subroom */
-		wallification(lowx-1, lowy-1, hix+1, hiy+1);
+		wallification(lowx-1, lowy-1, hix+1, hiy+1, FALSE);
 	    }
 	}
 }
@@ -303,6 +304,7 @@ boolean nxcor;
 	org.x  = xx+dx; org.y  = yy+dy;
 	dest.x = tx; dest.y = ty;
 
+	/* KMH -- Support for arboreal levels */
 	if (!dig_corridor(&org, &dest, nxcor,
 			level.flags.arboreal ? ROOM : CORR, STONE))
 	    return;
@@ -347,7 +349,9 @@ makecorridors()
 	    }
 }
 
-void
+/* ALI - Artifact doors: Track doors in maze levels as well */
+
+int
 add_door(x,y,aroom)
 register int x, y;
 register struct mkroom *aroom;
@@ -355,8 +359,17 @@ register struct mkroom *aroom;
 	register struct mkroom *broom;
 	register int tmp;
 
+	if (doorindex == DOORMAX)
+	    return -1;
+
+	if (aroom) {
 	aroom->doorct++;
 	broom = aroom+1;
+	} else
+	    /* ALI
+	     * Roomless doors must go right at the beginning of the list
+	     */
+	    broom = &rooms[0];
 	if(broom->hx < 0)
 		tmp = doorindex;
 	else
@@ -366,6 +379,8 @@ register struct mkroom *aroom;
 	doors[tmp].x = x;
 	doors[tmp].y = y;
 	for( ; broom->hx >= 0; broom++) broom->fdoor++;
+	doors[tmp].arti_key = 0;
+	return tmp;
 }
 
 STATIC_OVL void
@@ -542,7 +557,11 @@ makevtele()
 STATIC_OVL void
 clear_level_structures()
 {
+#ifdef DISPLAY_LAYERS
+	static struct rm zerorm = { S_stone, 0, 0, 0, 0, 0,
+#else
 	static struct rm zerorm = { cmap_to_glyph(S_stone),
+#endif
 						0, 0, 0, 0, 0, 0, 0, 0 };
 	register int x,y;
 	register struct rm *lev;
@@ -575,6 +594,9 @@ clear_level_structures()
 	level.flags.has_morgue = level.flags.graveyard = 0;
 	level.flags.has_beehive = 0;
 	level.flags.has_barracks = 0;
+	level.flags.has_lemurepit = 0;
+	level.flags.has_migohive = 0;
+	level.flags.has_fungusfarm = 0;
 	level.flags.has_temple = 0;
 	level.flags.has_swamp = 0;
 	level.flags.noteleport = 0;
@@ -585,6 +607,11 @@ clear_level_structures()
 	level.flags.arboreal = 0;
 	level.flags.is_maze_lev = 0;
 	level.flags.is_cavernous_lev = 0;
+	/* KMH -- more level properties */
+	level.flags.arboreal = 0;
+
+	/* [DS] - Michael Clarke's Lethe flag */
+	level.flags.lethe = 0;
 
 	nroom = 0;
 	rooms[0].hx = -1;
@@ -633,7 +660,7 @@ makelevel()
 		    makemaz("minefill");
 		    return;
 	    } else if (In_quest(&u.uz)) {
-		    char	fillname[9];
+		    char        fillname[16];
 		    s_level	*loc_lev;
 
 		    Sprintf(fillname, "%s-loca", urole.filecode);
@@ -728,20 +755,47 @@ makelevel()
 	    u_depth < depth(&medusa_level) &&
 	    nroom >= room_threshold &&
 	    rn2(u_depth) < 3) mkroom(SHOPBASE);
-	else if (u_depth > 4 && !rn2(6)) mkroom(COURT);
+ 
+	/* [Tom] totally reorganized this into categories... used
+	   to be only one special room on a level... now allows
+	   one of each major type */
+	else {
+	    /* courtrooms & barracks */
+	    if(depth(&u.uz) > 4 && !rn2(12)) mkroom(COURT);
 	else if (u_depth > 5 && !rn2(8) &&
 	   !(mvitals[PM_LEPRECHAUN].mvflags & G_GONE)) mkroom(LEPREHALL);
-	else if (u_depth > 6 && !rn2(7)) mkroom(ZOO);
-	else if (u_depth > 8 && !rn2(5)) mkroom(TEMPLE);
-	else if (u_depth > 9 && !rn2(5) &&
-	   !(mvitals[PM_KILLER_BEE].mvflags & G_GONE)) mkroom(BEEHIVE);
-	else if (u_depth > 11 && !rn2(6)) mkroom(MORGUE);
+	    else if(depth(&u.uz) > 14 && !rn2(12)) mkroom(GIANTCOURT);
+	    else if(depth(&u.uz) > 14 && !rn2(7) &&
+		(mvitals[PM_SOLDIER].mvflags & G_GONE)) mkroom(BARRACKS);
+	
+	    /* hives */
+	    if(depth(&u.uz) > 9 && !rn2(12) &&
+		(mvitals[PM_KILLER_BEE].mvflags & G_GONE)) mkroom(BEEHIVE);
 	else if (u_depth > 12 && !rn2(8)) mkroom(ANTHOLE);
-	else if (u_depth > 14 && !rn2(4) &&
-	   !(mvitals[PM_SOLDIER].mvflags & G_GONE)) mkroom(BARRACKS);
-	else if (u_depth > 15 && !rn2(6)) mkroom(SWAMP);
-	else if (u_depth > 16 && !rn2(8) &&
+
+	    /* zoos */
+	    if(depth(&u.uz) > 6 && !rn2(12)) mkroom(ZOO);
+	    /* fungus farms are rare... */
+	    else if (u_depth > 7 && !rn2(25)) mkroom(FUNGUSFARM);
+	    else if(depth(&u.uz) > 9 && !rn2(15)) mkroom(REALZOO);
+
+	    /* neat rooms */
+	    if(depth(&u.uz) > 8 && !rn2(13)) mkroom(TEMPLE);
+	    else if(depth(&u.uz) > 11 && !rn2(14)) mkroom(MORGUE);
+	    else if(depth(&u.uz) > 13 && !rn2(15)) mkroom(BADFOODSHOP);
+	    else if(depth(&u.uz) > 18 && !rn2(7)) mkroom(SWAMP);
+
+	    /* dangerous ones */
+	    if (u_depth > 16 && !rn2(8) &&
 	   !(mvitals[PM_COCKATRICE].mvflags & G_GONE)) mkroom(COCKNEST);
+	    else if(depth(&u.uz) > 20 && !rn2(20)) mkroom(DRAGONLAIR);
+	    else if (u_depth > 25 && !rn2(20) && 
+		!(mvitals[PM_MIGO_DRONE].mvflags & G_GONE)) mkroom(MIGOHIVE);
+	    /* [DS] the restriction of lemure pits to Gehennom means they're
+	     *      never going to show up randomly (no random room+corridor
+	     *      levels in Gehennom). Perhaps this should be removed? */
+	    else if (In_hell(&u.uz) && !rn2(12) &&
+		!(mvitals[PM_LEMURE].mvflags & G_GONE)) mkroom(LEMUREPIT);
     }
 
 #ifdef REINCARNATION
@@ -759,7 +813,6 @@ skip0:
 		   avoided: maybe the player fell through a trap door
 		   while a monster was on the stairs. Conclusion:
 		   we have to check for monsters on the stairs anyway. */
-
 		if(u.uhave.amulet || !rn2(3)) {
 		    x = somex(croom); y = somey(croom);
 		    tmonst = makemon((struct permonst *) 0, x,y,NO_MM_FLAGS);
@@ -776,16 +829,23 @@ skip0:
 		if (!goldseen && !rn2(3))
 		    (void) mkgold(0L, somex(croom), somey(croom));
 #ifdef REINCARNATION
+		x = 80 - (depth(&u.uz) * 2);
+		if (x < 2) x = 2;
+		if(!rn2(x)) mkgrave(croom);
+
 		if(Is_rogue_level(&u.uz)) goto skip_nonrogue;
 #endif
 		if(!rn2(10)) mkfount(0,croom);
 #ifdef SINKS
-		if(!rn2(60)) mksink(croom);
+		if(!rn2(60)) {
+		    mksink(croom);
+		    if(!rn2(3)) mktoilet(croom);
+		}
 #endif
-		if(!rn2(60)) mkaltar(croom);
 		x = 80 - (depth(&u.uz) * 2);
 		if (x < 2) x = 2;
 		if(!rn2(x)) mkgrave(croom);
+		if(!rn2(60)) mkaltar(croom);
 
 		/* put statues inside */
 		if(!rn2(20))
@@ -818,10 +878,12 @@ skip0:
 #ifdef REINCARNATION
 	skip_nonrogue:
 #endif
-		if(!rn2(3)) {
+
+/* STEPHEN WHITE'S NEW CODE */
+		if(!rn2(5)) {
 		    (void) mkobj_at(0, somex(croom), somey(croom), TRUE);
 		    tryct = 0;
-		    while(!rn2(5)) {
+		    while(!rn2(4)) {
 			if(++tryct > 100) {
 			    impossible("tryct overflow4");
 			    break;
@@ -830,6 +892,7 @@ skip0:
 		    }
 		}
 	}
+   }
 }
 
 /*
@@ -837,6 +900,7 @@ skip0:
  *	surrounding the rooms on the map.
  *	Also place kelp in water.
  */
+
 STATIC_OVL void
 mineralize()
 {
@@ -851,7 +915,7 @@ mineralize()
 	    for (y = 1; y < (ROWNO - 1); y++)
 		if ((levl[x][y].typ == POOL && !rn2(10)) ||
 			(levl[x][y].typ == MOAT && !rn2(30)))
-		    (void) mksobj_at(KELP_FROND, x, y, TRUE, FALSE);
+	    	    (void)mksobj_at(KELP_FROND, x, y, TRUE, FALSE);
 
 	/* determine if it is even allowed;
 	   almost all special levels are excluded */
@@ -933,7 +997,7 @@ mklev()
 	   [see fixup_special()], so don't update it unconditionally) */
 	if (level.flags.has_morgue)
 	    level.flags.graveyard = 1;
-	if (!level.flags.is_maze_lev) {
+	if(!level.flags.is_maze_lev) {
 	    for (croom = &rooms[0]; croom != &rooms[nroom]; croom++)
 #ifdef SPECIALIZATION
 		topologize(croom, FALSE);
@@ -1284,7 +1348,7 @@ struct mkroom *croom;
 	 * has an up or down stair specified in its description file.
 	 */
 	if ((dunlev(&u.uz) == 1 && up) ||
-			(dunlev(&u.uz) == dunlevs_in_dungeon(&u.uz) && !up))
+			(dunlev(&u.uz) == real_dunlevs_in_dungeon(&u.uz) && !up))
 	    return;
 
 	if(up) {
@@ -1346,8 +1410,26 @@ register struct mkroom *croom;
 
 	level.flags.nsinks++;
 }
-#endif /* SINKS */
 
+static void
+mktoilet(croom)
+register struct mkroom *croom;
+{
+	coord m;
+	register int tryct = 0;
+
+	do {
+	    if(++tryct > 200) return;
+	    if (!somexy(croom, &m))
+		return;
+	} while(occupied(m.x, m.y) || bydoor(m.x, m.y));
+
+	/* Put a toilet at m.x, m.y */
+	levl[m.x][m.y].typ = TOILET;
+
+	level.flags.nsinks++; /* counted as a sink for sounds.c */
+}
+#endif /* SINKS */
 
 STATIC_OVL void
 mkaltar(croom)
@@ -1357,13 +1439,13 @@ register struct mkroom *croom;
 	register int tryct = 0;
 	aligntyp al;
 
-	if (croom->rtype != OROOM) return;
+	if(croom->rtype != OROOM) return;
 
 	do {
 	    if(++tryct > 200) return;
 	    if (!somexy(croom, &m))
 		return;
-	} while (occupied(m.x, m.y) || bydoor(m.x, m.y));
+	} while(occupied(m.x, m.y) || bydoor(m.x, m.y));
 
 	/* Put an altar at m.x, m.y */
 	levl[m.x][m.y].typ = ALTAR;
@@ -1409,7 +1491,6 @@ struct mkroom *croom;
 	if (dobell) (void) mksobj_at(BELL, m.x, m.y, TRUE, FALSE);
 	return;
 }
-
 
 /* maze levels have slightly different constraints from normal levels */
 #define x_maze_min 2

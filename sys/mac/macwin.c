@@ -14,11 +14,20 @@
 #include <Gestalt.h>
 #include <TextUtils.h>
 #include <DiskInit.h>
-#include <ControlDefinitions.h>
+#include <Script.h>
+
+#ifdef MAC_MPW
+# include <ControlDefinitions.h>
+#endif
 #endif
 
 NhWindow *theWindows = (NhWindow *) 0;
 Cursor qdarrow;
+
+#ifdef MAC_MPW
+#define qdarrow qd.arrow
+#define USESROUTINEDESCRIPTORS
+#endif /* Macintosh Programmer's Workshop */
 
 /* Borrowed from the Mac tty port */
 extern WindowPtr _mt_window;
@@ -337,7 +346,11 @@ InitMac(void) {
 
 	gMouseRgn = NewRgn ();
 	InitCursor();
+
+#if TARGET_API_MAC_CARBON
 	GetQDGlobalsArrow(&qdarrow);
+#endif
+
 	ObscureCursor ();
 	
 	MoveScrollUPP = NewControlActionUPP(MoveScrollBar);
@@ -424,7 +437,11 @@ DrawScrollbar (NhWindow *aWin)
 
 	if (!aWin->scrollBar)
 		return;
+#if !TGT_API_MAC_CARBON
+	crect = (*aWin->scrollBar)->contrlRect;
+#else
 	GetControlBounds(aWin->scrollBar, &crect);
+#endif
 	GetWindowBounds(aWin->its_window, kWindowContentRgn, &wrect);
 	OffsetRect(&wrect, -wrect.left, -wrect.top);
 	win_height = wrect.bottom - wrect.top;
@@ -487,14 +504,11 @@ SanePositions (void)
 #else
 	short left, top, width, height;
 	int ix, numText = 0, numMenu = 0;
-	int mbar_height = GetMBarHeight();
-	BitMap qbitmap;
-	Rect screenArea;
+	int mbar_height = GetMBarHeight ();
+	Rect screenArea = qd.screenBits.bounds;
 	WindowPtr theWindow;
 	NhWindow *nhWin;
 
-
-	screenArea = GetQDGlobalsScreenBits(&qbitmap)->bounds;
 	OffsetRect (&screenArea, - screenArea.left, - screenArea.top);
 
 /* Map Window */
@@ -690,12 +704,12 @@ got1 :
 void
 mac_init_nhwindows (int *argcp, char **argv)
 {
+	Rect r;
+
 #if !TARGET_API_MAC_CARBON
 	Rect scr = (*GetGrayRgn())->rgnBBox;
 	small_screen = scr.bottom - scr.top <= (iflags.large_font ? 12*40 : 9*40);
 #endif
-	Rect r;
-
 
 	InitMenuRes ();
 
@@ -721,8 +735,10 @@ mac_init_nhwindows (int *argcp, char **argv)
 	RetrieveSize(kMessageWindow, r.top, r.left, &r.bottom, &r.right);
 	MoveWindow(theWindows[NHW_MESSAGE].its_window, r.left, r.top, false);
 	SizeWindow(theWindows[NHW_MESSAGE].its_window, r.right, r.bottom, true);
+#if TARGET_API_MAC_CARBON
 	ConstrainWindowToScreen(theWindows[NHW_MESSAGE].its_window, kWindowStructureRgn,
 		kWindowConstrainMoveRegardlessOfFit, NULL, NULL);
+#endif
 	return;
 }
 
@@ -1231,7 +1247,7 @@ mac_number_pad (int pad) {
 
 void
 trans_num_keys(EventRecord *theEvent) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(theEvent)
 #endif
 /* KMH -- Removed this translation.
@@ -1263,7 +1279,7 @@ trans_num_keys(EventRecord *theEvent) {
  */
 static void
 GeneralKey (EventRecord *theEvent, WindowPtr theWindow) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(theWindow)
 #endif
 #if 0
@@ -1567,7 +1583,12 @@ MoveScrollBar (ControlHandle theBar, short part) {
 	if (!part)
 		return;
 
+#if !TGT_API_MAC_CARBON
+	theWin = (*theBar)->contrlOwner;
+#else
 	theWin = GetControlOwner(theBar);
+#endif
+
 	GetWindowBounds(theWin, kWindowContentRgn, &r);
 	OffsetRect(&r, -r.left, -r.top);
 	winToScroll = (NhWindow*)(GetWRefCon(theWin));
@@ -1925,7 +1946,7 @@ macCursorTerm (EventRecord *theEvent, WindowPtr theWindow, RgnHandle mouseRgn) {
 
 static void
 GeneralCursor (EventRecord *theEvent, WindowPtr theWindow, RgnHandle mouseRgn) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(theWindow)
 #endif
 	Rect r = {-1, -1, 2, 2};
@@ -1945,21 +1966,33 @@ HandleKey (EventRecord *theEvent) {
 			/* Flush key queue */
 			keyQueueCount = keyQueueWrite = keyQueueRead = 0;
 			theEvent->message = '\033';
-			goto dispatchKey;
 		} else {
 			UndimMenuBar ();
 			DoMenuEvt (MenuKey (theEvent->message & 0xff));
+			return;
 		}
+	} else if (theEvent->modifiers & optionKey) {
+			if ((theEvent->message & charCodeMask) == '#') {
+				/* On the British keyboard layout the # key is option+3 */
+				theEvent->modifiers -= optionKey;
 	} else {
-
-dispatchKey :
+	   			Ptr     KCHRPtr;
+	   			UInt16  keycode;
+	   			unsigned long    state = 0;
+	   			KCHRPtr = (char*)GetScriptManagerVariable(smKCHRCache);
+				keycode = (theEvent->message & keyCodeMask) >> 8;
+				keycode |= (theEvent->modifiers - optionKey) & 0xFF00;
+				keycode = KeyTranslate(KCHRPtr, keycode, &state);
+				theEvent->message &= ~charCodeMask;
+				theEvent->message |= keycode | 0x80;
+			}
+	}
 		if (theWindow) {
-			int kind = GetWindowKind(theWindow) - WIN_BASE_KIND;
+		int kind = ((WindowPeek)theWindow)->windowKind - WIN_BASE_KIND;
 			winKeyFuncs [kind] (theEvent, theWindow);
 		} else {
 			GeneralKey (theEvent, (WindowPtr) 0);
 		}
-	}
 }
 
 
@@ -1990,7 +2023,12 @@ HandleClick (EventRecord *theEvent) {
 	Rect r;
 	Boolean not_inSelect;
 
+#if !TARGET_API_MAC_CARBON
+	r = (*GetGrayRgn ())->rgnBBox;
+	InsetRect (&r, 4, 4);
+#else
 	InsetRect(GetRegionBounds(GetGrayRgn(), &r), 4, 4);
+#endif
 
 	code = FindWindow (theEvent->where, &theWindow);
 	aWin = GetNhWin (theWindow);
@@ -2217,7 +2255,7 @@ mac_delay_output(void) {
 #ifdef CLIPPING
 static void
 mac_cliparound (int x, int y) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(x,y)
 #endif
 	/* TODO */
@@ -2380,7 +2418,7 @@ mac_start_menu (winid win) {
 
 void
 mac_add_menu (winid win, int glyph, const anything *any, CHAR_P menuChar, CHAR_P groupAcc, int attr, const char *inStr, int preselected) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(glyph)
 #endif
 	NhWindow *aWin = &theWindows [win];
@@ -2564,7 +2602,7 @@ mac_unimplemented (void) {
 
 static void
 mac_suspend_nhwindows (const char *foo) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(foo)
 #endif
 	/*	Can't really do that :-)		*/

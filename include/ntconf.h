@@ -5,15 +5,15 @@
 #ifndef NTCONF_H
 #define NTCONF_H
 
-/* #define SHELL	/* nt use of pcsys routines caused a hang */
+/* #define SHELL */	/* nt use of pcsys routines caused a hang */
 
 #define RANDOM		/* have Berkeley random(3) */
 #define TEXTCOLOR	/* Color text */
 
 #define EXEPATH			/* Allow .exe location to be used as HACKDIR */
 #define TRADITIONAL_GLYPHMAP	/* Store glyph mappings at level change time */
-#ifdef WIN32CON
-#define LAN_FEATURES		/* Include code for lan-aware features. Untested in 3.4.0*/
+#if defined(WIN32CON) && !defined(__CYGWIN__)
+# define LAN_FEATURES		/* Include code for lan-aware features. */
 #endif
 
 #define PC_LOCKING		/* Prevent overwrites of aborted or in-progress games */
@@ -29,7 +29,7 @@
  *  The remaining code shouldn't need modification.
  * -----------------------------------------------------------------
  */
-/* #define SHORT_FILENAMES	/* All NT filesystems support long names now */
+/* #define SHORT_FILENAMES */	/* All NT filesystems support long names now */
 
 #ifdef MICRO
 #undef MICRO			/* never define this! */
@@ -43,15 +43,15 @@
 #define NO_TERMS
 #define ASCIIGRAPH
 
-#ifdef OPTIONS_USED
-#undef OPTIONS_USED
+#ifdef NH_OPTIONS_USED
+#undef NH_OPTIONS_USED
 #endif
-#ifdef MSWIN_GRAPHICS
-#define OPTIONS_USED	"guioptions"
+#if defined(MSWIN_GRAPHICS) || defined(GTK_GRAPHICS)
+#define NH_OPTIONS_USED	"guioptions"
 #else
-#define OPTIONS_USED	"ttyoptions"
+#define NH_OPTIONS_USED	"ttyoptions"
 #endif
-#define OPTIONS_FILE OPTIONS_USED
+#define NH_OPTIONS_FILE NH_OPTIONS_USED
 
 #define PORT_HELP	"porthelp"
 
@@ -72,7 +72,9 @@ extern void FDECL(interject, (int));
 
 #include <string.h>	/* Provides prototypes of strncmpi(), etc.     */
 #ifdef STRNCMPI
+#ifndef __CYGWIN__
 #define strncmpi(a,b,c) strnicmp(a,b,c)
+#endif
 #endif
 
 #include <sys/types.h>
@@ -143,9 +145,12 @@ extern void NDECL(load_keyboard_handler);
 #endif
 
 #include <fcntl.h>
-#ifndef __BORLANDC__
-#include <io.h>
-#include <direct.h>
+#if !defined(__BORLANDC__) && !defined(__CYGWIN__)
+# include <io.h>
+# include <direct.h>
+# include <conio.h>
+#elif defined(__CYGWIN__)
+# include <io.h>
 #else
 int  _RTLENTRY _EXPFUNC access  (const char _FAR *__path, int __amode);
 int  _RTLENTRY _EXPFUNC _chdrive(int __drive);
@@ -158,8 +163,8 @@ int  _RTLENTRY _EXPFUNC _close  (int __handle);
 int  _RTLENTRY _EXPFUNC open  (const char _FAR *__path, int __access,... /*unsigned mode*/);
 long _RTLENTRY _EXPFUNC lseek  (int __handle, long __offset, int __fromwhere);
 int  _RTLENTRY _EXPFUNC read  (int __handle, void _FAR *__buf, unsigned __len);
+# include <conio.h>
 #endif
-#include <conio.h>
 #undef kbhit		/* Use our special NT kbhit */
 #define kbhit (*nt_kbhit)
 

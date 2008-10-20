@@ -10,6 +10,7 @@ BIOS           allow the use of IBM ROM BIOS calls                [FALSE]
 cmdassist      give help for errors on direction & other commands [TRUE]
 confirm        ask before hitting tame or peaceful monsters       [TRUE]
 DECgraphics    use DEC/VT line-drawing characters for the dungeon [FALSE]
+disclose       offer information at the end of the game           [TRUE]
 eight_bit_tty  send 8-bit characters straight to terminal         [FALSE]
 extmenu        use a menu for selecting extended commands (#)     [FALSE]
 fixinv         try to retain the same letter for the same object  [TRUE]
@@ -25,6 +26,7 @@ null           allow nulls to be sent to your terminal            [TRUE]
                delay code) if moving objects seem to teleport across rooms
 number_pad     use the number keys to move instead of yuhjklbn    [FALSE]
 perm_invent    keep inventory in a permanent window               [FALSE]
+pickup_thrown  autopickup things you threw                        [TRUE]
 prayconfirm    use confirmation prompt when #pray command issued  [TRUE]
 pushweapon     when wielding a new weapon, put your previously
                wielded weapon into the secondary weapon slot      [FALSE]
@@ -67,15 +69,28 @@ showexp    display your accumulated experience points             [FALSE]
 Boolean option if SCORE_ON_BOTL was set at compile time:
 showscore  display your approximate accumulated score             [FALSE]
 
+Boolean option if SHOW_DMG was set at compile time:
+showdmg    display damage inflicted/received on message line      [FALSE]
+
+Boolean options if SHOW_WEIGHT was set at compile time:
+invweight  display weights of items in inventory in braces        [FALSE]
+showweight display total weight in inventory on bottom line       [FALSE]
+
 Boolean options if TEXTCOLOR was set at compile time:
 color      use different colors for objects on screen   [TRUE for micros]
 hilite_pet display pets in a highlighted manner                   [FALSE]
 
+Boolean option if TEXTCOLOR and MENU_COLOR were set at compile time:
+menucolors use different colors for menus               [TRUE for micros]
+
 Boolean option if TIMED_DELAY was set at compile time (tty interface only):
-timed_delay    on unix and VMS, use a timer instead of sending
+timed_delay    on unix and VMS, use a timer instead of sending    [TRUE]
                extra screen output when attempting to pause for
                display effect.  on MSDOS without the termcap
-               lib, whether or not to pause for visual effect.    [TRUE]
+               lib, whether or not to pause for visual effect.    
+
+Boolean options if KEEP_SAVE was set at compile time:
+keep_savefile  keep save file after restore                       [FALSE]
 
 Boolean option if USE_TILES was set at compile time (MSDOS protected mode only):
 preload_tiles  control whether tiles get pre-loaded into RAM at the
@@ -122,9 +137,14 @@ scores        the parts of the score list you wish to see when the game ends
               scores, and all of your own scores.  [!own/3 top/2 around]
 suppress_alert disable various version-specific warnings about changes
               in game play or the user interface, such as notification given
-              for the 'Q' command that quitting is now done via #quit
-              (e.g., use suppress_alert:3.3.1 to stop that and any other
+              for engravings that reading is now done via 'r.'
+              (e.g., use suppress_alert:0.0.7 to stop that and any other
               notifications added in that version or earlier) default: [(none)]
+tileset       the name of a predefined (with TILESET=) tileset to use.  This
+              option may be negated (eg., !tileset) or set to an emty value
+              to disable tiles.  If the windowing port does not support the
+              named tileset then a suitable alternative will be used.
+              [depends on windowing port]
 
 Compound options which may be set only on startup are:
 
@@ -147,11 +167,11 @@ dungeon    a list of symbols to be used in place of the default ones for
            vcdoor hcdoor               (vertical, horizontal closed door)
            ironbars tree room darkcorr litcorr
            upstair dnstair upladder dnladder
-           altar grave throne sink fountain pool ice lava
+           altar grave throne sink toilet fountain pool ice lava
            vodbridge hodbridge     (vertical, horizontal open drawbridge)
            vcdbridge hcdbridge   (vertical, horizontal closed drawbridge)
            air cloud water
-           default:  \ |--------||.-|++##.##<><>_\\#{}.}..##\ #}
+           default:  \ |--------||.-|++##.##<><>_|\\##{}.}..##\ #}
 effects    like dungeon, but for special effects symbols
            vbeam hbeam lslant rslant                  (generic zap beams)
            digbeam flashbeam      (special beams for digging and cameras)
@@ -160,15 +180,48 @@ effects    like dungeon, but for special effects symbols
            sw_topl, sw_topm, sw_topr,                  (swallow, top row)
            sw_midl, sw_midr,            (swallow, middle row [no center])
            sw_botl, sw_botm, sw_botr                (swallow, bottom row)
-           extl extm extr                      (explosion matrix top row)
-           exml exmm exmr                   (explosion matrix middle row)
-           exbl exbm exbr                   (explosion matrix bottom row)
-           default:  |-\\/*!)(0#@*/-\\||\\-//-\\|\ |\\-/
+           mextl mextm mextr           (magical explosion matrix top row)
+           mexml mexmm mexmr        (magical explosion matrix middle row)
+           mexbl mexbm mexbr        (magical explosion matrix bottom row)
+           fextl fextm fextr              (fire explosion matrix top row)
+           fexml fexmm fexmr           (fire explosion matrix middle row)
+           fexbl fexbm fexbr           (fire explosion matrix bottom row)
+           cextl cextm cextr              (cold explosion matrix top row)
+           cexml cexmm cexmr           (cold explosion matrix middle row)
+           cexbl cexbm cexbr           (cold explosion matrix bottom row)
+           dextl dextm dextr             (death explosion matrix top row)
+           dexml dexmm dexmr          (death explosion matrix middle row)
+           dexbl dexbm dexbr          (death explosion matrix bottom row)
+           lextl lextm lextr         (lightning explosion matrix top row)
+           lexml lexmm lexmr      (lightning explosion matrix middle row)
+           lexbl lexbm lexbr      (lightning explosion matrix bottom row)
+           pextl pextm pextr            (poison explosion matrix top row)
+           pexml pexmm pexmr         (poison explosion matrix middle row)
+           pexbl pexbm pexbr         (poison explosion matrix bottom row)
+           aextl aextm aextr              (acid explosion matrix top row)
+           aexml aexmm aexmr           (acid explosion matrix middle row)
+           aexbl aexbm aexbr           (acid explosion matrix bottom row)
+           default:  |-\\/*!)(0#@*/-\\||\\-//-\\|\ |\\-//-\\|\ |\\-//-\\|\ |\\-/
+	            /-\\|\ |\\-//-\\|\ |\\-//-\\|\ |\\-//-\\|\ |\\-/
 gender     Your starting gender (gender:male or gender:female).
            You may specify just the first letter.  Although you can
            still denote your gender using the "male" and "female"
            options, the "gender" option will take precedence.  [RANDOM]
 horsename  the name of your first horse  [NONE]
+ghoulname  the name of your first ghoul  [NONE]
+menucolor  Set colors for menus. (menucolor:"regex_string"=color)
+           If boolean option ``menucolors'' is true, menus will be shown
+           with different colors.
+           For example, setting ``menucolor:" blessed "=green'' shows
+           all lines in a menu with the text " blessed " in green.
+           The string is matched using regular expressions.
+           Valid values for the color are black, red, green, brown, blue,
+           magenta, cyan, gray, orange, lightgreen, yellow, lightblue,
+           lightmagenta, lightcyan and white.
+           You can define menucolor as many times as you wish; those
+           defined later will take precedence.
+           Setting menucolor has effect only if TEXTCOLOR and MENU_COLOR
+           were set at compile time.  [NONE]
 menu_*     create single character accelerators for menu commands.  Below
            is a list of all commands.  Each is followed by a list of window-
            ports that implement them:  'x' is X11, 't' is tty, 'g' is Gem,
@@ -209,8 +262,8 @@ traps      like dungeon, but for trap symbols
            teleportation_trap level_teleporter magic_portal web statue_trap
            magic_trap anti_magic_trap polymorph_trap
            default:  ^^^^^^^^^^^^^^^^^"^^^^
-
 windowtype windowing system to be used  [depends on operating system]
+wolfname   the name of your first wolf  [NONE]
 
 Compound option if TTY_GRAPHICS was set at compile time:
 msg_window the type of message window to use:

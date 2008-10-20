@@ -350,7 +350,7 @@ int main()
     return 0;
   }
 
-  chdir("/NetHack");
+  chdir("/SlashEM");
 
   /* Initialize some nethack constants */
 

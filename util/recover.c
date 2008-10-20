@@ -45,7 +45,7 @@ static void nhce_message(FILE*, const char*, ...);
 #  ifdef WIN32
 #define SAVESIZE	(PL_NSIZ + 40)  /* username-player.NetHack-saved-game */
 #  else
-#define SAVESIZE	FILENAME	/* from macconf.h or pcconf.h */
+#define SAVESIZE	FILENAMELEN	/* from macconf.h or pcconf.h */
 #  endif
 # endif
 #endif

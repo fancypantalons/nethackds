@@ -79,6 +79,7 @@ register boolean clumsy;
 		if (martial()) {
 		    if (dmg > 1) kick_skill = P_MARTIAL_ARTS;
 		    dmg += rn2(ACURR(A_DEX)/2 + 1);
+		    dmg += weapon_dam_bonus((struct obj *)0);
 		}
 		/* a good kick exercises your dex */
 		exercise(A_DEX, TRUE);
@@ -86,8 +87,12 @@ register boolean clumsy;
 	if (blessed_foot_damage) dmg += rnd(4);
 	if (uarmf) dmg += uarmf->spe;
 	dmg += u.udaminc;	/* add ring(s) of increase damage */
-	if (dmg > 0)
+	if (dmg > 0) {
 		mon->mhp -= dmg;
+#ifdef SHOW_DMG
+		showdmg(dmg);
+#endif
+	}
 	if (mon->mhp > 0 && martial() && !bigmonst(mon->data) && !rn2(3) &&
 	    mon->mcanmove && mon != u.ustuck && !mon->mtrapped) {
 		/* see if the monster has a place to move into */
@@ -120,11 +125,11 @@ register xchar x, y;
 {
 	register boolean clumsy = FALSE;
 	register struct monst *mon = m_at(x, y);
-	register int i, j;
+	register int i, j, canhitmon, objenchant;
 
 	bhitpos.x = x;
 	bhitpos.y = y;
-	if (attack_checks(mon, (struct obj *)0)) return;
+	if (!attack_checks(mon, TRUE)) return;
 	setmangry(mon);
 
 	/* Kick attacks by kicking monsters are normal attacks, not special.
@@ -137,6 +142,7 @@ register xchar x, y;
 	    struct attack *uattk;
 	    int sum;
 	    schar tmp = find_roll_to_hit(mon);
+	    schar roll = 0;
 
 	    for (i = 0; i < NATTK; i++) {
 		/* first of two kicks might have provoked counterattack
@@ -153,14 +159,14 @@ register xchar x, y;
 		       and shades have no passive counterattack */
 		    Your("%s %s.", kick_passes_thru, mon_nam(mon));
 		    break;	/* skip any additional kicks */
-		} else if (tmp > rnd(20)) {
+		} else if (tmp > (roll = rnd(20))) {
 		    You("kick %s.", mon_nam(mon));
 		    sum = damageum(mon, uattk);
 		    (void)passive(mon, (boolean)(sum > 0), (sum != 2), AT_KICK);
 		    if (sum == 2)
 			break;		/* Defender died */
 		} else {
-		    missum(mon, uattk);
+		    missum(mon, tmp, roll, uattk);
 		    (void)passive(mon, 0, 1, AT_KICK);
 		}
 	    }
@@ -172,6 +178,29 @@ register xchar x, y;
 		pline("Floating in the air, you miss wildly!");
 		exercise(A_DEX, FALSE);
 		(void) passive(mon, FALSE, 1, AT_KICK);
+		return;
+	}
+
+	/*STEPHEN WHITE'S NEW CODE */
+	canhitmon = 0;
+	if (need_one(mon))    canhitmon = 1; 
+	if (need_two(mon))    canhitmon = 2;         
+	if (need_three(mon))  canhitmon = 3; 
+	if (need_four(mon))   canhitmon = 4;         
+
+	if (Role_if(PM_MONK) && !Upolyd) {
+		if (!uwep && !uarm && !uarms) objenchant = u.ulevel / 4;
+		else if (!uwep) objenchant = u.ulevel / 12;
+		else objenchant = 0;
+		if (objenchant < 0) objenchant = 0;
+	} else if (uarmf)
+		objenchant = uarmf->spe;
+	else objenchant = 0;
+
+	if (objenchant < canhitmon && !Upolyd) {
+		Your("attack doesn't seem to harm %s.",
+			mon_nam(mon));
+		(void) passive(mon, FALSE, 1, TRUE);
 		return;
 	}
 
@@ -191,7 +220,7 @@ register xchar x, y;
 
 	if(Fumbling) clumsy = TRUE;
 
-	else if(uarm && objects[uarm->otyp].oc_bulky && ACURR(A_DEX) < rnd(25))
+	else if (uarm && objects[uarm->otyp].oc_bulky && ACURR(A_DEX) < rnd(25))
 		clumsy = TRUE;
 doit:
 	You("kick %s.", mon_nam(mon));
@@ -208,7 +237,7 @@ doit:
 		} else {
 		    mnexto(mon);
 		    if(mon->mx != x || mon->my != y) {
-			if(glyph_is_invisible(levl[x][y].glyph)) {
+			if(memory_is_invisible(x, y)) {
 			    unmap_object(x, y);
 			    newsym(x, y);
 			}
@@ -226,6 +255,7 @@ doit:
 		}
 	}
 	kickdmg(mon, clumsy);
+	return;
 }
 
 /*
@@ -376,7 +406,7 @@ struct obj *obj;
 		You_hear("a muffled %s.", result);
 		if (costly)
 		    loss += stolen_value(otmp, x, y,
-					 (boolean)shkp->mpeaceful, TRUE);
+					 (boolean)shkp->mpeaceful, TRUE, TRUE);
 		if (otmp->quan > 1L)
 		    useup(otmp);
 		else {
@@ -441,7 +471,7 @@ xchar x, y;
 		killer_format = KILLED_BY;
 		/* KMH -- otmp should be kickobj */
 		Sprintf(kbuf, "kicking %s without boots",
-			an(corpse_xname(kickobj, TRUE)));
+			an(killer_cxname(kickobj, TRUE)));
 		killer = kbuf;
 		done(STONING);
 	    }
@@ -449,7 +479,12 @@ xchar x, y;
 
 	/* range < 2 means the object will not move.	*/
 	/* maybe dexterity should also figure here.     */
-	range = (int)((ACURRSTR)/2 - kickobj->owt/40);
+	/* MAR - if there are multiple objects, range is calculated */
+	/* from a single object (not entire stack!) */
+	
+	if (kickobj->quan > 1L && (kickobj->oclass != COIN_CLASS)) /*MAR*/
+		range = (int)((ACURRSTR)/2 - kickobj->owt/kickobj->quan/40);
+	else range = (int)((ACURRSTR)/2 - kickobj->owt/40);
 
 	if(martial()) range += rnd(3);
 
@@ -553,15 +588,16 @@ xchar x, y;
 	mon = bhit(u.dx, u.dy, range, KICKED_WEAPON,
 		   (int FDECL((*),(MONST_P,OBJ_P)))0,
 		   (int FDECL((*),(OBJ_P,OBJ_P)))0,
-		   kickobj);
-
+		   &kickobj);
+	if (!kickobj)
+	    return 1;		/* object broken (and charged for if costly) */ 
 	if(mon) {
 	    if (mon->isshk &&
 		    kickobj->where == OBJ_MINVENT && kickobj->ocarry == mon)
 		return 1;	/* alert shk caught it */
 	    notonhead = (mon->mx != bhitpos.x || mon->my != bhitpos.y);
-	    if (isgold ? ghitm(mon, kickobj) :	/* caught? */
-		    thitmonst(mon, kickobj))	/* hit && used up? */
+	    if(isgold ? ghitm(mon, kickobj) :   /* caught? */
+		thitmonst(mon, kickobj, 3))        /* hit && used up? */
 		return(1);
 	}
 
@@ -571,7 +607,7 @@ xchar x, y;
 		if(isgold)
 		    costly_gold(x, y, kickobj->quan);
 		else (void)stolen_value(kickobj, x, y,
-					(boolean)shkp->mpeaceful, FALSE);
+					(boolean)shkp->mpeaceful, FALSE, FALSE);
 	    }
 	    return 1;
 	}
@@ -582,7 +618,7 @@ xchar x, y;
 	    if(isgold)
 		costly_gold(x, y, kickobj->quan);
 	    else (void)stolen_value(kickobj, x, y,
-				    (boolean)shkp->mpeaceful, FALSE);
+				    (boolean)shkp->mpeaceful, FALSE, FALSE);
 	}
 
 	if(flooreffects(kickobj,bhitpos.x,bhitpos.y,"fall")) return(1);
@@ -608,6 +644,7 @@ char *buf;
 	else if (IS_GRAVE(maploc->typ)) what = "a headstone";
 #ifdef SINKS
 	else if (IS_SINK(maploc->typ)) what = "a sink";
+        else if (IS_TOILET(maploc->typ)) what = "a toilet";        
 #endif
 	else if (IS_ALTAR(maploc->typ)) what = "an altar";
 	else if (IS_DRAWBRIDGE(maploc->typ)) what = "a drawbridge";
@@ -749,7 +786,7 @@ dokick()
 		    /* check x and y; a monster that evades your kick by
 		       jumping to an unseen square doesn't leave an I behind */
 		    mtmp->mx == x && mtmp->my == y &&
-		    !glyph_is_invisible(levl[x][y].glyph) &&
+		    !memory_is_invisible(x, y) &&
 		    !(u.uswallow && mtmp == u.ustuck))
 			map_invisible(x, y);
 		if((Is_airlevel(&u.uz) || Levitation) && flags.move) {
@@ -764,7 +801,7 @@ dokick()
 		}
 		return(1);
 	}
-	if (glyph_is_invisible(levl[x][y].glyph)) {
+	if (memory_is_invisible(x, y)) {
 		unmap_object(x, y);
 		newsym(x, y);
 	}
@@ -940,6 +977,15 @@ dokick()
 		    goto ouch;
 		}
 #ifdef SINKS
+		if(IS_TOILET(maploc->typ)) {
+		   if(Levitation) goto dumb;
+		   pline("Klunk!");
+		   if (!rn2(4)) breaktoilet(x,y);
+		   return(1);
+		}
+		if(IS_GRAVE(maploc->typ)) {
+		   goto ouch;
+		}
 		if(IS_SINK(maploc->typ)) {
 		    int gend = poly_gender();
 		    short washerndx = (gend == 1 || (gend == 2 && rn2(2))) ?
@@ -1041,6 +1087,9 @@ dumb:
 	/* not enough leverage to kick open doors while levitating */
 	if(Levitation) goto ouch;
 
+	/* Ali - artifact doors */
+	if (artifact_door(x, y)) goto ouch;
+
 	exercise(A_DEX, TRUE);
 	/* door is known to be CLOSED or LOCKED */
 	if(rnl(35) < avrg_attrib + (!martial() ? 0 : ACURR(A_DEX))) {
@@ -1103,7 +1152,19 @@ dumb:
 			    verbalize("Halt, vandal!  You're under arrest!");
 			    (void) angry_guards(FALSE);
 			} else {
+			    int i;
 			    verbalize("Hey, stop damaging that door!");
+			    /* [ALI] Since marking a door as warned will have
+			     * the side effect of trapping the door, it must be
+			     * included in the doors[] array in order that trap
+			     * detection will find it.
+			     */
+			    for(i = doorindex - 1; i >= 0; i--)
+				if (x == doors[i].x && y == doors[i].y)
+				    break;
+			    if (i < 0)
+				i = add_door(x, y, (struct mkroom *)0);
+			    if (i >= 0)
 			    levl[x][y].looted |= D_WARNED;
 			}
 			break;
@@ -1207,7 +1268,7 @@ xchar x, y, dlev;
 		    price += stolen_value(obj, x, y,
 				(costly_spot(u.ux, u.uy) &&
 				 index(u.urooms, *in_rooms(x, y, SHOPBASE))),
-				TRUE);
+				TRUE, FALSE);
 		    /* set obj->no_charge to 0 */
 		    if (Has_contents(obj))
 			picked_container(obj);	/* does the right thing */
@@ -1224,7 +1285,7 @@ xchar x, y, dlev;
 		dct += obj->quan;
 	}
 
-	if (dct && cansee(x,y)) {	/* at least one object fell */
+	if (dct && cansee(x, y)) {      /* at least one object fell */
 	    const char *what = (dct == 1L ? "object falls" : "objects fall");
 
 	    if (missile)
@@ -1309,8 +1370,7 @@ boolean shop_floor_obj;
 	    return FALSE;		/* let caller finish the drop */
 	}
 
-	if (cansee(x, y))
-	    otransit_msg(otmp, nodrop, n);
+	if (cansee(x, y)) otransit_msg(otmp, nodrop, n);
 
 	if (nodrop) {
 	    if (impact) impact_drop(otmp, x, y, 0);
@@ -1320,14 +1380,14 @@ boolean shop_floor_obj;
 	if(unpaid || shop_floor_obj) {
 	    if(unpaid) {
 		subfrombill(otmp, shop_keeper(*u.ushops));
-		(void)stolen_value(otmp, u.ux, u.uy, TRUE, FALSE);
+		(void)stolen_value(otmp, u.ux, u.uy, TRUE, FALSE, FALSE);
 	    } else {
 		ox = otmp->ox;
 		oy = otmp->oy;
 		(void)stolen_value(otmp, ox, oy,
 			  (costly_spot(u.ux, u.uy) &&
 			      index(u.urooms, *in_rooms(ox, oy, SHOPBASE))),
-			  FALSE);
+			  FALSE, FALSE);
 	    }
 	    /* set otmp->no_charge to 0 */
 	    if(container)
@@ -1336,9 +1396,9 @@ boolean shop_floor_obj;
 		otmp->no_charge = 0;
 	}
 
-	if (otmp == uwep) setuwep((struct obj *)0);
+	if (otmp == uwep) setuwep((struct obj *)0, FALSE);
+	if (otmp == uswapwep) setuswapwep((struct obj *)0, FALSE);
 	if (otmp == uquiver) setuqwep((struct obj *)0);
-	if (otmp == uswapwep) setuswapwep((struct obj *)0);
 
 	/* some things break rather than ship */
 	if (breaktest(otmp)) {

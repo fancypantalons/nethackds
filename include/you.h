@@ -12,6 +12,8 @@
 #endif
 #include "skills.h"
 
+/* KMH -- struct prop and assignments moved to prop.h */
+
 /*** Substructures ***/
 
 struct RoleName {
@@ -26,6 +28,7 @@ struct RoleAdvance {
 	xchar hifix, hirnd;	/* gained per level >= urole.xlev */
 };
 
+
 struct u_have {
 	Bitfield(amulet,1);	/* carrying Amulet	*/
 	Bitfield(bell,1);	/* carrying Bell	*/
@@ -34,6 +37,7 @@ struct u_have {
 	Bitfield(questart,1);	/* carrying the Quest Artifact */
 	Bitfield(unused,3);
 };
+
 
 struct u_event {
 	Bitfield(minor_oracle,1);	/* received at least 1 cheap oracle */
@@ -70,6 +74,7 @@ struct u_conduct {		/* number of times... */
 	long	wishes;		/* used a wish */
 	long	wisharti;	/* wished for an artifact */
 				/* genocides already listed at end of game */
+	long	celibacy;	/* How many times you've played around with *ubbi */
 };
 
 /*** Unified structure containing role information ***/
@@ -93,6 +98,10 @@ struct Role {
 	      enemy2num;
 	char  enemy1sym,	/* quest enemies by class (S_) */
 	      enemy2sym;
+#if 0
+	short gift1arti,		/* Index (ART_) of first artifact gift */
+	      gift2arti;		/* Index (ART_) of second artifact gift */
+#endif
 	short questarti;	/* index (ART_) of quest artifact (questpgr.c) */
 
 	/*** Bitmasks ***/
@@ -242,7 +251,7 @@ struct you {
 	int last_str_turn;	/* 0: none, 1: half turn, 2: full turn */
 				/* +: turn right, -: turn left */
 	int ulevel;		/* 1 to MAXULEV */
-	int ulevelmax;
+	int ulevelmax;		/* Maximmum level achieved */
 	unsigned utrap;		/* trap timeout */
 	unsigned utraptype;	/* defined if utrap nonzero */
 #define TT_BEARTRAP	0
@@ -305,10 +314,10 @@ struct you {
 	Bitfield(uedibility,1);		/* blessed food detection; sense unsafe food */
 	/* 1 free bit! */
 
+	struct u_conduct uconduct;	/* KMH, conduct */
 	unsigned udg_cnt;		/* how long you have been demigod */
 	struct u_event	uevent;		/* certain events have happened */
 	struct u_have	uhave;		/* you're carrying special objects */
-	struct u_conduct uconduct;	/* KMH, conduct */
 	struct attribs	acurr,		/* your current attributes (eg. str)*/
 			aexe,		/* for gain/loss via "exercise" */
 			abon,		/* your bonus attributes (eg. str) */
@@ -325,17 +334,29 @@ struct you {
 #define LUCKADD		3	/* added value when carrying luck stone */
 #define LUCKMAX		10	/* on moonlit nights 11 */
 #define LUCKMIN		(-10)
-	schar	uhitinc;
-	schar	udaminc;
+	schar	uhitinc;		/* KMH -- additional to-hit bonus */
+	long	uhealbonus;		/* KMH -- Healing bonus from healthstones */
+
+	schar	udaminc;		/* Additional damage bonus */
 	schar	uac;
+
 	uchar	uspellprot;		/* protection by SPE_PROTECTION */
 	uchar	usptime;		/* #moves until uspellprot-- */
 	uchar	uspmtime;		/* #moves between uspellprot-- */
-	int	uhp,uhpmax;
+
+	int     uhp, uhpmax;
 	int	uen, uenmax;		/* magical energy - M. Stephenson */
 	int ugangr;			/* if the gods are angry at you */
 	int ugifts;			/* number of artifacts bestowed */
 	int ublessed, ublesscnt;	/* blessing/duration from #pray */
+#ifdef NOARTIFACTWISH
+	int usacrifice;                 /* number of sacrifices so far */
+#endif
+#if 0
+	/* KMH -- Drow is now its own role... */
+	boolean uelf_drow;		/* are you a drow? */
+	int ustrucklast;		/* Seems unused */
+#endif
 #ifndef GOLDOBJ
 	long	ugold, ugold0;
 #else
@@ -355,14 +376,19 @@ struct you {
 	int ugrave_arise; /* you die and become something aside from a ghost */
 	time_t	ubirthday;		/* real world time when game began */
 
+	/* KMH -- Info shared among gypsies */
+	int umonteluck;		/* Chance of winning; lower is better */
+	char umontelast;	/* Last monte card picked */
+
 	int	weapon_slots;		/* unused skill slots */
 	int	skills_advanced;		/* # of advances made so far */
 	xchar	skill_record[P_SKILL_LIMIT];	/* skill advancements */
 	struct skills weapon_skills[P_NUM_SKILLS];
-	boolean twoweap;		/* KMH -- Using two-weapon combat */
+	boolean twoweap;		/* KMH -- using two-weapon combat */
 
 };	/* end of `struct you' */
 
 #define Upolyd (u.umonnum != u.umonster)
+
 
 #endif	/* YOU_H */

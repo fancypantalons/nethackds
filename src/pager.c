@@ -85,6 +85,26 @@ lookat(x, y, buf, monbuf)
 	if (Role_if(PM_WIZARD) && Race_if(PM_GNOME) && !Upolyd)
 	    pm = &mons[PM_WIZARD];
 
+#if 0
+	char race[QBUFSZ], role[QBUFSZ];
+
+	/* if not polymorphed, show both the role and the race */
+	role[0] = 0;
+	race[0] = 0;
+	
+	if (!Upolyd) {
+	    Sprintf(race, "%s ", urace.adj);
+	    Sprintf(role, "%s ", urole.name);
+	} else Sprintf(race, "%s ", mons[u.umonnum].mname);
+
+	Sprintf(buf, "%s%s%s called %s",
+		Invis ? "invisible " : "",
+		race,
+		role,
+		plname);
+#endif
+
+
 #ifdef STEED
 	if (u.usteed) {
 	    char steedbuf[BUFSZ];
@@ -280,6 +300,10 @@ lookat(x, y, buf, monbuf)
     case S_cloud:
 	Strcpy(buf, Is_airlevel(&u.uz) ? "cloudy area" : "fog/vapor cloud");
 	break;
+    case S_water:
+    case S_pool:
+	Strcpy(buf, level.flags.lethe? "sparkling water" : "water");
+	break;
     default:
 	Strcpy(buf,defsyms[glyph_to_cmap(glyph)].explanation);
 	break;
@@ -311,7 +335,7 @@ checkfile(inp, pm, user_typed_name, without_asking)
     int chk_skip;
     boolean found_in_file = FALSE, skipping_entry = FALSE;
 
-    fp = dlb_fopen(DATAFILE, "r");
+    fp = dlb_fopen_area(NH_DATAAREA, NH_DATAFILE, "r");
     if (!fp) {
 	pline("Cannot open data file!");
 	return;
@@ -640,6 +664,8 @@ do_look(quick)
 		    if (is_cmap_trap(i)) {
 			Sprintf(out_str, "%c       a trap", sym);
 			hit_trap = TRUE;
+		    } else if (level.flags.lethe && !strcmp(x_str, "water")) {
+			Sprintf(out_str, "%c       sparkling water", sym);
 		    } else {
 			Sprintf(out_str, "%c       %s", sym,
 				article == 2 ? the(x_str) :
@@ -649,6 +675,9 @@ do_look(quick)
 		    found++;
 		} else if (!u.uswallow && !(hit_trap && is_cmap_trap(i)) &&
 			   !(found >= 3 && is_cmap_drawbridge(i))) {
+		    if (level.flags.lethe && !strcmp(x_str, "water"))
+			found += append_str(out_str, "sparkling water");
+		    else
 		    found += append_str(out_str,
 					article == 2 ? the(x_str) :
 					article == 1 ? an(x_str) : x_str);
@@ -723,6 +752,16 @@ do_look(quick)
 		    Sprintf(temp_buf, " [seen: %s]", monbuf);
 		    (void)strncat(out_str, temp_buf, BUFSZ-strlen(out_str)-1);
 		}
+#ifdef WIZARD
+		if (wizard && pm) {
+		    struct monst *mtmp = m_at(cc.x, cc.y);
+		    if (mtmp && mtmp->oldmonnm != monsndx(pm)) {
+			Sprintf(temp_buf, " [polymorphed from a %s]",
+				mons[mtmp->oldmonnm].mname);
+			(void)strncat(out_str, temp_buf, BUFSZ-strlen(out_str)-1);
+		    }
+		}
+#endif
 	    }
 	}
 
@@ -733,7 +772,9 @@ do_look(quick)
 	    if (found == 1 && ans != LOOK_QUICK && ans != LOOK_ONCE &&
 			(ans == LOOK_VERBOSE || (flags.help && !quick))) {
 		char temp_buf[BUFSZ];
-		Strcpy(temp_buf, firstmatch);
+		Strcpy(temp_buf, level.flags.lethe 
+					&& !strcmp(firstmatch, "water")?
+				"lethe" : firstmatch);
 		checkfile(temp_buf, pm, FALSE, (boolean)(ans == LOOK_VERBOSE));
 	    }
 	} else {
@@ -800,7 +841,7 @@ char *cbuf;
 	char bufr[BUFSZ];
 	register char *buf = &bufr[6], *ep, ctrl, meta;
 
-	fp = dlb_fopen(CMDHELPFILE, "r");
+	fp = dlb_fopen_area(NH_CMDHELPAREA, NH_CMDHELPFILE, "r");
 	if (!fp) {
 		pline("Cannot open data file!");
 		return 0;
@@ -812,8 +853,10 @@ char *cbuf;
 	    if ((ctrl && *buf=='^' && *(buf+1)==ctrl) ||
 		(meta && *buf=='M' && *(buf+1)=='-' && *(buf+2)==meta) ||
 		*buf==q) {
-		ep = index(buf, '\n');
-		if(ep) *ep = 0;
+		if ((ep = index(buf, '\n')) != 0) *ep = 0;
+#ifdef MSDOS
+		if ((ep = index(buf, '\r')) != 0) *ep = 0;
+#endif
 		if (ctrl && buf[2] == '\t'){
 			buf = bufr + 1;
 			(void) strncpy(buf, "^?      ", 8);
@@ -861,25 +904,39 @@ dowhatdoes()
 static const char *help_menu_items[] = {
 /* 0*/	"Long description of the game and commands.",
 /* 1*/	"List of game commands.",
-/* 2*/	"Concise history of NetHack.",
+/* 2*/	"Concise history of Slash'EM.",
 /* 3*/	"Info on a character in the game display.",
 /* 4*/	"Info on what a given key does.",
 /* 5*/	"List of game options.",
 /* 6*/	"Longer explanation of game options.",
 /* 7*/	"List of extended commands.",
 /* 8*/	"The NetHack license.",
+#ifndef MAC
+/*WAC Add access to txt guidebook*/
+/* 9*/  "The Slash'EM Guidebook.",
+#endif
 #ifdef PORT_HELP
 	"%s-specific help and commands.",
-#define PORT_HELP_ID 100
-#define WIZHLP_SLOT 10
-#else
-#define WIZHLP_SLOT 9
 #endif
 #ifdef WIZARD
 	"List of wizard-mode commands.",
 #endif
 	"",
 	(char *)0
+};
+
+enum {
+  LICENSE_SLOT=8,
+#ifndef MAC
+  GUIDEBOOK_SLOT,
+#endif
+#ifdef PORT_HELP
+  PORT_HELP_ID,
+#endif
+#ifdef WIZARD
+  WIZHLP_SLOT,
+#endif
+  NULL_SLOT
 };
 
 STATIC_OVL boolean
@@ -933,21 +990,34 @@ dohelp()
 
 	if (help_menu(&sel)) {
 		switch (sel) {
-			case  0:  display_file(HELP, TRUE);  break;
-			case  1:  display_file(SHELP, TRUE);  break;
+			case  0:  display_file_area(NH_HELP_AREA, NH_HELP, TRUE);
+				  break;
+			case  1:  display_file_area(NH_SHELP_AREA, NH_SHELP, TRUE);
+				  break;
 			case  2:  (void) dohistory();  break;
 			case  3:  (void) dowhatis();  break;
 			case  4:  (void) dowhatdoes();  break;
 			case  5:  option_help();  break;
-			case  6:  display_file(OPTIONFILE, TRUE);  break;
+			case  6:  display_file_area(NH_OPTIONAREA,
+				    NH_OPTIONFILE, TRUE);
+				  break;
 			case  7:  (void) doextlist();  break;
-			case  8:  display_file(LICENSE, TRUE);  break;
-#ifdef WIZARD
-			/* handle slot 9 or 10 */
-			default: display_file(DEBUGHELP, TRUE);  break;
+			case  8:  display_file_area(NH_LICENSE_AREA,
+				    NH_LICENSE, TRUE);
+				  break;
+#ifndef MAC
+/*WAC add guidebook.*/
+                        case  GUIDEBOOK_SLOT:  display_file_area(NH_GUIDEBOOK_AREA,
+				    NH_GUIDEBOOK, TRUE);
+				  break;
 #endif
 #ifdef PORT_HELP
 			case PORT_HELP_ID:  port_help();  break;
+#endif
+#ifdef WIZARD
+                        case  WIZHLP_SLOT:  display_file_area(NH_DEBUGHELP_AREA,
+				    NH_DEBUGHELP, TRUE);
+				  break;
 #endif
 		}
 	}
@@ -957,7 +1027,7 @@ dohelp()
 int
 dohistory()
 {
-	display_file(HISTORY, TRUE);
+	display_file_area(NH_HISTORY_AREA, NH_HISTORY, TRUE);
 	return 0;
 }
 

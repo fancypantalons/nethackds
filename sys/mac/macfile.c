@@ -212,11 +212,16 @@ macopen (const char *name, int flags, long fileType)
 	short refNum;
 	short perm;
 	Str255 s;
+	long creator;
 
 	C2P (name, s);
 	if (flags & O_CREAT) {
+		if (fileType == SAVE_TYPE)
+		  creator = MAC_CREATOR;
+		else
+		  creator = TEXT_CREATOR;
 		if (HCreate (theDirs.dataRefNum, theDirs.dataDirID, s ,
-			TEXT_CREATOR, fileType) && (flags & O_EXCL)) {
+			creator, fileType) && (flags & O_EXCL)) {
 			return -1;
 		}
 
@@ -389,7 +394,7 @@ void rsrc_dlb_cleanup(void) {
 }
 
 boolean rsrc_dlb_fopen(dlb *dp, const char *name, const char *mode) {
-#if defined(__SC__) || defined(__MRC__)
+#if defined(MAC_MPW)
 # pragma unused(mode)
 #endif
 	Str255 pname;

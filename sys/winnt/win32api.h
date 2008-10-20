@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)win32api.h	 3.4	 $Date: 2002/07/24 08:25:21 $		  */
+/*	SCCS Id: @(#)win32api.h	 3.4	 $Date: 2003/03/12 11:15:16 $		  */
 /* Copyright (c) NetHack PC Development Team 1996                 */
 /* NetHack may be freely redistributed.  See license for details. */
 

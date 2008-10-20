@@ -20,6 +20,7 @@ char *catmore = 0;		/* default pager */
 NEARDATA int bases[MAXOCLASSES] = DUMMY;
 
 NEARDATA int multi = 0;
+NEARDATA boolean multi_one = FALSE;	/* used by dofire() and throw_the_obj() */
 #if 0
 NEARDATA int warnlevel = 0;		/* used by movemon and dochugw */
 #endif
@@ -121,6 +122,7 @@ NEARDATA dest_area updest = { 0, 0, 0, 0, 0, 0, 0, 0 };
 NEARDATA dest_area dndest = { 0, 0, 0, 0, 0, 0, 0, 0 };
 NEARDATA coord inv_pos = { 0, 0 };
 
+NEARDATA boolean defer_see_monsters = FALSE;
 NEARDATA boolean in_mklev = FALSE;
 NEARDATA boolean stoned = FALSE;	/* done to monsters hit by 'c' */
 NEARDATA boolean unweapon = FALSE;
@@ -131,7 +133,7 @@ NEARDATA struct obj *current_wand = 0;	/* wand currently zapped/applied */
 NEARDATA boolean in_steed_dismounting = FALSE;
 
 NEARDATA coord bhitpos = DUMMY;
-NEARDATA coord doors[DOORMAX] = {DUMMY};
+NEARDATA struct door doors[DOORMAX] = {DUMMY};
 
 NEARDATA struct mkroom rooms[(MAXNROFROOMS+1)*2] = {DUMMY};
 NEARDATA struct mkroom* subrooms = &rooms[MAXNROFROOMS+1];
@@ -140,6 +142,7 @@ struct mkroom *upstairs_room, *dnstairs_room, *sstairs_room;
 dlevel_t level;		/* level map */
 struct trap *ftrap = (struct trap *)0;
 NEARDATA struct monst youmonst = DUMMY;
+NEARDATA struct permonst upermonst = DUMMY;
 NEARDATA struct flag flags = DUMMY;
 NEARDATA struct instance_flags iflags = DUMMY;
 NEARDATA struct you u = DUMMY;
@@ -158,6 +161,9 @@ NEARDATA struct obj *invent = (struct obj *)0,
 	*uright = (struct obj *)0,
 	*uleft = (struct obj *)0,
 	*ublindf = (struct obj *)0,
+#ifdef STEED
+	*usaddle = (struct obj *)0,
+#endif
 	*uchain = (struct obj *)0,
 	*uball = (struct obj *)0;
 
@@ -185,8 +191,10 @@ const int shield_static[SHIELD_COUNT] = {
 
 NEARDATA struct spell spl_book[MAXSPELL + 1] = {DUMMY};
 
+NEARDATA struct tech tech_list[MAXTECH + 1] = {DUMMY};
+
 NEARDATA long moves = 1L, monstermoves = 1L;
-	 /* These diverge when player is Fast */
+	 /* These diverge when player is Fast or Very_fast */
 NEARDATA long wailmsg = 0L;
 
 /* objects that are moving to another dungeon level */
@@ -197,10 +205,23 @@ NEARDATA struct obj *billobjs = (struct obj *)0;
 /* used to zero all elements of a struct obj */
 NEARDATA struct obj zeroobj = DUMMY;
 
+/* used as an address returned by getobj() */
+NEARDATA struct obj thisplace = DUMMY;
+
 /* originally from dog.c */
 NEARDATA char dogname[PL_PSIZ] = DUMMY;
 NEARDATA char catname[PL_PSIZ] = DUMMY;
+NEARDATA char ghoulname[PL_PSIZ] = DUMMY;
 NEARDATA char horsename[PL_PSIZ] = DUMMY;
+NEARDATA char wolfname[PL_PSIZ] = DUMMY;
+#if 0
+NEARDATA char batname[PL_PSIZ] = DUMMY;
+NEARDATA char snakename[PL_PSIZ] = DUMMY;
+NEARDATA char ratname[PL_PSIZ] = DUMMY;
+NEARDATA char badgername[PL_PSIZ] = DUMMY;
+NEARDATA char reddragonname[PL_PSIZ] = DUMMY;
+NEARDATA char whitedragonname[PL_PSIZ] = DUMMY;
+#endif
 char preferred_pet;	/* '\0', 'c', 'd', 'n' (none) */
 /* monsters that went down/up together with @ */
 NEARDATA struct monst *mydogs = (struct monst *)0;
@@ -235,6 +256,10 @@ const char *c_obj_colors[] = {
 	"white",		/* CLR_WHITE */
 };
 
+#ifdef MENU_COLOR
+struct menucoloring *menu_colorings = 0;
+#endif
+
 struct c_common_strings c_common_strings = {
 	"Nothing happens.",		"That's enough tries!",
 	"That is a silly thing to %s.",	"shudder for a moment.",
@@ -261,6 +286,36 @@ NEARDATA winid WIN_MAP = WIN_ERR, WIN_INVEN = WIN_ERR;
 char toplines[TBUFSZ];
 /* Windowing stuff that's really tty oriented, but present for all ports */
 struct tc_gbl_data tc_gbl_data = { 0,0, 0,0 };	/* AS,AE, LI,CO */
+
+struct authentication authentication = { "", "" };
+
+struct tileset tilesets[MAXNOTILESETS];
+int no_tilesets = 0;
+struct tileset def_tilesets[] = {
+#if defined(X11_GRAPHICS) || defined(QT_GRAPHICS) || defined(GTK_GRAPHICS) || \
+    defined(GNOME_GRAPHICS) || defined(GL_GRAPHICS) || defined(SDL_GRAPHICS)
+    { "Small tiles", "x11tiles", 0 },
+    { "Big tiles", "x11bigtiles", TILESET_TRANSPARENT },
+#endif
+#if defined(GTK_GRAPHICS)
+    { "Big 3D tiles", "x11big3dtiles", TILESET_TRANSPARENT | TILESET_PSEUDO3D },
+#endif
+#if defined(GEM_GRAPHICS)
+    { "Monochrome tiles", "nh2.img", 0 },
+    { "Colour tiles", "nh16.img", 0 },
+#endif
+#if defined(MSDOS)
+    { "Planer style tiles", "slashem1.tib", 0 },
+#endif
+#if defined(ALLEG_FX)
+    { "Small tiles", "slam16.bmp", 0 },
+    { "Big tiles", "slam32.bmp", TILESET_TRANSPARENT },
+    { "Big 3D tiles", "slam3D.bmp", TILESET_TRANSPARENT | TILESET_PSEUDO3D },
+#endif
+    { "", "", 0, }
+};
+
+char tileset[PL_PSIZ] = DUMMY;
 
 char *fqn_prefix[PREFIX_COUNT] = { (char *)0, (char *)0, (char *)0, (char *)0,
 				(char *)0, (char *)0, (char *)0, (char *)0, (char *)0 };

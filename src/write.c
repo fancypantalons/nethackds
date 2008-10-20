@@ -16,6 +16,7 @@ register struct obj *otmp;
 	if (otmp->oclass == SPBOOK_CLASS)
 		return(10 * objects[otmp->otyp].oc_level);
 
+	/* KMH, balance patch -- restoration of marker charges */
 	switch (otmp->otyp) {
 # ifdef MAIL
 	case SCR_MAIL:
@@ -40,19 +41,20 @@ register struct obj *otmp;
 		return(12);
 /*		break; */
 	case SCR_IDENTIFY:
+	case SCR_SCARE_MONSTER:
 		return(14);
 /*		break; */
+	case SCR_TAMING:
+	case SCR_TELEPORTATION:
+		return(20);
+/*		break; */
+	/* KMH, balance patch -- more useful scrolls cost more */
+	case SCR_STINKING_CLOUD:
 	case SCR_ENCHANT_ARMOR:
 	case SCR_REMOVE_CURSE:
 	case SCR_ENCHANT_WEAPON:
 	case SCR_CHARGING:
-		return(16);
-/*		break; */
-	case SCR_SCARE_MONSTER:
-	case SCR_STINKING_CLOUD:
-	case SCR_TAMING:
-	case SCR_TELEPORTATION:
-		return(20);
+		return(24);
 /*		break; */
 	case SCR_GENOCIDE:
 		return(30);
@@ -160,6 +162,9 @@ found:
 
 	new_obj = mksobj(i, FALSE, FALSE);
 	new_obj->bknown = (paper->bknown && pen->bknown);
+#ifdef INVISIBLE_OBJECTS
+	new_obj->oinvis = paper->oinvis;
+#endif
 
 	/* shk imposes a flat rate per use, not based on actual charges used */
 	check_unpaid(pen);

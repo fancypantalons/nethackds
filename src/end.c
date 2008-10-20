@@ -39,8 +39,8 @@ STATIC_DCL void FDECL(get_valuables, (struct obj *));
 STATIC_DCL void FDECL(sort_valuables, (struct valuable_data *,int));
 STATIC_DCL void FDECL(artifact_score, (struct obj *,BOOLEAN_P,winid));
 STATIC_DCL void FDECL(savelife, (int));
-STATIC_DCL void FDECL(list_vanquished, (CHAR_P,BOOLEAN_P));
-STATIC_DCL void FDECL(list_genocided, (CHAR_P,BOOLEAN_P));
+STATIC_DCL boolean FDECL(list_vanquished, (CHAR_P, BOOLEAN_P));
+STATIC_DCL void FDECL(list_genocided, (CHAR_P, BOOLEAN_P));
 STATIC_DCL boolean FDECL(should_query_disclose_option, (int,char *));
 
 #if defined(__BEOS__) || defined(MICRO) || defined(WIN32) || defined(OS2) || defined(NDS)
@@ -69,7 +69,7 @@ extern void FDECL(nethack_exit,(int));
  * The order of these needs to match the macros in hack.h.
  */
 static NEARDATA const char *deaths[] = {		/* the array of death */
-	"died", "choked", "poisoned", "starvation", "drowning",
+	"died", "betrayed", "choked", "poisoned", "starvation", "drowning",
 	"burning", "dissolving under the heat and pressure",
 	"crushed", "turned to stone", "turned into slime",
 	"genocided", "panic", "trickery",
@@ -77,20 +77,21 @@ static NEARDATA const char *deaths[] = {		/* the array of death */
 };
 
 static NEARDATA const char *ends[] = {		/* "when you..." */
-	"died", "choked", "were poisoned", "starved", "drowned",
-	"burned", "dissolved in the lava",
+	"died", "were betrayed", "choked", "were poisoned", "starved", 
+	"drowned", "burned", "dissolved in the lava",
 	"were crushed", "turned to stone", "turned into slime",
 	"were genocided", "panicked", "were tricked",
 	"quit", "escaped", "ascended"
 };
-
-extern const char * const killed_by_prefix[];	/* from topten.c */
 
 /*ARGSUSED*/
 void
 done1(sig_unused)   /* called as signal() handler, so sent at least one arg */
 int sig_unused;
 {
+#if defined(MAC_MPW)
+# pragma unused ( sig_unused )
+#endif
 #ifndef NO_SIGNAL
 	(void) signal(SIGINT,SIG_IGN);
 #endif
@@ -107,6 +108,7 @@ int sig_unused;
 	}
 }
 
+extern const char * const killed_by_prefix[];	/* from topten.c */
 
 /* "#quit" command or keyboard interrupt */
 int
@@ -157,6 +159,9 @@ STATIC_PTR void
 done_intr(sig_unused) /* called as signal() handler, so sent at least one arg */
 int sig_unused;
 {
+#if defined(MAC_MPW)
+# pragma unused ( sig_unused )
+#endif
 	done_stopprint++;
 	(void) signal(SIGINT, SIG_IGN);
 # if defined(UNIX) || defined(VMS)
@@ -186,9 +191,13 @@ register struct monst *mtmp;
 	boolean distorted = (boolean)(Hallucination && canspotmon(mtmp));
 
 	You("die...");
+	/* for those wand o'death, touch o'death, poisoned spike times... */        
+	if (Instant_Death)
+	    You("were hosed!");
 	mark_synch();	/* flush buffered screen output */
 	buf[0] = '\0';
 	killer_format = KILLED_BY_AN;
+	if (!Blind || Blind_telepat) {        
 	/* "killed by the high priest of Crom" is okay, "killed by the high
 	   priest" alone isn't */
 	if ((mtmp->data->geno & G_UNIQ) != 0 && !(mtmp->data == &mons[PM_HIGH_PRIEST] && !mtmp->ispriest)) {
@@ -224,13 +233,21 @@ register struct monst *mtmp;
 		    Sprintf(eos(buf), " called %s", NAME(mtmp));
 	}
 
-	if (multi) Strcat(buf, ", while helpless");
+		if (multi) Strcat(buf,", while helpless");
+	} else {
+		killer_format = KILLED_BY;
+		Strcat(buf,"something while blind");
+		if (multi) Strcat(buf," and helpless");
+	}
+
 	killer = buf;
 	if (mtmp->data->mlet == S_WRAITH)
 		u.ugrave_arise = PM_WRAITH;
 	else if (mtmp->data->mlet == S_MUMMY && urace.mummynum != NON_PM)
 		u.ugrave_arise = urace.mummynum;
-	else if (mtmp->data->mlet == S_VAMPIRE && Race_if(PM_HUMAN))
+	else if (is_vampire(mtmp->data) && Race_if(PM_HUMAN)
+		  	&& mtmp->data != &mons[PM_FIRE_VAMPIRE]
+		  	&& mtmp->data != &mons[PM_STAR_VAMPIRE])
 		u.ugrave_arise = PM_VAMPIRE;
 	else if (mtmp->data == &mons[PM_GHOUL])
 		u.ugrave_arise = PM_GHOUL;
@@ -239,6 +256,8 @@ register struct monst *mtmp;
 		u.ugrave_arise = NON_PM;
 	if (touch_petrifies(mtmp->data))
 		done(STONING);
+	else if (mtmp->mtraitor)
+		done(BETRAYED);
 	else
 		done(DIED);
 	return;
@@ -273,7 +292,7 @@ panic VA_DECL(const char *, str)
 # if defined(NOTIFY_NETHACK_BUGS)
 	if (!wizard)
 	    raw_printf("Report the following error to \"%s\".",
-			"nethack-bugs@nethack.org");
+			"slashem-discuss@lists.sourceforge.net");
 	else if (program_state.something_worth_saving)
 	    raw_print("\nError save file being written.\n");
 # else
@@ -355,6 +374,7 @@ boolean taken;
 	char	c = 0, defquery;
 	char	qbuf[QBUFSZ];
 	boolean ask;
+	boolean hallu=FALSE;
 
 	if (invent) {
 	    if(taken)
@@ -369,6 +389,10 @@ boolean taken;
 		if (c == 'y') {
 			struct obj *obj;
 
+			if (Hallucination) {
+			    make_hallucinated(0L, FALSE, 0L);
+			    hallu = TRUE;
+			}
 			for (obj = invent; obj; obj = obj->nobj) {
 			    makeknown(obj->otyp);
 			    obj->known = obj->bknown = obj->dknown = obj->rknown = 1;
@@ -379,6 +403,7 @@ boolean taken;
 		if (c == 'q')  done_stopprint++;
 	    }
 	}
+	if (hallu) make_hallucinated(20L, FALSE, 0L);
 
 	ask = should_query_disclose_option('a', &defquery);
 	if (!done_stopprint) {
@@ -409,7 +434,7 @@ boolean taken;
 
 /* try to get the player back in a viable state after being killed */
 STATIC_OVL void
-savelife(how)
+	savelife(how)
 int how;
 {
 	u.uswldtim = 0;
@@ -570,6 +595,28 @@ int how;
 	killer = kilbuf;
 
 	if (how < PANICKED) u.umortality++;
+	if (how == STONING && uamul && uamul->otyp == AMULET_VERSUS_STONE) {
+		pline("But wait...");
+		makeknown(AMULET_VERSUS_STONE);
+		Your("medallion %s%s!",
+		      !Blind ? "begins to glow" : "feels warm",
+		      uamul->cursed ? " and disintegrates" : "");
+		/* blessed -> uncursed -> cursed -> gone */
+		if (uamul->cursed)
+			useup(uamul);
+		else if (uamul->blessed)
+			unbless(uamul);
+		else
+			curse(uamul);
+
+		uunstone();
+		(void) adjattrib(A_CON, -1, TRUE);
+		if(u.uhpmax <= 0) u.uhpmax = 1;
+		savelife(how);
+		killer = 0;
+		killer_format = 0;
+		return;
+	}
 	if (Lifesaved && (how <= GENOCIDED)) {
 		pline("But wait...");
 		makeknown(AMULET_OF_LIFE_SAVING);
@@ -578,7 +625,9 @@ int how;
 		if (how == CHOKING) You("vomit ...");
 		You_feel("much better!");
 		pline_The("medallion crumbles to dust!");
-		if (uamul) useup(uamul);
+		/* KMH -- Bullet-proofing */
+		if (uamul)
+			useup(uamul);
 
 		(void) adjattrib(A_CON, -1, TRUE);
 		if(u.uhpmax <= 0) u.uhpmax = 10;	/* arbitrary */
@@ -595,7 +644,7 @@ int how;
 #ifdef WIZARD
 			wizard ||
 #endif
-			discover) && (how <= GENOCIDED)) {
+			discover) && (how <= GENOCIDED || how == TURNED_SLIME)) {
 		if(yn("Die?") == 'y') goto die;
 		pline("OK, so you don't %s.",
 			(how == CHOKING) ? "choke" : "die");
@@ -636,6 +685,11 @@ die:
 # endif
 #endif /* NO_SIGNAL */
 
+#ifdef ALLEG_FX
+        if(iflags.usealleg && (how < PANICKED))
+                fade_to_black();
+#endif
+
 	bones_ok = (how < GENOCIDED) && can_make_bones();
 
 	if (how == TURNED_SLIME)
@@ -656,8 +710,9 @@ die:
 		     * u.umonnum is based on role, and all role monsters
 		     * are human.
 		     */
-		    mnum = (flags.female && urace.femalenum != NON_PM) ?
-			urace.femalenum : urace.malenum;
+		    mnum = undead_to_corpse(
+			(flags.female && urace.femalenum != NON_PM) ?
+			urace.femalenum : urace.malenum);
 		}
 		corpse = mk_named_object(CORPSE, &mons[mnum],
 				       u.ux, u.uy, plname);
@@ -668,7 +723,7 @@ die:
 		make_grave(u.ux, u.uy, pbuf);
 	    }
 	}
-
+	if (how == TURNED_SLIME) killer_format = NO_KILLER_PREFIX;
 	if (how == QUIT) {
 		killer_format = NO_KILLER_PREFIX;
 		if (u.uhp < 1) {
@@ -725,6 +780,7 @@ die:
 
 	if (bones_ok) {
 #ifdef WIZARD
+		/* KMH -- We need the "Save bones?" prompt for testing! */
 	    if (!wizard || yn("Save bones?") == 'y')
 #endif
 		savebones(corpse);
@@ -954,7 +1010,6 @@ boolean identified, all_containers;
 	}
 }
 
-
 /* should be called with either EXIT_SUCCESS or EXIT_FAILURE */
 void
 terminate(status)
@@ -973,7 +1028,7 @@ int status;
 	nethack_exit(status);
 }
 
-STATIC_OVL void
+STATIC_OVL boolean
 list_vanquished(defquery, ask)
 char defquery;
 boolean ask;
@@ -1045,6 +1100,15 @@ boolean ask;
 	    destroy_nhwindow(klwin);
 	}
     }
+    return (boolean) (total_killed);
+}
+
+int
+dolistvanq()
+{
+    if (!list_vanquished('y', FALSE))
+        pline("No monsters have yet been killed.");
+    return(0);
 }
 
 /* number of monster species which have been genocided */

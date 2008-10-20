@@ -10,6 +10,7 @@
 
 #include "hack.h"
 #include "dlb.h"
+
 #ifdef SHORT_FILENAMES
 #include "patchlev.h"
 #else
@@ -125,6 +126,10 @@ static char obuf[BUFSIZ];	/* BUFSIZ is defined in stdio.h */
 static char winpanicstr[] = "Bad window id %d";
 char defmorestr[] = "--More--";
 
+#ifdef MENU_COLOR
+extern struct menucoloring *menu_colorings;
+#endif
+
 #ifdef CLIPPING
 # if defined(USE_TILES) && defined(MSDOS)
 boolean clipping = FALSE;	/* clipping on? */
@@ -166,6 +171,8 @@ STATIC_DCL const char * FDECL(compress_str, (const char *));
 STATIC_DCL void FDECL(tty_putsym, (winid, int, int, CHAR_P));
 static char *FDECL(copy_of, (const char *));
 STATIC_DCL void FDECL(bail, (const char *));	/* __attribute__((noreturn)) */
+STATIC_DCL int FDECL(tty_role_select, (char *, char *));
+STATIC_DCL int FDECL(tty_race_select, (char *, char *));
 
 /*
  * A string containing all the default commands -- to add to a list
@@ -259,6 +266,9 @@ tty_init_nhwindows(argcp,argv)
 int* argcp;
 char** argv;
 {
+#if defined(MAC_MPW)
+# pragma unused(argcp,argv)
+#endif
     int wid, hgt;
 
     /*
@@ -370,7 +380,6 @@ give_up:	/* Quit */
 	/* we'll try to be compatible with pre-selected race/gender/alignment,
 	 * but may not succeed */
 	if (flags.initrole < 0) {
-	    char rolenamebuf[QBUFSZ];
 	    /* Process the choice */
 	    if (pick4u == 'y' || flags.initrole == ROLE_RANDOM || flags.randomall) {
 		/* Pick a random role */
@@ -381,56 +390,7 @@ give_up:	/* Quit */
 		    flags.initrole = randrole();
 		}
  	    } else {
-	    	tty_clear_nhwindow(BASE_WINDOW);
-		tty_putstr(BASE_WINDOW, 0, "Choosing Character's Role");
-		/* Prompt for a role */
-		win = create_nhwindow(NHW_MENU);
-		start_menu(win);
-		any.a_void = 0;         /* zero out all bits */
-		for (i = 0; roles[i].name.m; i++) {
-		    if (ok_role(i, flags.initrace, flags.initgend,
-							flags.initalign)) {
-			any.a_int = i+1;	/* must be non-zero */
-			thisch = lowc(roles[i].name.m[0]);
-			if (thisch == lastch) thisch = highc(thisch);
-			if (flags.initgend != ROLE_NONE && flags.initgend != ROLE_RANDOM) {
-				if (flags.initgend == 1  && roles[i].name.f)
-					Strcpy(rolenamebuf, roles[i].name.f);
-				else
-					Strcpy(rolenamebuf, roles[i].name.m);
-			} else {
-				if (roles[i].name.f) {
-					Strcpy(rolenamebuf, roles[i].name.m);
-					Strcat(rolenamebuf, "/");
-					Strcat(rolenamebuf, roles[i].name.f);
-				} else 
-					Strcpy(rolenamebuf, roles[i].name.m);
-			}	
-			add_menu(win, NO_GLYPH, &any, thisch,
-			    0, ATR_NONE, an(rolenamebuf), MENU_UNSELECTED);
-			lastch = thisch;
-		    }
-		}
-		any.a_int = pick_role(flags.initrace, flags.initgend,
-				    flags.initalign, PICK_RANDOM)+1;
-		if (any.a_int == 0)	/* must be non-zero */
-		    any.a_int = randrole()+1;
-		add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
-				"Random", MENU_UNSELECTED);
-		any.a_int = i+1;	/* must be non-zero */
-		add_menu(win, NO_GLYPH, &any , 'q', 0, ATR_NONE,
-				"Quit", MENU_UNSELECTED);
-		Sprintf(pbuf, "Pick a role for your %s", plbuf);
-		end_menu(win, pbuf);
-		n = select_menu(win, PICK_ONE, &selected);
-		destroy_nhwindow(win);
-
-		/* Process the choice */
-		if (n != 1 || selected[0].item.a_int == any.a_int)
-		    goto give_up;		/* Selected quit */
-
-		flags.initrole = selected[0].item.a_int - 1;
-		free((genericptr_t) selected),	selected = 0;
+	    	if (tty_role_select(pbuf, plbuf) < 0) goto give_up;
 	    }
 	    (void)  root_plselection_prompt(plbuf, QBUFSZ - 1,
 			flags.initrole, flags.initrace, flags.initgend, flags.initalign);
@@ -449,59 +409,7 @@ give_up:	/* Quit */
 		    flags.initrace = randrace(flags.initrole);
 		}
 	    } else {	/* pick4u == 'n' */
-		/* Count the number of valid races */
-		n = 0;	/* number valid */
-		k = 0;	/* valid race */
-		for (i = 0; races[i].noun; i++) {
-		    if (ok_race(flags.initrole, i, flags.initgend,
-							flags.initalign)) {
-			n++;
-			k = i;
-		    }
-		}
-		if (n == 0) {
-		    for (i = 0; races[i].noun; i++) {
-			if (validrace(flags.initrole, i)) {
-			    n++;
-			    k = i;
-			}
-		    }
-		}
-
-		/* Permit the user to pick, if there is more than one */
-		if (n > 1) {
-		    tty_clear_nhwindow(BASE_WINDOW);
-		    tty_putstr(BASE_WINDOW, 0, "Choosing Race");
-		    win = create_nhwindow(NHW_MENU);
-		    start_menu(win);
-		    any.a_void = 0;         /* zero out all bits */
-		    for (i = 0; races[i].noun; i++)
-			if (ok_race(flags.initrole, i, flags.initgend,
-							flags.initalign)) {
-			    any.a_int = i+1;	/* must be non-zero */
-			    add_menu(win, NO_GLYPH, &any, races[i].noun[0],
-				0, ATR_NONE, races[i].noun, MENU_UNSELECTED);
-			}
-		    any.a_int = pick_race(flags.initrole, flags.initgend,
-					flags.initalign, PICK_RANDOM)+1;
-		    if (any.a_int == 0)	/* must be non-zero */
-			any.a_int = randrace(flags.initrole)+1;
-		    add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
-				    "Random", MENU_UNSELECTED);
-		    any.a_int = i+1;	/* must be non-zero */
-		    add_menu(win, NO_GLYPH, &any , 'q', 0, ATR_NONE,
-				    "Quit", MENU_UNSELECTED);
-		    Sprintf(pbuf, "Pick the race of your %s", plbuf);
-		    end_menu(win, pbuf);
-		    n = select_menu(win, PICK_ONE, &selected);
-		    destroy_nhwindow(win);
-		    if (n != 1 || selected[0].item.a_int == any.a_int)
-			goto give_up;		/* Selected quit */
-
-		    k = selected[0].item.a_int - 1;
-		    free((genericptr_t) selected),	selected = 0;
-		}
-		flags.initrace = k;
+	    	if (tty_race_select(pbuf, plbuf) < 0) goto give_up;
 	    }
 	    (void)  root_plselection_prompt(plbuf, QBUFSZ - 1,
 			flags.initrole, flags.initrace, flags.initgend, flags.initalign);
@@ -649,6 +557,235 @@ give_up:	/* Quit */
 	}
 	/* Success! */
 	tty_display_nhwindow(BASE_WINDOW, FALSE);
+}
+
+STATIC_OVL int
+tty_role_select(pbuf, plbuf)
+char * pbuf;
+char * plbuf;
+{
+	int i, n;
+	char thisch, lastch = 0;
+    char rolenamebuf[QBUFSZ];
+	winid win;
+	anything any;
+	menu_item *selected = 0;
+
+   	tty_clear_nhwindow(BASE_WINDOW);
+	tty_putstr(BASE_WINDOW, 0, "Choosing Character's Role");
+
+	/* Prompt for a role */
+	win = create_nhwindow(NHW_MENU);
+	start_menu(win);
+	any.a_void = 0;         /* zero out all bits */
+	for (i = 0; roles[i].name.m; i++) {
+	    if (ok_role(i, flags.initrace, flags.initgend,
+						flags.initalign)) {
+		any.a_int = i+1;	/* must be non-zero */
+		thisch = lowc(roles[i].name.m[0]);
+		if (thisch == lastch) thisch = highc(thisch);
+		if (flags.initgend != ROLE_NONE && flags.initgend != ROLE_RANDOM) {
+			if (flags.initgend == 1  && roles[i].name.f)
+				Strcpy(rolenamebuf, roles[i].name.f);
+			else
+				Strcpy(rolenamebuf, roles[i].name.m);
+		} else {
+			if (roles[i].name.f) {
+				Strcpy(rolenamebuf, roles[i].name.m);
+				Strcat(rolenamebuf, "/");
+				Strcat(rolenamebuf, roles[i].name.f);
+			} else 
+				Strcpy(rolenamebuf, roles[i].name.m);
+		}	
+		add_menu(win, NO_GLYPH, &any, thisch,
+			    0, ATR_NONE, an(rolenamebuf), MENU_UNSELECTED);
+		lastch = thisch;
+	    }
+	}
+	any.a_int = pick_role(flags.initrace, flags.initgend,
+				    flags.initalign, PICK_RANDOM)+1;
+	if (any.a_int == 0)	/* must be non-zero */
+	    any.a_int = randrole()+1;
+	add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
+			"Random", MENU_UNSELECTED);
+	any.a_int = i+1;	/* must be non-zero */
+	add_menu(win, NO_GLYPH, &any , 'q', 0, ATR_NONE,
+			"Quit", MENU_UNSELECTED);
+	Sprintf(pbuf, "Pick a role for your %s", plbuf);
+	end_menu(win, pbuf);
+	n = select_menu(win, PICK_ONE, &selected);
+	destroy_nhwindow(win);
+
+	/* Process the choice */
+	if (n != 1 || selected[0].item.a_int == any.a_int) {
+	    free((genericptr_t) selected),	selected = 0;	
+	    return (-1);		/* Selected quit */
+	}
+
+	flags.initrole = selected[0].item.a_int - 1;
+	free((genericptr_t) selected),	selected = 0;
+	return (flags.initrole);
+}
+
+STATIC_OVL int
+tty_race_select(pbuf, plbuf)
+char * pbuf;
+char * plbuf;
+{
+	int i, k, n;
+	char thisch, lastch;
+	winid win;
+	anything any;
+	menu_item *selected = 0;
+
+	/* Count the number of valid races */
+	n = 0;	/* number valid */
+	k = 0;	/* valid race */
+	for (i = 0; races[i].noun; i++) {
+	    if (ok_race(flags.initrole, i, flags.initgend,
+						flags.initalign)) {
+		n++;
+		k = i;
+	    }
+	}
+	if (n == 0) {
+	    for (i = 0; races[i].noun; i++) {
+		if (validrace(flags.initrole, i)) {
+		    n++;
+		    k = i;
+		}
+	    }
+	}
+
+	/* Permit the user to pick, if there is more than one */
+	if (n > 1) {
+	    tty_clear_nhwindow(BASE_WINDOW);
+	    tty_putstr(BASE_WINDOW, 0, "Choosing Race");
+	    win = create_nhwindow(NHW_MENU);
+	    start_menu(win);
+	    any.a_void = 0;         /* zero out all bits */
+	    for (i = 0; races[i].noun; i++)
+		if (ok_race(flags.initrole, i, flags.initgend,
+						flags.initalign)) {
+		    any.a_int = i+1;	/* must be non-zero */
+		    thisch = lowc(races[i].noun[0]);
+		    if (thisch == lastch) thisch = highc(thisch);
+		    add_menu(win, NO_GLYPH, &any, thisch,
+			0, ATR_NONE, races[i].noun, MENU_UNSELECTED);
+		    lastch = thisch;
+		}
+	    any.a_int = pick_race(flags.initrole, flags.initgend,
+					flags.initalign, PICK_RANDOM)+1;
+	    if (any.a_int == 0)	/* must be non-zero */
+		any.a_int = randrace(flags.initrole)+1;
+	    add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
+			    "Random", MENU_UNSELECTED);
+	    any.a_int = i+1;	/* must be non-zero */
+	    add_menu(win, NO_GLYPH, &any , 'q', 0, ATR_NONE,
+			    "Quit", MENU_UNSELECTED);
+	    Sprintf(pbuf, "Pick the race of your %s", plbuf);
+	    end_menu(win, pbuf);
+	    n = select_menu(win, PICK_ONE, &selected);
+	    destroy_nhwindow(win);
+	    if (n != 1 || selected[0].item.a_int == any.a_int)
+		return(-1);		/* Selected quit */
+
+	    k = selected[0].item.a_int - 1;
+	    free((genericptr_t) selected),	selected = 0;
+	}
+	
+	flags.initrace = k;
+	return (k);
+	
+#if 0 /* This version deals with more than 2 races per letter */
+	int i, k, n, choicelet = 0;
+	char thisch;
+	char choicestr[3];
+	winid win;
+	anything any;
+	menu_item *selected = 0;
+	char pbuf[QBUFSZ];
+
+	/* Count the number of valid races */
+	n = 0;	/* number valid */
+	k = 0;	/* valid race */
+	for (i = 0; races[i].noun; i++) {
+	    if (ok_race(flags.initrole, i, flags.initgend,
+						flags.initalign)) {
+		n++;
+		k = i;
+	    }
+	}
+	if (n == 0) {
+	    for (i = 0; races[i].noun; i++) {
+		if (validrace(flags.initrole, i)) {
+		    n++;
+		    k = i;
+		}
+	    }
+	}
+
+	/* Permit the user to pick, if there is more than one */
+	if (n > 1) do {
+	    win = create_nhwindow(NHW_MENU);
+	    start_menu(win);
+	    any.a_void = 0;         /* zero out all bits */
+	    for (i = 0; races[i].noun; i++)
+		if (ok_race(flags.initrole, i, flags.initgend,
+						flags.initalign)
+			&& (!choicelet || !strncmpi(races[i].noun, 
+					choicestr, choicelet))) {
+		    
+		    thisch = lowc(races[i].noun[choicelet]);
+		    any.a_int = i+1;	/* must be non-zero */
+		    add_menu(win, NO_GLYPH, &any, thisch,
+			0, ATR_NONE, races[i].noun, MENU_UNSELECTED);
+		}
+	    any.a_int = pick_race(flags.initrole, flags.initgend,
+				flags.initalign)+1;
+	    if (any.a_int == 0)	/* must be non-zero */
+		any.a_int = randrace(flags.initrole)+1;
+	    add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
+			    "Random", MENU_UNSELECTED);
+	    any.a_int = i+1;	/* must be non-zero */
+	    add_menu(win, NO_GLYPH, &any , 'q', 0, ATR_NONE,
+			    "Quit", MENU_UNSELECTED);
+	    Sprintf(pbuf, "Pick the race of your %s",
+			    roles[flags.initrole].name.m);
+	    end_menu(win, pbuf);
+	    n = select_menu(win, PICK_ONE, &selected);
+	    destroy_nhwindow(win);
+
+
+	    if (n != 1 || selected[0].item.a_int == any.a_int) {
+	    	free((genericptr_t) selected),	selected = 0;
+	    	if (!choicelet) {
+		    return (-1);		/* Selected quit */
+	    	} else {
+	    	    choicelet--;
+	    	    n = 2; /* there are at least 2 */
+	    	    continue;
+	    	}
+	    } else {
+		k = selected[0].item.a_int - 1;
+	    	free((genericptr_t) selected),	selected = 0;
+		choicestr[choicelet] = races[k].noun[choicelet];
+		choicelet++;
+	    }
+	    
+	    /* Check whether there are at least 2 choices left */
+	    n = 0;
+	    for (i = 0; (races[i].noun && (n <= 1)); i++)
+		if (ok_race(flags.initrole, i, flags.initgend,
+						flags.initalign)
+			&& (!choicelet || !strncmpi(races[i].noun, 
+					choicestr, choicelet))) 
+		    n++;
+	} while (n > 1);
+	
+	flags.initrace = k;
+	return (k);
+#endif
 }
 
 /*
@@ -834,14 +971,18 @@ tty_create_nhwindow(type)
 	break;
     case NHW_STATUS:
 	/* status window, 2 lines long, full width, bottom of screen */
+	/* WAC make it a variable lines long */
 	newwin->offx = 0;
 #if defined(USE_TILES) && defined(MSDOS)
+	/* We're in VGA 640x480 mode.  There's room for 3 lines */
 	if (iflags.grmode) {
-		newwin->offy = ttyDisplay->rows-2;
+		newwin->offy = ttyDisplay->rows-3;
 	} else
 #endif
 	newwin->offy = min((int)ttyDisplay->rows-2, ROWNO+1);
-	newwin->rows = newwin->maxrow = 2;
+	/* newwin->rows = newwin->maxrow = 2; */
+	newwin->rows = newwin->maxrow =
+	    ((ttyDisplay->rows - newwin->offy) > 2) ? 3 : 2;
 	newwin->cols = newwin->maxcol = min(ttyDisplay->cols, COLNO);
 	break;
     case NHW_MAP:
@@ -1128,6 +1269,34 @@ invert_all(window, page_start, page_end, acc)
     }
 }
 
+#ifdef MENU_COLOR
+STATIC_OVL boolean
+get_menu_coloring(str, color, attr)
+char *str;
+int *color, *attr;
+{
+   struct menucoloring *tmpmc;
+   if (iflags.use_menu_color)
+     for (tmpmc = menu_colorings; tmpmc; tmpmc = tmpmc->next)
+#ifdef USE_REGEX_MATCH
+# ifdef GNU_REGEX
+       if (re_search(&tmpmc->match, str, strlen(str), 0, 9999, 0) >= 0) {
+# else
+#  ifdef POSIX_REGEX
+       if (regexec(&tmpmc->match, str, 0, NULL, 0) == 0) {
+#  endif
+# endif
+#else
+       if (pmatch(tmpmc->match, str)) {
+#endif
+	  *color = tmpmc->color;
+	  *attr = tmpmc->attr;
+	 return TRUE;
+       }
+   return FALSE;
+}
+#endif /* MENU_COLOR */
+
 STATIC_OVL void
 process_menu_window(window, cw)
 winid window;
@@ -1204,6 +1373,10 @@ struct WinDesc *cw;
 		for (page_lines = 0, curr = page_start;
 			curr != page_end;
 			page_lines++, curr = curr->next) {
+#ifdef MENU_COLOR
+		   int color = NO_COLOR, attr = ATR_NONE;
+		   boolean menucolr = FALSE;
+#endif
 		    if (curr->selector)
 			*rp++ = curr->selector;
 
@@ -1219,6 +1392,13 @@ struct WinDesc *cw;
 		     * actually output the character.  We're faster doing
 		     * this.
 		     */
+#ifdef MENU_COLOR
+		   if (iflags.use_menu_color &&
+		       (menucolr = get_menu_coloring(curr->str, &color,&attr))) {
+		      term_start_attr(attr);
+		      if (color != NO_COLOR) term_start_color(color);
+		   } else
+#endif
 		    term_start_attr(curr->attr);
 		    for (n = 0, cp = curr->str;
 #ifndef WIN32CON
@@ -1236,6 +1416,12 @@ struct WinDesc *cw;
 				(void) putchar('#'); /* count selected */
 			} else
 			    (void) putchar(*cp);
+#ifdef MENU_COLOR
+		   if (iflags.use_menu_color && menucolr) {
+		      if (color != NO_COLOR) term_end_color();
+		      term_end_attr(attr);
+		   } else
+#endif
 		    term_end_attr(curr->attr);
 		}
 	    } else {
@@ -1755,6 +1941,7 @@ tty_putstr(window, attr, str)
     register char *ob;
     register const char *nb;
     register int i, j, n0;
+    register int k;
 
     /* Assume there's a real problem if the window is missing --
      * probably a panic message
@@ -1782,6 +1969,12 @@ tty_putstr(window, attr, str)
 	break;
 
     case NHW_STATUS:
+#ifdef ALLEG_FX
+        if (iflags.usealleg) {
+            alleg_stats(str, cw->cury);
+            break;
+        }
+#endif
 	ob = &cw->data[cw->cury][j = cw->curx];
 	if(flags.botlx) *ob = 0;
 	if(!cw->cury && (int)strlen(str) >= CO) {
@@ -1790,6 +1983,18 @@ tty_putstr(window, attr, str)
 	    if(nb && nb > str+2)
 		str = nb - 2;
 	}
+	k = 0;
+	/* WAC - attempt to break or shorten line 2 if it's too long */
+	if(cw->cury && (int)strlen(str) >= CO) {
+	    if(cw->cury < (cw->maxrow - 1))
+		for(k = CO - 1; k && str[k] != ' ';)
+		    k--;
+	    if(!k || (int)strlen(str + k + 1) >= CO) {
+		str = shorten_bot2(str, CO);
+		k = 0;
+	    }
+	}
+
 	nb = str;
 	for(i = cw->curx+1, n0 = cw->cols; i < n0; i++, nb++) {
 	    if(!*nb) {
@@ -1803,10 +2008,41 @@ tty_putstr(window, attr, str)
 	    if(*ob != *nb)
 		tty_putsym(WIN_STATUS, i, cw->cury, *nb);
 	    if(*ob) ob++;
+
+	    /* String break? --WAC */
+	    if(i == k) {
+		(void) strncpy(&cw->data[cw->cury][j], str, cw->cols - j - 1);
+		cw->data[cw->cury][min(k+1, cw->cols-1)] = '\0';
+
+		if(*ob || flags.botlx) {
+		    /* last char printed may be in middle of line */
+		    tty_curs(WIN_STATUS, k+1, cw->cury);
+		    cl_end();
+		}
+		nb++;
+
+		str = nb + 1;
+		i = j = 0;
+		cw->curx = 0;
+		cw->cury++;
+
+		ob = &cw->data[cw->cury][cw->curx];
+		if(flags.botlx) *ob = 0;
+
+		tty_curs(WIN_STATUS, 1, cw->cury);
+		k = 0;
+	    }
 	}
 
 	(void) strncpy(&cw->data[cw->cury][j], str, cw->cols - j - 1);
 	cw->data[cw->cury][cw->cols-1] = '\0'; /* null terminate */
+	/* ALI - Clear third line if present and unused */
+	if (cw->cury == 1 && cw->cury < (cw->maxrow - 1))
+	{
+	    cw->data[cw->cury + 1][0] = '\0';
+	    tty_curs(WIN_STATUS, 1, cw->cury + 1);
+	    cl_end();
+	}
 	cw->cury = (cw->cury+1) % 2;
 	cw->curx = 0;
 	break;
@@ -1893,14 +2129,23 @@ tty_putstr(window, attr, str)
 }
 
 void
+#ifdef FILE_AREAS
+tty_display_file(farea, fname, complain)
+const char *farea;
+#else
 tty_display_file(fname, complain)
+#endif
 const char *fname;
 boolean complain;
 {
 #ifdef DEF_PAGER			/* this implies that UNIX is defined */
     {
 	/* use external pager; this may give security problems */
+#ifdef FILE_AREAS
+    register int fd = open_area(farea, fname, 0, 0);
+#else
 	register int fd = open(fname, 0);
+#endif
 
 	if(fd < 0) {
 	    if(complain) pline("Cannot open %s.", fname);
@@ -1930,7 +2175,11 @@ boolean complain;
 	char *cr;
 
 	tty_clear_nhwindow(WIN_MESSAGE);
+#ifdef FILE_AREAS
+    f = dlb_fopen_area(farea, fname, "r");
+#else
 	f = dlb_fopen(fname, "r");
+#endif
 	if (!f) {
 	    if(complain) {
 		home();  tty_mark_synch();  tty_raw_print("");
@@ -1994,6 +2243,9 @@ tty_add_menu(window, glyph, identifier, ch, gch, attr, str, preselected)
     const char *str;	/* menu string */
     boolean preselected; /* item is marked as selected */
 {
+#if defined(MAC_MPW)
+# pragma unused(glyph)
+#endif
     register struct WinDesc *cw = 0;
     tty_menu_item *item;
     const char *newstr;
@@ -2418,6 +2670,11 @@ tty_print_glyph(window, x, y, glyph)
     
 #ifdef CLIPPING
     if(clipping) {
+#if 0
+#ifdef ALLEG_FX
+    	if (!iflags.usealleg)
+#endif
+#endif
 	if(x <= clipx || y < clipy || x >= clipxmax || y >= clipymax)
 	    return;
     }
@@ -2552,6 +2809,9 @@ int
 tty_nh_poskey(x, y, mod)
     int *x, *y, *mod;
 {
+#if defined(MAC_MPW)
+# pragma unused(x,y,mod)
+#endif
 # if defined(WIN32CON)
     int i;
     (void) fflush(stdout);

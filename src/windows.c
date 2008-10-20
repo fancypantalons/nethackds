@@ -15,6 +15,13 @@ extern void NDECL(win_X11_init);
 #ifdef QT_GRAPHICS
 extern struct window_procs Qt_procs;
 #endif
+#ifdef GTK_GRAPHICS
+/*
+ * GTK interface (By issei@guru.gr.jp)
+ */
+extern struct window_procs GTK_procs;
+extern void NDECL(win_GTK_init);
+#endif
 #ifdef GEM_GRAPHICS
 #include "wingem.h"
 #endif
@@ -36,6 +43,19 @@ extern struct window_procs win32_procs;
 #ifdef GNOME_GRAPHICS
 #include "winGnome.h"
 extern struct window_procs Gnome_procs;
+#endif
+#ifdef GL_GRAPHICS
+#include "winGL.h"
+extern struct window_procs sdlgl_hardw_procs;
+#endif
+#ifdef SDL_GRAPHICS
+#include "winGL.h"
+extern struct window_procs sdlgl_softw_procs;
+#endif
+#ifdef PROXY_GRAPHICS
+#include "winproxy.h"
+extern struct window_procs proxy_procs;
+extern void NDECL(win_proxy_init);
 #endif
 #ifdef MSWIN_GRAPHICS
 extern struct window_procs mswin_procs;
@@ -62,6 +82,9 @@ struct win_choices {
 #ifdef QT_GRAPHICS
     { &Qt_procs, 0 },
 #endif
+#ifdef GTK_GRAPHICS
+    { &GTK_procs, win_GTK_init },
+#endif
 #ifdef GEM_GRAPHICS
     { &Gem_procs, win_Gem_init },
 #endif
@@ -81,6 +104,15 @@ struct win_choices {
 #ifdef GNOME_GRAPHICS
     { &Gnome_procs, 0 },
 #endif
+#ifdef GL_GRAPHICS
+    { &sdlgl_hardw_procs, 0 },
+#endif
+#ifdef SDL_GRAPHICS
+    { &sdlgl_softw_procs, 0 },
+#endif
+#ifdef PROXY_GRAPHICS
+    { &proxy_procs, win_proxy_init },
+#endif
 #ifdef MSWIN_GRAPHICS
     { &mswin_procs, 0 },
 #endif
@@ -98,11 +130,25 @@ const char *s;
     puts(s);
 }
 
+static int windows_lock = FALSE;
+
+int
+lock_windows(flag)
+int flag;
+{
+    int retval = windows_lock;
+    windows_lock = flag;
+    return retval;
+}
+
 void
 choose_windows(s)
 const char *s;
 {
     register int i;
+
+    if (windows_lock)
+	return;
 
     for(i=0; winchoices[i].procs; i++)
 	if (!strcmpi(s, winchoices[i].procs->name)) {
@@ -134,6 +180,9 @@ char let;
 int how;
 const char *mesg;
 {
+#if defined(MAC_MPW)
+# pragma unused ( how,let )
+#endif
     pline("%s", mesg);
     return 0;
 }

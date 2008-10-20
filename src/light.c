@@ -43,6 +43,7 @@
 /* flags */
 #define LSF_SHOW	0x1		/* display the light source */
 #define LSF_NEEDS_FIXUP	0x2		/* need oid fixup */
+#define LSF_FLOATING	0x4		/* location not yet determined */
 
 static light_source *light_base = 0;
 
@@ -53,6 +54,8 @@ STATIC_DCL int FDECL(maybe_write_ls, (int, int, BOOLEAN_P));
 extern char circle_data[];
 extern char circle_start[];
 
+/* WAC in artifact.c,  for obj_sheds_light*/
+extern boolean FDECL(obj_special_light, (struct obj *));
 
 /* Create a new light source.  */
 void
@@ -76,6 +79,9 @@ new_light_source(x, y, range, type, id)
     ls->range = range;
     ls->type = type;
     ls->id = id;
+    if (ls->type != LS_TEMP && x == 0)
+	ls->flags = LSF_FLOATING;
+    else
     ls->flags = 0;
     light_base = ls;
 
@@ -102,13 +108,16 @@ del_light_source(type, id)
 			break;
     case LS_MONSTER:	tmp_id = (genericptr_t)(((struct monst *)id)->m_id);
 			break;
+    case LS_TEMP:       tmp_id = id;
+    			break;
     default:		tmp_id = 0;
 			break;
     }
 
     for (prev = 0, curr = light_base; curr; prev = curr, curr = curr->next) {
 	if (curr->type != type) continue;
-	if (curr->id == ((curr->flags & LSF_NEEDS_FIXUP) ? tmp_id : id)) {
+        if (curr->id == ((curr->flags & LSF_NEEDS_FIXUP) ? tmp_id : id))
+          {
 	    if (prev)
 		prev->next = curr->next;
 	    else
@@ -137,6 +146,25 @@ do_light_sources(cs_rows)
 	ls->flags &= ~LSF_SHOW;
 
 	/*
+	 * See if floating light source has been finalized yet.
+	 * If not, arrange for vision to be recalculated later.
+	 */
+	if (ls->flags & LSF_FLOATING) {
+	    if (ls->type == LS_OBJECT) {
+		if (get_obj_location((struct obj *) ls->id, &ls->x, &ls->y, 
+		  CONTAINED_TOO | BURIED_TOO))
+		    ls->flags &= ~LSF_FLOATING;
+	    } else if (ls->type == LS_MONSTER) {
+		if (get_mon_location((struct monst *) ls->id, &ls->x, &ls->y, 
+		  CONTAINED_TOO | BURIED_TOO))
+		    ls->flags &= ~LSF_FLOATING;
+	    }
+	    if (ls->flags & LSF_FLOATING) {
+		vision_full_recalc = 1;
+		continue;
+	    }
+	}
+	/*
 	 * Check for moved light sources.  It may be possible to
 	 * save some effort if an object has not moved, but not in
 	 * the current setup -- we need to recalculate for every
@@ -148,6 +176,8 @@ do_light_sources(cs_rows)
 	} else if (ls->type == LS_MONSTER) {
 	    if (get_mon_location((struct monst *) ls->id, &ls->x, &ls->y, 0))
 		ls->flags |= LSF_SHOW;
+        } else if (ls->type == LS_TEMP) {
+            ls->flags |= LSF_SHOW;
 	}
 
 	/* minor optimization: don't bother with duplicate light sources */
@@ -256,6 +286,12 @@ save_light_sources(fd, mode, range)
 	    case LS_MONSTER:
 		is_global = !mon_is_local((struct monst *)curr->id);
 		break;
+	    case LS_TEMP:
+	    	/* Temp light sources should never be saved, but need to 
+	    	 * 	set next (or else you get caught in an infinite loop
+	    	 */
+		prev = &(*prev)->next;
+		continue; 
 	    default:
 		is_global = 0;
 		impossible("save_light_sources: bad type (%d) [range=%d]",
@@ -355,6 +391,8 @@ maybe_write_ls(fd, range, write_it)
 	case LS_MONSTER:
 	    is_global = !mon_is_local((struct monst *)ls->id);
 	    break;
+		case LS_TEMP:
+		    continue;
 	default:
 	    is_global = 0;
 	    impossible("maybe_write_ls: bad type (%d) [range=%d]",
@@ -485,7 +523,13 @@ obj_is_burning(obj)
     struct obj *obj;
 {
     return (obj->lamplit &&
-		(obj->otyp == MAGIC_LAMP || ignitable(obj) || artifact_light(obj)));
+ 		(  obj->otyp == MAGIC_LAMP 
+		|| obj->otyp == MAGIC_CANDLE
+		|| ignitable(obj) 
+#ifdef LIGHTSABERS
+		|| is_lightsaber(obj)
+#endif
+		|| artifact_light(obj)));
 }
 
 /* copy the light source(s) attachted to src, and attach it/them to dest */

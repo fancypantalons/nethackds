@@ -4,7 +4,10 @@
                  Instructions for compiling and installing
              NetHack 3.4 on a Windows 9x, NT, 2000, or XP system
          ==============================================================
-                 Last revision: $Date: 2003/10/14 01:31:25 $
+                 Last revision: $Date: 2003/12/11 09:49:08 $
+
+{This file is included unchanged from NetHack 3.4.  You may want to read
+ Install.gcc first and come back here if necessary afterwards.}
 
 Credit for the porting of NetHack to the Win32 Console Subsystem goes to 
 the NT Porting Team started by Michael Allison.

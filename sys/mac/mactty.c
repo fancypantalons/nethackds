@@ -105,7 +105,7 @@ dispose_ptr (void *ptr) {
 }
 
 
-#if 0	/* Use alloc.c instead */
+#ifdef MAC_MPW	/* else use alloc.c instead */
 /*
  * Allocate a pointer using the set memory-allocator
  */
@@ -468,9 +468,13 @@ copy_bits(tty_record *record, Rect *bounds, short xfer_mode, RgnHandle mask_rgn)
 	}
 	else	source = &record->its_bits;
 
+#if !TARGET_API_MAC_CARBON
+	CopyBits (source, &(record->its_window->portBits), bounds, bounds, xfer_mode, mask_rgn);
+#else
 	SetPortWindowPort(record->its_window);
 	CopyBits(source, GetPortBitMapForCopyBits(GetWindowPort(record->its_window)),
 		bounds, bounds, xfer_mode, mask_rgn);
+#endif
 
 	if (record->uses_gworld) {
 		SetPixelsState (GetGWorldPixMap (record->offscreen_world), pix_state);
@@ -791,7 +795,7 @@ do_control (tty_record *record, short character) {
  */
 	do {
 		switch (character) {
-		case CHAR_CR :
+		case '\r' :
 			record->x_curs = 0;
 			if (!recurse && (record->attribute [TTY_ATTRIB_CURSOR] & TA_CR_ADD_NL)) {
 				recurse = 1;
@@ -800,13 +804,13 @@ do_control (tty_record *record, short character) {
 				recurse = 0;
 				break;
 			}	/* FALL-THROUGH: if CR-LF, don't bother with loop */
-		case CHAR_LF :
+		case '\n' :
 			record->y_curs++;
 			if (record->y_curs >= record->y_size) {
 				scroll_tty (record->its_window, 0, 1 + record->y_curs - record->y_size);
 			}
 			if (!recurse && (record->attribute [TTY_ATTRIB_CURSOR] & TA_NL_ADD_CR)) {
-				character = CHAR_CR;
+				character = '\r';
 				recurse = 1;
 			}
 			else recurse = 0;

@@ -7,8 +7,19 @@
 # To change the configuration, comment out the unwanted lines, and
 # uncomment the configuration you want.
 
+# *** Tilesets provided for use by plug-in window interfaces.
+TILESET=name:Small tiles,file:gltile16.png
+TILESET=name:Big tiles,file:gltile32.png,transparent
+TILESET=name:Big 3D tiles,file:gltile64.png,transparent,pseudo3D
+OPTIONS=tiles:Big tiles
+
 # *** OPTIONS ***
 #
+# Use the TTY (console) window interface instead of the default GUI interface.
+# Note: This has no effect if you are using a plug-in window interface, such
+# as gtkhack.
+# OPTIONS=windowtype:tty
+
 # Use the IBM character set rather than just plain ascii characters
 # for tty window-port.
 OPTIONS=IBMGraphics
@@ -44,8 +55,8 @@ OPTIONS=IBMGraphics
 # or 2(on,legacy-mode) which causes 5='g', alt-5='G', alt-0='I'
 OPTIONS=time,noshowexp,number_pad:2,lit_corridor
 #
-# If you want to get rid of "use #quit to quit..." use:
-OPTIONS=suppress_alert:3.3.1
+# If you want to get rid of 'use "r." to read...' use:
+#OPTIONS=suppress_alert:0.0.7
 #
 # Note: the rest_on_space in the next line may not be
 #       appropriate for a beginning NetHack player, since
@@ -61,6 +72,9 @@ OPTIONS=suppress_alert:3.3.1
 #                                    ascii7x12|ascii8x12|ascii16x12|ascii12x16|
 #                                    ascii10x18|fit_to_screen
 OPTIONS=map_mode:tiles,scroll_margin:5
+
+# The 32x32 tiles
+#OPTIONS=tile_file:tiles32.bmp,tile_width:32,tile_height:32
 
 # Message window settings
 OPTIONS=font_message:Arial,font_size_message:9,align_message:top

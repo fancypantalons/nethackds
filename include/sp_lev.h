@@ -22,10 +22,16 @@
 #define NOMMAP		4
 #define SHORTSIGHTED	8
 #define ARBOREAL	16
+#define SPOOKY		32
+#define LETHE		64		/* All water on level is Lethe-ized */
 
     /* special level types */
 #define SP_LEV_ROOMS	1
 #define SP_LEV_MAZE	2
+
+    /* object flags */
+#define OBJF_LIT	1
+#define OBJF_BURIED	2
 
 /*
  * Structures manipulated by the special levels loader & compiler
@@ -45,10 +51,12 @@ typedef struct {
 
 typedef struct NDS_PACKED {
 	xchar x, y, mask;
+        short arti_key;
 } door;
 
 typedef struct NDS_PACKED {
 	xchar wall, pos, secret, mask;
+        short arti_key;
 } room_door;
 
 typedef struct NDS_PACKED {
@@ -69,6 +77,7 @@ typedef struct {
 	short id, spe;
 	xchar x, y, chance, class, containment;
 	schar curse_state;
+	long  oflags;		/* OBJF_foo flags */
 } object;
 
 typedef struct NDS_PACKED {
@@ -140,15 +149,18 @@ typedef struct {
 	char **map;
 	char nrobjects;
 	char *robjects;
-	char nloc;
-	char *rloc_x;
-	char *rloc_y;
+	char nlocset;
+	char *nloc;
+	char **rloc_x;
+	char **rloc_y;
 	char nrmonst;
 	char *rmonst;
 	char nreg;
 	region **regions;
 	char nlreg;
 	lev_region **lregions;
+	char nrndlreg;
+	lev_region **rndlregions;
 	char ndoor;
 	door **doors;
 	char ntrap;
@@ -229,6 +241,7 @@ typedef struct NDS_PACKED {
 	} src, dest;
 } corridor;
 
+#ifdef LEVEL_COMPILER
 /* used only by lev_comp */
 typedef struct {
 	long flags;
@@ -242,5 +255,10 @@ typedef struct {
 	xchar ncorr;
 	corridor **corrs;
 } splev;
+
+struct coord {
+	int x, y;
+};
+#endif	/* LEVEL_COMPILER */
 
 #endif /* SP_LEV_H */

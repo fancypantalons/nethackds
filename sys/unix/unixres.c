@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)unixres.c	3.4	2001/07/08	*/
+/* $Id: unixres.c,v 1.3 2003/10/25 19:09:28 j_ali Exp $ */
 /* Copyright (c) Slash'EM development team, 2001. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -13,6 +13,9 @@
  * so temporarily dropping privileges on these systems is sufficient to
  * hide them.
  */
+#ifdef __GNUC__
+#define _GNU_SOURCE
+#endif
 
 #include "config.h"
 

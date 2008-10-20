@@ -7,6 +7,9 @@
 #include "edog.h"
 
 extern boolean notonhead;
+extern const char *breathwep[];		/* from mthrowu.c */
+
+#define POLE_LIM 5	/* How far monsters can use pole-weapons */
 
 #ifdef OVLB
 
@@ -19,6 +22,9 @@ static const char brief_feeling[] =
 
 STATIC_DCL char *FDECL(mon_nam_too, (char *,struct monst *,struct monst *));
 STATIC_DCL void FDECL(mrustm, (struct monst *, struct monst *, struct obj *));
+STATIC_DCL int FDECL(breamm, (struct monst *, struct monst *, struct attack *));
+STATIC_DCL int FDECL(spitmm, (struct monst *, struct monst *, struct attack *));
+STATIC_DCL int FDECL(thrwmm, (struct monst *, struct monst *));
 STATIC_DCL int FDECL(hitmm, (struct monst *,struct monst *,struct attack *));
 STATIC_DCL int FDECL(gazemm, (struct monst *,struct monst *,struct attack *));
 STATIC_DCL int FDECL(gulpmm, (struct monst *,struct monst *,struct attack *));
@@ -26,7 +32,7 @@ STATIC_DCL int FDECL(explmm, (struct monst *,struct monst *,struct attack *));
 STATIC_DCL int FDECL(mdamagem, (struct monst *,struct monst *,struct attack *));
 STATIC_DCL void FDECL(mswingsm, (struct monst *, struct monst *, struct obj *));
 STATIC_DCL void FDECL(noises,(struct monst *,struct attack *));
-STATIC_DCL void FDECL(missmm,(struct monst *,struct monst *,struct attack *));
+STATIC_DCL void FDECL(missmm,(struct monst *,struct monst *, int, int, struct attack *));
 STATIC_DCL int FDECL(passivemm, (struct monst *, struct monst *, BOOLEAN_P, int));
 
 /* Needed for the special case of monsters wielding vorpal blades (rare).
@@ -70,12 +76,34 @@ noises(magr, mattk)
 
 STATIC_OVL
 void
-missmm(magr, mdef, mattk)
+missmm(magr, mdef, target, roll, mattk)
 	register struct monst *magr, *mdef;
 	struct attack *mattk;
+	int target, roll;
 {
+	boolean nearmiss = (target == roll);
 	const char *fmt;
-	char buf[BUFSZ], mdef_name[BUFSZ];
+        char buf[BUFSZ], mon_name[BUFSZ];
+
+	register struct obj *blocker = (struct obj *)0;
+	long mwflags = mdef->misc_worn_check;
+
+		/* 3 values for blocker
+		 *	No blocker:  (struct obj *) 0  
+		 * 	Piece of armour:  object
+		 */
+
+	/* This is a hack,  since there is no fast equivalent for uarm, uarms, etc.  
+	 * Technically, we really should check from the inside out...
+	 */
+	if (target < roll) {
+	    for (blocker = mdef->minvent; blocker; blocker = blocker->nobj) {
+		if (blocker->owornmask & mwflags) {
+			target += ARM_BONUS(blocker);
+			if (target > roll) break;
+		}
+	    }
+	}
 
 	if (vis) {
 		if (!canspotmon(magr))
@@ -84,10 +112,19 @@ missmm(magr, mdef, mattk)
 		    map_invisible(mdef->mx, mdef->my);
 		if (mdef->m_ap_type) seemimic(mdef);
 		if (magr->m_ap_type) seemimic(magr);
+		if (flags.verbose && !nearmiss && blocker) {
+			fmt = "%s %s blocks";
+			Sprintf(buf,fmt, s_suffix(Monnam(mdef)), 
+				aobjnam(blocker, (char *)0));
+	                pline("%s %s.", buf, mon_nam_too(mon_name, magr, mdef));
+		} else {
 		fmt = (could_seduce(magr,mdef,mattk) && !magr->mcan) ?
-			"%s pretends to be friendly to" : "%s misses";
+				"%s pretends to be friendly to" : 
+				((flags.verbose && nearmiss) ? "%s just misses" : 
+				  "%s misses");
 		Sprintf(buf, fmt, Monnam(magr));
-		pline("%s %s.", buf, mon_nam_too(mdef_name, mdef, magr));
+	                pline("%s %s.", buf, mon_nam_too(mon_name, mdef, magr));
+		}
 	} else  noises(magr, mattk);
 }
 
@@ -135,7 +172,7 @@ fightm(mtmp)		/* have monsters fight each other */
 		    if(!u.uswallow && (mtmp == u.ustuck)) {
 			if(!rn2(4)) {
 			    pline("%s releases you!", Monnam(mtmp));
-			    u.ustuck = 0;
+			    setustuck(0);
 			} else
 			    break;
 		    }
@@ -203,6 +240,10 @@ mattackm(magr, mdef)
 		    res[NATTK];	/* results of all attacks */
     struct attack   *mattk, alt_attk;
     struct permonst *pa, *pd;
+    /*
+     * Pets don't use "ranged" attacks for fear of hitting their master
+     */
+    boolean range;
 
     if (!magr || !mdef) return(MM_MISS);		/* mike@genat */
     if (!magr->mcanmove || magr->msleeping) return(MM_MISS);
@@ -212,6 +253,8 @@ mattackm(magr, mdef)
     if (pa == &mons[PM_GRID_BUG] && magr->mx != mdef->mx
 						&& magr->my != mdef->my)
 	return(MM_MISS);
+
+    range = !magr->mtame && !monnear(magr, mdef->mx, mdef->my);
 
     /* Calculate the armour class differential. */
     tmp = find_mac(mdef) + magr->m_lev;
@@ -253,7 +296,54 @@ mattackm(magr, mdef)
 	otmp = (struct obj *)0;
 	attk = 1;
 	switch (mattk->aatyp) {
-	    case AT_WEAP:		/* "hand to hand" attacks */
+	    case AT_BREA:
+	    case AT_SPIT:
+		if (range) {
+		    if (mattk->aatyp == AT_BREA)
+			res[i] = breamm(magr, mdef, mattk);
+		    else
+			res[i] = spitmm(magr, mdef, mattk);
+		    /* We can't distinguish no action from failed attack
+		     * so assume defender doesn't waken unless actually hit.
+		     */
+		    strike = res[i] & MM_HIT;
+		} else
+		    strike = 0;
+		attk = 0;
+		break;
+
+	    case AT_MAGC:
+		/* [ALI] Monster-on-monster spell casting always fails. This
+		 * is partly for balance reasons and partly because the
+		 * amount of code required to implement it is prohibitive.
+		 */
+		strike = 0;
+		attk = 0;
+		if (canseemon(magr) && couldsee(magr->mx, magr->my)) {
+		    char buf[BUFSZ];
+		    Strcpy(buf, Monnam(magr));
+		    if (vis)
+			pline("%s points at %s, then curses.", buf,
+				mon_nam(mdef));
+		    else
+			pline("%s points and curses at something.", buf);
+		} else if (flags.soundok)
+		    Norep("You hear a mumbled curse.");
+		break;
+
+	    case AT_WEAP:
+		/* "ranged" attacks */
+#ifdef REINCARNATION
+		if (!Is_rogue_level(&u.uz) && range) {
+#else
+		if (range) {
+#endif
+		    res[i] = thrwmm(magr, mdef);
+		    attk = 0;
+		    strike = res[i] & MM_HIT;
+		    break;
+		}
+		/* "hand to hand" attacks */
 		if (magr->weapon_check == NEED_WEAPON || !MON_WEP(magr)) {
 		    magr->weapon_check = NEED_HTH_WEAPON;
 		    if (mon_wield_item(magr) != 0) return 0;
@@ -287,9 +377,6 @@ mattackm(magr, mdef)
 		}
 		dieroll = rnd(20 + i);
 		strike = (tmp > dieroll);
-		/* KMH -- don't accumulate to-hit bonuses */
-		if (otmp)
-		    tmp -= hitval(otmp, mdef);
 		if (strike) {
 		    res[i] = hitmm(magr, mdef, mattk);
 		    if((mdef->data == &mons[PM_BLACK_PUDDING] || mdef->data == &mons[PM_BROWN_PUDDING])
@@ -306,7 +393,10 @@ mattackm(magr, mdef)
 			}
 		    }
 		} else
-		    missmm(magr, mdef, mattk);
+		    missmm(magr, mdef, tmp, dieroll, mattk);
+		/* KMH -- don't accumulate to-hit bonuses */
+		if (otmp)
+		    tmp -= hitval(otmp, mdef);
 		break;
 
 	    case AT_HUGS:	/* automatic if prev two attacks succeed */
@@ -343,10 +433,10 @@ mattackm(magr, mdef)
 		if (u.uswallow && magr == u.ustuck)
 		    strike = 0;
 		else {
-		    if ((strike = (tmp > rnd(20+i))))
+		    if ((strike = (tmp > (dieroll = rnd(20+i)))))
 			res[i] = gulpmm(magr, mdef, mattk);
 		    else
-			missmm(magr, mdef, mattk);
+			missmm(magr, mdef, tmp, dieroll, mattk);
 		}
 		break;
 
@@ -375,6 +465,270 @@ mattackm(magr, mdef)
     }
 
     return(struck ? MM_HIT : MM_MISS);
+}
+
+/* monster attempts breath attack against another monster */
+STATIC_OVL int
+breamm(magr, mdef, mattk)
+struct monst *magr, *mdef;
+struct attack *mattk;
+{
+    /* if new breath types are added, change AD_ACID to max type */
+    int typ = mattk->adtyp == AD_RBRE ? rnd(AD_ACID) : mattk->adtyp;
+    int mhp;
+
+    if (linedup(mdef->mx, mdef->my, magr->mx, magr->my)) {
+	if (magr->mcan) {
+	    if (flags.soundok) {
+		if (canseemon(magr))
+		    pline("%s coughs.", Monnam(magr));
+		else
+		    You_hear("a cough.");
+	    }
+	} else if (!magr->mspec_used && rn2(3)) {
+	    if (typ >= AD_MAGM && typ <= AD_ACID) {
+		if (canseemon(magr))
+		    pline("%s breathes %s!", Monnam(magr), breathwep[typ-1]);
+		mhp = mdef->mhp;
+		buzz((int)(-20 - (typ-1)), (int)mattk->damn,
+			magr->mx, magr->my, sgn(tbx), sgn(tby));
+		nomul(0);
+		/* breath runs out sometimes. */
+		if (!rn2(3))
+		    magr->mspec_used = 10+rn2(20);
+		return (mdef->mhp < 1 ? MM_DEF_DIED : 0) |
+		       (mdef->mhp < mhp ? MM_HIT : 0) |
+		       (magr->mhp < 1 ? MM_AGR_DIED : 0);
+	    } else impossible("Breath weapon %d used", typ-1);
+	}
+    }
+    return MM_MISS;
+}
+
+/* monster attempts spit attack against another monster */
+STATIC_OVL int
+spitmm(magr, mdef, mattk)
+struct monst *magr, *mdef;
+struct attack *mattk;
+{
+    register struct obj *obj;
+    int mhp;
+
+    if (magr->mcan) {
+	if (flags.soundok) {
+	    if (canseemon(magr))
+		pline("A dry rattle comes from %s throat.",
+			s_suffix(mon_nam(magr)));
+	    else
+		You_hear("a dry rattle.");
+	}
+	return MM_MISS;
+    }
+
+    if (linedup(mdef->mx, mdef->my, magr->mx, magr->my)) {
+	switch (mattk->adtyp) {
+	    case AD_BLND:
+	    case AD_DRST:
+		obj = mksobj(BLINDING_VENOM, TRUE, FALSE);
+		break;
+	    default:
+		impossible("bad attack type in spitmm");
+	    /* fall through */
+	    case AD_ACID:
+		obj = mksobj(ACID_VENOM, TRUE, FALSE);
+		break;
+	}
+	if (!rn2(BOLT_LIM - distmin(magr->mx, magr->my, mdef->mx, mdef->my))) {
+	    if (canseemon(magr))
+		pline("%s spits venom!", Monnam(magr));
+	    mhp = mdef->mhp;
+	    m_throw(magr, magr->mx, magr->my, sgn(tbx), sgn(tby),
+		    distmin(magr->mx, magr->my, mdef->mx, mdef->my), obj);
+	    nomul(0);
+	    return (mdef->mhp < 1 ? MM_DEF_DIED : 0) |
+		   (mdef->mhp < mhp ? MM_HIT : 0) |
+		   (magr->mhp < 1 ? MM_AGR_DIED : 0);
+	}
+    }
+    return MM_MISS;
+}
+
+/* monster attempts ranged weapon attack against another monster */
+STATIC_OVL int
+thrwmm(magr, mdef)
+struct monst *magr, *mdef;
+{
+    struct obj *obj, *mwep;
+    schar skill;
+    int multishot, mhp;
+    const char *onm;
+
+    /* Rearranged beginning so monsters can use polearms not in a line */
+    if (magr->weapon_check == NEED_WEAPON || !MON_WEP(magr)) {
+	magr->weapon_check = NEED_RANGED_WEAPON;
+	/* mon_wield_item resets weapon_check as appropriate */
+	if(mon_wield_item(magr) != 0) return MM_MISS;
+    }
+
+    /* Pick a weapon */
+    obj = select_rwep(magr);
+    if (!obj) return MM_MISS;
+
+    if (is_pole(obj)) {
+	int dam, hitv, vis = canseemon(magr);
+
+	if (dist2(magr->mx, magr->my, mdef->mx, mdef->my) > POLE_LIM ||
+		!m_cansee(magr, mdef->mx, mdef->my))
+	    return MM_MISS;	/* Out of range, or intervening wall */
+
+	if (vis) {
+	    onm = xname(obj);
+	    pline("%s thrusts %s.", Monnam(magr),
+		  obj_is_pname(obj) ? the(onm) : an(onm));
+	}
+
+	dam = dmgval(obj, mdef);
+	hitv = 3 - distmin(mdef->mx, mdef->my, magr->mx, magr->my);
+	if (hitv < -4) hitv = -4;
+	if (bigmonst(mdef->data)) hitv++;
+	hitv += 8 + obj->spe;
+	if (dam < 1) dam = 1;
+
+	if (find_mac(mdef) + hitv <= rnd(20)) {
+	    if (flags.verbose && canseemon(mdef))
+		pline("It misses %s.", mon_nam(mdef));
+	    else if (vis)
+		pline("It misses.");
+	    return MM_MISS;
+	} else {
+	    if (flags.verbose && canseemon(mdef))
+		pline("It hits %s%s", a_monnam(mdef), exclam(dam));
+	    else if (vis)
+		pline("It hits.");
+	    if (objects[obj->otyp].oc_material == SILVER &&
+		    hates_silver(mdef->data) && canseemon(mdef)) {
+		if (vis)
+		    pline_The("silver sears %s flesh!",
+			    s_suffix(mon_nam(mdef)));
+		else
+		    pline("%s flesh is seared!", s_suffix(Monnam(mdef)));
+	    }
+	    mdef->mhp -= dam;
+	    if (mdef->mhp < 1) {
+		if (canseemon(mdef))
+		    pline("%s is %s!", Monnam(mdef),
+			    (nonliving(mdef->data) || !canspotmon(mdef))
+			    ? "destroyed" : "killed");
+		mondied(mdef);
+		return MM_DEF_DIED | MM_HIT;
+	    }
+	    else
+		return MM_HIT;
+	}
+    }
+
+    if (!linedup(mdef->mx, mdef->my, magr->mx, magr->my))
+	return MM_MISS;
+
+    skill = objects[obj->otyp].oc_skill;
+    mwep = MON_WEP(magr);		/* wielded weapon */
+
+    if (ammo_and_launcher(obj, mwep) && objects[mwep->otyp].oc_range &&
+	    dist2(magr->mx, magr->my, mdef->mx, mdef->my) >
+	    objects[mwep->otyp].oc_range * objects[mwep->otyp].oc_range)
+	return MM_MISS; /* Out of range */
+
+    /* Multishot calculations */
+    multishot = 1;
+    if ((ammo_and_launcher(obj, mwep) || skill == P_DAGGER ||
+	    skill == -P_DART || skill == -P_SHURIKEN) && !magr->mconf) {
+	/* Assumes lords are skilled, princes are expert */
+	if (is_prince(magr->data)) multishot += 2;
+	else if (is_lord(magr->data)) multishot++;
+
+	/*  Elven Craftsmanship makes for light,  quick bows */
+	if (obj->otyp == ELVEN_ARROW && !obj->cursed)
+	    multishot++;
+	if (mwep && mwep->otyp == ELVEN_BOW && !mwep->cursed) multishot++;
+	/* 1/3 of object enchantment */
+	if (mwep && mwep->spe > 1)
+	    multishot += rounddiv(mwep->spe, 3);
+	/* Some randomness */
+	if (multishot > 1)
+	    multishot = rnd(multishot);
+#ifdef FIREARMS
+	if (mwep && objects[mwep->otyp].oc_rof && is_launcher(mwep))
+	    multishot += objects[mwep->otyp].oc_rof;
+#endif
+
+	switch (monsndx(magr->data)) {
+	case PM_RANGER:
+		multishot++;
+		break;
+	case PM_ROGUE:
+		if (skill == P_DAGGER) multishot++;
+		break;
+	case PM_NINJA:
+	case PM_SAMURAI:
+		if (obj->otyp == YA && mwep &&
+		    mwep->otyp == YUMI) multishot++;
+		break;
+	default:
+	    break;
+	}
+	/* racial bonus */
+	if ((is_elf(magr->data) &&
+		obj->otyp == ELVEN_ARROW &&
+		mwep && mwep->otyp == ELVEN_BOW) ||
+	    (is_orc(magr->data) &&
+		obj->otyp == ORCISH_ARROW &&
+		mwep && mwep->otyp == ORCISH_BOW))
+	    multishot++;
+
+	if ((long)multishot > obj->quan) multishot = (int)obj->quan;
+	if (multishot < 1) multishot = 1;
+	/* else multishot = rnd(multishot); */
+    }
+
+    if (canseemon(magr)) {
+	char onmbuf[BUFSZ];
+
+	if (multishot > 1) {
+	    /* "N arrows"; multishot > 1 implies obj->quan > 1, so
+	       xname()'s result will already be pluralized */
+	    Sprintf(onmbuf, "%d %s", multishot, xname(obj));
+	    onm = onmbuf;
+	} else {
+	    /* "an arrow" */
+	    onm = singular(obj, xname);
+	    onm = obj_is_pname(obj) ? the(onm) : an(onm);
+	}
+	m_shot.s = ammo_and_launcher(obj,mwep) ? TRUE : FALSE;
+	pline("%s %s %s!", Monnam(magr),
+#ifdef FIREARMS
+	      m_shot.s ? is_bullet(obj) ? "fires" : "shoots" : "throws",
+	      onm);
+#else
+	      m_shot.s ? "shoots" : "throws", onm);
+#endif
+	m_shot.o = obj->otyp;
+    } else {
+	m_shot.o = STRANGE_OBJECT;	/* don't give multishot feedback */
+    }
+
+    mhp = mdef->mhp;
+    m_shot.n = multishot;
+    for (m_shot.i = 1; m_shot.i <= m_shot.n; m_shot.i++)
+	m_throw(magr, magr->mx, magr->my, sgn(tbx), sgn(tby),
+		distmin(magr->mx, magr->my, mdef->mx, mdef->my), obj);
+    m_shot.n = m_shot.i = 0;
+    m_shot.o = STRANGE_OBJECT;
+    m_shot.s = FALSE;
+
+    nomul(0);
+
+    return (mdef->mhp < 1 ? MM_DEF_DIED : 0) | (mdef->mhp < mhp ? MM_HIT : 0) |
+	   (magr->mhp < 1 ? MM_AGR_DIED : 0);
 }
 
 /* Returns the result of mdamagem(). */
@@ -425,6 +779,9 @@ hitmm(magr, mdef, mattk)
 				    Sprintf(buf,"%s squeezes", magr_name);
 				    break;
 				}
+			case AT_MULTIPLY:
+				/* No message. */
+				break;
 			default:
 				Sprintf(buf,"%s hits", magr_name);
 		    }
@@ -566,7 +923,9 @@ explmm(magr, mdef, mattk)
 		pline("%s explodes!", Monnam(magr));
 	else	noises(magr, mattk);
 
+	remove_monster(magr->mx, magr->my);     /* MAR */
 	result = mdamagem(magr, mdef, mattk);
+	place_monster(magr,magr->mx, magr->my); /* MAR */
 
 	/* Kill off agressor if it didn't die. */
 	if (!(result & MM_AGR_DIED)) {
@@ -574,7 +933,11 @@ explmm(magr, mdef, mattk)
 	    if (magr->mhp > 0) return result;	/* life saved */
 	    result |= MM_AGR_DIED;
 	}
-	if (magr->mtame)	/* give this one even if it was visible */
+	/* KMH -- Player gets blame for flame/freezing sphere */
+	if (magr->isspell && !(result & MM_DEF_DIED))
+		setmangry(mdef);
+	/* give this one even if it was visible, except for spell creatures */
+	if (magr->mtame && !magr->isspell)
 	    You(brief_feeling, "melancholy");
 
 	return result;
@@ -593,6 +956,8 @@ mdamagem(magr, mdef, mattk)
 	struct permonst *pa = magr->data, *pd = mdef->data;
 	int armpro, num, tmp = d((int)mattk->damn, (int)mattk->damd);
 	boolean cancelled;
+	int canhitmon, objenchant;        
+        boolean nohit = FALSE;
 
 	if (touch_petrifies(pd) && !resists_ston(magr)) {
 	    long protector = attk_protection((int)mattk->aatyp),
@@ -616,12 +981,44 @@ mdamagem(magr, mdef, mattk)
 	    }
 	}
 
+	canhitmon = 0;
+	if (need_one(mdef))    canhitmon = 1;
+	if (need_two(mdef))    canhitmon = 2;
+	if (need_three(mdef))  canhitmon = 3;
+	if (need_four(mdef))   canhitmon = 4;
+
+	if (mattk->aatyp == AT_WEAP && otmp) {
+	    objenchant = otmp->spe;
+	    if (objenchant < 0) objenchant = 0;
+	    if (otmp->oartifact) {
+		if (otmp->spe < 2) objenchant += 1;
+		else objenchant = 2;
+	    }
+#ifdef LIGHTSABERS
+	    if (is_lightsaber(otmp)) objenchant = 4;
+#endif
+	} else objenchant = 0;
+
+	/* a monster that needs a +1 weapon to hit it hits as a +1 weapon... */
+	if (need_one(magr))    objenchant = 1;
+	if (need_two(magr))    objenchant = 2;
+	if (need_three(magr))  objenchant = 3;
+	if (need_four(magr))   objenchant = 4;
+	/* overridden by specific flags */
+	if (hit_as_one(magr))    objenchant = 1;
+	if (hit_as_two(magr))    objenchant = 2;
+	if (hit_as_three(magr))  objenchant = 3;
+	if (hit_as_four(magr))   objenchant = 4;
+
+	if (objenchant < canhitmon) nohit = TRUE;
+
 	/* cancellation factor is the same as when attacking the hero */
 	armpro = magic_negation(mdef);
 	cancelled = magr->mcan || !((rn2(3) >= armpro) || !rn2(50));
 
 	switch(mattk->adtyp) {
 	    case AD_DGST:
+		if (nohit) nohit = FALSE;                
 		/* eating a Rider or its corpse is fatal */
 		if (is_rider(mdef->data)) {
 		    if (vis)
@@ -683,7 +1080,12 @@ mdamagem(magr, mdef, mattk)
 	    case AD_WERE:
 	    case AD_HEAL:
 	    case AD_PHYS:
- physical:
+physical:
+		if (mattk->aatyp == AT_WEAP && otmp) {
+		    if (otmp->otyp == CORPSE &&
+			    touch_petrifies(&mons[otmp->corpsenm]) && nohit)
+			nohit = FALSE;
+		} else if(nohit) break;                
 		if (mattk->aatyp == AT_KICK && thick_skinned(pd)) {
 		    tmp = 0;
 		} else if(mattk->aatyp == AT_WEAP) {
@@ -691,14 +1093,117 @@ mdamagem(magr, mdef, mattk)
 			if (otmp->otyp == CORPSE &&
 				touch_petrifies(&mons[otmp->corpsenm]))
 			    goto do_stone;
-			tmp += dmgval(otmp, mdef);
-			if (otmp->oartifact) {
+
+			/* WAC -- Real weapon?
+			 * Could be stuck with a cursed bow/polearm it wielded
+			 */
+			if (/* if you strike with a bow... */
+			    is_launcher(otmp) ||
+			    /* or strike with a missile in your hand... */
+			    (is_missile(otmp) || is_ammo(otmp)) ||
+#ifdef LIGHTSABERS
+			    /* lightsaber that isn't lit ;) */
+			    (is_lightsaber(otmp) && !otmp->lamplit) ||
+#endif
+			    /* WAC -- or using a pole at short range... */
+			    (is_pole(otmp))) {
+			    /* then do only 1-2 points of damage */
+			    if (pd == &mons[PM_SHADE] && otmp->otyp != SILVER_ARROW)
+				tmp = 0;
+			    else
+				tmp = rnd(2);
+
+#if 0 /* Monsters don't wield boomerangs */
+		    	    if(otmp->otyp == BOOMERANG /* && !rnl(3) */) {
+				pline("As %s hits you, %s breaks into splinters.",
+				      mon_nam(mtmp), the(xname(otmp)));
+				useup(otmp);
+				otmp = (struct obj *) 0;
+				possibly_unwield(mtmp);
+				if (pd != &mons[PM_SHADE])
+				    tmp++;
+		    	    }
+#endif			
+			} else tmp += dmgval(otmp, mdef);
+
+			/* MRKR: Handling damage when hitting with */
+			/*       a burning torch */
+
+			if(otmp->otyp == TORCH && otmp->lamplit
+			   && !resists_fire(mdef)) {
+
+			  if (!Blind) {
+			    static char outbuf[BUFSZ];
+			    char *s = Shk_Your(outbuf, otmp);
+
+			    boolean water = (mdef->data ==
+					     &mons[PM_WATER_ELEMENTAL]);
+
+			    pline("%s %s %s%s %s%s.", s, xname(otmp),
+				  (water ? "vaporize" : "burn"),
+				  (otmp->quan > 1L ? "" : "s"),
+				  (water ? "part of " : ""), mon_nam(mdef));
+			  }
+
+			  burn_faster(otmp, 1);
+
+			  tmp++;
+			  if (resists_cold(mdef)) tmp += rnd(3);
+
+			  if (!rn2(2) && burnarmor(mdef)) {
+			    if (!rn2(3))
+			      (void)destroy_mitem(mdef, POTION_CLASS, AD_FIRE);
+			    if (!rn2(3))
+			      (void)destroy_mitem(mdef, SCROLL_CLASS, AD_FIRE);
+			    if (!rn2(5))
+			      (void)destroy_mitem(mdef, SPBOOK_CLASS, AD_FIRE);
+			  }
+			}
+
+                        /* WAC Weres get seared */
+                        if(otmp && objects[otmp->otyp].oc_material == SILVER &&
+                          (hates_silver(pd))) {
+                                tmp += 8;
+                                if (vis) pline("The silver sears %s!", mon_nam(mdef));
+                        }
+                        /* Stakes do extra dmg agains vamps */
+                        if (otmp && otmp->otyp == WOODEN_STAKE && is_vampire(pd)) {
+                                if(otmp->oartifact == ART_STAKE_OF_VAN_HELSING) {
+                                        if (!rn2(10)) {
+                                                if (vis) {
+                                                        Strcpy(buf, Monnam(magr));
+                                                        pline("%s plunges the stake into the heart of %s.",
+                                                                buf, mon_nam(mdef));
+                                                        pline("%s's body vaporizes!", Monnam(mdef));
+                                                }
+                                                mondead(mdef); /* no corpse */
+                                                if (mdef->mhp < 0) return (MM_DEF_DIED |
+                                                        (grow_up(magr,mdef) ? 0 : MM_AGR_DIED));                                                
+                                        } else {
+                                                if (vis) {
+                                                        Strcpy(buf, Monnam(magr));
+                                                        pline("%s drives the stake into %s.",
+                                                                buf, mon_nam(mdef));
+                                                }
+                                                tmp += rnd(6) + 2;
+                                        }
+                                } else {
+                                        if (vis) {
+                                                Strcpy(buf, Monnam(magr));
+                                                pline("%s drives the stake into %s.",
+                                                        buf, mon_nam(mdef));
+                                        }
+                                        tmp += rnd(6);
+                                }
+                        }
+
+                        if (otmp && otmp->oartifact) {
 			    (void)artifact_hit(magr,mdef, otmp, &tmp, dieroll);
 			    if (mdef->mhp <= 0)
 				return (MM_DEF_DIED |
 					(grow_up(magr,mdef) ? 0 : MM_AGR_DIED));
 			}
-			if (tmp)
+			if (otmp && tmp)
 				mrustm(magr, mdef, otmp);
 		    }
 		} else if (magr->data == &mons[PM_PURPLE_WORM] &&
@@ -711,6 +1216,8 @@ mdamagem(magr, mdef, mattk)
 		}
 		break;
 	    case AD_FIRE:
+		if (nohit) break;
+		
 		if (cancelled) {
 		    tmp = 0;
 		    break;
@@ -719,6 +1226,7 @@ mdamagem(magr, mdef, mattk)
 		    pline("%s is %s!", Monnam(mdef),
 			  on_fire(mdef->data, mattk));
 		if (pd == &mons[PM_STRAW_GOLEM] ||
+		    pd == &mons[PM_WAX_GOLEM] ||
 		    pd == &mons[PM_PAPER_GOLEM]) {
 			if (vis) pline("%s burns completely!", Monnam(mdef));
 			mondied(mdef);
@@ -742,6 +1250,8 @@ mdamagem(magr, mdef, mattk)
 		tmp += destroy_mitem(mdef, POTION_CLASS, AD_FIRE);
 		break;
 	    case AD_COLD:
+		if (nohit) break;
+		
 		if (cancelled) {
 		    tmp = 0;
 		    break;
@@ -758,6 +1268,8 @@ mdamagem(magr, mdef, mattk)
 		tmp += destroy_mitem(mdef, POTION_CLASS, AD_COLD);
 		break;
 	    case AD_ELEC:
+		if (nohit) break;
+		
 		if (cancelled) {
 		    tmp = 0;
 		    break;
@@ -774,6 +1286,8 @@ mdamagem(magr, mdef, mattk)
 		tmp += destroy_mitem(mdef, RING_CLASS, AD_ELEC);
 		break;
 	    case AD_ACID:
+		if (nohit) break;
+		
 		if (magr->mcan) {
 		    tmp = 0;
 		    break;
@@ -824,11 +1338,26 @@ mdamagem(magr, mdef, mattk)
 							0 : MM_AGR_DIED));
 		}
 		hurtmarmor(mdef, AD_DCAY);
-		mdef->mstrategy &= ~STRAT_WAITFORU;
 		tmp = 0;
 		break;
 	    case AD_STON:
 		if (magr->mcan) break;
+		if (mattk->aatyp == AT_GAZE && mon_reflects(mdef, (char *)0)) {
+		    tmp = 0;
+		    (void) mon_reflects(mdef, "But it reflects from %s %s!");
+		    if (poly_when_stoned(pa)) {
+			mon_to_stone(magr);
+			break;
+		    }
+		    if (!resists_ston(magr)) {
+			if (vis) pline("%s turns to stone!", Monnam(magr));
+			monstone(magr);
+			if (magr->mhp > 0) return 0;
+			else if (magr->mtame && !vis)
+			    You(brief_feeling, "peculiarly sad");
+			return MM_AGR_DIED;
+		    }
+		}
  do_stone:
 		/* may die from the acid if it eats a stone-curing corpse */
 		if (munstone(mdef, FALSE)) goto post_stone;
@@ -865,6 +1394,17 @@ mdamagem(magr, mdef, mattk)
 		}
 		break;
 	    case AD_SLEE:
+		if (nohit) break;                
+		
+		if (cancelled) break;
+		if (mattk->aatyp == AT_GAZE && mon_reflects(mdef, (char *)0)) {
+		    tmp = 0;
+		    (void) mon_reflects(mdef, "But it reflects from %s %s!");
+		    if (sleep_monst(magr, rnd(10), -1))
+			if (vis) pline("%s is put to sleep!", Monnam(magr));
+		    break;
+		}
+
 		if (!cancelled && !mdef->msleeping &&
 			sleep_monst(mdef, rnd(10), -1)) {
 		    if (vis) {
@@ -875,7 +1415,45 @@ mdamagem(magr, mdef, mattk)
 		    slept_monst(mdef);
 		}
 		break;
+	    /* WAC DEATH (gaze) */
+	    case AD_DETH:
+		if (rn2(16)) {
+		    /* No death, but still cause damage */
+		    break;
+		} 
+		if (vis && mattk->aatyp == AT_GAZE) 
+		    pline("%s gazes intently!", Monnam(magr));
+		if (mattk->aatyp == AT_GAZE && mon_reflects(mdef, (char *)0)) {
+		    /* WAC reflected gaze 
+		     * Oooh boy...that was a bad move :B 
+		     */
+		    tmp = 0;
+		    if (vis) {
+			shieldeff(mdef->mx, mdef->my);
+			(void) mon_reflects(mdef, "But it reflects from %s %s!");
+		    }
+		    if (resists_magm(magr)) {
+			if (vis) pline("%s shudders momentarily...", Monnam(magr));
+			break;
+		    }
+		    if (vis) pline("%s dies!", Monnam(magr));
+		    mondied(magr);
+		    if (magr->mhp > 0) return 0;  /* lifesaved */
+		    else if (magr->mtame && !vis)
+			You(brief_feeling, "peculiarly sad");
+		    return MM_AGR_DIED;
+		} else if (is_undead(mdef->data)) {
+		    /* Still does normal damage */
+		    if (vis) pline("Something didn't work...");
+		    break;
+		} else if (resists_magm(mdef)) {
+		    if (vis) pline("%s shudders momentarily...", Monnam(mdef));
+		} else {
+		    tmp = mdef->mhp;
+		}
+		break;
 	    case AD_PLYS:
+		if (nohit) break;                
 		if(!cancelled && mdef->mcanmove) {
 		    if (vis) {
 			Strcpy(buf, Monnam(mdef));
@@ -886,8 +1464,20 @@ mdamagem(magr, mdef, mattk)
 		    mdef->mstrategy &= ~STRAT_WAITFORU;
 		}
 		break;
+	    case AD_TCKL:
+		if(!cancelled && mdef->mcanmove) {
+		    if (vis) {
+			Strcpy(buf, Monnam(magr));
+			pline("%s mercilessly tickles %s.", buf, mon_nam(mdef));
+		    }
+		    mdef->mcanmove = 0;
+		    mdef->mfrozen = rnd(10);
+		    mdef->mstrategy &= ~STRAT_WAITFORU;
+  		}
+		break;
 	    case AD_SLOW:
-		if (!cancelled && mdef->mspeed != MSLOW) {
+		if (nohit) break;
+		if(!cancelled && vis && mdef->mspeed != MSLOW) {
 		    unsigned int oldspeed = mdef->mspeed;
 
 		    mon_adjust_speed(mdef, -1, (struct obj *)0);
@@ -897,6 +1487,7 @@ mdamagem(magr, mdef, mattk)
 		}
 		break;
 	    case AD_CONF:
+		if (nohit) break;
 		/* Since confusing another monster doesn't have a real time
 		 * limit, setting spec_used would not really be right (though
 		 * we still should check for it).
@@ -907,7 +1498,20 @@ mdamagem(magr, mdef, mattk)
 		    mdef->mstrategy &= ~STRAT_WAITFORU;
 		}
 		break;
+	    case AD_DREN:
+		if (nohit) break;
+	    	if (resists_magm(mdef)) {
+		    if (vis) {
+			shieldeff(mdef->mx,mdef->my);
+			pline("%s is unaffected.", Monnam(mdef));
+		    }
+	    	} else {
+	    	    mon_drain_en(mdef, 
+				((mdef->m_lev > 0) ? (rnd(mdef->m_lev)) : 0) + 1);
+	    	}	    
 	    case AD_BLND:
+		if (nohit) break;                
+	       
 		if (can_blnd(magr, mdef, mattk->aatyp, (struct obj*)0)) {
 		    register unsigned rnd_tmp;
 
@@ -931,6 +1535,8 @@ mdamagem(magr, mdef, mattk)
 		tmp = 0;
 		break;
 	    case AD_CURS:
+		if (nohit) break;
+		
 		if (!night() && (pa == &mons[PM_GREMLIN])) break;
 		if (!magr->mcan && !rn2(10)) {
 		    mdef->mcan = 1;	/* cancelled regardless of lifesave */
@@ -989,7 +1595,14 @@ mdamagem(magr, mdef, mattk)
 		}
 		break;
 	    case AD_DRLI:
-		if (!cancelled && !rn2(3) && !resists_drli(mdef)) {
+		if (nohit) break;                
+
+		if (!cancelled && magr->mtame && !magr->isminion &&
+			is_vampire(pa) && mattk->aatyp == AT_BITE &&
+			has_blood(pd))
+		    EDOG(magr)->hungrytime += ((int)((mdef->data)->cnutrit / 20) + 1);
+		
+		if (!cancelled && rn2(2) && !resists_drli(mdef)) {
 			tmp = d(2,6);
 			if (vis)
 			    pline("%s suddenly seems weaker!", Monnam(mdef));
@@ -1060,6 +1673,8 @@ mdamagem(magr, mdef, mattk)
 	    case AD_DRST:
 	    case AD_DRDX:
 	    case AD_DRCO:
+		if (nohit) break;
+		
 		if (!cancelled && !rn2(8)) {
 		    if (vis)
 			pline("%s %s was poisoned!", s_suffix(Monnam(magr)),
@@ -1111,7 +1726,10 @@ mdamagem(magr, mdef, mattk)
 		if (cancelled) break;	/* physical damage only */
 		if (!rn2(4) && !flaming(mdef->data) &&
 				mdef->data != &mons[PM_GREEN_SLIME]) {
-		    (void) newcham(mdef, &mons[PM_GREEN_SLIME], FALSE, vis);
+		    if (newcham(mdef, &mons[PM_GREEN_SLIME], FALSE, vis)) {
+			mdef->oldmonnm = PM_GREEN_SLIME;
+			(void) stop_timer(UNPOLY_MON, (genericptr_t) mdef);
+		    }
 		    mdef->mstrategy &= ~STRAT_WAITFORU;
 		    tmp = 0;
 		}
@@ -1123,14 +1741,60 @@ mdamagem(magr, mdef, mattk)
 		if (magr->mcan) tmp = 0;
 		break;
 	    case AD_ENCH:
-		/* there's no msomearmor() function, so just do damage */
+		/* There's no msomearmor() function, so just do damage */
 	     /* if (cancelled) break; */
+		break;
+	    case AD_POLY:
+		if (!magr->mcan && tmp < mdef->mhp) {
+		    if (resists_magm(mdef)) {
+			/* magic resistance protects from polymorph traps, so
+			 * make it guard against involuntary polymorph attacks
+			 * too... */
+			if (vis) shieldeff(mdef->mx, mdef->my);
+			break;
+		    }
+#if 0
+		    if (!rn2(25) || !mon_poly(mdef)) {
+			if (vis)
+			    pline("%s shudders!", Monnam(mdef));
+			/* no corpse after system shock */
+			tmp = rnd(30);
+		    } else 
+#endif
+		    (void) mon_poly(mdef, FALSE,
+			    "%s undergoes a freakish metamorphosis!");
+		}
+		break;
+	    case AD_CALM:	/* KMH -- koala attack */
+		/* Certain monsters aren't even made peaceful. */
+		if (!mdef->iswiz && mdef->data != &mons[PM_MEDUSA] &&
+			!(mdef->data->mflags3 & M3_COVETOUS) &&
+			!(mdef->data->geno & G_UNIQ) &&
+			(magr->mtame || mdef->mtame)) {
+		    if (vis) pline("%s looks calmer.", Monnam(mdef));
+		    if (mdef == u.usteed)
+			dismount_steed(DISMOUNT_THROWN);
+		    mdef->mpeaceful = 1;
+		    mdef->mtame = 0;
+		    tmp = 0;
+		}
 		break;
 	    default:	tmp = 0;
 			break;
 	}
 	if(!tmp) return(MM_MISS);
 
+	/* STEPHEN WHITE'S NEW CODE */
+	if (objenchant < canhitmon && vis) {
+			Strcpy(buf, Monnam(magr));
+			pline("%s doesn't seem to harm %s.", buf,
+								mon_nam(mdef));
+		return(MM_HIT);
+	}
+	/* WAC -- Caveman Primal Roar ability */
+	if (magr->mtame != 0 && tech_inuse(T_PRIMAL_ROAR)) {
+		tmp *= 2; /* Double Damage! */
+	}
 	if((mdef->mhp -= tmp) < 1) {
 	    if (m_at(mdef->mx, mdef->my) == magr) {  /* see gulpmm() */
 		remove_monster(mdef->mx, mdef->my);
@@ -1138,7 +1802,10 @@ mdamagem(magr, mdef, mattk)
 		place_monster(mdef, mdef->mx, mdef->my);
 		mdef->mhp = 0;
 	    }
-	    monkilled(mdef, "", (int)mattk->adtyp);
+	    /* get experience from spell creatures */
+	    if (magr->uexp) mon_xkilled(mdef, "", (int)mattk->adtyp);
+	    else monkilled(mdef, "", (int)mattk->adtyp);
+
 	    if (mdef->mhp > 0) return 0; /* mdef lifesaved */
 
 	    if (mattk->adtyp == AD_DGST) {
@@ -1157,7 +1824,8 @@ mdamagem(magr, mdef, mattk)
 		}
 	    }
 
-	    return (MM_DEF_DIED | (grow_up(magr,mdef) ? 0 : MM_AGR_DIED));
+	    return (MM_DEF_DIED |
+		    ((magr->mhp > 0 && grow_up(magr,mdef)) ? 0 : MM_AGR_DIED));
 	}
 	return(MM_HIT);
 }
@@ -1283,7 +1951,8 @@ int mdead;
 
 	for(i = 0; ; i++) {
 	    if(i >= NATTK) return (mdead | mhit); /* no passive attacks */
-	    if(mddat->mattk[i].aatyp == AT_NONE) break;
+	    if(mddat->mattk[i].aatyp == AT_NONE /*||
+	       mddat->mattk[i].aatyp == AT_BOOM*/) break;
 	}
 	if (mddat->mattk[i].damn)
 	    tmp = d((int)mddat->mattk[i].damn,
@@ -1308,9 +1977,23 @@ int mdead;
 		    }
 		} else tmp = 0;
 		goto assess_dmg;
+		case AD_MAGM:
+	    /* wrath of gods for attacking Oracle */
+	    if(resists_magm(magr)) {
+		if(canseemon(magr)) {
+		shieldeff(magr->mx, magr->my);
+		pline("A hail of magic missiles narrowly misses %s!",mon_nam(magr));
+		}
+	    } else {
+		if(canseemon(magr))
+			pline(magr->data == &mons[PM_WOODCHUCK] ? "ZOT!" : 
+			"%s is hit by magic missiles appearing from thin air!",Monnam(magr));
+		goto assess_dmg;
+	    }
+	    break;
 	    case AD_ENCH:	/* KMH -- remove enchantment (disenchanter) */
 		if (mhit && !mdef->mcan && otmp) {
-		    (void) drain_item(otmp);
+				drain_item(otmp);
 		    /* No message */
 		}
 		break;
@@ -1405,7 +2088,10 @@ int mdead;
 
     assess_dmg:
 	if((magr->mhp -= tmp) <= 0) {
-		monkilled(magr, "", (int)mddat->mattk[i].adtyp);
+		/* get experience from spell creatures */
+		if (mdef->uexp) mon_xkilled(magr, "", (int)mddat->mattk[i].adtyp);
+		else monkilled(magr, "", (int)mddat->mattk[i].adtyp);
+
 		return (mdead | mhit | MM_AGR_DIED);
 	}
 	return (mdead | mhit);

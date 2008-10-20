@@ -16,6 +16,11 @@
 
 #define QT_CLEAN_NAMESPACE
 
+/* Qt never uses NetHack's yn() macro and it can conflict with the
+ * XOpen bessel function of the same name.
+ */
+#undef yn
+
 #include <qdialog.h>
 #include <qpushbutton.h>
 #include <qbuttongroup.h>
@@ -82,6 +87,7 @@ public:
 	NetHackQtSettings(int width, int height);
 
 	NetHackQtGlyphs& glyphs();
+	void updateTiles();
 	const QFont& normalFont();
 	const QFont& normalFixedFont();
 	const QFont& largeFont();
@@ -266,6 +272,7 @@ public:
 
 	int width() const { return size.width(); }
 	int height() const { return size.height(); }
+	char *tileSet() const { return tilesets[tileset_index].name; }
 	void toggleSize();
 	void setSize(int w, int h);
 
@@ -276,7 +283,9 @@ private:
 	QImage img;
 	QPixmap pm,pm1, pm2;
 	QSize size;
-	int tiles_per_row;
+	int tileset_index;
+
+	int loadTiles(const char *file);
 };
 
 class BlackScrollView : public QScrollView {
@@ -466,6 +475,7 @@ private:
 
 	NetHackQtLabelledIcon time;
 	NetHackQtLabelledIcon score;
+	NetHackQtLabelledIcon weight;
 
 	NetHackQtLabelledIcon hunger;
 	NetHackQtLabelledIcon confused;
@@ -807,7 +817,11 @@ public:
 	static void qt_destroy_nhwindow(winid wid);
 	static void qt_curs(winid wid, int x, int y);
 	static void qt_putstr(winid wid, int attr, const char *text);
+#ifdef FILE_AREAS
+	static void qt_display_file(const char *filearea, const char *filename, BOOLEAN_P must_exist);
+#else
 	static void qt_display_file(const char *filename, BOOLEAN_P must_exist);
+#endif
 	static void qt_start_menu(winid wid);
 	static void qt_add_menu(winid wid, int glyph,
 		const ANY_P * identifier, CHAR_P ch, CHAR_P gch, int attr,

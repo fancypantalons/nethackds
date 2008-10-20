@@ -29,16 +29,22 @@
  *  For pre-V7.0 Microsoft Compilers only, manually define OVERLAY here.
  */
 
-/*#define OVERLAY */	/* Manual overlay definition (MSC 6.0ax only) */
+/* #define OVERLAY */	/* Manual overlay definition (MSC 6.0ax only) */
 
 # ifndef __GO32__
-#define MFLOPPY		/* Support for floppy drives and ramdisks by dgk */
+#  define MFLOPPY	/* Support for floppy drives and ramdisks by dgk */
 # endif
+
+/* [Tom] trying to make this work with WATCOM */
+#if 0
+# define NO_SIGNAL
+# undef MOVERLAY
+#endif
 
 # define SHELL		/* via exec of COMMAND.COM */
 
 # ifdef __BORLANDC__
-#define PCMUSIC		/* Music option, enable very basic pc speaker music notes */
+#define PCMUSIC		/* enable very basic pc speaker music notes */
 # endif
 
 /*
@@ -81,6 +87,7 @@
 #  if (defined(SCREEN_BIOS) || defined(SCREEN_DJGPPFAST)) && !defined(PC9800)
 #   ifdef USE_TILES
 #define SCREEN_VGA	/* Include VGA	  graphics routines in the build */
+#define ALLEG_FX 	/* Use Allegro libraries */
 #   endif
 #  endif
 # else
@@ -145,7 +152,7 @@
 #endif /* MSDOS configuration stuff */
 
 #define PATHLEN		64	/* maximum pathlength */
-#define FILENAME	80	/* maximum filename length (conservative) */
+#define FILENAMELEN	80	/* maximum filename length (conservative) */
 #ifndef MICRO_H
 #include "micro.h"		/* contains necessary externs for [os_name].c */
 #endif
@@ -306,7 +313,7 @@
 #  define SCREEN_VGA
 # endif
 /* Graphical tile sanity checks */
-# ifdef SCREEN_VGA
+# if defined(SCREEN_VGA) || defined(ALLEG_FX)
 #  define SIMULATE_CURSOR
 #  define POSITIONBAR
 /* Select appropriate tile file format, and map size */

@@ -11,9 +11,7 @@
  */
 
 #ifdef USE_TILES
-#define NETHACK_PLANAR_TILEFILE "NetHack1.tib"	/* Planar style tiles */
-#define NETHACK_PACKED_TILEFILE "NetHack2.tib"	/* Packed style tiles */
-#define NETHACK_OVERVIEW_TILEFILE "NetHacko.tib" /* thin overview tiles */
+#include "filename.h"   /*WAC the tile name defs are in there now*/
 
 #define ROWS_PER_TILE	TILE_Y
 #define COLS_PER_TILE   TILE_X

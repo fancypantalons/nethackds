@@ -18,7 +18,7 @@
 #define NOTELL		0
 #define ON		1
 #define OFF		0
-#define BOLT_LIM	8 /* from this distance ranged attacks will be made */
+#define BOLT_LIM    6	/* from this distance ranged attacks will be made */
 #define MAX_CARR_CAP	1000	/* so that boulders can be heavier */
 #define DUMMY { 0 }
 
@@ -65,21 +65,22 @@
  * code assume that PANIC separates the deaths from the non-deaths.
  */
 #define DIED		 0
-#define CHOKING		 1
-#define POISONING	 2
-#define STARVING	 3
-#define DROWNING	 4
-#define BURNING		 5
-#define DISSOLVED	 6
-#define CRUSHING	 7
-#define STONING		 8
-#define TURNED_SLIME	 9
-#define GENOCIDED	10
-#define PANICKED	11
-#define TRICKED		12
-#define QUIT		13
-#define ESCAPED		14
-#define ASCENDED	15
+#define BETRAYED	 1
+#define CHOKING		 2
+#define POISONING	 3
+#define STARVING	 4
+#define DROWNING	 5
+#define BURNING		 6
+#define DISSOLVED	 7
+#define CRUSHING	 8
+#define STONING		 9
+#define TURNED_SLIME 10
+#define GENOCIDED	11
+#define PANICKED	12
+#define TRICKED		13
+#define QUIT		14
+#define ESCAPED		15
+#define ASCENDED	16
 
 #include "align.h"
 #include "dungeon.h"
@@ -155,6 +156,7 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define INVORDER_SORT	  0x8	/* sort objects by packorder */
 #define SIGNAL_NOMENU	  0x10	/* return -1 rather than 0 if none allowed */
 #define FEEL_COCKATRICE   0x20  /* engage cockatrice checks and react */
+#define SIGNAL_CANCEL	  0x40	/* return -4 rather than 0 if explicit cancel */
 
 /* Flags to control query_category() */
 /* BY_NEXTHERE used by query_category() too, so skip 0x01 */
@@ -287,6 +289,7 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define makeknown(x)	discover_object((x),TRUE,TRUE)
 #define distu(xx,yy)	dist2((int)(xx),(int)(yy),(int)u.ux,(int)u.uy)
 #define onlineu(xx,yy)	online2((int)(xx),(int)(yy),(int)u.ux,(int)u.uy)
+#define setustuck(v)	(flags.botl = 1, u.ustuck = (v))
 
 #define rn1(x,y)	(rn2(x)+(y))
 
@@ -327,6 +330,27 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #else
 # define STATIC_PTR static
 #endif
+
+/* For my clever ending messages... */
+extern int Instant_Death;
+extern int Quick_Death;
+extern int Nibble_Death;
+extern int last_hit;
+extern int second_last_hit;
+extern int third_last_hit;
+
+/* For those tough guys who get carried away... */
+extern int repeat_hit;
+
+/* Raw status flags */
+#define RAW_STAT_LEVITATION	0x00000001
+#define RAW_STAT_CONFUSION	0x00000002
+#define RAW_STAT_FOODPOIS	0x00000004
+#define RAW_STAT_ILL		0x00000008
+#define RAW_STAT_BLIND		0x00000010
+#define RAW_STAT_STUNNED	0x00000020
+#define RAW_STAT_HALLUCINATION	0x00000040
+#define RAW_STAT_SLIMED		0x00000080
 
 /* The function argument to qsort() requires a particular
  * calling convention under WINCE which is not the default

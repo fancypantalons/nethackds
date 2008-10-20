@@ -1,6 +1,6 @@
-NetHack History file for release 3.4
+SLASH'EM History file for release 0.0.7
 
-Behold, mortal, the origins of NetHack...
+Behold, mortal, the origins of SLASH'EM...
 
 Jay Fenlason wrote the original Hack with help from Kenny Woodland,
 Mike Thome, and Jon Payne.
@@ -38,6 +38,12 @@ Johnny Lee ported NetHack 3.0 to the Macintosh.  Along with various other
 Dungeoneers, they continued to enhance the PC, Macintosh, and Amiga ports
 through the later revisions of 3.0.
  
+A scant one month before the next major version  release  of Nethack,  two  
+adventurous souls undertook their own modification to the sacred Nethack
+formula. Tom Proudfoot and  Yuval  released Nethack++,   which  was rapidly
+renamed Nethack--,  containeing new monsters,  items and other miscellaneous
+modifications.
+ 
 Headed by Mike Stephenson and coordinated by Izchak Miller and Janet Walz,
 the development team which now included Ken Arromdee, David Cohrs,
 Jean-Christophe Collet, Kevin Darcy, Matt Day, Timo Hakulinen, Steve Linhart,
@@ -53,7 +59,7 @@ Mike Passaretti, and Olaf Seibert, developed NetHack 3.1 for the Amiga.
 Norm Meluch and Kevin Smolkowski, with help from Carl Schelin, Stephen
 Spackman, Steve VanDevender, and Paul Winner, ported NetHack 3.1 to the PC.
 
-Jon W{tte and Hao-yang Wang, with help from Ross Brown, Mike Engber, David
+Jon Watte and Hao-yang Wang, with help from Ross Brown, Mike Engber, David
 Hairston, Michael Hamel, Jonathan Handler, Johnny Lee, Tim Lennan, Rob Menke,
 and Andy Swanson developed NetHack 3.1 for the Macintosh, porting it for
 MPW.  Building on their development, Barton House added a Think C port.  
@@ -64,41 +70,79 @@ for the VMS version of NetHack 3.1.  Michael Allison ported NetHack 3.1 to
 Windows NT.
 
 Dean Luick, with help from David Cohrs, developed NetHack 3.1 for X11.
-Warwick Allison wrote a tiled version of NetHack for the Atari;
-he later contributed the tiles to the DevTeam and tile support was
-then added to other platforms.
+Warwick Allison added in the "tiled" version of the game and generated most
+of the individual tiles for NetHack 3.2.
 
-The 3.2 development team, comprised of Michael Allison, Ken Arromdee, David
-Cohrs, Jessie Collet, Steve Creps, Kevin Darcy, Timo Hakulinen, Steve
-Linhart, Dean Luick, Pat Rankin, Eric Smith, Mike Stephenson, Janet Walz, and
+Time passed,  and Nethack-- was ported to 3.11 by Chris.
+
+Stephen White then released his own  modification  known  as Nethack  Plus,
+which  contained  new  character classes.  Unbeknownst to the world at large,
+Tom Proudfoot  took  this  source and combined it with his Nethack--.
+Stephen White went on to add weapon skills,  which were eventually integrated
+into  the  next version of Nethack,  and other features.
+
+In February 1996,  Tom Proudfoot released SLASH V1.  Including part of
+Stephen White's Nethack Plus and his  own  Nethack--, leaving  unmentioned
+his own slew of further modifications,  this is perhaps the best known of
+the Nethack modifications.  Six versions of this,  ending with SLASH V6,
+are known to exist.
+
+The 3.2 development team, comprised of: Michael Allison; Ken Arromdee; David
+Cohrs; Jessie Collet; Steve Creps; Kevin Darcy; Timo Hakulinen; Steve
+Linhart; Dean Luick; Pat Rankin; Eric Smith; Mike Stephenson; Janet Walz; and
 Paul Winner, released version 3.2 in April of 1996.
 
-Version 3.2 marked the tenth anniversary of the formation of the development
+Version 3.2 marks the tenth anniversary of the formation of the development
 team.  In a testament to their dedication to the game, all thirteen members
 of the original development team remained on the team at the start of work
-on that release.  During the interval between the release of 3.1.3 and 3.2,
-one of the founding members of the development team, Dr. Izchak Miller,
-passed away.  That release of the game was dedicated to him by the
+on the current release.  During the interval between the release of 3.1.3
+and 3.2, one of the founding members of the development team, Dr. Izchak
+Miller, passed away.  This release of the game is dedicated to him by the
 development and porting teams.
 
 Version 3.2 proved to be more stable than previous versions.  Many bugs
 were fixed, abuses eliminated, and game features tuned for better game
 play.
 
-During the lifespan of NetHack 3.1 and 3.2, several enthusiasts of the game
-added their own modifications to the game and made these "variants" publicly
-available:
+SLASH V6 was picked up by Enrico Horn managed to synchronize it  with the
+3.2 source.  The new SLASH 4.1.2 was released as far back as November 1996
+went through at least 4 editlevels (E5, E6, E7)  with  the  latest  version
+being 4.1.2E8,  synchronized with Nethack 3.2.2 and the Blackmarket option
+available,  released in June 1997.
 
-Tom Proudfoot and Yuval Oren created NetHack++, which was quickly renamed
-NetHack--.  Working independently, Stephen White wrote NetHack Plus.
-Tom Proudfoot later merged NetHack Plus and his own NetHack-- to produce
-SLASH.  Larry Stewart-Zerba and Warwick Allison improved the spellcasting
-system with the Wizard Patch.  Warwick Allison also ported NetHack to use
-the Qt interface.
+Nathan La began the arduous task of drawing  tiles  for  the SLASH monsters.
 
-Warren Cheung combined SLASH with the Wizard Patch to produce Slash'em, and
-with the help of Kevin Hugo, added more features.  Kevin later joined the
-DevTeam and incorporated the best of these ideas in NetHack 3.3.
+Kentaro Shirakata ported SLASH 4.1.2E8 to Unix.
+
+Lief Clennon ported SLASH 4.1.2E8 to OS/2.
+
+Romain Dolbeau ported SLASH 4.1.2E8 to Macintosh.
+
+Warren Cheung combined SLASH 4.1.2 and Wizard Patch to  create SLASH'EM 0.1
+in November 1997.  Several revisions including new spells and other minor
+additions have led to SLASH'EM  0.0.3. Steven Uy has generously made
+additional modifications.
+
+Dirk  Schoenberger has continued updating the SLASH/SLASH'EM monster tiles.
+He has also ported SLASH'EM to Linux.
+
+Lief Clennon ported SLASH'EM to OS/2 EMX.
+
+Kevin Hugo ported SLASH'EM to Macintosh,  and has also contributed
+additional changes and improvements.
+
+Robin Johnson finished arduous task of drawing tiles for the SLASH'EM
+monsters.  He has also contributed many more new tiles.
+
+Kevin later joined the DevTeam and incorporated the best of these ideas
+in NetHack 3.3.
+
+JNetHack (the Japanese version of NetHack) has been around since at least
+1994, developed by Issei Numata and others. The GTK interface was written
+for this variant and released in 1999.
+
+Mitsuhiro Itakura headed a team which began the process of redrawing the
+NetHack tiles in 8-bit color at 32x32 pixels.
 
 The final update to 3.2 was the bug fix release 3.2.3, which was released
 simultaneously with 3.3.0 in December 1999 just in time for the Year 2000.
@@ -120,6 +164,14 @@ publicly available web-site listing all the bugs that had been discovered.
 Despite that constantly growing bug list, 3.3 proved stable enough to last
 for more than a year and a half.
 
+Warren Cheung combined SLASH'EM 0.0.5E7F1 and NetHack 3.3 to create
+SLASH'EM 0.0.6 and maintained the DOS and Microsoft Windows ports.
+
+J. Ali Harlow incorporated the GTK interface and Mitsuhiro Itakura's 32x32
+tileset into SLASH'EM 0.0.6 and maintained the UNIX port of SLASH'EM 0.0.6.
+Peter Makholm maintained the Debian package.
+
+Paul Hurtley maintained the MAC port of SLASH'EM 0.0.6.
 
 The 3.4 development team initially consisted of Michael Allison, Ken Arromdee,
 David Cohrs, Jessie Collet, Kevin Hugo, Ken Lorber, Dean Luick, Pat Rankin,
@@ -150,7 +202,11 @@ Amiga port of 3.4 after Janne Salmijarvi resurrected it for 3.3.1.
 Christian `Marvin' Bressler maintained 3.4 for the Atari after he
 resurrected it for 3.3.1.
 
-There is a NetHack web site maintained by Ken Lorber at http://www.nethack.org/.
+Warren Cheung, Christian Cooper, J. Ali Harlow, Paul Hurtley, Pekka Rousu
+and Darshan Shaligram combined SLASH'EM 0.0.6E5F2 and Nethack 3.4
+to create SLASH'EM 0.0.7
+
+The Slash'EM home page is at http://www.slashem.org/.
 
 			   - - - - - - - - - -
 

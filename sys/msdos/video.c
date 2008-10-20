@@ -82,6 +82,11 @@ get_scr_size()
 		vga_get_scr_size();
 	} else
 #  endif
+#  ifdef ALLEG_FX
+        if (iflags.usealleg) {
+                alleg_get_scr_size();
+	} else
+#  endif
 		txt_get_scr_size();
 }
 #endif /*OVLB*/
@@ -162,6 +167,10 @@ backsp()
 	} else if (iflags.usevga) {
 		vga_backsp();
 #  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_backsp();
+#  endif
 	}
 }
 # endif /* OVLB */
@@ -175,6 +184,10 @@ clear_screen()
 #  ifdef SCREEN_VGA
 	} else if (iflags.usevga) {
 		vga_clear_screen(BACKGROUND_VGA_COLOR);
+#  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_clear_screen(BACKGROUND_ALLEGRO_COLOR);
 #  endif
 	}
 }
@@ -192,6 +205,10 @@ cl_end()	/* clear to end of line */
 	} else if (iflags.usevga) {
 		vga_cl_end(col,row);
 #  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_cl_end(col,row);
+#  endif
 	}
 	tty_curs(BASE_WINDOW, (int)ttyDisplay->curx+1,
 						(int)ttyDisplay->cury);
@@ -207,6 +224,10 @@ cl_eos()	/* clear to end of screen */
 #  ifdef SCREEN_VGA
 	} else if (iflags.usevga) {
 		vga_cl_eos(cy);
+#  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_cl_eos(cy);
 #  endif
 	}
 	tty_curs(BASE_WINDOW, (int)ttyDisplay->curx+1,
@@ -224,6 +245,10 @@ register int col, row;
 #  ifdef SCREEN_VGA
 	} else if (iflags.usevga) {
 		vga_gotoloc(col,row);
+#  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_gotoloc(col,row);
 #  endif
 	}
 }
@@ -254,6 +279,10 @@ home()
 	} else if (iflags.usevga) {
 		vga_gotoloc(0,0);
 #  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_gotoloc(0,0);
+#  endif
 	}
 }
 
@@ -266,6 +295,10 @@ int col,row;
 #  ifdef SCREEN_VGA
 	} else if (iflags.usevga) {
 		vga_gotoloc(col,row);
+#  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_gotoloc(col,row);
 #  endif
 	}
 }
@@ -409,6 +442,10 @@ tty_end_screen()
 	} else if (iflags.usevga) {
 		vga_tty_end_screen();
 #  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_tty_end_screen();
+#  endif
 	}
 }
 
@@ -444,6 +481,11 @@ int *wid, *hgt;
 #  ifdef SCREEN_VGA
 	if (iflags.usevga) {
 		vga_tty_startup(wid, hgt);
+	} else
+#  endif
+#  ifdef ALLEG_FX
+        if (iflags.usealleg) {
+                alleg_tty_startup(wid, hgt);
 	} else
 #  endif
 	txt_startup(wid, hgt);
@@ -482,6 +524,10 @@ gr_init(){
 # ifdef SCREEN_VGA
 		vga_Init();
 # endif
+# ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_Init();
+# endif
 # ifdef SCREEN_VESA
 	} else if (iflags.usevesa) {
 		vesa_Init();
@@ -501,6 +547,10 @@ gr_finish()
 	   if (iflags.usevga) {
 # ifdef SCREEN_VGA
 		vga_Finish();
+# endif
+# ifdef ALLEG_FX
+           } else if (iflags.usealleg) {
+                alleg_Finish();
 # endif
 # ifdef SCREEN_VESA
 	   } else if (iflags.usevesa) {
@@ -562,6 +612,10 @@ const char *s;
 	} else if (iflags.usevga) {
 		vga_xputs(s,col,row);
 #  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_xputs(s,col,row);
+#  endif
 	}
 }
 
@@ -582,6 +636,10 @@ char ch;
 	} else if (iflags.usevga) {
 		vga_xputc(ch,attribute);
 #  endif /*SCREEN_VGA*/
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_xputc(ch,attribute);
+#  endif /*ALLEG_FX*/
 	}
 }
 
@@ -594,8 +652,12 @@ unsigned special;
 	if (!iflags.grmode || !iflags.tile_view) {
 		xputc((char)ch);
 #  ifdef SCREEN_VGA
-	} else {
+        } else if (iflags.usevga) {
 		vga_xputg(glyphnum, ch, special);
+#  endif
+#  ifdef ALLEG_FX
+        } else if (iflags.usealleg) {
+                alleg_xputg(glyphnum, ch);
 #  endif
 	}
 }
@@ -609,7 +671,11 @@ char *posbar;
 		return;
 #   ifdef SCREEN_VGA
 	else
-		vga_update_positionbar(posbar);
+                if (iflags.usevga) vga_update_positionbar(posbar);
+#   endif
+#   ifdef ALLEG_FX
+	else
+                if (iflags.usealleg) alleg_update_positionbar(posbar);
 #   endif
 }
 #  endif
@@ -646,7 +712,13 @@ void
 DrawCursor()
 {
 #  ifdef SCREEN_VGA
-	vga_DrawCursor();
+        if (iflags.usevga) vga_DrawCursor();
+#   ifdef ALLEG_FX
+        else
+#   endif
+#  endif
+#  ifdef ALLEG_FX
+        if (iflags.usealleg) alleg_DrawCursor();
 #  endif
 }
 
@@ -654,7 +726,10 @@ void
 HideCursor()
 {
 #  ifdef SCREEN_VGA
-	vga_HideCursor();
+        if (iflags.usevga) vga_HideCursor();
+#  endif
+#  ifdef ALLEG_FX
+        if (iflags.usealleg) alleg_HideCursor();
 #  endif
 }
 
@@ -883,6 +958,7 @@ convert_uchars(bufp,list,size)
  *    autodetect (attempt to determine the adapter type)
  *    default	 (force use of the default video method for environment)
  *    vga	 (use vga adapter code)
+ *    allegro    (use allegro code)
  */
 # ifdef OVL1
 int
@@ -898,7 +974,9 @@ char *sopt;
  */
 	iflags.grmode  = 0;
 	iflags.hasvga  = 0;
+	iflags.hasalleg = 0;
 	iflags.usevga  = 0;
+	iflags.hasalleg = 0;
 
 	if (strncmpi(sopt,"def",3) == 0) {              /* default */
 		/* do nothing - default */
@@ -906,6 +984,11 @@ char *sopt;
 	} else if (strncmpi(sopt,"vga",3) == 0) {       /* vga */
 		iflags.usevga  = 1;
 		iflags.hasvga  = 1;
+#  endif
+#  ifdef ALLEG_FX
+        } else if (strncmpi(sopt,"alleg",5) == 0) {      /* Allegro */
+                iflags.hasalleg = 1;
+                iflags.usealleg = 1;
 #  endif
 #  ifdef SCREEN_VESA
 	} else if (strncmpi(sopt,"vesa",4) == 0) {      /* vesa */
@@ -933,11 +1016,22 @@ char *sopt;
 			iflags.hasvga  = 1;
 		}
 #  endif
+#  ifdef ALLEG_FX
+		if (alleg_detect()) {
+			iflags.hasalleg  = 1;
+		}
+#  endif
 	/*
 	 * Auto-detect Priorities (arbitrary for now):
-	 *	VGA
+         *      Allegro, VGA
 	 */
-		if (iflags.hasvga)	{
+ if (iflags.hasalleg) {
+			iflags.usealleg  = 1;
+			/* VGA depends on BIOS to enable function keys*/
+			iflags.BIOS = 1;
+			iflags.rawio = 1;
+		}
+                else if (iflags.hasvga) {
 			iflags.usevga  = 1;
 			/* VGA depends on BIOS to enable function keys*/
 			iflags.BIOS = 1;
@@ -954,8 +1048,12 @@ char *sopt;
 void tileview(enable)
 boolean enable;
 {
+        if (iflags.grmode)
 #ifdef SCREEN_VGA
-	if (iflags.grmode) vga_traditional(enable ? FALSE : TRUE);
+                if (iflags.usevga) vga_traditional(enable ? FALSE : TRUE);
+#endif
+#ifdef ALLEG_FX
+                if (iflags.usealleg) alleg_traditional(enable ? FALSE : TRUE);
 #endif
 }
 # endif /* OVL0 */

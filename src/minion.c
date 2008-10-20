@@ -135,7 +135,6 @@ boolean talk;
 	/* don't call set_malign(); player was naughty */
     }
 }
-
 #define Athome	(Inhell && !mtmp->cham)
 
 int
@@ -203,6 +202,79 @@ register struct monst *mtmp;
 	return(1);
 }
 
+int lawful_minion(int difficulty)
+/* this routine returns the # of an appropriate minion,
+   given a difficulty rating from 1 to 30 */
+{
+   difficulty = difficulty + rn2(5) - 2;
+   if (difficulty < 0) difficulty = 0;
+   if (difficulty > 30) difficulty = 30;
+   difficulty /= 3;
+   switch (difficulty) {
+      case 0: return PM_TENGU;
+      case 1: return PM_COUATL;
+      case 2: return PM_WHITE_UNICORN;
+      case 3: return PM_MOVANIC_DEVA;
+      case 4: return PM_MONADIC_DEVA;
+      case 5: return PM_KI_RIN;
+      case 6: return PM_ASTRAL_DEVA;
+      case 7: return PM_ARCHON;
+      case 8: return PM_PLANETAR;
+      case 9: return PM_SOLAR;
+      case 10: return PM_SOLAR;
+
+      default: return PM_TENGU;
+   }
+}
+
+int neutral_minion(int difficulty)
+/* this routine returns the # of an appropriate minion,
+   given a difficulty rating from 1 to 30 */
+{
+   difficulty = difficulty + rn2(9) - 4;
+   if (difficulty < 0) difficulty = 0;
+   if (difficulty > 30) difficulty = 30;
+   if (difficulty < 6) return PM_GRAY_UNICORN;
+   if (difficulty < 15) return (PM_AIR_ELEMENTAL+rn2(4));
+   return (PM_DJINNI /* +rn2(4) */);
+}
+
+int chaotic_minion(int difficulty)
+/* this routine returns the # of an appropriate minion,
+   given a difficulty rating from 1 to 30 */
+{
+   difficulty = difficulty + rn2(5) - 2;
+   if (difficulty < 0) difficulty = 0;
+   if (difficulty > 30) difficulty = 30;
+   /* KMH, balance patch -- avoid using floating-point (not supported by all ports) */
+/*   difficulty = (int)((float)difficulty / 1.5);*/
+   difficulty = (difficulty * 2) / 3;
+   switch (difficulty) {
+      case 0: return PM_GREMLIN;
+      case 1:
+      case 2: return (PM_DRETCH+rn2(5));
+      case 3: return PM_BLACK_UNICORN;
+      case 4: return PM_BLOOD_IMP;
+      case 5: return PM_SPINED_DEVIL;
+      case 6: return PM_SHADOW_WOLF;
+      case 7: return PM_HELL_HOUND;
+      case 8: return PM_HORNED_DEVIL;
+      case 9: return PM_BEARDED_DEVIL;
+      case 10: return PM_BAR_LGURA;
+      case 11: return PM_CHASME;
+      case 12: return PM_BARBED_DEVIL;
+      case 13: return PM_VROCK;
+      case 14: return PM_BABAU;
+      case 15: return PM_NALFESHNEE;
+      case 16: return PM_MARILITH;
+      case 17: return PM_NABASSU;
+      case 18: return PM_BONE_DEVIL;
+      case 19: return PM_ICE_DEVIL;
+      case 20: return PM_PIT_FIEND;
+   }
+   return PM_GREMLIN;
+}
+
 long
 bribe(mtmp)
 struct monst *mtmp;
@@ -236,7 +308,7 @@ struct monst *mtmp;
 	mtmp->mgold += offer;
 #else
 	} else if (offer >= umoney) {
-		You("give %s all your gold.", mon_nam(mtmp));
+		You("give %s all your money.", mon_nam(mtmp));
 		offer = umoney;
 	} else {
 		You("give %s %ld %s.", mon_nam(mtmp), offer, currency(offer));

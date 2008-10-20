@@ -359,11 +359,11 @@ int x, y;
 	if (noncorporeal(etmp->edata))
 		return(TRUE);
 	if (is_pool(x, y))
-		return (boolean)((is_u(etmp) &&
+                return((boolean)((is_u(etmp) && 
 				(Wwalking || Amphibious || Swimming ||
 				Flying || Levitation)) ||
 			is_swimmer(etmp->edata) || is_flyer(etmp->edata) ||
-			is_floater(etmp->edata));
+			is_floater(etmp->edata)));
 	/* must force call to lava_effects in e_died if is_u */
 	if (is_lava(x, y))
 		return (boolean)((is_u(etmp) && (Levitation || Flying)) ||

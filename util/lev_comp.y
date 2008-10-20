@@ -8,6 +8,8 @@
  * It may handle special mazes & special room-levels
  */
 
+#define LEVEL_COMPILER	1	/* Enable definition of internal structures */
+
 /* In case we're using bison in AIX.  This definition must be
  * placed before any other C-language construct in the file
  * excluding comments and preprocessor directives (thanks IBM
@@ -42,6 +44,7 @@ extern void FDECL(yywarning, (const char *));
 extern int NDECL(yylex);
 int NDECL(yyparse);
 
+extern int FDECL(get_artifact_id, (char *));
 extern int FDECL(get_floor_type, (CHAR_P));
 extern int FDECL(get_room_type, (char *));
 extern int FDECL(get_trap_type, (char *));
@@ -56,6 +59,7 @@ extern boolean NDECL(check_subrooms);
 extern void FDECL(check_coord, (int,int,const char *));
 extern void NDECL(store_part);
 extern void NDECL(store_room);
+extern void FDECL(store_place_list, (int,int,int,const struct coord *));
 extern boolean FDECL(write_level_file, (char *,splev *,specialmaze *));
 extern void FDECL(free_rooms, (splev *));
 
@@ -64,10 +68,7 @@ static struct reg {
 	int x2, y2;
 }		current_region;
 
-static struct coord {
-	int x;
-	int y;
-}		current_coord, current_align;
+static struct coord current_coord, current_align;
 
 static struct size {
 	int height;
@@ -84,6 +85,7 @@ lev_region *tmplreg[MAX_OF_TYPE];
 door *tmpdoor[MAX_OF_TYPE];
 drawbridge *tmpdb[MAX_OF_TYPE];
 walk *tmpwalk[MAX_OF_TYPE];
+lev_region *tmprndlreg[MAX_REGISTERS];
 
 room_door *tmprdoor[MAX_OF_TYPE];
 trap *tmptrap[MAX_OF_TYPE];
@@ -111,6 +113,7 @@ static struct coord plist[MAX_REGISTERS];
 
 int n_olist = 0, n_mlist = 0, n_plist = 0;
 
+unsigned int nrndlreg = 0;
 unsigned int nlreg = 0, nreg = 0, ndoor = 0, ntrap = 0, nmons = 0, nobj = 0;
 unsigned int ndb = 0, nwalk = 0, npart = 0, ndig = 0, nlad = 0, nstair = 0;
 unsigned int naltar = 0, ncorridor = 0, nrooms = 0, ngold = 0, nengraving = 0;
@@ -154,6 +157,7 @@ extern const char *fname;
 %token	<i> SUBROOM_ID NAME_ID FLAGS_ID FLAG_TYPE MON_ATTITUDE MON_ALERTNESS
 %token	<i> MON_APPEARANCE
 %token	<i> CONTAINED
+%token	<i> OBJFLAG_TYPE OBJFLAGS_ID RANDOMREGION_ID R_REGISTER
 %token	<i> ',' ':' '(' ')' '[' ']'
 %token	<map> STRING MAP_ID
 %type	<i> h_justif v_justif trap_name room_type door_state light_state
@@ -161,6 +165,7 @@ extern const char *fname;
 %type	<i> door_wall walled secret amount chance
 %type	<i> engraving_type flags flag_list prefilled lev_region lev_init
 %type	<i> monster monster_c m_register object object_c o_register
+%type	<i> obj_flag_list
 %type	<map> string maze_def level_def m_name o_name
 %type	<corpos> corr_spec
 %start	file
@@ -554,6 +559,7 @@ room_detail	: room_name
 		| room_door
 		| monster_detail
 		| object_detail
+		| object_flags
 		| trap_detail
 		| altar_detail
 		| fountain_detail
@@ -591,12 +597,19 @@ room_door	: DOOR_ID ':' secret ',' door_state ',' door_wall ',' door_pos
 			/* ERR means random here */
 			if ($7 == ERR && $9 != ERR) {
 		     yyerror("If the door wall is random, so must be its pos!");
+			    tmprdoor[ndoor] = (struct room_door *)0;
 			} else {
 			    tmprdoor[ndoor] = New(room_door);
 			    tmprdoor[ndoor]->secret = $3;
 			    tmprdoor[ndoor]->mask = $5;
 			    tmprdoor[ndoor]->wall = $7;
 			    tmprdoor[ndoor]->pos = $9;
+			    tmprdoor[ndoor]->arti_key = 0;
+			}
+		  }
+		  room_door_infos
+		  {
+			if (tmprdoor[ndoor]) {
 			    ndoor++;
 			    if (ndoor >= MAX_OF_TYPE) {
 				    yyerror("Too many doors in room!");
@@ -605,6 +618,24 @@ room_door	: DOOR_ID ':' secret ',' door_state ',' door_wall ',' door_pos
 			}
 		  }
 		;
+
+room_door_infos	: /* nothing */
+		| room_door_infos room_door_info
+		;
+
+room_door_info	: ',' string
+		  {
+			int token = get_artifact_id($2);
+			if (token == ERR) {
+			    char ebuf[100];
+			    Sprintf(ebuf, "Undefined artifact key \"%s\"", $2);
+			    yyerror(ebuf);
+			}
+			else if (tmprdoor[ndoor])
+			    tmprdoor[ndoor]->arti_key = token;
+		  }
+		;
+
 
 secret		: BOOLEAN
 		| RANDOM_TYPE
@@ -711,18 +742,19 @@ init_reg	: RANDOM_OBJECTS_ID ':' object_list
 		  }
 		| RANDOM_PLACES_ID ':' place_list
 		  {
-			if (tmppart[npart]->nloc) {
+			if (tmppart[npart]->nlocset)
 			    yyerror("Location registers already initialized!");
-			} else {
-			    register int i;
-			    tmppart[npart]->rloc_x = (char *) alloc(n_plist);
-			    tmppart[npart]->rloc_y = (char *) alloc(n_plist);
-			    for(i=0;i<n_plist;i++) {
-				tmppart[npart]->rloc_x[i] = plist[i].x;
-				tmppart[npart]->rloc_y[i] = plist[i].y;
-			    }
-			    tmppart[npart]->nloc = n_plist;
+			else
+			    store_place_list(npart, 0, n_plist, plist);
+			n_plist = 0;
 			}
+		| RANDOM_PLACES_ID '[' INTEGER ']' ':' place_list
+		  {
+			if ($3 >= MAX_REGISTERS)
+			    yyerror("Register Index overflow!");
+			else
+			    store_place_list(npart, $3, n_plist, plist);
+			n_plist = 0;
 		  }
 		| RANDOM_MONSTERS_ID ':' monster_list
 		  {
@@ -734,6 +766,10 @@ init_reg	: RANDOM_OBJECTS_ID ':' object_list
 					  (genericptr_t)mlist, n_mlist);
 			    tmppart[npart]->nrmonst = n_mlist;
 			}
+		  }
+		| rndlevregion
+		  {
+			/* nothing */
 		  }
 		;
 
@@ -792,6 +828,7 @@ map_details	: /* nothing */
 
 map_detail	: monster_detail
 		| object_detail
+		| object_flags
 		| door_detail
 		| trap_detail
 		| drawbridge_detail
@@ -896,6 +933,7 @@ object_desc	: chance ':' object_c ',' o_name
 			tmpobj[nobj]->name.str = 0;
 			tmpobj[nobj]->chance = $1;
 			tmpobj[nobj]->id = -1;
+			tmpobj[nobj]->oflags = 0;
 			if ($5) {
 			    int token = get_object_id($5, $<i>3);
 			    if (token == ERR)
@@ -928,8 +966,8 @@ object_where	: coordinate
 		  {
 			tmpobj[nobj]->containment = 1;
 			/* random coordinate, will be overridden anyway */
-			tmpobj[nobj]->x = -MAX_REGISTERS-1;
-			tmpobj[nobj]->y = -MAX_REGISTERS-1;
+			tmpobj[nobj]->x = -MAX_REGISTERS-2;
+			tmpobj[nobj]->y = -MAX_REGISTERS-2;
 		  }
 		;
 
@@ -951,6 +989,24 @@ object_infos	: /* nothing */
 		  }
 		| ',' monster_id ',' enchantment optional_name
 		  {
+		  }
+		;
+
+object_flags	: OBJFLAGS_ID ':' obj_flag_list
+		  {
+		   	if (nobj > 0)
+		   	   tmpobj[nobj-1]->oflags = $3;
+			else yyerror("Need an object before object flags!");
+		  }
+		;
+
+obj_flag_list	: obj_flag_list ',' OBJFLAG_TYPE
+		  {
+		     $$ = ($1 | $3);
+		  }
+		| OBJFLAG_TYPE
+		  {
+		     $$ = $1;
 		  }
 		;
 
@@ -1001,15 +1057,35 @@ door_detail	: DOOR_ID ':' door_state ',' coordinate
 			tmpdoor[ndoor]->x = current_coord.x;
 			tmpdoor[ndoor]->y = current_coord.y;
 			tmpdoor[ndoor]->mask = $<i>3;
+			tmpdoor[ndoor]->arti_key = 0;
 			if(current_coord.x >= 0 && current_coord.y >= 0 &&
 			   tmpmap[current_coord.y][current_coord.x] != DOOR &&
 			   tmpmap[current_coord.y][current_coord.x] != SDOOR)
 			    yyerror("Door decl doesn't match the map");
-			ndoor++;
-			if (ndoor >= MAX_OF_TYPE) {
+		  }
+		 door_infos
+		  {
+			if (++ndoor >= MAX_OF_TYPE) {
 				yyerror("Too many doors in mazepart!");
 				ndoor--;
 			}
+		  }
+		;
+
+door_infos	: /* nothing */
+		| door_infos door_info
+		;
+
+door_info	: ',' string
+		  {
+			int token = get_artifact_id($2);
+			if (token == ERR) {
+			    char ebuf[100];
+			    Sprintf(ebuf, "Undefined artifact key \"%s\"", $2);
+			    yyerror(ebuf);
+			}
+			else
+			    tmpdoor[ndoor]->arti_key = token;
 		  }
 		;
 
@@ -1151,6 +1227,34 @@ stair_region	: STAIR_ID ':' lev_region
 			if (nlreg >= MAX_OF_TYPE) {
 				yyerror("Too many levregions in mazepart!");
 				nlreg--;
+			}
+		  }
+		;
+
+rndlevregion	: RANDOMREGION_ID '[' INTEGER ']' ':' lev_region
+		  {
+		   	if ((unsigned) $3 != nrndlreg)
+			    yyerror("Wrong random region number!");
+			tmprndlreg[nrndlreg] = New(lev_region);
+			tmprndlreg[nrndlreg]->in_islev = $6;
+			tmprndlreg[nrndlreg]->inarea.x1 = current_region.x1;
+			tmprndlreg[nrndlreg]->inarea.y1 = current_region.y1;
+			tmprndlreg[nrndlreg]->inarea.x2 = current_region.x2;
+			tmprndlreg[nrndlreg]->inarea.y2 = current_region.y2;
+		  }
+		 ',' lev_region
+		  {
+		   	tmprndlreg[nrndlreg]->del_islev = $9;
+			tmprndlreg[nrndlreg]->delarea.x1 = current_region.x1;
+			tmprndlreg[nrndlreg]->delarea.y1 = current_region.y1;
+			tmprndlreg[nrndlreg]->delarea.x2 = current_region.x2;
+			tmprndlreg[nrndlreg]->delarea.y2 = current_region.y2;
+			tmprndlreg[nrndlreg]->rtype = 0;
+			tmprndlreg[nrndlreg]->rname.str = (char *)0;
+			nrndlreg++;
+			if (nrndlreg >= MAX_REGISTERS) {
+				yyerror("Too many random regions!");
+				nrndlreg--;
 			}
 		  }
 		;
@@ -1535,9 +1639,10 @@ prefilled	: /* empty */
 
 coordinate	: coord
 		| p_register
+		| r_register
 		| RANDOM_TYPE
 		  {
-			current_coord.x = current_coord.y = -MAX_REGISTERS-1;
+			current_coord.x = current_coord.y = -MAX_REGISTERS-2;
 		  }
 		;
 
@@ -1565,8 +1670,30 @@ p_register	: P_REGISTER '[' INTEGER ']'
 		  {
 			if ( $3 >= MAX_REGISTERS )
 				yyerror("Register Index overflow!");
-			else
-				current_coord.x = current_coord.y = - $3 - 1;
+			else {
+				current_coord.x = -1;
+				current_coord.y = - $3 - 1;
+			}
+		  }
+		| P_REGISTER '[' INTEGER ']' '[' INTEGER ']'
+		  {
+			if ( $3 >= MAX_REGISTERS || $6 >= MAX_REGISTERS )
+				yyerror("Register Index overflow!");
+			else {
+				current_coord.x = - $3 - 1;
+				current_coord.y = - $6 - 1;
+			}
+		  }
+		;
+
+r_register	: R_REGISTER '[' INTEGER ']'
+		  {
+			if ( $3 < 0 || $3 >= nrndlreg )
+				yyerror("Register Index overflow!");
+			else {
+				current_coord.x = -MAX_REGISTERS-1;
+				current_coord.y = - $3 - 1;
+			}
 		  }
 		;
 
@@ -1598,6 +1725,11 @@ a_register	: A_REGISTER '[' INTEGER ']'
 		;
 
 place		: coord
+		| NONE
+		  {
+			current_coord.x = (char)-1;
+			current_coord.y = (char)-1;
+		  }
 		;
 
 monster		: CHAR

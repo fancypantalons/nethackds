@@ -17,6 +17,8 @@
 #define MGC_SUMMON_MONS	 9
 #define MGC_CLONE_WIZ	10
 #define MGC_DEATH_TOUCH	11
+#define MGC_CREATE_POOL	12
+#define MGC_CALL_UNDEAD	13
 
 /* monster cleric spells */
 #define CLC_OPEN_WOUNDS	 0
@@ -96,10 +98,12 @@ int spellval;
     case 13:
 	return MGC_AGGRAVATION;
     case 12:
+	return MGC_CREATE_POOL;
     case 11:
     case 10:
 	return MGC_CURSE_ITEMS;
     case 9:
+	return MGC_CALL_UNDEAD;
     case 8:
 	return MGC_DESTRY_ARMR;
     case 7:
@@ -168,6 +172,7 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 	int	dmg, ml = mtmp->m_lev;
 	int ret;
 	int spellnum = 0;
+	int spellev, chance, difficulty, splcaster, learning;
 
 	/* Three cases:
 	 * -- monster is attacking you.  Search for a useful spell.
@@ -186,6 +191,13 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 
 	    do {
 		spellnum = rn2(ml);
+		/* Casting level is limited by available energy */
+		spellev = spellnum / 7 + 1;
+		if (spellev > 10) spellev = 10;
+		if (spellev * 5 > mtmp->m_en) {
+		    spellev = mtmp->m_en / 5;
+		    spellnum = (spellev - 1) * 7 + 1;
+		}
 		if (mattk->adtyp == AD_SPEL)
 		    spellnum = choose_magic_spell(spellnum);
 		else
@@ -203,17 +215,35 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 	    } while(--cnt > 0 &&
 		    spell_would_be_useless(mtmp, mattk->adtyp, spellnum));
 	    if (cnt == 0) return 0;
+	} else {
+	    /* Casting level is limited by available energy */
+	    spellev = ml / 7 + 1;
+	    if (spellev > 10) spellev = 10;
+	    if (spellev * 5 > mtmp->m_en) {
+		spellev = mtmp->m_en / 5;
+		ml = (spellev - 1) * 7 + 1;
+	    }
 	}
 
 	/* monster unable to cast spells? */
-	if(mtmp->mcan || mtmp->mspec_used || !ml) {
+	if (mtmp->mcan || mtmp->m_en < 5 || mtmp->mspec_used || !ml) {
 	    cursetxt(mtmp, is_undirected_spell(mattk->adtyp, spellnum));
 	    return(0);
 	}
 
 	if (mattk->adtyp == AD_SPEL || mattk->adtyp == AD_CLRC) {
+	    /*
+	     * Spell use (especially MGC) is more common in Slash'EM.
+	     * Still using mspec_used, just so monsters don't go bonkers.
+	     */
+#if 0
 	    mtmp->mspec_used = 10 - mtmp->m_lev;
 	    if (mtmp->mspec_used < 2) mtmp->mspec_used = 2;
+#endif
+	    mtmp->mspec_used = rn2(15) - mtmp->m_lev;
+	    if (mattk->adtyp == AD_SPEL)
+		mtmp->mspec_used = mtmp->mspec_used > 0 ? 2 : 0;
+	    else if (mtmp->mspec_used < 2) mtmp->mspec_used = 2;
 	}
 
 	/* monster can cast spells, but is casting a directed spell at the
@@ -229,7 +259,47 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 	}
 
 	nomul(0);
+
+	mtmp->m_en -= spellev * 5; /* Use up the energy now */
+
+	/* We should probably do similar checks to what is done for
+	 * the player - armor, etc.
+	 * Checks for armour and other intrinsic ability change splcaster
+	 * Difficulty and experience affect chance
+	 * Assume that monsters only cast spells that they know well
+	 */
+	splcaster = 15 - (mtmp->m_lev / 2); /* Base for a wizard is 5...*/
+
+	if (splcaster < 5) splcaster = 5;
+	if (splcaster > 20) splcaster = 20;
+
+	chance = 11 * (mtmp->m_lev > 25 ? 18 : (12 + (mtmp->m_lev / 5)));
+	chance++ ;  /* Minimum chance of 1 */
+
+	difficulty = (spellev - 1) * 4 - (mtmp->m_lev - 1);
+	    /* law of diminishing returns sets in quickly for
+	     * low-level spells.  That is, higher levels quickly
+	     * result in almost no gain
+	     */
+	learning = 15 * (-difficulty / spellev);
+	chance += learning > 20 ? 20 : learning;
+
+	/* clamp the chance */
+	if (chance < 0) chance = 0;
+	if (chance > 120) chance = 120;
+
+	/* combine */
+	chance = chance * (20-splcaster) / 15 - splcaster;
+
+	/* Clamp to percentile */
+	if (chance > 100) chance = 100;
+	if (chance < 0) chance = 0;
+
+#if 0
 	if(rn2(ml*10) < (mtmp->mconf ? 100 : 20)) {	/* fumbled attack */
+#else
+	if (mtmp->mconf || rnd(100) > chance) { /* fumbled attack */
+#endif
 	    if (canseemon(mtmp) && flags.soundok)
 		pline_The("air crackles around %s.", mon_nam(mtmp));
 	    return(0);
@@ -274,6 +344,10 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 			pline("But you resist the effects.");
 			dmg = 0;
 		}
+		if (Slimed) {
+			pline("The slime is burned away!");
+			Slimed =0;
+		}
 		burn_away_slime();
 		break;
 	    case AD_COLD:
@@ -290,7 +364,7 @@ castmu(mtmp, mattk, thinks_it_foundyou, foundyou)
 			shieldeff(u.ux, u.uy);
 			pline_The("missiles bounce off!");
 			dmg = 0;
-		} else dmg = d((int)mtmp->m_lev/2 + 1,6);
+		}
 		break;
 	    case AD_SPEL:	/* wizard spell */
 	    case AD_CLRC:       /* clerical spell */
@@ -347,6 +421,18 @@ int spellnum;
 	}
 	dmg = 0;
 	break;
+    case MGC_CREATE_POOL:
+	if (levl[u.ux][u.uy].typ == ROOM || levl[u.ux][u.uy].typ == CORR) {
+	    pline("A pool appears beneath you!");
+	    levl[u.ux][u.uy].typ = POOL;
+	    del_engr_at(u.ux, u.uy);
+	    water_damage(level.objects[u.ux][u.uy], FALSE, TRUE);
+	    spoteffects(FALSE);  /* possibly drown, notice objects */
+	}
+	else
+	    impossible("bad pool creation?");
+	dmg = 0;
+	break;
     case MGC_CLONE_WIZ:
 	if (mtmp->iswiz && flags.no_of_wizards == 1) {
 	    pline("Double Trouble...");
@@ -379,6 +465,16 @@ int spellnum;
 	dmg = 0;
 	break;
     }
+	case MGC_CALL_UNDEAD:
+	{
+		coord mm;   
+		mm.x = u.ux;   
+		mm.y = u.uy;   
+		pline("Undead creatures are called forth from the grave!");   
+		mkundead(&mm, FALSE, NO_MINVENT);   
+	}
+	dmg = 0;   
+	break;   
     case MGC_AGGRAVATION:
 	You_feel("that monsters are aware of your presence.");
 	aggravate();
@@ -513,8 +609,14 @@ int spellnum;
     {
 	boolean reflects;
 
+	/* WAC add lightning strike effect */
+	zap_strike_fx(u.ux, u.uy, AD_ELEC - 1);
 	pline("A bolt of lightning strikes down at you from above!");
 	reflects = ureflects("It bounces off your %s%s.", "");
+	if (!Blind) {
+	    pline("You are blinded by the flash!");
+	    make_blinded(Half_spell_damage ? 10L : 20L, FALSE);
+	}
 	if (reflects || Shock_resistance) {
 	    shieldeff(u.ux, u.uy);
 	    dmg = 0;
@@ -608,6 +710,7 @@ int spellnum;
 	    if (Half_spell_damage) dmg = (dmg + 1) / 2;
 	    nomul(-dmg);
 	}
+	nomovemsg = 0;
 	dmg = 0;
 	break;
     case CLC_CONFUSE_YOU:
@@ -674,6 +777,7 @@ int spellnum;
 	case MGC_DISAPPEAR:
 	case MGC_HASTE_SELF:
 	case MGC_CURE_SELF:
+	case MGC_CALL_UNDEAD:
 	    return TRUE;
 	default:
 	    break;
@@ -709,7 +813,8 @@ int spellnum;
     if (adtyp == AD_SPEL) {
 	/* aggravate monsters, etc. won't be cast by peaceful monsters */
 	if (mtmp->mpeaceful && (spellnum == MGC_AGGRAVATION ||
-		spellnum == MGC_SUMMON_MONS || spellnum == MGC_CLONE_WIZ))
+               spellnum == MGC_SUMMON_MONS || spellnum == MGC_CLONE_WIZ ||
+               spellnum == MGC_CALL_UNDEAD))
 	    return TRUE;
 	/* haste self when already fast */
 	if (mtmp->permspeed == MFAST && spellnum == MGC_HASTE_SELF)
@@ -728,7 +833,17 @@ int spellnum;
 	    return TRUE;
 	/* don't summon monsters if it doesn't think you're around */
 	if (!mcouldseeu && (spellnum == MGC_SUMMON_MONS ||
+		spellnum == MGC_CALL_UNDEAD ||
 		(!mtmp->iswiz && spellnum == MGC_CLONE_WIZ)))
+	    return TRUE;
+	/* only lichs can cast call undead */
+	if (mtmp->data->mlet != S_LICH && spellnum == MGC_CALL_UNDEAD)
+	    return TRUE;
+	/* pools can only be created in certain locations and then only
+	 * rarely unless you're carrying the amulet.
+	 */
+	if ((levl[u.ux][u.uy].typ != ROOM && levl[u.ux][u.uy].typ != CORR
+		|| !u.uhave.amulet && rn2(10)) && spellnum == MGC_CREATE_POOL)
 	    return TRUE;
 	if ((!mtmp->iswiz || flags.no_of_wizards > 1)
 						&& spellnum == MGC_CLONE_WIZ)

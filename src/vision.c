@@ -163,6 +163,7 @@ does_block(x,y,lev)
     struct monst *mon;
 
     /* Features that block . . */
+    /* KMH -- added trees */
     if (IS_ROCK(lev->typ) || lev->typ == TREE || (IS_DOOR(lev->typ) &&
 			    (lev->doormask & (D_CLOSED|D_LOCKED|D_TRAPPED) )))
 	return 1;
@@ -468,6 +469,8 @@ new_angle(lev, sv, row, col)
  *	+ Right before something is printed. [pline()]
  *	+ Right before we do a vision based operation. [do_clear_area()]
  *	+ screen redraw, so we can renew all positions in sight. [docrt()]
+ *WAC   + when firing wand of fire [buzz()] #define LIGHT_SRC_SPELL
+ *WAC   + fire explosions [explode()] #define LIGHT_SRC_SPELL
  *
  * Control flag = 1.  An adjacent vision recalculation.  The hero has moved
  * one square.  Knowing this, it might be possible to optimize the vision
@@ -605,7 +608,7 @@ vision_recalc(control)
 	    }
 	} else
 	    view_from(u.uy, u.ux, next_array, next_rmin, next_rmax,
-		0, (void FDECL((*),(int,int,genericptr_t)))0, (genericptr_t)0);
+                                        0,(void(*)(int, int, genericptr_t))0, (genericptr_t)0);
 
 	/*
 	 * Set the IN_SIGHT bit for xray and night vision.
@@ -1670,6 +1673,10 @@ right_side(row, cb_row, cb_col, fb_row, fb_col, left, right_mark, limits)
     rowp = 0;
 #endif
     nrow    = row + step;
+#ifdef GCC_WARN
+    rowp = row_min = row_max = NULL;
+    lblock_col = 0;
+#endif
     deeper  = good_row(nrow) && (!limits || (*limits >= *(limits+1)));
     if(!vis_func) {
 	rowp    = cs_rows[row];
@@ -1922,7 +1929,8 @@ left_side(row, cb_row, cb_col, fb_row, fb_col, left_mark, right, limits)
     int		  lim_min;
 
 #ifdef GCC_WARN
-    rowp = 0;
+    rowp = row_min = row_max = NULL;
+    lblock_col = 0;
 #endif
     nrow    = row + step;
     deeper  = good_row(nrow) && (!limits || (*limits >= *(limits+1)));

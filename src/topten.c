@@ -50,6 +50,9 @@ struct toptenentry {
 	int maxlvl, hp, maxhp, deaths;
 	int ver_major, ver_minor, patchlevel;
 	long deathdate, birthdate;
+#ifdef RECORD_CONDUCT
+	long conduct;
+#endif
 	int uid;
 	char plrole[ROLESZ+1];
 	char plrace[ROLESZ+1];
@@ -70,6 +73,9 @@ STATIC_DCL void FDECL(free_ttlist, (struct toptenentry *));
 STATIC_DCL int FDECL(classmon, (char *,BOOLEAN_P));
 STATIC_DCL int FDECL(score_wanted,
 		(BOOLEAN_P, int,struct toptenentry *,int,const char **,int));
+#ifdef RECORD_CONDUCT
+STATIC_DCL long FDECL(encodeconduct, (void));
+#endif
 #ifdef NO_SCAN_BRACK
 STATIC_DCL void FDECL(nsb_mung_line,(char*));
 STATIC_DCL void FDECL(nsb_unmung_line,(char*));
@@ -77,9 +83,10 @@ STATIC_DCL void FDECL(nsb_unmung_line,(char*));
 
 /* must fit with end.c; used in rip.c */
 NEARDATA const char * const killed_by_prefix[] = {
-	"killed by ", "choked on ", "poisoned by ", "died of ", "drowned in ",
-	"burned by ", "dissolved in ", "crushed to death by ", "petrified by ",
-	"turned to slime by ", "killed by ", "", "", "", "", ""
+	"killed by ", "betrayed by ", "choked on ", "poisoned by ", "died of ", 
+	"drowned in ", "burned by ", "dissolved in ", "crushed to death by ", 
+	"petrified by ", "turned to slime by ", "killed by ", 
+	"", "", "", "", ""
 };
 
 static winid toptenwin = WIN_ERR;
@@ -130,6 +137,29 @@ d_level *lev;
 	    return depth(lev);
 }
 
+#ifdef RECORD_CONDUCT
+long
+encodeconduct(void)
+{
+       long e = 0L;
+
+       if(u.uconduct.unvegetarian)    e |= 0x1L;
+       if(u.uconduct.unvegan)         e |= 0x2L;
+       if(u.uconduct.food)            e |= 0x4L;
+       if(u.uconduct.gnostic)         e |= 0x8L;
+       if(u.uconduct.weaphit)         e |= 0x10L;
+       if(u.uconduct.killer)          e |= 0x20L;
+       if(u.uconduct.literate)        e |= 0x40L;
+       if(u.uconduct.polypiles)       e |= 0x80L;
+       if(u.uconduct.polyselfs)       e |= 0x100L;
+       if(u.uconduct.wishes)          e |= 0x200L;
+       if(u.uconduct.wisharti)        e |= 0x400L;
+       if(num_genocides())            e |= 0x800L;
+
+       return e;
+}
+#endif
+
 STATIC_OVL void
 readentry(rfile,tt)
 FILE *rfile;
@@ -137,11 +167,11 @@ struct toptenentry *tt;
 {
 #ifdef NO_SCAN_BRACK /* Version_ Pts DgnLevs_ Hp___ Died__Born id */
 	static const char fmt[] = "%d %d %d %ld %d %d %d %d %d %d %ld %ld %d%*c";
-	static const char fmt32[] = "%c%c %s %s%*c";
+	static const char fmt005[] = "%s %c %s %s%*c";
 	static const char fmt33[] = "%s %s %s %s %s %s%*c";
 #else
 	static const char fmt[] = "%d.%d.%d %ld %d %d %d %d %d %d %ld %ld %d ";
-	static const char fmt32[] = "%c%c %[^,],%[^\n]%*c";
+	static const char fmt005[] = "%s %c %[^,],%[^\n]%*c";
 	static const char fmt33[] = "%s %s %s %s %[^,],%[^\n]%*c";
 #endif
 
@@ -150,6 +180,11 @@ struct toptenentry *tt;
 	final_fpos = tt->fpos = ftell(rfile);
 #endif
 #define TTFIELDS 13
+
+#ifdef RECORD_CONDUCT
+	tt->conduct = 4095;
+#endif
+
 	if(fscanf(rfile, fmt,
 			&tt->ver_major, &tt->ver_minor, &tt->patchlevel,
 			&tt->points, &tt->deathdnum, &tt->deathlev,
@@ -160,17 +195,17 @@ struct toptenentry *tt;
 		tt->points = 0;
 	else {
 		/* Check for backwards compatibility */
-		if (tt->ver_major < 3 ||
-				(tt->ver_major == 3 && tt->ver_minor < 3)) {
+		if (!tt->ver_major && !tt->ver_minor && tt->patchlevel < 6) {
 			int i;
 
-		    if (fscanf(rfile, fmt32,
+		    if (fscanf(rfile, fmt005,
 				tt->plrole, tt->plgend,
 				tt->name, tt->death) != 4)
 			tt->points = 0;
 		    tt->plrole[1] = '\0';
 		    if ((i = str2role(tt->plrole)) >= 0)
 			Strcpy(tt->plrole, roles[i].filecode);
+		    tt->plrole[ROLESZ] = 0;
 		    Strcpy(tt->plrace, "?");
 		    Strcpy(tt->plgend, (tt->plgend[0] == 'M') ? "Mal" : "Fem");
 		    Strcpy(tt->plalign, "?");
@@ -184,6 +219,37 @@ struct toptenentry *tt;
 			nsb_unmung_line(tt->death);
 		}
 #endif
+
+#ifdef RECORD_CONDUCT
+		if(tt->points > 0) {
+			/* If the string "Conduct=%d" appears, set tt->conduct and remove that
+			 * portion of the string */
+			char *dp, *dp2;
+			for(dp = tt->death; *dp; dp++) {
+				if(!strncmp(dp, " Conduct=", 9)) {
+					dp2 = dp + 9;
+					sscanf(dp2, "%d", &tt->conduct);
+					/* Find trailing null or space */
+					while(*dp2 && *dp2 != ' ')
+						dp2++;
+
+					/* Cut out the " Conduct=" portion of the death string */
+					while(*dp2) {
+						*dp = *dp2;
+						dp2++;
+						dp++;
+					}
+					
+					*dp = *dp2;
+				}
+			}
+
+			/* Sanity check */
+			if(tt->conduct < 0 || tt->conduct > 4095)
+				tt->conduct = 4095;
+		}
+#endif
+
 	}
 
 	/* check old score entries for Y2K problem and fix whenever found */
@@ -198,6 +264,13 @@ writeentry(rfile,tt)
 FILE *rfile;
 struct toptenentry *tt;
 {
+#ifdef RECORD_CONDUCT
+	char *cp = eos(tt->death);
+
+	/* Add a trailing " Conduct=%d" to tt->death */
+	Sprintf(cp, " Conduct=%d", tt->conduct);
+#endif
+
 #ifdef NO_SCAN_BRACK
 	nsb_mung_line(tt->name);
 	nsb_mung_line(tt->death);
@@ -210,14 +283,13 @@ struct toptenentry *tt;
 		tt->points, tt->deathdnum, tt->deathlev,
 		tt->maxlvl, tt->hp, tt->maxhp, tt->deaths,
 		tt->deathdate, tt->birthdate, tt->uid);
-	if (tt->ver_major < 3 ||
-			(tt->ver_major == 3 && tt->ver_minor < 3))
+	if (!tt->ver_major && !tt->ver_minor && tt->patchlevel < 6)
 #ifdef NO_SCAN_BRACK
-		(void) fprintf(rfile,"%c%c %s %s\n",
+		(void) fprintf(rfile,"%s %c %s %s\n",
 #else
-		(void) fprintf(rfile,"%c%c %s,%s\n",
+		(void) fprintf(rfile,"%s %c %s,%s\n",
 #endif
-			tt->plrole[0], tt->plgend[0],
+			tt->plrole, tt->plgend[0],
 			onlyspace(tt->name) ? "_" : tt->name, tt->death);
 	else
 #ifdef NO_SCAN_BRACK
@@ -231,6 +303,11 @@ struct toptenentry *tt;
 #ifdef NO_SCAN_BRACK
 	nsb_unmung_line(tt->name);
 	nsb_unmung_line(tt->death);
+#endif
+
+#ifdef RECORD_CONDUCT
+	/* Return the tt->death line to the original form */
+	*cp = '\0';
 #endif
 }
 
@@ -341,20 +418,27 @@ int how;
 	}
 	t0->birthdate = yyyymmdd(u.ubirthday);
 	t0->deathdate = yyyymmdd((time_t)0L);
+#ifdef RECORD_CONDUCT
+	t0->conduct = encodeconduct();
+#endif
 	t0->tt_next = 0;
 #ifdef UPDATE_RECORD_IN_PLACE
 	t0->fpos = -1L;
 #endif
 
 #ifdef LOGFILE		/* used for debugging (who dies of what, where) */
+#ifdef FILE_AREAS
+	if (lock_file_area(LOGAREA, LOGFILE, 10)) {
+#else
 	if (lock_file(LOGFILE, SCOREPREFIX, 10)) {
-	    if(!(lfile = fopen_datafile(LOGFILE, "a", SCOREPREFIX))) {
+#endif
+	    if(!(lfile = fopen_datafile_area(LOGAREA, LOGFILE, "a", SCOREPREFIX))) {
 		HUP raw_print("Cannot open log file!");
 	    } else {
 		writeentry(lfile, t0);
 		(void) fclose(lfile);
 	    }
-	    unlock_file(LOGFILE);
+	    unlock_file_area(LOGAREA, LOGFILE);
 	}
 #endif /* LOGFILE */
 
@@ -370,18 +454,22 @@ int how;
 	    goto showwin;
 	}
 
-	if (!lock_file(RECORD, SCOREPREFIX, 60))
+#ifdef FILE_AREAS
+	if (!lock_file_area(NH_RECORD_AREA, NH_RECORD, 60))
+#else
+	if (!lock_file(NH_RECORD, SCOREPREFIX, 60))
+#endif
 		goto destroywin;
 
 #ifdef UPDATE_RECORD_IN_PLACE
-	rfile = fopen_datafile(RECORD, "r+", SCOREPREFIX);
+	rfile = fopen_datafile_area(NH_RECORD_AREA, NH_RECORD, "r+", SCOREPREFIX);
 #else
-	rfile = fopen_datafile(RECORD, "r", SCOREPREFIX);
+	rfile = fopen_datafile_area(NH_RECORD_AREA, NH_RECORD, "r", SCOREPREFIX);
 #endif
 
 	if (!rfile) {
 		HUP raw_print("Cannot open record file!");
-		unlock_file(RECORD);
+		unlock_file_area(NH_RECORD_AREA, NH_RECORD);
 		goto destroywin;
 	}
 
@@ -453,9 +541,9 @@ int how;
 				     t0->fpos : final_fpos), SEEK_SET);
 #else
 		(void) fclose(rfile);
-		if(!(rfile = fopen_datafile(RECORD, "w", SCOREPREFIX))){
+		if(!(rfile = fopen_datafile_area(NH_RECORD_AREA, NH_RECORD, "w", SCOREPREFIX))){
 			HUP raw_print("Cannot write record file");
-			unlock_file(RECORD);
+			unlock_file_area(NH_RECORD_AREA, NH_RECORD);
 			free_ttlist(tt_head);
 			goto destroywin;
 		}
@@ -531,7 +619,7 @@ int how;
 	}
 #endif	/* UPDATE_RECORD_IN_PLACE */
 	(void) fclose(rfile);
-	unlock_file(RECORD);
+	unlock_file_area(NH_RECORD_AREA, NH_RECORD);
 	free_ttlist(tt_head);
 
   showwin:
@@ -596,6 +684,39 @@ boolean so;
 		*bp = (t1->deathdnum == astral_level.dnum) ? '\0' : ' ';
 	    second_line = FALSE;
 	} else if (!strncmp("ascended", t1->death, 8)) {
+
+#ifdef RECORD_CONDUCT
+		/* Add a notation for conducts kept */
+		if(t1->conduct != 4095) {
+			int i, m;
+			char dash = 0, skip;
+			const char *conduct_names[] = {
+				"Food", "Vgn", "Vgt", "Ath", "Weap", "Pac",
+				"Ill", "Poly", "Form", "Wish", "Art", "Geno",
+				NULL };
+		
+			Strcat(eos(linebuf), "(");
+			for(i = 0, m = 1; conduct_names[i]; i += skip + 1, m <<= (skip + 1)) {
+				skip = 0;
+				if(t1->conduct & m)
+					continue;
+		
+				/* Only show one of foodless, vegan, vegetarian */
+				if(i == 0) skip = 2;
+				if(i == 1) skip = 1;
+
+				/* Only show one of wishless, artiwishless */
+				if(i == 9) skip = 1;
+
+				/* Add a hyphen for multiple conducts */
+				if(dash) Strcat(eos(linebuf), "-");
+				Strcat(eos(linebuf), conduct_names[i]);
+				dash = 1;
+			}
+			Strcat(eos(linebuf), ") ");
+		}
+#endif
+
 	    Sprintf(eos(linebuf), "ascended to demigod%s-hood",
 		    (t1->plgend[0] == 'F') ? "dess" : "");
 	    second_line = FALSE;
@@ -618,9 +739,13 @@ boolean so;
 	    } else Strcat(linebuf, "died");
 
 	    if (t1->deathdnum == astral_level.dnum) {
+		int deathlev = t1->deathlev;
 		const char *arg, *fmt = " on the Plane of %s";
 
-		switch (t1->deathlev) {
+		if (!t1->ver_major && !t1->ver_minor && t1->patchlevel < 7)
+			deathlev--;
+
+		switch (deathlev) {
 		case -5:
 			fmt = " on the %s Plane";
 			arg = "Astral";	break;
@@ -723,16 +848,21 @@ int uid;
 #endif
 
 	for (i = 0; i < playerct; i++) {
-	    if (players[i][0] == '-' && index("pr", players[i][1]) &&
+		if (players[i][0] == '-' && index("prga", players[i][1]) &&
                 players[i][2] == 0 && i + 1 < playerct) {
 		char *arg = (char *)players[i + 1];
 		if ((players[i][1] == 'p' &&
 		     str2role(arg) == str2role(t1->plrole)) ||
 		    (players[i][1] == 'r' &&
-		     str2race(arg) == str2race(t1->plrace)))
+		     str2race(arg) == str2race(t1->plrace)) ||
+		    (players[i][1] == 'g' &&
+		     str2gend(arg) == str2gend(t1->plgend)) ||
+		    (players[i][1] == 'a' &&
+		     str2align(arg) == str2align(t1->plalign)))
 		    return 1;
 		i++;
-	    } else if (strcmp(players[i], "all") == 0 ||
+		}
+		else if (strcmp(players[i], "all") == 0 ||
 		    strncmp(t1->name, players[i], NAMSZ) == 0 ||
 		    (players[i][0] == '-' &&
 		     players[i][1] == t1->plrole[0] &&
@@ -771,7 +901,7 @@ char **argv;
 		return;
 	}
 
-	rfile = fopen_datafile(RECORD, "r", SCOREPREFIX);
+	rfile = fopen_datafile_area(NH_RECORD_AREA, NH_RECORD, "r", SCOREPREFIX);
 	if (!rfile) {
 		raw_print("Cannot open record file!");
 		return;
@@ -866,7 +996,7 @@ char **argv;
 		    Strcat(pbuf, players[i]);
 		    if (i < playerct-1) {
 			if (players[i][0] == '-' &&
-			    index("pr", players[i][1]) && players[i][2] == 0)
+			    index("prga", players[i][1]) && players[i][2] == 0)
 			    Strcat(pbuf, " ");
 			else Strcat(pbuf, ":");
 		    }
@@ -876,7 +1006,7 @@ char **argv;
 	    raw_printf("Usage: %s -s [-v] <playertypes> [maxrank] [playernames]",
 
 			 hname);
-	    raw_printf("Player types are: [-p role] [-r race]");
+	    raw_printf("Player types are: [-p role] [-r race] [-g gender] [-a align]");
 	}
 	free_ttlist(tt_head);
 #ifdef	AMIGA
@@ -929,7 +1059,7 @@ struct obj *otmp;
 
 	if (!otmp) return((struct obj *) 0);
 
-	rfile = fopen_datafile(RECORD, "r", SCOREPREFIX);
+	rfile = fopen_datafile_area(NH_RECORD_AREA, NH_RECORD, "r", SCOREPREFIX);
 	if (!rfile) {
 		impossible("Cannot open record file!");
 		return (struct obj *)0;
@@ -982,4 +1112,20 @@ nsb_unmung_line(p)
 }
 #endif /* NO_SCAN_BRACK */
 
+#if defined(GTK_GRAPHICS) || defined(PROXY_GRAPHICS)
+winid
+create_toptenwin()
+{
+    toptenwin = create_nhwindow(NHW_TEXT);
+
+    return toptenwin;
+}
+
+void
+destroy_toptenwin()
+{
+    destroy_nhwindow(toptenwin);
+    toptenwin = WIN_ERR;
+}
+#endif
 /*topten.c*/

@@ -256,6 +256,10 @@ int force;
 			if (cansee(x,y))
 				pline_The("kitchen sink falls into a chasm.");
 			goto do_pit;
+		  case TOILET :
+			if (cansee(x,y))
+				pline("The toilet falls into a chasm.");
+			goto do_pit;
 #endif
 		  case ALTAR :
 			if (Is_astralevel(&u.uz) || Is_sanctum(&u.uz)) break;
@@ -317,6 +321,7 @@ do_pit:		    chasm = maketrap(x,y,PIT);
 				}
 			}
 		    } else if (x == u.ux && y == u.uy) {
+				/* KMH, balance patch -- new intrinsic */
 			    if (Levitation || Flying ||
 						is_clinger(youmonst.data)) {
 				    pline("A chasm opens up under you!");
@@ -332,6 +337,8 @@ do_pit:		    chasm = maketrap(x,y,PIT);
 		    } else newsym(x,y);
 		    break;
 		  case DOOR : /* Make the door collapse */
+		    /* ALI - artifact doors */
+		    if (artifact_door(x, y))  break;
 		    if (levl[x][y].doormask == D_NODOOR) goto do_pit;
 		    if (cansee(x,y))
 			pline_The("door collapses.");
@@ -392,6 +399,8 @@ struct obj *instr;
 		break;
 	    } /* else FALLTHRU */
 	case WOODEN_FLUTE:		/* May charm snakes */
+	/* KMH, balance patch -- removed
+	case PAN_PIPE: */
 	    do_spec &= (rn2(ACURR(A_DEX)) + u.ulevel > 25);
 	    pline("%s.", Tobjnam(instr, do_spec ? "trill" : "toot"));
 	    if (do_spec) charm_snakes(u.ulevel * 3);
@@ -456,6 +465,31 @@ struct obj *instr;
 		makeknown(DRUM_OF_EARTHQUAKE);
 		break;
 	    } /* else FALLTHRU */
+	/* KMH, balance patch -- removed (in the wrong place anyways) */
+#if 0
+	case PAN_PIPE_OF_SUMMONING: /* yikes! */
+	    if (instr->spe > 0) {
+		register int cnt = 1;
+		instr->spe--;
+		cnt += rn2(4) + 3;
+		while(cnt--)
+		(void) makemon((struct permonst *) 0, u.ux, u.uy, NO_MM_FLAGS);
+	    }
+		break;
+	case PAN_PIPE_OF_THE_SEWERS:
+	    You("call out the rats!");
+	    if (instr->spe > 0) {
+		register int cnt = 1;
+		register struct monst *mtmp;
+		instr->spe--;
+		cnt += rn2(4) + 3;
+		while(cnt--) {
+		mtmp = makemon(&mons[PM_SEWER_RAT], u.ux, u.uy, NO_MM_FLAGS);
+		(void) tamedog(mtmp, (struct obj *) 0);
+		}
+	     }
+		break;
+#endif
 	case LEATHER_DRUM:		/* Awaken monsters */
 	    You("beat a deafening row!");
 	    awaken_monsters(u.ulevel * 40);
@@ -587,14 +621,14 @@ struct obj *instr;
 					break;
 				    }
 			}
-		    if(tumblers)
+			 if(tumblers) {
 			if(gears)
 			    You_hear("%d tumbler%s click and %d gear%s turn.",
 				tumblers, plur(tumblers), gears, plur(gears));
 			else
 			    You_hear("%d tumbler%s click.",
 				tumblers, plur(tumblers));
-		    else if(gears) {
+			 } else if(gears) {
 			You_hear("%d gear%s turn.", gears, plur(gears));
 			/* could only get `gears == 5' by playing five
 			   correct notes followed by excess; otherwise,

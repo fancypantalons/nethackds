@@ -237,6 +237,7 @@ char *objnambuf;
 	struct obj *otmp;
 	int tmp, could_petrify, named = 0, armordelay;
 	boolean monkey_business; /* true iff an animal is doing the thievery */
+	int do_charm = is_neuter(mtmp->data) || flags.female == mtmp->female;
 
 	if (objnambuf) *objnambuf = '\0';
 	/* the following is true if successful on first of two attacks. */
@@ -255,7 +256,7 @@ nothing_to_steal:
 	    else
 	      pline("%s tries to rob you, but there is nothing to steal!",
 		Monnam(mtmp));
-	    return(1);	/* let her flee */
+	    return(1);  /* let thief flee */
 	}
 
 	monkey_business = is_animal(mtmp->data);
@@ -305,6 +306,10 @@ nothing_to_steal:
 gotobj:
 	if(otmp->o_id == stealoid) return(0);
 
+#ifdef STEED
+	if (otmp == usaddle) dismount_steed(DISMOUNT_FELL);
+#endif
+
 	/* animals can't overcome curse stickiness nor unlock chains */
 	if (monkey_business) {
 	    boolean ostuck;
@@ -350,7 +355,7 @@ gotobj:
 		case ARMOR_CLASS:
 		    armordelay = objects[otmp->otyp].oc_delay;
 		    /* Stop putting on armor which has been stolen. */
-		    if (donning(otmp)) {
+		    if (donning(otmp) || is_animal(mtmp->data)) {
 			remove_worn_item(otmp, TRUE);
 			break;
 		    } else if (monkey_business) {
@@ -363,26 +368,39 @@ gotobj:
 			int curssv = otmp->cursed;
 			int slowly;
 			boolean seen = canspotmon(mtmp);
+			char pronoun[4];
 
+			if (!seen) {
+			    strcpy(pronoun, mhe(mtmp));
+			    pronoun[0] = highc(pronoun[0]);
+			}
 			otmp->cursed = 0;
 			/* can't charm you without first waking you */
 			if (multi < 0 && is_fainted()) unmul((char *)0);
 			slowly = (armordelay >= 1 || multi < 0);
-			if(flags.female)
+			if (do_charm) {
+			    char action[15];
+			    if (curssv)
+				sprintf(action, "let %s take",
+					mhis(mtmp));
+			    else
+				strcpy(action, slowly ?
+					"start removing" : "hand over");
 			    pline("%s charms you.  You gladly %s your %s.",
-				  !seen ? "She" : Monnam(mtmp),
-				  curssv ? "let her take" :
-				  slowly ? "start removing" : "hand over",
+				  !seen ? pronoun : Monnam(mtmp), action,
 				  equipname(otmp));
+			}
 			else
 			    pline("%s seduces you and %s off your %s.",
-				  !seen ? "She" : Adjmonnam(mtmp, "beautiful"),
+				  !seen ? pronoun : Adjmonnam(mtmp,
+				  mtmp->female ? "beautiful" : "handsome"),
 				  curssv ? "helps you to take" :
 				  slowly ? "you start taking" : "you take",
 				  equipname(otmp));
 			named++;
 			/* the following is to set multi for later on */
 			nomul(-armordelay);
+			nomovemsg = 0;
 			remove_worn_item(otmp, TRUE);
 			otmp->cursed = curssv;
 			if(multi < 0){
@@ -414,7 +432,7 @@ gotobj:
 	mtmp->mavenge = 1;
 
 	freeinv(otmp);
-	pline("%s stole %s.", named ? "She" : Monnam(mtmp), doname(otmp));
+	pline("%s stole %s.", named ? "It" : Monnam(mtmp), doname(otmp));
 	could_petrify = (otmp->otyp == CORPSE &&
 			 touch_petrifies(&mons[otmp->corpsenm]));
 	(void) mpickobj(mtmp,otmp);	/* may free otmp */
@@ -456,7 +474,7 @@ register struct obj *otmp;
 	snuff_otmp = TRUE;
     }
     /* Must do carrying effects on object prior to add_to_minv() */
-    carry_obj_effects(otmp);
+    carry_obj_effects(mtmp, otmp);
     /* add_to_minv() might free otmp [if merged with something else],
        so we have to call it after doing the object checks */
     freed_otmp = add_to_minv(mtmp, otmp);

@@ -14,7 +14,7 @@
 
 
 static Boolean winFileInit = 0;
-static unsigned char winFileName [32] = "\pNetHack Preferences";
+static unsigned char winFileName [32] = "\pSlash'EM Preferences";
 static long winFileDir;
 static short winFileVol;
 

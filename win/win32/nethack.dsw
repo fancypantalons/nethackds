@@ -117,6 +117,18 @@ Package=<4>
 
 ###############################################################################
 
+Project: "magtile"=.\build\magtile.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Project: "makedefs"=.\build\makedefs.dsp - Package Owner=<4>
 
 Package=<5>
@@ -182,6 +194,39 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name tile2bmp
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name magtile
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name txtbg
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name txtmerge
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "txtbg"=.\build\txtbg.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "txtmerge"=.\build\txtmerge.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################

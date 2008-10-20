@@ -11,8 +11,6 @@
 #include <unistd.h>
 #endif
 
-static char pixels[TILE_Y][TILE_X];
-
 static char *tilefiles[] = {	"../win/share/monsters.txt",
 				"../win/share/objects.txt",
 				"../win/share/other.txt"};
@@ -20,102 +18,53 @@ static char *tilefiles[] = {	"../win/share/monsters.txt",
 static char *thinfiles[] = {	"../win/share/monthin.txt",
 				"../win/share/objthin.txt",
 				"../win/share/oththin.txt"};
-static FILE *infile, *outfile;
 static int tilecount;
 static int tilecount_per_file;
 static int filenum;
-static char comment[BUFSZ];
 
-static void
-copy_colormap()
-{
-	int r, g, b;
-	char c[2];
-
-	while (fscanf(infile, "%[A-Za-z0-9] = (%d, %d, %d) ", c, &r, &g, &b)
-								== 4) {
-		Fprintf(outfile, "%c = (%d, %d, %d)\n", c[0], r, g, b);
-	}
-}
-
-static boolean
-read_txttile()
+static int
+write_thintile(pixels, ttype, number, name)
+pixel (*pixels)[MAX_TILE_X];
+const char *ttype;
+int number;
+const char *name;
 {
 	int i, j;
-	char buf[BUFSZ];
-	char buf2[BUFSZ];
+	int retval;
+	pixel thinpixels[MAX_TILE_Y][MAX_TILE_X];
 
-	char c[2];
-
-
-	if (fscanf(infile, "# %s %d (%[^)])", buf2, &i, buf) <= 0)
-		return FALSE;
-	
-	Sprintf(comment,"# tile %d (%s)", i, buf);
-	
-	/* look for non-whitespace at each stage */
-	if (fscanf(infile, "%1s", c) < 0) {
-		Fprintf(stderr, "unexpected EOF\n");
-		return FALSE;
-	}
-	if (c[0] != '{') {
-		Fprintf(stderr, "didn't find expected '{'\n");
-		return FALSE;
-	}
-	for (j = 0; j < TILE_Y; j++) {
-		for (i = 0; i < TILE_X; i++) {
-			if (fscanf(infile, "%1s", c) < 0) {
-				Fprintf(stderr, "unexpected EOF\n");
-				return FALSE;
-			}
-			pixels[j][i] = c[0];
+	for (j = 0; j < tile_y; j++)
+		for (i = 0; i < tile_x; i+=2) {
+			thinpixels[j][i/2] = pixels[j][i];
 		}
-	}
-	if (fscanf(infile, "%1s ", c) < 0) {
-		Fprintf(stderr, "unexpected EOF\n");
-		return FALSE;
-	}
-	if (c[0] != '}') {
-		Fprintf(stderr, "didn't find expected '}'\n");
-		return FALSE;
-	}
-	return TRUE;
+
+	tile_x /= 2;
+	retval = write_text_tile_info(thinpixels, ttype, number, name);
+	tile_x *= 2;
+	return retval;
 }
 
-static void
-write_thintile()
-{
-	int i, j;
-
-
-	Fprintf(outfile, "%s\n", comment);
-	Fprintf(outfile, "{\n");
-	for (j = 0; j < TILE_Y; j++) {
-		Fprintf(outfile, "  ");
-		for (i = 0; i < TILE_X; i += 2) {
-			(void) fputc(pixels[j][i], outfile);
-		}
-		Fprintf(outfile, "\n");
-	}
-	Fprintf(outfile, "}\n");
-}
 int
 main(argc, argv)
 int argc;
 char *argv[];
 {
+	int tile_no;
+	char buf[BUFSZ], ttype[BUFSZ];
+	pixel pixels[MAX_TILE_Y][MAX_TILE_X];
+
 	while (filenum < 3) {
 		tilecount_per_file = 0;
-		infile = fopen(tilefiles[filenum], RDTMODE);
-		outfile = fopen(thinfiles[filenum], WRTMODE);
-		copy_colormap();
-		while (read_txttile()) {
-				write_thintile();
+		if (!fopen_text_file(tilefiles[filenum], RDTMODE))
+			exit(EXIT_FAILURE);
+		if (!fopen_text_file(thinfiles[filenum], WRTMODE))
+			exit(EXIT_FAILURE);
+		while (read_text_tile_info(pixels, ttype, &tile_no, buf)) {
+			write_thintile(pixels, ttype, tile_no, buf);
 				tilecount_per_file++;
 				tilecount++;
 		}
-		fclose(outfile);
-		fclose(infile);
+		fclose_text_file();
 		printf("%d tiles processed from %s\n",
 			tilecount_per_file, tilefiles[filenum]);
 		++filenum;

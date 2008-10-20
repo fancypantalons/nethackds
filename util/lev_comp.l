@@ -74,10 +74,38 @@ int line_number = 1, colon_line_number = 1;
 static char map[4096];
 static int map_cnt = 0;
 
+/*
+ *	This is a hack required by Michael Hamel to get things
+ *	working on the Mac.
+ */
+#if defined(MAC_MPW) && !defined(FLEX_SCANNER) && !defined(FLEXHACK_SCANNER)
+#undef input
+#undef unput
+#define unput(c) { yytchar = (c); if (yytchar == 10) yylineno--; *yysptr++ = yytchar; }
+# ifndef YYNEWLINE
+# define YYNEWLINE 10
+# endif
+
+char
+input()		/* Under MPW \n is chr(13)! Compensate for this. */
+{
+	if (yysptr > yysbuf) return(*--yysptr);
+	else {
+		yytchar = getc(yyin);
+		if (yytchar == '\n') {
+		    yylineno++;
+		    return(YYNEWLINE);
+		}
+		if (yytchar == EOF) return(0);
+		else		    return(yytchar);
+	}
+}
+#endif	/* MAC_MPW && !FLEX_SCANNER && !FLEXHACK_SCANNER */
+
 %}
 %e 1500
 %p 5000
-%n 700
+%n 1000
 %s MAPC
 %%
 <MAPC>ENDMAP	{
@@ -88,7 +116,7 @@ static int map_cnt = 0;
 		  map_cnt = 0;
 		  return MAP_ID;
 		}
-<MAPC>[-|}{+ABCISHKPLWTF\\#. 0123456789]*\r?\n	{
+<MAPC>[-|}{+ABCISHKPLWTFZ\\#. 0123456789]*\r?\n	{
 		  int len = yyleng;
 		  /* convert \r\n to \n */
 		  if (len >= 2 && yytext[len - 2] == '\r') len -= 1;
@@ -109,6 +137,7 @@ FLAGS		return FLAGS_ID;
 GEOMETRY	return GEOMETRY_ID;
 ^MAP\r?\n		{ BEGIN(MAPC); line_number++; }
 OBJECT		return OBJECT_ID;
+OBJFLAGS	return OBJFLAGS_ID;
 CONTAINER	return COBJECT_ID;
 MONSTER		return MONSTER_ID;
 TRAP		return TRAP_ID;
@@ -125,6 +154,7 @@ LADDER		return LADDER_ID;
 STAIR		return STAIR_ID;
 PORTAL		return PORTAL_ID;
 TELEPORT_REGION	return TELEPRT_ID;
+RANDOM_REGION	return RANDOMREGION_ID;
 BRANCH		return BRANCH_ID;
 FOUNTAIN	return FOUNTAIN_ID;
 SINK		return SINK_ID;
@@ -155,6 +185,7 @@ object		return O_REGISTER;
 monster		return M_REGISTER;
 place		return P_REGISTER;
 align		return A_REGISTER;
+region		return R_REGISTER;
 left		{ yylval.i=1; return LEFT_OR_RIGHT; }
 half-left	{ yylval.i=2; return LEFT_OR_RIGHT; }
 center		{ yylval.i=3; return CENTER; }
@@ -190,15 +221,20 @@ dust		{ yylval.i=DUST; return ENGRAVING_TYPE; }
 engrave		{ yylval.i=ENGRAVE; return ENGRAVING_TYPE; }
 burn		{ yylval.i=BURN; return ENGRAVING_TYPE; }
 mark		{ yylval.i=MARK; return ENGRAVING_TYPE; }
+scrawl		{ yylval.i=ENGR_BLOOD; return ENGRAVING_TYPE; }
 blessed		{ yylval.i=1; return CURSE_TYPE; }
 uncursed	{ yylval.i=2; return CURSE_TYPE; }
 cursed		{ yylval.i=3; return CURSE_TYPE; }
 contained	{ return CONTAINED; }
+o_lit		{ yylval.i=OBJF_LIT; return OBJFLAG_TYPE; }
+o_buried	{ yylval.i=OBJF_BURIED; return OBJFLAG_TYPE; }
 noteleport	{ yylval.i=NOTELEPORT; return FLAG_TYPE; }
 hardfloor	{ yylval.i=HARDFLOOR; return FLAG_TYPE; }
 nommap		{ yylval.i=NOMMAP; return FLAG_TYPE; }
 arboreal	{ yylval.i=ARBOREAL; return FLAG_TYPE; }	/* KMH */
 shortsighted	{ yylval.i=SHORTSIGHTED; return FLAG_TYPE; }
+spooky		{ yylval.i=SPOOKY; return FLAG_TYPE; }
+lethe		{ yylval.i=LETHE; return FLAG_TYPE; }
 \[\ *[0-9]+\%\ *\] { yylval.i = atoi(yytext + 1); return PERCENT; }
 [+\-]?[0-9]+	{ yylval.i=atoi(yytext); return INTEGER; }
 \"[^"]*\"	{ yytext[yyleng-1] = 0; /* Discard the trailing \" */

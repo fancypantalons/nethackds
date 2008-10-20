@@ -5,14 +5,22 @@
 /* various code that was replicated in *main.c */
 
 #include "hack.h"
-
 #ifndef NO_SIGNAL
 #include <signal.h>
+#endif
+#ifdef SHORT_FILENAMES
+#include "patchlev.h"
+#else
+#include "patchlevel.h"
 #endif
 
 #ifdef POSITIONBAR
 STATIC_DCL void NDECL(do_positionbar);
 #endif
+
+#define decrnknow(spell)	spl_book[spell].sp_know--
+#define spellid(spell)		spl_book[spell].sp_id
+#define spellknow(spell)	spl_book[spell].sp_know
 
 #ifdef OVL0
 
@@ -38,6 +46,10 @@ moveloop()
 	pline("Watch out!  Bad things can happen on Friday the 13th.");
 	change_luck(-1);
     }
+    /* KMH -- February 2 */
+    flags.groundhogday = groundhog_day();
+    if (flags.groundhogday)
+	pline("Happy Groundhog Day!");
 
     initrack();
 
@@ -55,6 +67,10 @@ moveloop()
 #endif
 
     (void) encumber_msg(); /* in case they auto-picked up something */
+    if (defer_see_monsters) {
+	defer_see_monsters = FALSE;
+	see_monsters();
+    }
 
     u.uz0.dlevel = u.uz.dlevel;
     youmonst.movement = NORMAL_SPEED;	/* give the hero some movement points */
@@ -113,6 +129,19 @@ moveloop()
 			    /* average movement is 1.33 times normal */
 			    if (rn2(3) != 0) moveamt += NORMAL_SPEED / 2;
 			}
+			if (tech_inuse(T_BLINK)) { /* TECH: Blinking! */
+			    /* Case    Average  Variance
+			     * -------------------------
+			     * Normal    12         0
+			     * Fast      16        12
+			     * V fast    20        12
+			     * Blinking  24        12
+			     * F & B     28        18
+			     * V F & B   30        18
+			     */
+			    moveamt += NORMAL_SPEED * 2 / 3;
+			    if (rn2(3) == 0) moveamt += NORMAL_SPEED / 2;
+			}
 		    }
 
 		    switch (wtcap) {
@@ -140,7 +169,12 @@ moveloop()
 		    nh_timeout();
 		    run_regions();
 
+#ifdef DUNGEON_GROWTH
+		    dgn_growths(TRUE, TRUE);
+#endif
+
 		    if (u.ublesscnt)  u.ublesscnt--;
+		    
 		    if(flags.time && !flags.run)
 			flags.botl = 1;
 
@@ -170,25 +204,42 @@ moveloop()
 			}
 		    } else if (u.uhp < u.uhpmax &&
 			 (wtcap < MOD_ENCUMBER || !u.umoved || Regeneration)) {
-			if (u.ulevel > 9 && !(moves % 3)) {
-			    int heal, Con = (int) ACURR(A_CON);
+/*
+ * KMH, balance patch -- New regeneration code
+ * Healthstones have been added, which alter your effective
+ * experience level and constitution (-2 cursed, +1 uncursed,
+ * +2 blessed) for the basis of regeneration calculations.
+ */
 
-			    if (Con <= 12) {
+ 			int efflev = u.ulevel + u.uhealbonus;
+ 			int effcon = ACURR(A_CON) + u.uhealbonus;
+			int heal = 1;
+
+
+			if (efflev > 9 && !(moves % 3)) {
+			    if (effcon <= 12) {
 				heal = 1;
 			    } else {
-				heal = rnd(Con);
-				if (heal > u.ulevel-9) heal = u.ulevel-9;
+				heal = rnd(effcon);
+  				if (heal > efflev-9) heal = efflev-9;
 			    }
 			    flags.botl = 1;
 			    u.uhp += heal;
 			    if(u.uhp > u.uhpmax)
 				u.uhp = u.uhpmax;
 			} else if (Regeneration ||
-			     (u.ulevel <= 9 &&
+			     (efflev <= 9 &&
 			      !(moves % ((MAXULEV+12) / (u.ulevel+2) + 1)))) {
 			    flags.botl = 1;
 			    u.uhp++;
 			}
+		    }
+
+		    if (!u.uinvulnerable && u.uen > 0 && u.uhp < u.uhpmax &&
+			    tech_inuse(T_CHI_HEALING)) {
+			u.uen--;
+			u.uhp++;
+			flags.botl = 1;
 		    }
 
 		    /* moving around while encumbered is hard work */
@@ -206,12 +257,17 @@ moveloop()
 			}
 		    }
 
-		    if ((u.uen < u.uenmax) &&
-			((wtcap < MOD_ENCUMBER &&
-			  (!(moves%((MAXULEV + 8 - u.ulevel) *
-				    (Role_if(PM_WIZARD) ? 3 : 4) / 6))))
-			 || Energy_regeneration)) {
+		    
+		    /* KMH -- OK to regenerate if you don't move */
+		    if ((u.uen < u.uenmax) && (Energy_regeneration ||
+				((wtcap < MOD_ENCUMBER || !flags.mv) &&
+				(!(moves%((MAXULEV + 15 - u.ulevel) *                                    
+				(Role_if(PM_WIZARD) ? 3 : 4) / 6)))))) {
 			u.uen += rn1((int)(ACURR(A_WIS) + ACURR(A_INT)) / 15 + 1,1);
+#ifdef WIZ_PATCH_DEBUG
+                pline("mana was = %d now = %d",temp,u.uen);
+#endif
+
 			if (u.uen > u.uenmax)  u.uen = u.uenmax;
 			flags.botl = 1;
 		    }
@@ -251,7 +307,7 @@ moveloop()
 				change = 0;
 			    }
 			}
-		    }
+		}	/* !u.uinvulnerable */
 
 		    if(Searching && multi >= 0) (void) dosearch0(1);
 		    dosounds();
@@ -261,8 +317,7 @@ moveloop()
 		    exerchk();
 		    invault();
 		    if (u.uhave.amulet) amulet();
-		    if (!rn2(40+(int)(ACURR(A_DEX)*3)))
-			u_wipe_engr(rnd(3));
+		if (!rn2(40+(int)(ACURR(A_DEX)*3))) u_wipe_engr(rnd(3));
 		    if (u.uevent.udemigod && !u.uinvulnerable) {
 			if (u.udg_cnt) u.udg_cnt--;
 			if (!u.udg_cnt) {
@@ -271,6 +326,7 @@ moveloop()
 			}
 		    }
 		    restore_attrib();
+
 		    /* underwater and waterlevel vision are done here */
 		    if (Is_waterlevel(&u.uz))
 			movebubbles();
@@ -376,6 +432,9 @@ moveloop()
 #ifdef WIZARD
 	if (iflags.sanity_check)
 	    sanity_check();
+#elif defined(OBJ_SANITY)
+	if (iflags.sanity_check)
+	    obj_sanity_check();
 #endif
 
 #ifdef CLIPPING
@@ -422,6 +481,7 @@ moveloop()
 	}
     }
 }
+
 
 #endif /* OVL0 */
 #ifdef OVL1
@@ -502,13 +562,15 @@ newgame()
 	init_artifacts();	/* before u_init() in case $WIZKIT specifies
 				 * any artifacts */
 	u_init();
+	init_artifacts1();	/* must be after u_init() */
 
 #ifndef NO_SIGNAL
 	(void) signal(SIGINT, (SIG_RET_TYPE) done1);
 #endif
 #ifdef NEWS
-	if(iflags.news) display_file(NEWS, FALSE);
+	if(iflags.news) display_file_area(NEWS_AREA, NEWS, FALSE);
 #endif
+
 	load_qtlist();	/* load up the quest text info */
 /*	quest_init();*/	/* Now part of role_init() */
 
@@ -523,15 +585,16 @@ newgame()
 	 * makedog() will fail when it calls makemon().
 	 *			- ucsfcgl!kneller
 	 */
+
 	if(MON_AT(u.ux, u.uy)) mnexto(m_at(u.ux, u.uy));
 	(void) makedog();
+
 	docrt();
 
 	if (flags.legacy) {
 		flush_screen(1);
 		com_pager(1);
 	}
-
 #ifdef INSURANCE
 	save_currentstate();
 #endif
@@ -566,10 +629,19 @@ boolean new_game;	/* false => restoring an old game */
 	     currentgend != flags.initgend))
 	Sprintf(eos(buf), " %s", genders[currentgend].adj);
 
+#if 0
     pline(new_game ? "%s %s, welcome to NetHack!  You are a%s %s %s."
 		   : "%s %s, the%s %s %s, welcome back to NetHack!",
 	  Hello((struct monst *) 0), plname, buf, urace.adj,
 	  (currentgend && urole.name.f) ? urole.name.f : urole.name.m);
+#endif
+    if (new_game) pline("%s %s, welcome to %s!  You are a%s %s %s.",
+	  Hello((struct monst *) 0), plname, DEF_GAME_NAME, buf, urace.adj,
+	  (currentgend && urole.name.f) ? urole.name.f : urole.name.m);
+    else pline("%s %s, the%s %s %s, welcome back to %s!",
+	  Hello((struct monst *) 0), plname, buf, urace.adj,
+	  (currentgend && urole.name.f) ? urole.name.f : urole.name.m, 
+	  DEF_GAME_NAME);
 }
 
 #ifdef POSITIONBAR
@@ -582,36 +654,56 @@ do_positionbar()
 	p = pbar;
 	/* up stairway */
 	if (upstair.sx &&
+#ifdef DISPLAY_LAYERS
+	   (level.locations[upstair.sx][upstair.sy].mem_bg == S_upstair ||
+	    level.locations[upstair.sx][upstair.sy].mem_bg == S_upladder)) {
+#else
 	   (glyph_to_cmap(level.locations[upstair.sx][upstair.sy].glyph) ==
 	    S_upstair ||
  	    glyph_to_cmap(level.locations[upstair.sx][upstair.sy].glyph) ==
 	    S_upladder)) {
+#endif
 		*p++ = '<';
 		*p++ = upstair.sx;
 	}
 	if (sstairs.sx &&
+#ifdef DISPLAY_LAYERS
+	   (level.locations[sstairs.sx][sstairs.sy].mem_bg == S_upstair ||
+	    level.locations[sstairs.sx][sstairs.sy].mem_bg == S_upladder)) {
+#else
 	   (glyph_to_cmap(level.locations[sstairs.sx][sstairs.sy].glyph) ==
 	    S_upstair ||
  	    glyph_to_cmap(level.locations[sstairs.sx][sstairs.sy].glyph) ==
 	    S_upladder)) {
+#endif
 		*p++ = '<';
 		*p++ = sstairs.sx;
 	}
 
 	/* down stairway */
 	if (dnstair.sx &&
+#ifdef DISPLAY_LAYERS
+	   (level.locations[dnstair.sx][dnstair.sy].mem_bg == S_dnstair ||
+	    level.locations[dnstair.sx][dnstair.sy].mem_bg == S_dnladder)) {
+#else
 	   (glyph_to_cmap(level.locations[dnstair.sx][dnstair.sy].glyph) ==
 	    S_dnstair ||
  	    glyph_to_cmap(level.locations[dnstair.sx][dnstair.sy].glyph) ==
 	    S_dnladder)) {
+#endif
 		*p++ = '>';
 		*p++ = dnstair.sx;
 	}
 	if (sstairs.sx &&
+#ifdef DISPLAY_LAYERS
+	   (level.locations[sstairs.sx][sstairs.sy].mem_bg == S_dnstair ||
+	    level.locations[sstairs.sx][sstairs.sy].mem_bg == S_dnladder)) {
+#else
 	   (glyph_to_cmap(level.locations[sstairs.sx][sstairs.sy].glyph) ==
 	    S_dnstair ||
  	    glyph_to_cmap(level.locations[sstairs.sx][sstairs.sy].glyph) ==
 	    S_dnladder)) {
+#endif
 		*p++ = '>';
 		*p++ = sstairs.sx;
 	}

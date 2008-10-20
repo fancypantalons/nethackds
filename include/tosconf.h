@@ -13,8 +13,8 @@
    GNU C with the MiNT library.
 */
 
-/*#define NO_SIGNAL		/* library doesn't support signals	*/
-/*#define NO_FSTAT		/* library doesn't have fstat() call	*/
+/* #define NO_SIGNAL */		/* library doesn't support signals	*/
+/* #define NO_FSTAT */		/* library doesn't have fstat() call	*/
 #define MINT			/* library supports MiNT extensions to TOS */
 
 #ifdef __MINT__

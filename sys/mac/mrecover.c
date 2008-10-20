@@ -66,6 +66,18 @@ pascal OSErr GetIconSuite(Handle *theIconSuite, short theResID, long selector)
 	= {0x303C, 0x0501, 0xABC9};
 #endif
 
+#if defined(MAC_MPW)
+QDGlobals qd;
+#endif
+
+#define ResetAlrtStage ResetAlertStage
+#define SetDItem SetDialogItem
+#define GetDItem GetDialogItem
+#define GetItem GetMenuItemText
+#define DisposHandle DisposeHandle
+#define AddResMenu AppendResMenu
+#define DisposPtr DisposePtr
+#define ResrvMem ReserveMem
 
 /**** Application defines ****/
 
@@ -226,7 +238,7 @@ UserItemUPP		drawThermoUPP;			/* UPP for progress callback */
 #define PLAYER_NAME_RES_ID	1001		/* macfile.h */
 
 /* variables from util/recover.c */
-#define SAVESIZE	FILENAME
+#define SAVESIZE	FILENAMELEN
 unsigned char	savename[SAVESIZE];		/* originally a C string */
 unsigned char	lock[256];				/* pascal string */
 
@@ -889,6 +901,7 @@ eventLoop()
 			short		itemHit;
 
 			(void) DialogSelect(&wnEvt, &dPtr, &itemHit);
+			break;
 		}
 
 		case diskEvt:

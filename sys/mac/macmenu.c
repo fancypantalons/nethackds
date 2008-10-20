@@ -815,14 +815,10 @@ void mac_askname ()
 static void
 alignAD(Rect *pRct, short vExempt)
 {
-	BitMap qbitmap;
-
-
-	GetQDGlobalsScreenBits(&qbitmap);
 	(*pRct).right -= (*pRct).left;		/* width */
 	(*pRct).bottom -= (*pRct).top;		/* height */
-	(*pRct).left = (qbitmap.bounds.right - (*pRct).right) / 2;
-	(*pRct).top = (qbitmap.bounds.bottom - (*pRct).bottom - vExempt) / 2;
+	(*pRct).left = (qd.screenBits.bounds.right - (*pRct).right) / 2;
+	(*pRct).top = (qd.screenBits.bounds.bottom - (*pRct).bottom - vExempt) / 2;
 	(*pRct).top += vExempt;
 	(*pRct).right += (*pRct).left;
 	(*pRct).bottom += (*pRct).top;
@@ -895,7 +891,12 @@ InitMenuRes()
 			}
 
 			pMenuList[i]->mref[j].mhnd = menu;
-			SetMenuID(menu, j + (**mlHnd).firstMenuID);	/* consecutive IDs */
+#if !TARGET_API_MAC_CARBON
+			* ((short *) *menu) = j + (**mlHnd).firstMenuID;
+#else
+			SetMenuID(menu, j + (**mlHnd).firstMenuID);
+#endif
+	/* consecutive IDs */
 
 			/* expand apple menu */
 			if ((i == listMenubar) && (j == menuApple)) {
@@ -1090,6 +1091,20 @@ DoMenuEvt(long menuEntry)
 
 			for (i = 1; ((i <= mstr[0]) && (mstr[i] != mstrEndChar)); i++)
 				AddToKeyQueue(mstr[i], false);
+
+			/* Special processing for extended commands. The command
+			   selection appears before mstrEndChar, the rest appears
+			   after. The rest is used only when in Mac windows mode.
+			   In any case we add a newline to get the command
+			   going.
+			*/
+			if ( mstr[1] == '#' )
+			{
+				if ( windowprocs.win_init_nhwindows == mac_procs.win_init_nhwindows )
+					for ( i++; ((i <= mstr[0]) && (mstr[i] != mstrEndChar)); i++)
+						AddToKeyQueue(mstr[i], false);
+				AddToKeyQueue('\n', false);
+			}
 		}
 		break;
 	}
@@ -1103,15 +1118,27 @@ aboutNetHack() {
 	if (theMenubar >= mbarRegular) {
 		(void) doversion();				/* is this necessary? */
 	} else {
-		unsigned char aboutStr[32] = "\pNetHack 3.4.";
+		unsigned char aboutStr[32] = "\pSlash'EM 0.0.";
 
 		if (PATCHLEVEL > 10) {
-			aboutStr[++aboutStr[0]] = '0'+PATCHLEVEL/10;
+			aboutStr[++aboutStr[0]] = '0' + PATCHLEVEL / 10;
 		}
 
-		aboutStr[++aboutStr[0]] = '0' + (PATCHLEVEL % 10);
+		aboutStr[++aboutStr[0]] = '0' + PATCHLEVEL % 10;
+		
+		if (EDITLEVEL) {
+			aboutStr[++aboutStr[0]] = 'e';
+			aboutStr[++aboutStr[0]] = '0' + EDITLEVEL;
+		}
+#ifdef FIXLEVEL		
+		if (FIXLEVEL) {
+			aboutStr[++aboutStr[0]] = 'f';
+			aboutStr[++aboutStr[0]] = '0' + FIXLEVEL;
+		}
+#endif		
+		aboutStr[++aboutStr[0]] = CHAR_CR;
 
-		ParamText(aboutStr, "\p\rdevteam@www.nethack.org", "\p", "\p");
+		ParamText(aboutStr, "\pwww.slashem.org", "\p", "\p");
 		(void) Alert(alrtMenuNote, (ModalFilterUPP) 0L);
 		ResetAlertStage();
 	}

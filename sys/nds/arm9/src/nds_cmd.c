@@ -68,6 +68,12 @@ typedef struct {
   char command[INPUT_BUFFER_SIZE];
 } nds_keymap_entry_t;
 
+typedef enum {
+  CMDLOOP_STANDARD,
+  CMDLOOP_CONFIG,
+  CMDLOOP_WHATDOES
+} nds_cmdloop_op_type_t;
+
 static nds_cmd_t cmdlist[] = {
 	{M('a'), "Adjust"},
 	{'a', "Apply"},
@@ -225,7 +231,7 @@ u16 cmd_key;
 u16 helpline1[13];
 u16 helpline2[13];
 
-nds_cmd_t nds_cmd_loop();
+nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype);
 nds_cmd_t nds_kbd_cmd_loop();
 int nds_load_key_config();
 void nds_render_cmd_pages();
@@ -1024,7 +1030,7 @@ nds_cmd_t nds_get_config_cmd(u16 key)
 
       case 2:
         nds_flush(0);
-        cmd = nds_cmd_loop(1);
+        cmd = nds_cmd_loop(CMDLOOP_CONFIG);
         break;
 
       case 3:
@@ -1319,7 +1325,7 @@ int nds_get_input(int *x, int *y, int *mod)
       }
       
       if (iflags.cmdwindow) {
-        cmd = nds_cmd_loop(0);
+        cmd = nds_cmd_loop(CMDLOOP_STANDARD);
       } else {
         cmd = nds_kbd_cmd_loop();
       }
@@ -1646,7 +1652,18 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
     return nds_prompt_char(ques, cstr, 0);
   } else if (strstr(ques, "Adjust letter to what") != NULL) {
     return nds_prompt_char(ques, cstr, 0);
-  } 
+  } else if (strstr(ques, "What command?") != NULL) {
+    nds_cmd_t cmd;
+    
+    nds_draw_prompt("Select a command.");
+    nds_flush(0);
+    cmd = nds_cmd_loop(CMDLOOP_WHATDOES);
+    nds_clear_prompt();
+
+    return cmd.f_char;
+  } else if (strstr(ques, "What do you look for?") != NULL) {
+    return nds_prompt_char(ques, cstr, 0);
+  }
 
   if ((index(ques, '[') == NULL) && (cstr == NULL)) {
     nds_draw_prompt(ques);
@@ -2035,7 +2052,7 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
   return newcmd;
 }
 
-nds_cmd_t nds_cmd_loop(int in_config)
+nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
 {
   static int refresh = 0;
   static nds_cmd_t *curcmd = NULL;
@@ -2117,8 +2134,8 @@ nds_cmd_t nds_cmd_loop(int in_config)
     held = nds_keysHeld();
     coords = get_touch_coords();
 
-    if (((in_config || ! iflags.holdmode) && (pressed & KEY_B)) ||
-        ((! in_config && ! (held & cmd_key) && iflags.holdmode)) ||
+    if ((((optype == CMDLOOP_CONFIG) || ! iflags.holdmode) && (pressed & KEY_B)) ||
+        (((optype != CMDLOOP_CONFIG) && ! (held & cmd_key) && iflags.holdmode)) ||
         (! iflags.holdmode && (pressed & cmd_key)) ) {
 
       nds_flush(0);
@@ -2242,7 +2259,7 @@ nds_cmd_t nds_cmd_loop(int in_config)
    * If an extended command was requested, we need to get it from the
    * user.
    */
-  if (picked_cmd.f_char == '#') {
+  if ((picked_cmd.f_char == '#') && (optype != CMDLOOP_WHATDOES)) {
     int idx = get_ext_cmd();
 
     if (idx >= 0) {

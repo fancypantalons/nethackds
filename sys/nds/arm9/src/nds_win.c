@@ -170,7 +170,7 @@ void nds_player_selection()
 {
   int i, k, n;
   char pick4u = 'n', thisch, lastch = 0;
-  char pbuf[PROMPT_LAYER_WIDTH], plbuf[PROMPT_LAYER_WIDTH];
+  char pbuf[256], plbuf[256];
   winid win;
   anything any;
   menu_item *selected = 0;

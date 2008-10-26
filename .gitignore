@@ -1,0 +1,5 @@
+*.lev
+*.o
+Makefile
+binary
+build

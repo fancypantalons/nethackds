@@ -202,7 +202,7 @@ void init_screen()
 
   /* Init the console */
 
-  PrintConsole *console = consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 0, 1, false, true);
+  consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 0, 1, false, true);
 
   REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
 
@@ -274,7 +274,7 @@ void nethack_exit()
   while (1) {
     swiWaitForVBlank();
   }
-  //REG_IPC_FIFO_TX = 0xDEADBEEF;
+  REG_IPC_FIFO_TX = 0xDEADBEEF;
 }
 
 void mallinfo_dump()

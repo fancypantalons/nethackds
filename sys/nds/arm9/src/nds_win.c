@@ -710,7 +710,7 @@ void nds_curs(winid win, int x, int y)
 struct ppm *prompt_img = NULL;
 int prompt_y;
 
-void nds_draw_prompt(char *prompt)
+void nds_draw_prompt(const char *prompt)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
 

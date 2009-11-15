@@ -194,7 +194,7 @@ read_bdf (const char *file)
               if (!ppm->bitmap)
                 {
                   iprintf ("%s: out of memory (%d x %d)\n",
-                           ppm->width, ppm->height);
+                           file, ppm->width, ppm->height);
                   return NULL;
                 }
 

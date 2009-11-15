@@ -154,7 +154,7 @@ int bmp_read_bitmap(FILE *file, bmp_t *bmp) {
 
   if ((len = fread(bmp->bitmap, 1, bmp->bitmap_length, file)) < bmp->bitmap_length) {
     iprintf("Short read on BMP, got %d bytes, expected %d\n", 
-            bmp->bitmap_length);
+            len, bmp->bitmap_length);
 
     return -1;
   }

@@ -12,7 +12,7 @@
 struct qtmsg {
 	int	msgnum;
 	char	delivery;
-	uint32_t  offset,
+	long    offset,
 		  size;
 };
 

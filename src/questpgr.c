@@ -105,7 +105,7 @@ load_qtlist()
 
 	Fread(&n_classes, sizeof(int), 1, msg_file);
 	Fread(&qt_classes[0][0], sizeof(char)*LEN_HDR, n_classes, msg_file);
-	Fread(qt_offsets, sizeof(uint32_t), n_classes, msg_file);
+	Fread(qt_offsets, sizeof(long), n_classes, msg_file);
 
 	/*
 	 * Now construct the message lists for quick reference later

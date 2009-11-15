@@ -30,7 +30,7 @@ void startSound(int sampleRate, const void* data, u32 bytes, u8 channel, u8 vol,
 	SCHANNEL_TIMER(channel)  = SOUND_FREQ(sampleRate);
 	SCHANNEL_SOURCE(channel) = (u32)data;
 	SCHANNEL_LENGTH(channel) = bytes >> 2 ;
-	SCHANNEL_CR(channel)     = SCHANNEL_ENABLE | SOUND_ONE_SHOT | SOUND_VOL(vol) | SOUND_PAN(pan) | (format==1?SOUND_8BIT:SOUND_16BIT);
+	SCHANNEL_CR(channel)     = SCHANNEL_ENABLE | SOUND_ONE_SHOT | SOUND_VOL(vol) | SOUND_PAN(pan) | (format==1?SOUND_FORMAT_8BIT:SOUND_FORMAT_16BIT);
 }
 
 
@@ -62,8 +62,8 @@ void sortTouchSamples(sample_set_t samples, index_set_t indices, int sort_x)
     done = 1;
 
     for (i = 0; i < SAMPLE_COUNT - 1; i++) {
-      int swap = sort_x ? samples[indices[i]].x > samples[indices[i + 1]].x :
-                          samples[indices[i]].y > samples[indices[i + 1]].y;
+      int swap = sort_x ? samples[indices[i]].rawx > samples[indices[i + 1]].rawx :
+                          samples[indices[i]].rawy > samples[indices[i + 1]].rawy;
 
       if (swap) {
         int tmp = indices[i + 1];
@@ -90,7 +90,7 @@ touchPosition readSampledPosition() {
     int j;
 
     for (j = 0; j < OUTLIER_TEST_MAX; j++) {
-      posData[i] = touchReadXY();
+      touchReadXY(&(posData[i]));
 
       /* 
        * Yeah, this means you can't tap the far-right part of the screen...
@@ -111,10 +111,10 @@ touchPosition readSampledPosition() {
 
   /* And now get the median values for x and y */
 
-  ret.x = posData[indices_by_x[SAMPLE_COUNT / 2]].x;
+  ret.rawx = posData[indices_by_x[SAMPLE_COUNT / 2]].rawx;
   ret.px = posData[indices_by_x[SAMPLE_COUNT / 2]].px;
 
-  ret.y = posData[indices_by_y[SAMPLE_COUNT / 2]].y;
+  ret.rawy = posData[indices_by_y[SAMPLE_COUNT / 2]].rawy;
   ret.py = posData[indices_by_y[SAMPLE_COUNT / 2]].py;
 
   return ret;
@@ -139,12 +139,12 @@ void VblankHandler(void) {
  
                 touchPosition tempPos = readSampledPosition();
 
-                if ( tempPos.x == 0 || tempPos.y == 0 ) {
+                if ( tempPos.rawx == 0 || tempPos.rawy == 0 ) {
                         but |= (1 << 6);
                         lastbut = but;
                 } else {
-                        x = tempPos.x;
-                        y = tempPos.y;
+                        x = tempPos.rawx;
+                        y = tempPos.rawy;
                         xpx = tempPos.px;
                         ypx = tempPos.py;
                         z1 = tempPos.z1;
@@ -174,8 +174,6 @@ void VblankHandler(void) {
 	IPC->touchYpx		= ypx;
 	IPC->touchZ1		= z1;
 	IPC->touchZ2		= z2;
-	IPC->battery		= batt;
-	IPC->aux			= aux;
 
         /*
 	for(i=0; i<sizeof(ct); i++) {
@@ -183,12 +181,8 @@ void VblankHandler(void) {
 	}
         */
 
-	IPC->temperature = temp;
-	IPC->tdiode1 = t1;
-	IPC->tdiode2 = t2;
-
-
 	//sound code  :)
+        /*
 	TransferSound *snd = IPC->soundData;
 	IPC->soundData = 0;
 
@@ -202,6 +196,7 @@ void VblankHandler(void) {
 			}
 		}
 	}
+        */
 
 	Wifi_Update(); // update wireless in vblank
 
@@ -218,7 +213,7 @@ void arm7_fifo() { // check incoming fifo messages
    if (msg == 0x87654321) {
      Wifi_Sync();
    } else if (msg == 0xDEADBEEF) {
-     writePowerManagement(PM_CONTROL_REG, PM_POWER_DOWN);
+     writePowerManagement(PM_CONTROL_REG, (1<<6));
    } else {
      NDSX_LedBlinkFifo(msg);
    }
@@ -232,9 +227,8 @@ int main(int argc, char ** argv) {
   rtcReset();
 
   //enable sound
-  powerON(POWER_SOUND);
-  SOUND_CR = SOUND_ENABLE | SOUND_VOL(0x7F);
-  IPC->soundData = 0;
+  powerOff(POWER_SOUND);
+  REG_SOUNDCNT = SOUND_ENABLE | SOUND_VOL(0x7F);
 
   irqInit();
   initClockIRQ();

@@ -12,8 +12,8 @@
 struct qtmsg {
 	int	msgnum;
 	char	delivery;
-	long	offset,
-		size;
+	uint32_t  offset,
+		  size;
 };
 
 #ifdef MAKEDEFS_C	/***** MAKEDEFS *****/

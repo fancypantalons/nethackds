@@ -64,7 +64,7 @@ void vsyncHandler()
   switch (power_state) {
     case POWER_STATE_ON:
       if (lid_closed) {
-        powerOFF(POWER_ALL_2D);
+        powerOff(POWER_ALL_2D);
         REG_IPC_FIFO_TX = SET_LEDBLINK_ON;
         power_state = POWER_STATE_TRANSITIONING;
       }
@@ -79,7 +79,7 @@ void vsyncHandler()
 
     case POWER_STATE_ASLEEP:
       if (! lid_closed) {
-        powerON(POWER_ALL_2D);
+        powerOn(POWER_ALL_2D);
         REG_IPC_FIFO_TX = SET_LEDBLINK_OFF;
         power_state = POWER_STATE_ON;
       }
@@ -94,9 +94,9 @@ void vsyncHandler()
 
 void nds_show_console()
 {
-  was_console_layer_visible = DISPLAY_CR & DISPLAY_BG0_ACTIVE;
+  was_console_layer_visible = REG_DISPCNT & DISPLAY_BG0_ACTIVE;
 
-  SUB_DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+  REG_DISPCNT_SUB |= DISPLAY_BG0_ACTIVE;
 
   console_enabled = 1;
 }
@@ -104,7 +104,7 @@ void nds_show_console()
 void nds_hide_console()
 {
   if (! was_console_layer_visible) {
-    SUB_DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+    REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
   }
 
   console_enabled = 0;
@@ -121,6 +121,41 @@ int nds_power_state()
 void nds_error()
 {
   have_error = 1;
+}
+
+void enable_interrupts()
+{
+  irqEnable(IRQ_KEYS | IRQ_IPC_SYNC);
+
+  irqSet(IRQ_VBLANK, vsyncHandler);
+  irqSet(IRQ_KEYS, keysInterruptHandler);
+
+  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_SELECT | KEY_START;
+}
+
+void check_debug()
+{
+  NDSX_SetLedBlink_Off();
+
+  scanKeys();
+  
+  int pressed = nds_keysDown();
+
+  if (pressed & KEY_START) {
+    debug_mode = 1;
+  }
+
+  if (pressed & KEY_SELECT) {
+    struct tcp_debug_comms_init_data init_data = {
+      .port = 30000
+    };
+
+    if (init_debug(&tcpCommsIf_debug, &init_data)) {
+      debugHalt();
+    }
+  } else {
+    wifi_setup();
+  }
 }
 
 /*
@@ -140,7 +175,7 @@ void nds_error()
  */
 void init_screen()
 {
-  powerON(POWER_ALL_2D | POWER_SWAP_LCDS);
+  powerOn(POWER_ALL_2D | POWER_SWAP_LCDS);
   lcdMainOnBottom();
 
   videoSetMode(MODE_5_2D | 
@@ -165,71 +200,33 @@ void init_screen()
    * and BG3 for the playfield.
    */
 
+  /* Init the console */
+
+  PrintConsole *console = consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 0, 1, false, true);
+
   /* Main screen setup. */
 
   /* Console and Status/Message layers */
-  SUB_BG0_CR = BG_MAP_BASE(0) | BG_TILE_BASE(1) | BG_16_COLOR | BG_PRIORITY_0;
-  SUB_BG3_CR = BG_BMP8_256x256 | BG_BMP_BASE(4) | BG_PRIORITY_2;
+  REG_BG0CNT_SUB = BG_MAP_BASE(0) | BG_TILE_BASE(1) | BG_COLOR_16 | BG_PRIORITY_0;
+  REG_BG3CNT_SUB = BG_BMP8_256x256 | BG_BMP_BASE(4) | BG_PRIORITY_2;
 
-  SUB_BG3_XDX = 1 << 8;
-  SUB_BG3_XDY = 0;
-  SUB_BG3_YDX = 0;
-  SUB_BG3_YDY = 1 << 8;
-
-  /* Init the console */
-
-  consoleInitDefault((u16 *)BG_MAP_RAM_SUB(0),
-                     (u16 *)BG_TILE_RAM_SUB(1),
-                     16);
+  REG_BG3PA_SUB = 1 << 8;
+  REG_BG3PB_SUB = 0;
+  REG_BG3PC_SUB = 0;
+  REG_BG3PD_SUB = 1 << 8;
 
   /* Sub screen setup. */
 
   /* Keyboard */
-  BG0_CR = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_16_COLOR | BG_PRIORITY_0;
+  REG_BG0CNT = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_COLOR_16 | BG_PRIORITY_0;
 
   /* Menu/Text/Command Layer */
-  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_2;
+  REG_BG2CNT = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_2;
 
-  BG2_XDX = 1 << 8;
-  BG2_XDY = 0;
-  BG2_YDX = 0;
-  BG2_YDY = 1 << 8;
-
-  irqInit();
-  irqEnable(IRQ_VBLANK | IRQ_KEYS | IRQ_IPC_SYNC);
-
-  irqSet(IRQ_KEYS, keysInterruptHandler);
-  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_SELECT | KEY_START;
-
-  irqSet(IRQ_VBLANK, vsyncHandler);
-
-  REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR;
-
-  NDSX_SetLedBlink_Off();
-
-  scanKeys();
-  
-  int pressed = nds_keysDown();
-
-  if (pressed & KEY_START) {
-    debug_mode = 1;
-  }
-
-  if (pressed & KEY_SELECT) {
-    struct tcp_debug_comms_init_data init_data = {
-      .port = 30000
-    };
-
-    iprintf("Preparing to initialize debugger...\n");
-
-    if (! init_debug(&tcpCommsIf_debug, &init_data)) {
-      iprintf("Failed to initialize debugger stub...\n");
-    } else {
-      debugHalt();
-    }
-  } else {
-    wifi_setup();
-  }
+  REG_BG2PA = 1 << 8;
+  REG_BG2PB = 0;
+  REG_BG2PC = 0;
+  REG_BG2PD = 1 << 8;
 }
 
 /* 
@@ -272,7 +269,10 @@ void splash_screen()
  */
 void nethack_exit()
 {
-  REG_IPC_FIFO_TX = 0xDEADBEEF;
+  while (1) {
+    swiWaitForVBlank();
+  }
+  //REG_IPC_FIFO_TX = 0xDEADBEEF;
 }
 
 void mallinfo_dump()
@@ -289,8 +289,8 @@ void start_game()
 {
   int fd;
 
-  DISPLAY_CR = game_display_cr;
-  SUB_DISPLAY_CR = game_sub_display_cr;
+  REG_DISPCNT = game_display_cr;
+  REG_DISPCNT_SUB = game_sub_display_cr;
 
   nds_fill((u16 *)BG_BMP_RAM_SUB(4), 0);
 
@@ -338,8 +338,10 @@ void start_game()
 
 int main()
 {
-  srand(IPC->time.rtc.hours * 60 * 60 + IPC->time.rtc.minutes * 60 + IPC->time.rtc.seconds);
+  srand(IPC->unixTime);
 
+  enable_interrupts();
+  check_debug();
   init_screen();
 
   if (! fatInitDefault())
@@ -379,8 +381,8 @@ int main()
 
   init_nhwindows(NULL, NULL);
 
-  game_display_cr = DISPLAY_CR;
-  game_sub_display_cr = SUB_DISPLAY_CR;
+  game_display_cr = REG_DISPCNT;
+  game_sub_display_cr = REG_DISPCNT_SUB;
 
   if (have_error) {
     nds_show_console();

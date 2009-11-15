@@ -428,10 +428,10 @@ make_version()
 	/*
 	 * integer version number
 	 */
-	version.incarnation = ((unsigned long)VERSION_MAJOR << 24) |
-				((unsigned long)VERSION_MINOR << 16) |
-				((unsigned long)PATCHLEVEL << 8) |
-				((unsigned long)EDITLEVEL);
+	version.incarnation = ((uint32_t)VERSION_MAJOR << 24) |
+				((uint32_t)VERSION_MINOR << 16) |
+				((uint32_t)PATCHLEVEL << 8) |
+				((uint32_t)EDITLEVEL);
 	/*
 	 * encoded feature list
 	 * Note:  if any of these magic numbers are changed or reassigned,
@@ -439,7 +439,7 @@ make_version()
 	 * The actual values have no special meaning, and the category
 	 * groupings are just for convenience.
 	 */
-	version.feature_set = (unsigned long)(0xF0000000L
+	version.feature_set = (uint32_t)(0xF0000000L
 		/* levels and/or topology (0..4) */
 #ifdef REINCARNATION
 			| (1L <<  1)
@@ -493,18 +493,18 @@ make_version()
 	 *    (NROFARTIFACTS<<24) | (NUM_OBJECTS<<12) | (NUMMONS<<0)
 	 */
 	for (i = 1; artifact_names[i]; i++) continue;
-	version.entity_count = (unsigned long)(i - 1);
+	version.entity_count = (uint32_t)(i - 1);
 	for (i = 1; objects[i].oc_class != ILLOBJ_CLASS; i++) continue;
-	version.entity_count = (version.entity_count << 12) | (unsigned long)i;
+	version.entity_count = (version.entity_count << 12) | (uint32_t)i;
 	for (i = 0; mons[i].mlet; i++) continue;
-	version.entity_count = (version.entity_count << 12) | (unsigned long)i;
+	version.entity_count = (version.entity_count << 12) | (uint32_t)i;
 	/*
 	 * Value used for compiler (word size/field alignment/padding) check.
 	 */
-	version.struct_sizes = (((unsigned long)sizeof (struct flag)  << 24) |
-				((unsigned long)sizeof (struct obj)   << 17) |
-				((unsigned long)sizeof (struct monst) << 10) |
-				((unsigned long)sizeof (struct you)));
+	version.struct_sizes = (((uint32_t)sizeof (struct flag)  << 24) |
+				((uint32_t)sizeof (struct obj)   << 17) |
+				((uint32_t)sizeof (struct monst) << 10) |
+				((uint32_t)sizeof (struct you)));
 	return;
 }
 
@@ -582,7 +582,7 @@ do_date()
 		version.feature_set, ul_sfx);
 #ifdef IGNORED_FEATURES
 	Fprintf(ofp,"#define IGNORED_FEATURES 0x%08lx%s\n",
-		(unsigned long) IGNORED_FEATURES, ul_sfx);
+		(uint32_t) IGNORED_FEATURES, ul_sfx);
 #endif
 	Fprintf(ofp,"#define VERSION_SANITY1 0x%08lx%s\n",
 		version.entity_count, ul_sfx);
@@ -612,7 +612,7 @@ static void
 build_savebones_compat_string()
 {
 #ifdef VERSION_COMPATIBILITY
-	unsigned long uver = VERSION_COMPATIBILITY;
+	uint32_t uver = VERSION_COMPATIBILITY;
 #endif
 	Strcpy(save_bones_compat_buf,
 		"save and bones files accepted from version");
@@ -1565,7 +1565,7 @@ adjust_qt_hdrs()
 {
 	int	i, j;
 	long count = 0L, hdr_offset = sizeof(int) +
-			(sizeof(char)*LEN_HDR + sizeof(long)) * qt_hdr.n_hdr;
+			(sizeof(char)*LEN_HDR + sizeof(uint32_t)) * qt_hdr.n_hdr;
 
 	for(i = 0; i < qt_hdr.n_hdr; i++) {
 	    qt_hdr.offset[i] = hdr_offset;
@@ -1595,7 +1595,7 @@ put_qt_hdrs()
 	(void) fwrite((genericptr_t)&(qt_hdr.n_hdr), sizeof(int), 1, ofp);
 	(void) fwrite((genericptr_t)&(qt_hdr.id[0][0]), sizeof(char)*LEN_HDR,
 							qt_hdr.n_hdr, ofp);
-	(void) fwrite((genericptr_t)&(qt_hdr.offset[0]), sizeof(long),
+	(void) fwrite((genericptr_t)&(qt_hdr.offset[0]), sizeof(uint32_t),
 							qt_hdr.n_hdr, ofp);
 #ifdef DEBUG
 	for(i = 0; i < qt_hdr.n_hdr; i++)

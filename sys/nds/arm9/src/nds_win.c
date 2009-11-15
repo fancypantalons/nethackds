@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/dir.h>
+#include <dirent.h>
 
 #include "hack.h"
 
@@ -109,7 +110,6 @@ void nds_init_nhwindows(int *argc, char **argv)
   int i;
 
   system_font = read_bdf("font.bdf");
-  iprintf("cursor: %d\n", iflags.cursor);
 
   if (system_font == NULL) {
     iprintf("Error loading font!\n");
@@ -1097,7 +1097,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
    * Clear VRAM in the BG2 layer and then activate it.
    */
 
-  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+  REG_DISPCNT |= DISPLAY_BG2_ACTIVE;
 
   nds_flush(0);
 
@@ -1117,7 +1117,7 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
 
   nds_flush(0);
 
-  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  REG_DISPCNT ^= DISPLAY_BG2_ACTIVE;
 }
 
 /*
@@ -1407,7 +1407,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
     if (refresh) {
       _nds_draw_scroller(window, clear);
 
-      DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+      REG_DISPCNT |= DISPLAY_BG2_ACTIVE;
 
       refresh = 0;
       clear = 0;
@@ -1596,7 +1596,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
 
 DONE:
 
-  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
+  REG_DISPCNT ^= DISPLAY_BG2_ACTIVE;
 
   nds_clear_prompt();
 
@@ -1732,13 +1732,13 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
     nds_draw_prompt((char *)ques);
   }
 
-  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+  REG_DISPCNT |= DISPLAY_BG0_ACTIVE;
 
   while (! done) {
     swiWaitForVBlank();
     scanKeys();
 
-    key = kbd_vblank();
+    key = kbd_do_one_loop();
     pressed = nds_keysDown();
     held = nds_keysHeld();
 
@@ -1764,7 +1764,7 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
   while (1) { 
     swiWaitForVBlank();
     scanKeys();
-    kbd_vblank();
+    kbd_do_one_loop();
 
     if (nds_keysUp() & KEY_TOUCH) {
       break;
@@ -1777,7 +1777,7 @@ DONE:
     nds_clear_prompt();
   }
 
-  DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+  REG_DISPCNT ^= DISPLAY_BG0_ACTIVE;
 
   nds_flush(0);
 
@@ -1800,8 +1800,7 @@ void nds_raw_print_bold(const char *str)
 
 char **_nds_read_saves(int *cnt)
 {
-  DIR_ITER *dp = diropen("save/");
-  char filename[BUFSZ];
+  DIR *dp = opendir("save/");
   char **entries;
   int i = 0;
 
@@ -1811,28 +1810,37 @@ char **_nds_read_saves(int *cnt)
     return NULL;
   }
 
-  while (dirnext(dp, filename, NULL) == 0) {
-    if ((strcmp(filename, ".") == 0) ||
-        (strcmp(filename, "..") == 0)) {
+  struct dirent *ent;
+
+  while ((ent = readdir(dp)) != NULL) {
+    if ((strcmp(ent->d_name, ".") == 0) ||
+        (strcmp(ent->d_name, "..") == 0)) {
       continue;
     }
 
     (*cnt)++;
   }
 
-  dirreset(dp);
+  if (*cnt == 0)
+  {
+    closedir(dp);
+
+    return NULL;
+  }
+
+  seekdir(dp, 0);
   entries = (char **)malloc(sizeof(char *) * *cnt);
 
-  while (dirnext(dp, filename, NULL) == 0) {
+  while ((ent = readdir(dp)) != NULL) {
     char *nameptr;
     int j;
 
-    if ((strcmp(filename, ".") == 0) ||
-        (strcmp(filename, "..") == 0)) {
+    if ((strcmp(ent->d_name, ".") == 0) ||
+        (strcmp(ent->d_name, "..") == 0)) {
       continue;
     }
 
-    strtol(filename, &nameptr, 10);
+    strtol(ent->d_name, &nameptr, 10);
 
     for (j = 0; j < strlen(nameptr); j++) {
       nameptr[j] = tolower(nameptr[j]);
@@ -1843,14 +1851,14 @@ char **_nds_read_saves(int *cnt)
     entries[i++] = strdup(nameptr);
   }
 
-  dirclose(dp);
+  closedir(dp);
 
   return entries;
 }
 
 void nds_askname()
 {
-  int cnt;
+  int cnt = 0;
   char **entries = _nds_read_saves(&cnt);
 
   plname[0] = '\0';
@@ -1891,7 +1899,10 @@ void nds_askname()
       free(entries[i]);
     }
 
-    free(entries);
+    if (cnt > 0) {
+      free(entries);
+    }
+
     free(ids);
   }
 

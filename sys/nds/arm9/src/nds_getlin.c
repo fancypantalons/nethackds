@@ -63,7 +63,7 @@ void nds_getlin(const char *prompt, char *buffer)
 
   /* First, display the keyboard and prompting layers */
 
-  DISPLAY_CR |= DISPLAY_BG0_ACTIVE;
+  REG_DISPCNT |= DISPLAY_BG0_ACTIVE;
 
   /* Handle lingering taps. */
 
@@ -91,7 +91,7 @@ void nds_getlin(const char *prompt, char *buffer)
 
     scanKeys();
 
-    key = kbd_vblank();
+    key = kbd_do_one_loop();
 
     switch (key) {
       case 0:
@@ -189,7 +189,7 @@ void nds_getlin(const char *prompt, char *buffer)
   clear_ppm(input_img, MAP_COLOUR(CLR_BLACK));
   draw_ppm(input_img, vram, 4, input_y, 256);
 
-  DISPLAY_CR ^= DISPLAY_BG0_ACTIVE;
+  REG_DISPCNT ^= DISPLAY_BG0_ACTIVE;
 
   strcpy(buffer, front);
   strcat(buffer, back);

@@ -2064,7 +2064,7 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
   u16 old_bg_cr;
   int held_frames = 0;
 
-  touchPosition coords = { .x = 0, .y = 0 };
+  touchPosition coords = { .rawx = 0, .rawy = 0 };
 
   int prev_held = 0;
   int held = 0;
@@ -2075,10 +2075,10 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
 
   /* Now get the display set up. */
 
-  old_bg_cr = BG2_CR;
+  old_bg_cr = REG_BG2CNT;
 
-  BG2_CR = BG_BMP8_256x256 | BG_BMP_BASE(12) | BG_PRIORITY_1;
-  DISPLAY_CR |= DISPLAY_BG2_ACTIVE;
+  REG_BG2CNT = BG_BMP8_256x256 | BG_BMP_BASE(12) | BG_PRIORITY_1;
+  REG_DISPCNT |= DISPLAY_BG2_ACTIVE;
 
   picked_cmd.f_char = 0;
   picked_cmd.name = NULL;
@@ -2252,8 +2252,8 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
     refresh = 1;
   }
 
-  DISPLAY_CR ^= DISPLAY_BG2_ACTIVE;
-  BG2_CR = old_bg_cr;
+  REG_DISPCNT ^= DISPLAY_BG2_ACTIVE;
+  REG_BG2CNT = old_bg_cr;
 
   /* 
    * If an extended command was requested, we need to get it from the

@@ -6,7 +6,7 @@
 #include "nds_main.h"
 #include "nds_util.h"
 
-touchPosition touch_coords = { .x = 0, .y = 0 };
+touchPosition touch_coords = { .rawx = 0, .rawy = 0 };
 touchPosition old_touch_coords;
 
 /*
@@ -163,7 +163,7 @@ void scan_touch_screen()
 
 int touch_down_in(int x, int y, int x2, int y2)
 {
-  if ((touch_coords.x == 0) || (touch_coords.y == 0)) {
+  if ((touch_coords.rawx == 0) || (touch_coords.rawy == 0)) {
     return 0;
   }
 
@@ -177,7 +177,7 @@ int touch_down_in(int x, int y, int x2, int y2)
 
 int touch_was_down_in(int x, int y, int x2, int y2)
 {
-  if ((touch_coords.x == 0) || (touch_coords.y == 0)) {
+  if ((touch_coords.rawx == 0) || (touch_coords.rawy == 0)) {
     return 0;
   }
 
@@ -196,7 +196,7 @@ int touch_was_down_in(int x, int y, int x2, int y2)
 
 int touch_released_in(int x, int y, int x2, int y2)
 {
-  if ((touch_coords.x != 0) || (touch_coords.y != 0)) {
+  if ((touch_coords.rawx != 0) || (touch_coords.rawy != 0)) {
     return 0;
   }
 
@@ -210,9 +210,9 @@ int touch_released_in(int x, int y, int x2, int y2)
 
 int get_tap_coords(touchPosition *coords)
 {
-  if ((old_touch_coords.x == 0) && (old_touch_coords.y == 0)) {
+  if ((old_touch_coords.rawx == 0) && (old_touch_coords.rawy == 0)) {
     return 0;
-  } else if ((touch_coords.x != 0) || (touch_coords.y != 0)) {
+  } else if ((touch_coords.rawx != 0) || (touch_coords.rawy != 0)) {
     return 0;
   } 
 

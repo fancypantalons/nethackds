@@ -80,7 +80,7 @@ int pet_count;
 /* Sprite-specific variables (for tile mode) */
 
 u16 *oam_ram = OAM;
-tOAM oam_shadow;
+OAMTable oam_shadow;
 
 /*
  * Initialize our tile cache.
@@ -391,9 +391,9 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
     mapglyph(glyph, &ch, &color, &special, gx, gy);
 
     if (special & MG_PET) {
-      oam_shadow.spriteBuffer[++pet_count].posX = x * TILE_WIDTH;
-      oam_shadow.spriteBuffer[pet_count].posY = y * TILE_HEIGHT;
-      oam_shadow.spriteBuffer[pet_count].isHidden = 0;
+      oam_shadow.oamBuffer[++pet_count].x = x * TILE_WIDTH;
+      oam_shadow.oamBuffer[pet_count].y = y * TILE_HEIGHT;
+      oam_shadow.oamBuffer[pet_count].isHidden = 0;
     }
   }
 }
@@ -488,7 +488,7 @@ void nds_clear_sprites()
   int i;
 
   for (i = 0; i < 128; i++) {
-    oam_shadow.spriteBuffer[i].isHidden = 1;
+    oam_shadow.oamBuffer[i].isHidden = 1;
   }
 }
 
@@ -503,9 +503,9 @@ void nds_draw_graphics_cursor(int x, int y)
     return;
   } 
 
-  oam_shadow.spriteBuffer[0].posX = x * TILE_WIDTH;
-  oam_shadow.spriteBuffer[0].posY = y * TILE_HEIGHT;
-  oam_shadow.spriteBuffer[0].isHidden = 0;
+  oam_shadow.oamBuffer[0].x = x * TILE_WIDTH;
+  oam_shadow.oamBuffer[0].y = y * TILE_HEIGHT;
+  oam_shadow.oamBuffer[0].isHidden = 0;
 }
 
 void nds_render_sprite(int bpp, int spr_size, int spr_num, int colour)
@@ -571,24 +571,24 @@ void nds_init_sprite(int bpp)
   for (i = 0; i < 128; i++) {
     switch (dim) {
       case 8:
-        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_8;
+        oam_shadow.oamBuffer[i].size = OBJSIZE_8;
         spr_size = 1;
         break;
 
       case 16:
-        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_16;
+        oam_shadow.oamBuffer[i].size = OBJSIZE_16;
         spr_size = 2;
         break;
 
       case 24:
       case 32:
-        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_32;
+        oam_shadow.oamBuffer[i].size = OBJSIZE_32;
         spr_size = 4;
         break;
 
       case 48:
       case 64:
-        oam_shadow.spriteBuffer[i].objSize = OBJSIZE_64;
+        oam_shadow.oamBuffer[i].size = OBJSIZE_64;
         spr_size = 8;
         break;
 
@@ -598,33 +598,33 @@ void nds_init_sprite(int bpp)
 
     switch (bpp) {
       case 4:
-        oam_shadow.spriteBuffer[i].colMode = OBJCOLOR_16;
+        oam_shadow.oamBuffer[i].colorMode = OBJCOLOR_16;
         break;
 
       case 8:
-        oam_shadow.spriteBuffer[i].colMode = OBJCOLOR_256;
+        oam_shadow.oamBuffer[i].colorMode = OBJCOLOR_256;
         break;
 
       default:
         break;
     }
 
-    oam_shadow.spriteBuffer[i].isHidden = 1;
-    oam_shadow.spriteBuffer[i].isRotoscale = 0;
-    oam_shadow.spriteBuffer[i].rsDouble = 0;
-    oam_shadow.spriteBuffer[i].objMode = OBJMODE_BLENDED;
-    oam_shadow.spriteBuffer[i].isMosaic = 0;
-    oam_shadow.spriteBuffer[i].objShape = OBJSHAPE_SQUARE;
+    oam_shadow.oamBuffer[i].isHidden = 1;
+    oam_shadow.oamBuffer[i].isRotateScale = 0;
+    oam_shadow.oamBuffer[i].isSizeDouble = 0;
+    oam_shadow.oamBuffer[i].blendMode = OBJMODE_BLENDED;
+    oam_shadow.oamBuffer[i].isMosaic = 0;
+    oam_shadow.oamBuffer[i].shape = OBJSHAPE_SQUARE;
 
-    oam_shadow.spriteBuffer[i].posX = 0;
-    oam_shadow.spriteBuffer[i].posY = 0;
-    oam_shadow.spriteBuffer[i].objPriority = OBJPRIORITY_3;
-    oam_shadow.spriteBuffer[i].objPal = 0;
+    oam_shadow.oamBuffer[i].x = 0;
+    oam_shadow.oamBuffer[i].y = 0;
+    oam_shadow.oamBuffer[i].priority = OBJPRIORITY_3;
+    oam_shadow.oamBuffer[i].palette = 0;
 
     if (i == 0) {
-      oam_shadow.spriteBuffer[i].tileIdx = spr_size * spr_size * (bpp / 4);
+      oam_shadow.oamBuffer[i].gfxIndex = spr_size * spr_size * (bpp / 4);
     } else {
-      oam_shadow.spriteBuffer[i].tileIdx = (spr_size * spr_size * (bpp / 4)) * 2;
+      oam_shadow.oamBuffer[i].gfxIndex = (spr_size * spr_size * (bpp / 4)) * 2;
     }
   }
   
@@ -679,8 +679,8 @@ int nds_init_map()
 
   switch (bpp) {
     case 4:
-      BG1_CR = BG_32x32 | MAP_BASE | TILE_BASE | BG_16_COLOR | BG_PRIORITY_3; 
-      DISPLAY_CR |= DISPLAY_BG1_ACTIVE;
+      REG_BG1CNT = BG_32x32 | MAP_BASE | TILE_BASE | BG_COLOR_16 | BG_PRIORITY_3; 
+      REG_DISPCNT |= DISPLAY_BG1_ACTIVE;
 
       blend_dst = BLEND_DST_BG1;
 
@@ -688,13 +688,13 @@ int nds_init_map()
       break;
 
     case 8:
-      BG3_CR = BG_RS_32x32 | MAP_BASE | TILE_BASE | BG_PRIORITY_3; 
-      DISPLAY_CR |= DISPLAY_BG3_ACTIVE;
+      REG_BG3CNT = BG_RS_32x32 | MAP_BASE | TILE_BASE | BG_PRIORITY_3; 
+      REG_DISPCNT |= DISPLAY_BG3_ACTIVE;
 
-      BG3_XDX = 1 << 8;
-      BG3_XDY = 0;
-      BG3_YDX = 0;
-      BG3_YDY = 1 << 8;
+      REG_BG3PA = 1 << 8;
+      REG_BG3PB = 0;
+      REG_BG3PC = 0;
+      REG_BG3PD = 1 << 8;
 
       blend_dst = BLEND_DST_BG3;
 
@@ -709,8 +709,8 @@ int nds_init_map()
       return -1;
   }
 
-  BLEND_CR = BLEND_ALPHA | BLEND_SRC_SPRITE | blend_dst;
-  BLEND_AB = 0x0010;
+  REG_BLDCNT = BLEND_ALPHA | BLEND_SRC_SPRITE | blend_dst;
+  REG_BLDALPHA = 0x0010;
 
   /* Alright, time to copy over the palette data. */
 

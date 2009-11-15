@@ -6,6 +6,7 @@
 #define GLOBAL_H
 
 #include <stdio.h>
+#include <stdint.h>
 
 
 /* #define BETA	*/	/* if a beta-test copy	[MRS] */
@@ -302,10 +303,10 @@ extern long *FDECL(alloc, (unsigned int));		/* alloc.c */
 /* Used for consistency checks of various data files; declare it here so
    that utility programs which include config.h but not hack.h can see it. */
 struct version_info {
-	unsigned long	incarnation;	/* actual version number */
-	unsigned long	feature_set;	/* bitmask of config settings */
-	unsigned long	entity_count;	/* # of monsters and objects */
-	unsigned long	struct_sizes;	/* size of key structs */
+	uint32_t	incarnation;	/* actual version number */
+	uint32_t	feature_set;	/* bitmask of config settings */
+	uint32_t	entity_count;	/* # of monsters and objects */
+	uint32_t	struct_sizes;	/* size of key structs */
 };
 
 

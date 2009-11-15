@@ -3,6 +3,11 @@
 
 #include <nds.h>
 
+typedef enum {
+  TOGGLE_FLIP = 0,
+  TOGGLE_DISABLE
+} toggle_type;
+
 typedef struct {
   u16 width;
   u16 code;
@@ -11,10 +16,10 @@ typedef struct {
 void redraw_kbd(int);
 void kbd_init();
 u16 kbd_xy2key(u8 x, u8 y);
-void kbd_togglemod(int which, int how);
+void kbd_togglemod(int which, toggle_type how);
 void kbd_set_color_from_pos(u16 r, u16 k,u8 color);
 void kbd_set_color_from_code(u16 code,u8 color);
-u8 kbd_vblank(void);
+u8 kbd_do_one_loop(void);
 
 #define K_UP_LEFT       0x0F0
 #define K_UP            0x0F1

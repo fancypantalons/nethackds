@@ -281,17 +281,7 @@ char* ds_getenv(const char* vn) {
 // fortunately, the return value is always passed to localtime() or srand(), 
 // and ds_localtime processes this format into a struct tm* appropriately
 time_t ds_time(time_t* t) {
-	u32 temp = IPC->time.rtc.seconds & 0x3F;		// second:	6 bits
-	temp |= (IPC->time.rtc.minutes & 0x3F) << 6;	// minute:	6 bits
-	temp |= (IPC->time.rtc.hours & 0x1F) << 12;	// hour:	5 bits
-	int day;
-	if (IPC->time.rtc.day > 40) day = IPC->time.rtc.day - 40;
-	else day = IPC->time.rtc.day;
-	temp |= (day & 0x1F) << 17;				// day:		5 bits
-	temp |= (IPC->time.rtc.month & 0x0F) << 22;	// month:	4 bits
-	temp |= (IPC->time.rtc.year & 0x3F) << 26;	// year:	6 bits
-	if (t != NULL) *t = temp;
-	return temp;
+        return IPC->unixTime;
 }
 
 static struct tm the_time;

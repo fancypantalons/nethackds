@@ -7,7 +7,7 @@ void wifi_timer(void)
   Wifi_Timer(50);
 }
 
-void arm9_synctoarm7() 
+void _arm9_synctoarm7() 
 {
    REG_IPC_FIFO_TX = 0x87654321;
 }
@@ -40,7 +40,7 @@ void wifi_setup()
 
   REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_RECV_IRQ; // enable FIFO IRQ
 
-  Wifi_SetSyncHandler(arm9_synctoarm7); // tell wifi lib to use our handler to notify arm7
+  Wifi_SetSyncHandler(_arm9_synctoarm7); // tell wifi lib to use our handler to notify arm7
 
   // set timer3
   *((volatile u16 *)0x0400010C) = -6553; // 6553.1 * 256 cycles = ~50ms;

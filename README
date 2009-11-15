@@ -20,11 +20,10 @@ In order to build NetHackDS, a number of pre-requisites must be in place:
   - libfat
   - wifilib
   - libpcre
-  - Masscat's gdb stub (see below for instructions on how to build this)
+  - Masscat's gdb stub (specifically, the debug and TCP stubs)
 
 3. A working build environment for the host machine capable of producing
    32-bit binaries.
-
 
 Compiling
 ---------

@@ -606,8 +606,8 @@ register int after;
 	struct permonst *ptr;
 	struct monst *mtoo;
 	schar mmoved = 0;	/* not strictly nec.: chi >= 0 will do */
-	int32_t info[9];
-	int32_t flag;
+	long info[9];
+	long flag;
 	int  omx = mtmp->mx, omy = mtmp->my;
 	struct obj *mw_tmp;
 
@@ -1243,7 +1243,7 @@ register struct monst *mtmp;
 	boolean notseen, gotu;
 	register int disp, mx = mtmp->mux, my = mtmp->muy;
 #ifdef GOLDOBJ
-	int32_t umoney = money_cnt(invent);
+	long umoney = money_cnt(invent);
 #endif
 
 	/*

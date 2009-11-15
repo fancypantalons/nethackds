@@ -6,12 +6,12 @@
 
 #ifndef OVLB
 
-STATIC_DCL int32_t takeoff_mask, taking_off;
+STATIC_DCL long takeoff_mask, taking_off;
 
 #else /* OVLB */
 
-STATIC_OVL NEARDATA int32_t takeoff_mask = 0L;
-static NEARDATA int32_t taking_off = 0L;
+STATIC_OVL NEARDATA long takeoff_mask = 0L;
+static NEARDATA long taking_off = 0L;
 
 static NEARDATA int todelay;
 static boolean cancelled_don = FALSE;
@@ -33,7 +33,7 @@ static NEARDATA const char c_armor[]  = "armor",
 			   c_axe[]    = "axe",
 			   c_that_[]  = "that";
 
-static NEARDATA const int32_t takeoff_order[] = { WORN_BLINDF, W_WEP,
+static NEARDATA const long takeoff_order[] = { WORN_BLINDF, W_WEP,
 	WORN_SHIELD, WORN_GLOVES, LEFT_RING, RIGHT_RING, WORN_CLOAK,
 	WORN_HELMET, WORN_AMUL, WORN_ARMOR,
 #ifdef TOURIST
@@ -94,7 +94,7 @@ STATIC_PTR
 int
 Boots_on()
 {
-    int32_t oldprop =
+    long oldprop =
 	u.uprops[objects[uarmf->otyp].oc_oprop].extrinsic & ~WORN_BOOTS;
 
     switch(uarmf->otyp) {
@@ -142,7 +142,7 @@ int
 Boots_off()
 {
     int otyp = uarmf->otyp;
-    int32_t oldprop = u.uprops[objects[otyp].oc_oprop].extrinsic & ~WORN_BOOTS;
+    long oldprop = u.uprops[objects[otyp].oc_oprop].extrinsic & ~WORN_BOOTS;
 
     takeoff_mask &= ~W_ARMF;
 	/* For levitation, float_down() returns if Levitation, so we
@@ -196,7 +196,7 @@ Boots_off()
 STATIC_OVL int
 Cloak_on()
 {
-    int32_t oldprop =
+    long oldprop =
 	u.uprops[objects[uarmc->otyp].oc_oprop].extrinsic & ~WORN_CLOAK;
 
     switch(uarmc->otyp) {
@@ -246,7 +246,7 @@ int
 Cloak_off()
 {
     int otyp = uarmc->otyp;
-    int32_t oldprop = u.uprops[objects[otyp].oc_oprop].extrinsic & ~WORN_CLOAK;
+    long oldprop = u.uprops[objects[otyp].oc_oprop].extrinsic & ~WORN_CLOAK;
 
     takeoff_mask &= ~W_ARMC;
 	/* For mummy wrapping, taking it off first resets `Invisible'. */
@@ -392,7 +392,7 @@ STATIC_PTR
 int
 Gloves_on()
 {
-    int32_t oldprop =
+    long oldprop =
 	u.uprops[objects[uarmg->otyp].oc_oprop].extrinsic & ~WORN_GLOVES;
 
     switch(uarmg->otyp) {
@@ -417,7 +417,7 @@ Gloves_on()
 int
 Gloves_off()
 {
-    int32_t oldprop =
+    long oldprop =
 	u.uprops[objects[uarmg->otyp].oc_oprop].extrinsic & ~WORN_GLOVES;
 
     takeoff_mask &= ~W_ARMG;
@@ -681,7 +681,7 @@ void
 Ring_on(obj)
 register struct obj *obj;
 {
-    int32_t oldprop = u.uprops[objects[obj->otyp].oc_oprop].extrinsic;
+    long oldprop = u.uprops[objects[obj->otyp].oc_oprop].extrinsic;
     int old_attrib, which;
 
     if (obj == uwep) setuwep((struct obj *) 0);
@@ -789,7 +789,7 @@ Ring_off_or_gone(obj,gone)
 register struct obj *obj;
 boolean gone;
 {
-    int32_t mask = (obj->owornmask & W_RING);
+    long mask = (obj->owornmask & W_RING);
     int old_attrib, which;
 
     takeoff_mask &= ~mask;
@@ -992,8 +992,8 @@ boolean
 donning(otmp)		/* also checks for doffing */
 register struct obj *otmp;
 {
- /* int32_t what = (occupation == take_off) ? taking_off : 0L; */
-    int32_t what = taking_off;	/* if nonzero, occupation is implied */
+ /* long what = (occupation == take_off) ? taking_off : 0L; */
+    long what = taking_off;	/* if nonzero, occupation is implied */
     boolean result = FALSE;
 
     if (otmp == uarm)
@@ -1252,7 +1252,7 @@ const char *cc1, *cc2;
 int
 canwearobj(otmp,mask,noisy)
 struct obj *otmp;
-int32_t *mask;
+long *mask;
 boolean noisy;
 {
     int err = 0;
@@ -1402,7 +1402,7 @@ dowear()
 {
 	struct obj *otmp;
 	int delay;
-	int32_t mask = 0;
+	long mask = 0;
 
 	/* cantweararm checks for suits of armor */
 	/* verysmall or nohands checks for shields, gloves, etc... */
@@ -1463,7 +1463,7 @@ int
 doputon()
 {
 	register struct obj *otmp;
-	int32_t mask = 0L;
+	long mask = 0L;
 
 	if(uleft && uright && uamul && ublindf) {
 		Your("%s%s are full, and you're already wearing an amulet and %s.",
@@ -1920,7 +1920,7 @@ do_takeoff()
 	  if(!cursed(otmp)) Ring_off(uright);
 	} else if (taking_off == WORN_BLINDF) {
 	  if (!cursed(ublindf)) Blindf_off(ublindf);
-	} else impossible("do_takeoff: taking off %x", taking_off);
+	} else impossible("do_takeoff: taking off %lx", taking_off);
 
 	return(otmp);
 }
@@ -1996,7 +1996,7 @@ take_off()
 	} else if (taking_off == WORN_BLINDF) {
 	  todelay = 2;
 	} else {
-	  impossible("take_off: taking off %x", taking_off);
+	  impossible("take_off: taking off %lx", taking_off);
 	  return 0;	/* force done */
 	}
 

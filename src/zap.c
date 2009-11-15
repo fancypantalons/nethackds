@@ -1150,7 +1150,7 @@ void
 do_osshock(obj)
 struct obj *obj;
 {
-	int32_t i;
+	long i;
 
 #ifdef MAIL
 	if (obj->otyp == SCR_MAIL) return;
@@ -1169,9 +1169,9 @@ struct obj *obj;
 	/* if quan > 1 then some will survive intact */
 	if (obj->quan > 1L) {
 	    if (obj->quan > LARGEST_INT)
-		obj = splitobj(obj, (int32_t)rnd(30000));
+		obj = splitobj(obj, (long)rnd(30000));
 	    else
-		obj = splitobj(obj, (int32_t)rnd((int)obj->quan - 1));
+		obj = splitobj(obj, (long)rnd((int)obj->quan - 1));
 	}
 
 	/* appropriately add damage to bill */
@@ -1310,7 +1310,7 @@ poly_obj(obj, id)
 
 	/* 'n' merged objects may be fused into 1 object */
 	if (otmp->quan > 1L && (!objects[otmp->otyp].oc_merge ||
-				(can_merge && otmp->quan > (int32_t)rn2(1000))))
+				(can_merge && otmp->quan > (long)rn2(1000))))
 	    otmp->quan = 1L;
 
 	switch (otmp->oclass) {
@@ -1347,7 +1347,7 @@ poly_obj(obj, id)
 	    break;
 
 	case GEM_CLASS:
-	    if (otmp->quan > (int32_t) rnd(4) &&
+	    if (otmp->quan > (long) rnd(4) &&
 		    objects[obj->otyp].oc_material == MINERAL &&
 		    objects[otmp->otyp].oc_material != MINERAL) {
 		otmp->otyp = ROCK;	/* transmutation backfired */
@@ -1911,7 +1911,7 @@ boolean ordinary;
 		    destroy_item(RING_CLASS, AD_ELEC);
 		    if (!resists_blnd(&youmonst)) {
 			    You(are_blinded_by_the_flash);
-			    make_blinded((int32_t)rnd(100),FALSE);
+			    make_blinded((long)rnd(100),FALSE);
 			    if (!Blind) Your(vision_clears);
 		    }
 		    break;
@@ -2091,7 +2091,7 @@ boolean ordinary;
 		    damage += rnd(25);
 		    if (!resists_blnd(&youmonst)) {
 			You(are_blinded_by_the_flash);
-			make_blinded((int32_t)damage, FALSE);
+			make_blinded((long)damage, FALSE);
 			makeknown(obj->otyp);
 			if (!Blind) Your(vision_clears);
 		    }
@@ -3202,7 +3202,7 @@ boolean give_feedback;	/* caller needs to decide about visibility checks */
 boolean u_caused;
 {
 	struct obj *obj, *obj2;
-	int32_t i, scrquan, delquan;
+	long i, scrquan, delquan;
 	char buf1[BUFSZ], buf2[BUFSZ];
 	int cnt = 0;
 
@@ -3234,7 +3234,7 @@ boolean u_caused;
 		    cnt += delquan;
 		    if (give_feedback) {
 			if (delquan > 1)
-			    pline("%d %s burn.", delquan, buf2);
+			    pline("%ld %s burn.", delquan, buf2);
 			else
 			    pline("%s burns.", An(buf1));
 		    }
@@ -3462,7 +3462,7 @@ register int dx,dy;
 	    }
 	    if (abstype == ZT_LIGHTNING && !resists_blnd(&youmonst)) {
 		You(are_blinded_by_the_flash);
-		make_blinded((int32_t)d(nd,50),FALSE);
+		make_blinded((long)d(nd,50),FALSE);
 		if (!Blind) Your(vision_clears);
 	    }
 	    stop_occupation();
@@ -3768,7 +3768,7 @@ register struct obj *obj;		   /* no texts here! */
 	    change_luck(-1);
 
 	obj->otyp = ROCK;
-	obj->quan = (int32_t) rn1(60, 7);
+	obj->quan = (long) rn1(60, 7);
 	obj->owt = weight(obj);
 	obj->oclass = GEM_CLASS;
 	obj->known = FALSE;
@@ -3826,7 +3826,7 @@ register int osym, dmgtyp;
 {
 	register struct obj *obj, *obj2;
 	register int dmg, xresist, skip;
-	register int32_t i, cnt, quan;
+	register long i, cnt, quan;
 	register int dindx;
 	const char *mult;
 
@@ -3952,7 +3952,7 @@ int osym, dmgtyp;
 {
 	struct obj *obj, *obj2;
 	int skip, tmp = 0;
-	int32_t i, cnt, quan;
+	long i, cnt, quan;
 	int dindx;
 	boolean vis;
 

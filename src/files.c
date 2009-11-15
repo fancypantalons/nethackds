@@ -1908,7 +1908,7 @@ char		*tmp_levels;
 			flags.amii_dripens[i] = val;
 		}
 	} else if (match_varname(buf, "SCREENMODE", 10 )) {
-		extern int32_t amii_scrnmode;
+		extern long amii_scrnmode;
 		if (!stricmp(bufp,"req"))
 		    amii_scrnmode = 0xffffffff; /* Requester */
 		else if( sscanf(bufp, "%x", &amii_scrnmode) != 1 )
@@ -2307,7 +2307,7 @@ const char *reason;	/* explanation */
 		program_state.in_paniclog = 1;
 		lfile = fopen_datafile(PANICLOG, "a", TROUBLEPREFIX);
 		if (lfile) {
-		    (void) fprintf(lfile, "%s %08d: %s %s\n",
+		    (void) fprintf(lfile, "%s %08ld: %s %s\n",
 				   version_string(buf), yyyymmdd((time_t)0L),
 				   type, reason);
 		    (void) fclose(lfile);

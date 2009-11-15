@@ -63,7 +63,7 @@ extern struct passwd *FDECL(getpwuid,(int));
 #  endif
 static struct stat omstat,nmstat;
 static char *mailbox = (char *)0;
-static int32_t laststattime;
+static long laststattime;
 
 # if !defined(MAILPATH) && defined(AMS)	/* Just a placeholder for AMS */
 #  define MAILPATH "/dev/null"

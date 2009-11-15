@@ -178,7 +178,7 @@ struct obj *box;
 		/* handle a couple of special cases */
 		if (otmp->oclass == COIN_CLASS) {
 		    /* 2.5 x level's usual amount; weight adjusted below */
-		    otmp->quan = (int32_t)(rnd(level_difficulty()+2) * rnd(75));
+		    otmp->quan = (long)(rnd(level_difficulty()+2) * rnd(75));
 		    otmp->owt = weight(otmp);
 		} else while (otmp->otyp == ROCK) {
 		    otmp->otyp = rnd_class(DILITHIUM_CRYSTAL, LOADSTONE);
@@ -226,7 +226,7 @@ rndmonnum()	/* select a random, common monster type */
 struct obj *
 splitobj(obj, num)
 struct obj *obj;
-int32_t num;
+long num;
 {
 	struct obj *otmp;
 
@@ -389,7 +389,7 @@ boolean artif;
 #endif
 	if (init) switch (let) {
 	case WEAPON_CLASS:
-		otmp->quan = is_multigen(otmp) ? (int32_t) rn1(6,6) : 1L;
+		otmp->quan = is_multigen(otmp) ? (long) rn1(6,6) : 1L;
 		if(!rn2(11)) {
 			otmp->spe = rne(3);
 			otmp->blessed = rn2(2);
@@ -447,7 +447,7 @@ boolean artif;
 		otmp->spe = current_fruit;
 		break;
 	    case KELP_FROND:
-		otmp->quan = (int32_t) rnd(2);
+		otmp->quan = (long) rnd(2);
 		break;
 	    }
 	    if (otmp->otyp == CORPSE || otmp->otyp == MEAT_RING ||
@@ -456,7 +456,7 @@ boolean artif;
 
 	case GEM_CLASS:
 		if (otmp->otyp == LOADSTONE) curse(otmp);
-		else if (otmp->otyp == ROCK) otmp->quan = (int32_t) rn1(6,6);
+		else if (otmp->otyp == ROCK) otmp->quan = (long) rn1(6,6);
 		else if (otmp->otyp != LUCKSTONE && !rn2(6)) otmp->quan = 2L;
 		else otmp->quan = 1L;
 		break;
@@ -465,15 +465,15 @@ boolean artif;
 		case TALLOW_CANDLE:
 		case WAX_CANDLE:	otmp->spe = 1;
 					otmp->age = 20L * /* 400 or 200 */
-					      (int32_t)objects[otmp->otyp].oc_cost;
+					      (long)objects[otmp->otyp].oc_cost;
 					otmp->lamplit = 0;
 					otmp->quan = 1L +
-					      (int32_t)(rn2(2) ? rn2(7) : 0);
+					      (long)(rn2(2) ? rn2(7) : 0);
 					blessorcurse(otmp, 5);
 					break;
 		case BRASS_LANTERN:
 		case OIL_LAMP:		otmp->spe = 1;
-					otmp->age = (int32_t) rn1(500,1000);
+					otmp->age = (long) rn1(500,1000);
 					otmp->lamplit = 0;
 					blessorcurse(otmp, 5);
 					break;
@@ -640,8 +640,8 @@ void
 start_corpse_timeout(body)
 	struct obj *body;
 {
-	int32_t when; 		/* rot away when this old */
-	int32_t corpse_age;	/* age of corpse          */
+	long when; 		/* rot away when this old */
+	long corpse_age;	/* age of corpse          */
 	int rot_adjust;
 	short action;
 
@@ -659,7 +659,7 @@ start_corpse_timeout(body)
 		when = rot_adjust;
 	else
 		when = ROT_AGE - corpse_age;
-	when += (int32_t)(rnz(rot_adjust) - rot_adjust);
+	when += (long)(rnz(rot_adjust) - rot_adjust);
 
 	if (is_rider(&mons[body->corpsenm])) {
 		/*
@@ -671,7 +671,7 @@ start_corpse_timeout(body)
 		    if (!rn2(3)) break;
 
 	} else if (mons[body->corpsenm].mlet == S_TROLL && !body->norevive) {
-		int32_t age;
+		long age;
 		for (age = 2; age <= TAINT_AGE; age++)
 		    if (!rn2(TROLL_REVIVE_CHANCE)) {	/* troll revives */
 			action = REVIVE_MON;
@@ -841,9 +841,9 @@ register struct obj *obj;
 		return wt + cwt;
 	}
 	if (obj->otyp == CORPSE && obj->corpsenm >= LOW_PM) {
-		int32_t int32_t_wt = obj->quan * (int32_t) mons[obj->corpsenm].cwt;
+		long long_wt = obj->quan * (long) mons[obj->corpsenm].cwt;
 
-		wt = (int32_t_wt > LARGEST_INT) ? LARGEST_INT : (int)int32_t_wt;
+		wt = (long_wt > LARGEST_INT) ? LARGEST_INT : (int)long_wt;
 		if (obj->oeaten) wt = eaten_stat(wt, obj);
 		return wt;
 	} else if (obj->oclass == FOOD_CLASS && obj->oeaten) {
@@ -868,13 +868,13 @@ int x, y;
 
 struct obj *
 mkgold(amount, x, y)
-int32_t amount;
+long amount;
 int x, y;
 {
     register struct obj *gold = g_at(x,y);
 
     if (amount <= 0L)
-	amount = (int32_t)(1 + rnd(level_difficulty()+2) * rnd(30));
+	amount = (long)(1 + rnd(level_difficulty()+2) * rnd(30));
     if (gold) {
 	gold->quan += amount;
     } else {
@@ -1163,20 +1163,20 @@ boolean do_buried;
  * rot timers pertaining to the object don't have to be stopped and
  * restarted etc.
  */
-int32_t
+long
 peek_at_iced_corpse_age(otmp)
 struct obj *otmp;
 {
-    int32_t age, retval = otmp->age;
+    long age, retval = otmp->age;
     
     if (otmp->otyp == CORPSE && ON_ICE(otmp)) {
 	/* Adjust the age; must be same as obj_timer_checks() for off ice*/
 	age = monstermoves - otmp->age;
 	retval = otmp->age + (age / ROT_ICE_ADJUSTMENT);
 #ifdef DEBUG_EFFECTS
-	pline_The("%s age has ice modifications:otmp->age = %d, returning %d.",
+	pline_The("%s age has ice modifications:otmp->age = %ld, returning %ld.",
 		s_suffix(doname(otmp)),otmp->age, retval);
-	pline("Effective age of corpse: %d.",
+	pline("Effective age of corpse: %ld.",
 		monstermoves - retval);
 #endif
     }
@@ -1189,7 +1189,7 @@ struct obj *otmp;
 xchar x, y;
 int force;	/* 0 = no force so do checks, <0 = force off, >0 force on */
 {
-    int32_t tleft = 0L;
+    long tleft = 0L;
     short action = ROT_CORPSE;
     boolean restart_timer = FALSE;
     boolean on_floor = (otmp->where == OBJ_FLOOR);
@@ -1203,7 +1203,7 @@ int force;	/* 0 = no force so do checks, <0 = force off, >0 force on */
 		tleft = stop_timer(action, (genericptr_t)otmp);
 	} 
 	if (tleft != 0L) {
-	    int32_t age;
+	    long age;
 	    
 	    tleft = tleft - monstermoves;
 	    /* mark the corpse as being on ice */
@@ -1229,7 +1229,7 @@ int force;	/* 0 = no force so do checks, <0 = force off, >0 force on */
 		tleft = stop_timer(action, (genericptr_t)otmp);
 	}
 	if (tleft != 0L) {
-		int32_t age;
+		long age;
 
 		tleft = tleft - monstermoves;
 		ON_ICE(otmp) = 0;

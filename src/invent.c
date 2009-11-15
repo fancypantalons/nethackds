@@ -19,7 +19,7 @@ STATIC_DCL boolean FDECL(taking_off, (const char *));
 STATIC_DCL boolean FDECL(putting_on, (const char *));
 STATIC_PTR int FDECL(ckunpaid,(struct obj *));
 STATIC_PTR int FDECL(ckvalidcat,(struct obj *));
-static char FDECL(display_pickinv, (const char *,BOOLEAN_P, int32_t *));
+static char FDECL(display_pickinv, (const char *,BOOLEAN_P, long *));
 #ifdef OVLB
 STATIC_DCL boolean FDECL(this_type_only, (struct obj *));
 STATIC_DCL void NDECL(dounpaid);
@@ -190,7 +190,7 @@ struct obj **potmp, **pobj;
 
 		/* fixup for `#adjust' merging wielded darts, daggers, &c */
 		if (obj->owornmask && carried(otmp)) {
-		    int32_t wmask = otmp->owornmask | obj->owornmask;
+		    long wmask = otmp->owornmask | obj->owornmask;
 
 		    /* Both the items might be worn in competing slots;
 		       merger preference (regardless of which is which):
@@ -204,7 +204,7 @@ struct obj **potmp, **pobj;
 		    else if (wmask & W_SWAPWEP) wmask = W_SWAPWEP;
 		    else if (wmask & W_QUIVER) wmask = W_QUIVER;
 		    else {
-			impossible("merging strangely worn items (%x)", wmask);
+			impossible("merging strangely worn items (%lx)", wmask);
 			wmask = otmp->owornmask;
 		    }
 		    if ((otmp->owornmask & ~wmask) != 0L) setnotworn(otmp);
@@ -408,7 +408,7 @@ const char *drop_fmt, *drop_arg, *hold_msg;
 	    if (drop_fmt) pline(drop_fmt, drop_arg);
 	    dropy(obj);
 	} else {
-	    int32_t oquan = obj->quan;
+	    long oquan = obj->quan;
 	    int prev_encumbr = near_capacity();	/* before addinv() */
 
 	    /* encumbrance only matters if it would now become worse
@@ -613,7 +613,7 @@ register int type;
 
 const char *
 currency(amount)
-int32_t amount;
+long amount;
 {
 	if (amount == 1L) return "zorkmid";
 	else return "zorkmids";
@@ -679,7 +679,7 @@ register int x, y;
 /* Make a gold object from the hero's gold. */
 struct obj *
 mkgoldobj(q)
-register int32_t q;
+register long q;
 {
 	register struct obj *otmp;
 
@@ -769,9 +769,9 @@ register const char *let,*word;
 	boolean allownone = FALSE;
 	boolean useboulder = FALSE;
 	xchar foox = 0;
-	int32_t cnt;
+	long cnt;
 	boolean prezero = FALSE;
-	int32_t dummymask;
+	long dummymask;
 
 	if(*let == ALLOW_COUNT) let++, allowcnt = 1;
 #ifndef GOLDOBJ
@@ -1012,12 +1012,12 @@ register const char *let,*word;
 		}
 		if(ilet == '?' || ilet == '*') {
 		    char *allowed_choices = (ilet == '?') ? lets : (char *)0;
-		    int32_t ctmp = 0;
+		    long ctmp = 0;
 
 		    if (ilet == '?' && !*lets && *altlets)
 			allowed_choices = altlets;
 		    ilet = display_pickinv(allowed_choices, TRUE,
-					   allowcnt ? &ctmp : (int32_t *)0);
+					   allowcnt ? &ctmp : (long *)0);
 		    if(!ilet) continue;
 		    if (allowcnt && ctmp >= 0) {
 			cnt = ctmp;
@@ -1060,7 +1060,7 @@ register const char *let,*word;
 #endif
 			continue;
 		} else if (cnt < 0 || otmp->quan < cnt) {
-			You("don't have that many!  You have only %d.",
+			You("don't have that many!  You have only %ld.",
 			    otmp->quan);
 #ifdef REDO
 			if (in_doagain) return((struct obj *) 0);
@@ -1581,7 +1581,7 @@ void
 prinv(prefix, obj, quan)
 const char *prefix;
 register struct obj *obj;
-int32_t quan;
+long quan;
 {
 	if (!prefix) prefix = "";
 	pline("%s%s%s",
@@ -1598,8 +1598,8 @@ struct obj *obj;
 const char *txt;	/* text to print instead of obj */
 char let;		/* inventory letter */
 boolean dot;		/* append period; (dot && cost => Iu) */
-int32_t cost;		/* cost (for inventory of unpaid or expended items) */
-int32_t quan;		/* if non-0, print this quantity, not obj->quan */
+long cost;		/* cost (for inventory of unpaid or expended items) */
+long quan;		/* if non-0, print this quantity, not obj->quan */
 {
 #ifdef LINT	/* handle static char li[BUFSZ]; */
     char li[BUFSZ];
@@ -1607,7 +1607,7 @@ int32_t quan;		/* if non-0, print this quantity, not obj->quan */
     static char li[BUFSZ];
 #endif
     boolean use_invlet = flags.invlet_constant && let != CONTAINED_SYM;
-    int32_t savequan = 0;
+    long savequan = 0;
 
     if (quan && obj) {
 	savequan = obj->quan;
@@ -1621,12 +1621,12 @@ int32_t quan;		/* if non-0, print this quantity, not obj->quan */
      */
     if (cost != 0 || let == '*') {
 	/* if dot is true, we're doing Iu, otherwise Ix */
-	Sprintf(li, "%c - %-45s %6d %s",
+	Sprintf(li, "%c - %-45s %6ld %s",
 		(dot && use_invlet ? obj->invlet : let),
 		(txt ? txt : doname(obj)), cost, currency(cost));
 #ifndef GOLDOBJ
     } else if (obj && obj->oclass == COIN_CLASS) {
-	Sprintf(li, "%d gold piece%s%s", obj->quan, plur(obj->quan),
+	Sprintf(li, "%ld gold piece%s%s", obj->quan, plur(obj->quan),
 		(dot ? "." : ""));
 #endif
     } else {
@@ -1693,7 +1693,7 @@ static char
 display_pickinv(lets, want_reply, out_cnt)
 register const char *lets;
 boolean want_reply;
-int32_t* out_cnt;
+long* out_cnt;
 {
 	struct obj *otmp;
 #ifdef SORTLOOT
@@ -1872,7 +1872,7 @@ display_inventory(lets, want_reply)
 register const char *lets;
 boolean want_reply;
 {
-	return display_pickinv(lets, want_reply, (int32_t *)0);
+	return display_pickinv(lets, want_reply, (long *)0);
 }
 
 /*
@@ -1943,7 +1943,7 @@ dounpaid()
     char *invlet = flags.inv_order;
     int classcount, count, num_so_far;
     int save_unpaid = 0;	/* lint init */
-    int32_t cost, totcost;
+    long cost, totcost;
 
     count = count_unpaid(invent);
 
@@ -2467,13 +2467,13 @@ doprgold()
 	if(!u.ugold)
 	    Your("wallet is empty.");
 	else
-	    Your("wallet contains %d gold piece%s.", u.ugold, plur(u.ugold));
+	    Your("wallet contains %ld gold piece%s.", u.ugold, plur(u.ugold));
 #else
-        int32_t umoney = money_cnt(invent);
+        long umoney = money_cnt(invent);
 	if(!umoney)
 	    Your("wallet is empty.");
 	else
-	    Your("wallet contains %d %s.", umoney, currency(umoney));
+	    Your("wallet contains %ld %s.", umoney, currency(umoney));
 #endif
 	shopper_financial_report();
 	return 0;
@@ -2603,7 +2603,7 @@ doprinuse()
 void
 useupf(obj, numused)
 register struct obj *obj;
-int32_t numused;
+long numused;
 {
 	register struct obj *otmp;
 	boolean at_u = (obj->ox == u.ux && obj->oy == u.uy);

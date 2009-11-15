@@ -33,10 +33,10 @@ extern char *FDECL(vms_basename, (const char *));
 extern int FDECL(vms_open, (const char *,int,unsigned int));
 #endif
 
-static void FDECL(Write, (int,char *,int32_t));
+static void FDECL(Write, (int,char *,long));
 static void NDECL(usage);
 static void NDECL(verbose_help);
-static void FDECL(write_dlb_directory, (int,int,libdir *,int32_t,int32_t,int32_t));
+static void FDECL(write_dlb_directory, (int,int,libdir *,long,long,long));
 
 static char default_progname[] = "dlb";
 static char *progname = default_progname;
@@ -92,7 +92,7 @@ usage()
 static void
 verbose_help()
 {
-    static const char *int32_t_help[] = {
+    static const char *long_help[] = {
 	"",
 	"dlb COMMANDoptions args... files...",
 	"  commands:",
@@ -111,7 +111,7 @@ verbose_help()
     };
     const char **str;
 
-    for (str = int32_t_help; *str; str++)
+    for (str = long_help; *str; str++)
 	(void) printf("%s\n", *str);
     usage();
 }
@@ -120,7 +120,7 @@ static void
 Write(out,buf,len)
     int out;
     char *buf;
-    int32_t len;
+    long len;
 {
 #if defined(MSDOS) && !defined(__DJGPP__)
     unsigned short slen;
@@ -269,14 +269,14 @@ main(argc, argv)
 
 	for (i = 0; i < lib.nentries; i++) {
 	    if (verbose)
-		printf("%-14s %6d %6d\n",
+		printf("%-14s %6ld %6ld\n",
 		    lib.dir[i].fname, lib.dir[i].foffset, lib.dir[i].fsize);
 	    else
 		printf("%s\n", lib.dir[i].fname);
 	}
 
 	if (verbose)
-	    printf("Revision:%d  File count:%d  String size:%d\n",
+	    printf("Revision:%ld  File count:%ld  String size:%ld\n",
 		lib.rev, lib.nentries, lib.strsize);
 
 	close_library(&lib);
@@ -284,7 +284,7 @@ main(argc, argv)
 
     case 'x': {			/* extract archive contents */
 	int f, n;
-	int32_t remainder, total_read;
+	long remainder, total_read;
 	char buf[BUFSIZ];
 
 	if (!open_library(library_file, &lib)) {
@@ -320,7 +320,7 @@ main(argc, argv)
 	    total_read = 0;
 	    do {
 		remainder = lib.dir[i].fsize - total_read;
-		if (remainder > (int32_t) sizeof(buf))
+		if (remainder > (long) sizeof(buf))
 		    r = (int) sizeof(buf);
 		else
 		    r = remainder;
@@ -352,7 +352,7 @@ main(argc, argv)
 	libdir ld[MAX_DLB_FILES];
 	char buf[BUFSIZ];
 	int fd, out, nfiles = 0;
-	int32_t dir_size, slen, flen, fsiz;
+	long dir_size, slen, flen, fsiz;
 	boolean rewrite_directory = FALSE;
 
 	/*
@@ -492,23 +492,23 @@ static void
 write_dlb_directory(out, nfiles, ld, slen, dir_size, flen)
 int out, nfiles;
 libdir *ld;
-int32_t slen, dir_size, flen;
+long slen, dir_size, flen;
 {
     char buf[BUFSIZ];
     int i;
 
-    sprintf(buf,"%3d %8d %8ld %8d %8d\n",
-	    (int32_t) DLB_VERS,	    /* version of dlb file */
-	    (int32_t) nfiles+1,	    /* # of entries (includes directory) */
+    sprintf(buf,"%3ld %8ld %8ld %8ld %8ld\n",
+	    (long) DLB_VERS,	    /* version of dlb file */
+	    (long) nfiles+1,	    /* # of entries (includes directory) */
 				    /* string length + room for nulls */
-	    (int32_t) slen+strlen(DLB_DIRECTORY)+nfiles+1,
-	    (int32_t) dir_size,	    /* start of first file */
-	    (int32_t) flen+dir_size);  /* total file size */
+	    (long) slen+strlen(DLB_DIRECTORY)+nfiles+1,
+	    (long) dir_size,	    /* start of first file */
+	    (long) flen+dir_size);  /* total file size */
     Write(out, buf, strlen(buf));
 
     /* write each file entry */
-#define ENTRY_FORMAT "%c%s %8d\n"
-    sprintf(buf, ENTRY_FORMAT, ENC_NORMAL, DLB_DIRECTORY, (int32_t) 0);
+#define ENTRY_FORMAT "%c%s %8ld\n"
+    sprintf(buf, ENTRY_FORMAT, ENC_NORMAL, DLB_DIRECTORY, (long) 0);
     Write(out, buf, strlen(buf));
     for (i = 0; i < nfiles; i++) {
 	sprintf(buf, ENTRY_FORMAT,

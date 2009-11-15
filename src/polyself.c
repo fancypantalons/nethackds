@@ -166,23 +166,23 @@ newman()
 	 * 9 - rn2(19): random change of -9 to +9 hit points
 	 */
 #ifndef LINT
-	u.uhpmax = ((u.uhpmax - 10) * (int32_t)u.ulevel / oldlvl + 10) +
+	u.uhpmax = ((u.uhpmax - 10) * (long)u.ulevel / oldlvl + 10) +
 		(9 - rn2(19));
 #endif
 
 #ifdef LINT
 	u.uhp = u.uhp + tmp;
 #else
-	u.uhp = u.uhp * (int32_t)u.uhpmax/tmp;
+	u.uhp = u.uhp * (long)u.uhpmax/tmp;
 #endif
 
 	tmp = u.uenmax;
 #ifndef LINT
-	u.uenmax = u.uenmax * (int32_t)u.ulevel / oldlvl + 9 - rn2(19);
+	u.uenmax = u.uenmax * (long)u.ulevel / oldlvl + 9 - rn2(19);
 #endif
 	if (u.uenmax < 0) u.uenmax = 0;
 #ifndef LINT
-	u.uen = (tmp ? u.uen * (int32_t)u.uenmax / tmp : u.uenmax);
+	u.uen = (tmp ? u.uen * (long)u.uenmax / tmp : u.uenmax);
 #endif
 
 	redist_attr();

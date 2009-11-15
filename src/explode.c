@@ -401,7 +401,7 @@ struct scatter_chain {
  */
 
 /* returns number of scattered objects */
-int32_t
+long
 scatter(sx,sy,blastforce,scflags, obj)
 int sx,sy;				/* location of objects to scatter */
 int blastforce;				/* force behind the scattering	*/
@@ -412,19 +412,19 @@ struct obj *obj;			/* only scatter this obj        */
 	register int tmp;
 	int farthest = 0;
 	uchar typ;
-	int32_t qtmp;
+	long qtmp;
 	boolean used_up;
 	boolean individual_object = obj ? TRUE : FALSE;
 	struct monst *mtmp;
 	struct scatter_chain *stmp, *stmp2 = 0;
 	struct scatter_chain *schain = (struct scatter_chain *)0;
-	int32_t total = 0L;
+	long total = 0L;
 
 	while ((otmp = individual_object ? obj : level.objects[sx][sy]) != 0) {
 	    if (otmp->quan > 1L) {
 		qtmp = otmp->quan - 1;
 		if (qtmp > LARGEST_INT) qtmp = LARGEST_INT;
-		qtmp = (int32_t)rnd((int)qtmp);
+		qtmp = (long)rnd((int)qtmp);
 		otmp = splitobj(otmp, qtmp);
 	    } else {
 		obj = (struct obj *)0; /* all used */

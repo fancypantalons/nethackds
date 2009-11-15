@@ -41,7 +41,7 @@ int shotlimit;
 	struct obj *otmp;
 	int multishot = 1;
 	schar skill;
-	int32_t wep_mask;
+	long wep_mask;
 	boolean twoweap;
 
 	/* ask "in what direction?" */
@@ -145,7 +145,7 @@ int shotlimit;
 	    }
 	}
 
-	if ((int32_t)multishot > obj->quan) multishot = (int)obj->quan;
+	if ((long)multishot > obj->quan) multishot = (int)obj->quan;
 	multishot = rnd(multishot);
 	if (shotlimit > 0 && multishot > shotlimit) multishot = shotlimit;
 
@@ -769,7 +769,7 @@ boolean hitsroof;
 		    if (otyp == BLINDING_VENOM && !Blind)
 			pline("It blinds you!");
 		    u.ucreamed += blindinc;
-		    make_blinded(Blinded + (int32_t)blindinc, FALSE);
+		    make_blinded(Blinded + (long)blindinc, FALSE);
 		    if (!Blind) Your(vision_clears);
 		}
 		break;
@@ -859,7 +859,7 @@ struct obj *obj;
 void
 throwit(obj, wep_mask, twoweap)
 register struct obj *obj;
-int32_t wep_mask;	/* used to re-equip returning boomerang */
+long wep_mask;	/* used to re-equip returning boomerang */
 boolean twoweap; /* used to restore twoweapon mode if wielded weapon returns */
 {
 	register struct monst *mon;
@@ -1600,7 +1600,7 @@ boolean from_invent;
 		struct monst *shkp = shop_keeper(*o_shop);
 
 		if (shkp) {		/* (implies *o_shop != '\0') */
-		    static NEARDATA int32_t lastmovetime = 0L;
+		    static NEARDATA long lastmovetime = 0L;
 		    static NEARDATA boolean peaceful_shk = FALSE;
 		    /*  We want to base shk actions on her peacefulness
 			at start of this turn, so that "simultaneous"
@@ -1694,7 +1694,7 @@ struct obj *obj;
 {
 	int range, odx, ody;
 #ifndef GOLDOBJ
-	int32_t zorks = obj->quan;
+	long zorks = obj->quan;
 #endif
 	register struct monst *mon;
 

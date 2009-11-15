@@ -22,7 +22,7 @@ STATIC_DCL int FDECL(try_lift, (struct monst *, struct trap *, int, BOOLEAN_P));
 STATIC_DCL int FDECL(help_monster_out, (struct monst *, struct trap *));
 STATIC_DCL boolean FDECL(thitm, (int,struct monst *,struct obj *,int,BOOLEAN_P));
 STATIC_DCL int FDECL(mkroll_launch,
-			(struct trap *,XCHAR_P,XCHAR_P,SHORT_P,int32_t));
+			(struct trap *,XCHAR_P,XCHAR_P,SHORT_P,long));
 STATIC_DCL boolean FDECL(isclearpath,(coord *, int, SCHAR_P, SCHAR_P));
 #ifdef STEED
 STATIC_OVL int FDECL(steedintrap, (struct trap *, struct obj *));
@@ -1468,7 +1468,7 @@ int style;
 				get_level(&dest, newlev);
 				singleobj->ox = dest.dnum;
 				singleobj->oy = dest.dlevel;
-				singleobj->owornmask = (int32_t)MIGR_RANDOM;
+				singleobj->owornmask = (long)MIGR_RANDOM;
 			    }
 		    	    seetrap(t);
 			    used_up = TRUE;
@@ -1560,7 +1560,7 @@ mkroll_launch(ttmp, x, y, otyp, ocount)
 struct trap *ttmp;
 xchar x,y;
 short otyp;
-int32_t ocount;
+long ocount;
 {
 	struct obj *otmp;
 	register int tmp;
@@ -2303,7 +2303,7 @@ int x, y;
 
 int
 float_down(hmask, emask)
-int32_t hmask, emask;     /* might cancel timeout */
+long hmask, emask;     /* might cancel timeout */
 {
 	register struct trap *trap = (struct trap *)0;
 	d_level current_dungeon_level;
@@ -2497,7 +2497,7 @@ domagictrap()
 
 	  if (!resists_blnd(&youmonst)) {
 		You("are momentarily blinded by a flash of light!");
-		make_blinded((int32_t)rn1(5,10),FALSE);
+		make_blinded((long)rn1(5,10),FALSE);
 		if (!Blind) Your(vision_clears);
 	  } else if (!Blind) {
 		You("see a flash of light!");
@@ -2565,7 +2565,7 @@ domagictrap()
 	     case 20:
 		    /* uncurse stuff */
 		   {	struct obj pseudo;
-			int32_t save_conf = HConfusion;
+			long save_conf = HConfusion;
 
 			pseudo = zeroobj;   /* neither cursed nor blessed */
 			pseudo.otyp = SCR_REMOVE_CURSE;
@@ -3642,7 +3642,7 @@ boolean disarm;
 		case 22:
 		case 21: {
 			  struct monst *shkp = 0;
-			  int32_t loss = 0L;
+			  long loss = 0L;
 			  boolean costly, insider;
 			  register xchar ox = obj->ox, oy = obj->oy;
 
@@ -3686,10 +3686,10 @@ boolean disarm;
 			  exercise(A_STR, FALSE);
 			  if(costly && loss) {
 			      if(insider)
-			      You("owe %d %s for objects destroyed.",
+			      You("owe %ld %s for objects destroyed.",
 							loss, currency(loss));
 			      else {
-				  You("caused %d %s worth of damage!",
+				  You("caused %ld %s worth of damage!",
 							loss, currency(loss));
 				  make_angry_shk(shkp, ox, oy);
 			      }

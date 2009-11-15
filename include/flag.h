@@ -86,7 +86,7 @@ struct flag {
 	int	 end_top, end_around;	/* describe desired score list */
 	unsigned ident;		/* social security number for each monster */
 	unsigned moonphase;
-	uint32_t suppress_alert;
+	unsigned long suppress_alert;
 #define NEW_MOON	0
 #define FULL_MOON	4
 	unsigned no_of_wizards; /* 0, 1 or 2 (wizard and his shadow) */
@@ -94,7 +94,7 @@ struct flag {
 	unsigned run;		/* 0: h (etc), 1: H (etc), 2: fh (etc) */
 				/* 3: FH, 4: ff+, 5: ff-, 6: FF+, 7: FF- */
 				/* 8: travel */
-	uint32_t warntype; /* warn_of_mon monster type M2 */
+	unsigned long warntype; /* warn_of_mon monster type M2 */
 	int	 warnlevel;
 	int	 djinni_count, ghost_count;	/* potion effect tuning */
 	int	 pickup_burden;		/* maximum burden before prompt */
@@ -272,7 +272,7 @@ struct instance_flags {
 
 	boolean  cmdassist;	/* provide detailed assistance for some commands */
 	boolean	 obsolete;	/* obsolete options can point at this, it isn't used */
-	/* Items which beint32_t in flags, but are here to allow save compatibility */
+	/* Items which belong in flags, but are here to allow save compatibility */
 	boolean  lootabc;	/* use "a/b/c" rather than "o/i/b" when looting */
 	boolean  showrace;	/* show hero glyph by race rather than by role */
 	boolean  travelcmd;	/* allow travel command */

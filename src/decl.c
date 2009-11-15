@@ -51,7 +51,7 @@ NEARDATA int killer_format = 0;
 const char *killer = 0;
 const char *delayed_killer = 0;
 #ifdef GOLDOBJ
-NEARDATA int32_t done_money = 0;
+NEARDATA long done_money = 0;
 #endif
 char killer_buf[BUFSZ] = DUMMY;
 const char *nomovemsg = 0;
@@ -73,7 +73,7 @@ const char ynchars[] = "yn";
 const char ynqchars[] = "ynq";
 const char ynaqchars[] = "ynaq";
 const char ynNaqchars[] = "yn#aq";
-NEARDATA int32_t yn_number = 0L;
+NEARDATA long yn_number = 0L;
 
 const char disclosure_options[] = "iavgc";
 
@@ -185,9 +185,9 @@ const int shield_static[SHIELD_COUNT] = {
 
 NEARDATA struct spell spl_book[MAXSPELL + 1] = {DUMMY};
 
-NEARDATA int32_t moves = 1L, monstermoves = 1L;
+NEARDATA long moves = 1L, monstermoves = 1L;
 	 /* These diverge when player is Fast */
-NEARDATA int32_t wailmsg = 0L;
+NEARDATA long wailmsg = 0L;
 
 /* objects that are moving to another dungeon level */
 NEARDATA struct obj *migrating_objs = (struct obj *)0;

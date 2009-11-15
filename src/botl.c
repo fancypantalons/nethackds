@@ -145,22 +145,22 @@ max_rank_sz()
 #ifdef OVL0
 
 #ifdef SCORE_ON_BOTL
-int32_t
+long
 botl_score()
 {
     int deepest = deepest_lev_reached(FALSE);
 #ifndef GOLDOBJ
-    int32_t ugold = u.ugold + hidden_gold();
+    long ugold = u.ugold + hidden_gold();
 
     if ((ugold -= u.ugold0) < 0L) ugold = 0L;
-    return ugold + u.urexp + (int32_t)(50 * (deepest - 1))
+    return ugold + u.urexp + (long)(50 * (deepest - 1))
 #else
-    int32_t umoney = money_cnt(invent) + hidden_gold();
+    long umoney = money_cnt(invent) + hidden_gold();
 
     if ((umoney -= u.umoney0) < 0L) umoney = 0L;
-    return umoney + u.urexp + (int32_t)(50 * (deepest - 1))
+    return umoney + u.urexp + (long)(50 * (deepest - 1))
 #endif
-			  + (int32_t)(deepest > 30 ? 10000 :
+			  + (long)(deepest > 30 ? 10000 :
 				   deepest > 20 ? 1000*(deepest - 20) : 0);
 }
 #endif
@@ -213,7 +213,7 @@ bot1()
 			(u.ualign.type == A_NEUTRAL) ? "  Neutral" : "  Lawful");
 #ifdef SCORE_ON_BOTL
 	if (flags.showscore)
-	    Sprintf(nb = eos(nb), " S:%d", botl_score());
+	    Sprintf(nb = eos(nb), " S:%ld", botl_score());
 #endif
 	curs(WIN_STATUS, 1, 0);
 	putstr(WIN_STATUS, 0, newbot1);
@@ -274,9 +274,9 @@ bot2()
 	(void) describe_level(newbot2);
 	Sprintf(nb = eos(newbot2),
 #ifdef NDS
-		"%c:%-2d HP:\e[3%dm%d(%d)\e[37m Pw:%d(%d) AC:%-2d", oc_syms[COIN_CLASS],
+		"%c:%-2ld HP:\e[3%dm%d(%d)\e[37m Pw:%d(%d) AC:%-2d", oc_syms[COIN_CLASS],
 #else
-		"%c:%-2d HP:%d(%d) Pw:%d(%d) AC:%-2d", oc_syms[COIN_CLASS],
+		"%c:%-2ld HP:%d(%d) Pw:%d(%d) AC:%-2d", oc_syms[COIN_CLASS],
 #endif
 #ifndef GOLDOBJ
 		u.ugold,
@@ -293,13 +293,13 @@ bot2()
 		Sprintf(nb = eos(nb), " HD:%d", mons[u.umonnum].mlevel);
 #ifdef EXP_ON_BOTL
 	else if(flags.showexp)
-		Sprintf(nb = eos(nb), " Xp:%u/%-1d", u.ulevel,u.uexp);
+		Sprintf(nb = eos(nb), " Xp:%u/%-1ld", u.ulevel,u.uexp);
 #endif
 	else
 		Sprintf(nb = eos(nb), " Exp:%u", u.ulevel);
 
 	if(flags.time)
-	    Sprintf(nb = eos(nb), " T:%d", moves);
+	    Sprintf(nb = eos(nb), " T:%ld", moves);
 	if(strcmp(hu_stat[u.uhs], "        ")) {
 		Sprintf(nb = eos(nb), " ");
 		Strcat(newbot2, hu_stat[u.uhs]);

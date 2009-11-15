@@ -1730,7 +1730,7 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
 
         if (choices[i] == '$') {
           oclass = COIN_CLASS;
-          sprintf(oname, "%d gold piece%s", u.ugold, plur(u.ugold));
+          sprintf(oname, "%ld gold piece%s", u.ugold, plur(u.ugold));
         } else {
           struct obj *otmp = obj_for_let(choices[i]);
 

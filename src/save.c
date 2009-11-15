@@ -14,7 +14,7 @@
 #endif
 
 #ifdef MFLOPPY
-int32_t bytes_counted;
+long bytes_counted;
 static int count_only;
 #endif
 
@@ -37,7 +37,7 @@ STATIC_DCL boolean NDECL(swapout_oldest);
 STATIC_DCL void FDECL(copyfile, (char *,char *));
 #endif /* MFLOPPY */
 #ifdef GCC_WARN
-static int32_t nulls[10];
+static long nulls[10];
 #else
 #define nulls nul
 #endif
@@ -181,7 +181,7 @@ dosave0()
 #ifdef MFLOPPY
 	/* make sure there is enough disk space */
 	if (iflags.checkspace) {
-	    int32_t fds, needed;
+	    long fds, needed;
 
 	    savelev(fd, ledger_no(&u.uz), COUNT_SAVE);
 	    savegamestate(fd, COUNT_SAVE);
@@ -194,7 +194,7 @@ dosave0()
 	    if (needed > fds) {
 		HUP {
 		    There("is insufficient space on SAVE disk.");
-		    pline("Require %d bytes but only have %d.", needed, fds);
+		    pline("Require %ld bytes but only have %ld.", needed, fds);
 		}
 		flushout();
 		(void) close(fd);
@@ -1078,7 +1078,7 @@ STATIC_OVL boolean
 swapout_oldest() {
 	char to[PATHLEN], from[PATHLEN];
 	int i, oldest;
-	int32_t oldtime;
+	long oldtime;
 
 	if (!ramdisk)
 		return FALSE;

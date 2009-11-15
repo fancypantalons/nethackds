@@ -1033,7 +1033,7 @@ water_prayer(bless_water)
     boolean bless_water;
 {
     register struct obj* otmp;
-    register int32_t changed = 0;
+    register long changed = 0;
     boolean other = FALSE, bc_known = !(Blind || Hallucination);
 
     for(otmp = level.objects[u.ux][u.uy]; otmp; otmp = otmp->nexthere) {
@@ -1845,7 +1845,7 @@ blocked_boulder(dx,dy)
 int dx,dy;
 {
     register struct obj *otmp;
-    int32_t count = 0L;
+    long count = 0L;
 
     for(otmp = level.objects[u.ux+dx][u.uy+dy]; otmp; otmp = otmp->nexthere) {
 	if(otmp->otyp == BOULDER)

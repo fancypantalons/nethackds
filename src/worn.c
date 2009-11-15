@@ -5,11 +5,11 @@
 #include "hack.h"
 
 STATIC_DCL void FDECL(m_lose_armor, (struct monst *,struct obj *));
-STATIC_DCL void FDECL(m_dowear_type, (struct monst *,int32_t, BOOLEAN_P, BOOLEAN_P));
+STATIC_DCL void FDECL(m_dowear_type, (struct monst *,long, BOOLEAN_P, BOOLEAN_P));
 STATIC_DCL int FDECL(extra_pref, (struct monst *, struct obj *));
 
 const struct worn {
-	int32_t w_mask;
+	long w_mask;
 	struct obj **w_obj;
 } worn[] = {
 	{ W_ARM, &uarm },
@@ -46,7 +46,7 @@ const struct worn {
 void
 setworn(obj, mask)
 register struct obj *obj;
-int32_t mask;
+long mask;
 {
 	register const struct worn *wp;
 	register struct obj *oobj;
@@ -60,7 +60,7 @@ int32_t mask;
 	    for(wp = worn; wp->w_mask; wp++) if(wp->w_mask & mask) {
 		oobj = *(wp->w_obj);
 		if(oobj && !(oobj->owornmask & wp->w_mask))
-			impossible("Setworn: mask = %d.", wp->w_mask);
+			impossible("Setworn: mask = %ld.", wp->w_mask);
 		if(oobj) {
 		    if (u.twoweap && (oobj->owornmask & (W_WEP|W_SWAPWEP)))
 			u.twoweap = 0;
@@ -330,7 +330,7 @@ register struct monst *mon;
 {
 	register struct obj *obj;
 	int base = mon->data->ac;
-	int32_t mwflags = mon->misc_worn_check;
+	long mwflags = mon->misc_worn_check;
 
 	for (obj = mon->minvent; obj; obj = obj->nobj) {
 	    if (obj->owornmask & mwflags)
@@ -398,7 +398,7 @@ boolean creation;
 STATIC_OVL void
 m_dowear_type(mon, flag, creation, racialexception)
 struct monst *mon;
-int32_t flag;
+long flag;
 boolean creation;
 boolean racialexception;
 {
@@ -515,7 +515,7 @@ outer_break:
 struct obj *
 which_armor(mon, flag)
 struct monst *mon;
-int32_t flag;
+long flag;
 {
 	register struct obj *obj;
 

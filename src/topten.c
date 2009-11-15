@@ -23,7 +23,7 @@
  * which reads the scores will ignore it.
  */
 #ifdef UPDATE_RECORD_IN_PLACE
-static int32_t final_fpos;
+static long final_fpos;
 #endif
 
 #define done_stopprint program_state.stopprint
@@ -43,13 +43,13 @@ static int32_t final_fpos;
 struct toptenentry {
 	struct toptenentry *tt_next;
 #ifdef UPDATE_RECORD_IN_PLACE
-	int32_t fpos;
+	long fpos;
 #endif
-	int32_t points;
+	long points;
 	int deathdnum, deathlev;
 	int maxlvl, hp, maxhp, deaths;
 	int ver_major, ver_minor, patchlevel;
-	int32_t deathdate, birthdate;
+	long deathdate, birthdate;
 	int uid;
 	char plrole[ROLESZ+1];
 	char plrace[ROLESZ+1];
@@ -136,11 +136,11 @@ FILE *rfile;
 struct toptenentry *tt;
 {
 #ifdef NO_SCAN_BRACK /* Version_ Pts DgnLevs_ Hp___ Died__Born id */
-	static const char fmt[] = "%d %d %d %d %d %d %d %d %d %d %d %d %d%*c";
+	static const char fmt[] = "%d %d %d %ld %d %d %d %d %d %d %ld %ld %d%*c";
 	static const char fmt32[] = "%c%c %s %s%*c";
 	static const char fmt33[] = "%s %s %s %s %s %s%*c";
 #else
-	static const char fmt[] = "%d.%d.%d %d %d %d %d %d %d %d %d %d %d ";
+	static const char fmt[] = "%d.%d.%d %ld %d %d %d %d %d %d %ld %ld %d ";
 	static const char fmt32[] = "%c%c %[^,],%[^\n]%*c";
 	static const char fmt33[] = "%s %s %s %s %[^,],%[^\n]%*c";
 #endif
@@ -202,9 +202,9 @@ struct toptenentry *tt;
 	nsb_mung_line(tt->name);
 	nsb_mung_line(tt->death);
 	                   /* Version_ Pts DgnLevs_ Hp___ Died__Born id */
-	(void) fprintf(rfile,"%d %d %d %d %d %d %d %d %d %d %d %d %d ",
+	(void) fprintf(rfile,"%d %d %d %ld %d %d %d %d %d %d %ld %ld %d ",
 #else
-	(void) fprintf(rfile,"%d.%d.%d %d %d %d %d %d %d %d %d %d %d ",
+	(void) fprintf(rfile,"%d.%d.%d %ld %d %d %d %d %d %d %ld %ld %d ",
 #endif
 		tt->ver_major, tt->ver_minor, tt->patchlevel,
 		tt->points, tt->deathdnum, tt->deathlev,
@@ -426,7 +426,7 @@ int how;
 			HUP {
 			    char pbuf[BUFSZ];
 			    Sprintf(pbuf,
-			  "You didn't beat your previous score of %d points.",
+			  "You didn't beat your previous score of %ld points.",
 				    t1->points);
 			    topten_print(pbuf);
 			    topten_print("");
@@ -574,7 +574,7 @@ boolean so;
 	if (rank) Sprintf(eos(linebuf), "%3d", rank);
 	else Strcat(linebuf, "   ");
 
-	Sprintf(eos(linebuf), " %10d  %.10s", t1->points, t1->name);
+	Sprintf(eos(linebuf), " %10ld  %.10s", t1->points, t1->name);
 	Sprintf(eos(linebuf), "-%s", t1->plrole);
 	if (t1->plrace[0] != '?')
 		Sprintf(eos(linebuf), "-%s", t1->plrace);

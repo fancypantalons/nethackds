@@ -11,7 +11,7 @@ extern boolean notonhead;
 #ifdef OVLB
 
 static NEARDATA boolean vis, far_noise;
-static NEARDATA int32_t noisetime;
+static NEARDATA long noisetime;
 static NEARDATA struct obj *otmp;
 
 static const char brief_feeling[] =
@@ -595,7 +595,7 @@ mdamagem(magr, mdef, mattk)
 	boolean cancelled;
 
 	if (touch_petrifies(pd) && !resists_ston(magr)) {
-	    int32_t protector = attk_protection((int)mattk->aatyp),
+	    long protector = attk_protection((int)mattk->aatyp),
 		 wornitems = magr->misc_worn_check;
 
 	    /* wielded weapon gives same protection as gloves here */
@@ -1413,11 +1413,11 @@ int mdead;
 
 /* "aggressive defense"; what type of armor prevents specified attack
    from touching its target? */
-int32_t
+long
 attk_protection(aatyp)
 int aatyp;
 {
-    int32_t w_mask = 0L;
+    long w_mask = 0L;
 
     switch (aatyp) {
     case AT_NONE:

@@ -668,7 +668,7 @@ boolean ghostly; /* If a bones file restore */
 {
     int i, j;
     unsigned n;
-    int32_t tmstamp;
+    long tmstamp;
     char *msg_buf;
 
     clear_regions();		/* Just for security */

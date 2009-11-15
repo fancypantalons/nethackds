@@ -22,7 +22,7 @@ typedef union any {
 /* menu return list */
 typedef struct mi {
     anything item;		/* identifier */
-    int32_t count;			/* count */
+    long count;			/* count */
 } menu_item;
 #define MENU_ITEM_P struct mi
 

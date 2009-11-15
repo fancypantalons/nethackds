@@ -24,10 +24,10 @@ typedef struct dlb_procs {
     boolean FDECL((*dlb_fopen_proc), (DLB_P,const char *,const char *));
     int FDECL((*dlb_fclose_proc), (DLB_P));
     int FDECL((*dlb_fread_proc), (char *,int,int,DLB_P));
-    int FDECL((*dlb_fseek_proc), (DLB_P,int32_t,int));
+    int FDECL((*dlb_fseek_proc), (DLB_P,long,int));
     char *FDECL((*dlb_fgets_proc), (char *,int,DLB_P));
     int FDECL((*dlb_fgetc_proc), (DLB_P));
-    int32_t FDECL((*dlb_ftell_proc), (DLB_P));
+    long FDECL((*dlb_ftell_proc), (DLB_P));
 } dlb_procs_t;
 
 /* without extern.h via hack.h, these haven't been declared for us */
@@ -54,17 +54,17 @@ extern FILE *FDECL(fopen_datafile, (const char *,const char *,int));
 static library dlb_libs[MAX_LIBS];
 
 static boolean FDECL(readlibdir,(library *lp));
-static boolean FDECL(find_file,(const char *name, library **lib, int32_t *startp,
-								int32_t *sizep));
+static boolean FDECL(find_file,(const char *name, library **lib, long *startp,
+								long *sizep));
 static boolean NDECL(lib_dlb_init);
 static void NDECL(lib_dlb_cleanup);
 static boolean FDECL(lib_dlb_fopen,(dlb *, const char *, const char *));
 static int FDECL(lib_dlb_fclose,(dlb *));
 static int FDECL(lib_dlb_fread,(char *, int, int, dlb *));
-static int FDECL(lib_dlb_fseek,(dlb *, int32_t, int));
+static int FDECL(lib_dlb_fseek,(dlb *, long, int));
 static char *FDECL(lib_dlb_fgets,(char *, int, dlb *));
 static int FDECL(lib_dlb_fgetc,(dlb *));
-static int32_t FDECL(lib_dlb_ftell,(dlb *));
+static long FDECL(lib_dlb_ftell,(dlb *));
 
 /* not static because shared with dlb_main.c */
 boolean FDECL(open_library,(const char *lib_name, library *lp));
@@ -123,9 +123,9 @@ readlibdir(lp)
 {
     int i;
     char *sp;
-    int32_t liboffset, totalsize;
+    long liboffset, totalsize;
 
-    if (fscanf(lp->fdata, "%d %d %d %d %d\n",
+    if (fscanf(lp->fdata, "%ld %ld %ld %ld %ld\n",
 	    &lp->rev,&lp->nentries,&lp->strsize,&liboffset,&totalsize) != 5)
 	return FALSE;
     if (lp->rev > DLB_MAX_VERS || lp->rev < DLB_MIN_VERS) return FALSE;
@@ -136,7 +136,7 @@ readlibdir(lp)
     /* read in each directory entry */
     for (i = 0, sp = lp->sspace; i < lp->nentries; i++) {
 	lp->dir[i].fname = sp;
-	if (fscanf(lp->fdata, "%c%s %d\n",
+	if (fscanf(lp->fdata, "%c%s %ld\n",
 			&lp->dir[i].handling, sp, &lp->dir[i].foffset) != 3) {
 	    free((genericptr_t) lp->dir);
 	    free((genericptr_t) lp->sspace);
@@ -169,7 +169,7 @@ static boolean
 find_file(name, lib, startp, sizep)
     const char *name;
     library **lib;
-    int32_t *startp, *sizep;
+    long *startp, *sizep;
 {
     int i, j;
     library *lp;
@@ -260,7 +260,7 @@ lib_dlb_fopen(dp, name, mode)
     dlb *dp;
     const char *name, *mode;
 {
-    int32_t start, size;
+    long start, size;
     library *lp;
 
     /* look up file in directory */
@@ -289,7 +289,7 @@ lib_dlb_fread(buf, size, quan, dp)
     int size, quan;
     dlb *dp;
 {
-    int32_t pos, nread, nbytes;
+    long pos, nread, nbytes;
 
     /* make sure we don't read into the next file */
     if ((dp->size - dp->mark) < (size * quan))
@@ -313,10 +313,10 @@ lib_dlb_fread(buf, size, quan, dp)
 static int
 lib_dlb_fseek(dp, pos, whence)
     dlb *dp;
-    int32_t pos;
+    long pos;
     int whence;
 {
-    int32_t curpos;
+    long curpos;
 
     switch (whence) {
 	case SEEK_CUR:	   curpos = dp->mark + pos;	break;
@@ -373,7 +373,7 @@ lib_dlb_fgetc(dp)
 }
 
 
-static int32_t
+static long
 lib_dlb_ftell(dp)
     dlb *dp;
 {
@@ -502,7 +502,7 @@ dlb_fread(buf, size, quan, dp)
 int
 dlb_fseek(dp, pos, whence)
     dlb *dp;
-    int32_t pos;
+    long pos;
     int whence;
 {
     if (!dlb_initialized) return EOF;
@@ -530,7 +530,7 @@ dlb_fgetc(dp)
     return do_dlb_fgetc(dp);
 }
 
-int32_t
+long
 dlb_ftell(dp)
     dlb *dp;
 {

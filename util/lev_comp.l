@@ -212,10 +212,10 @@ shortsighted	{ yylval.i=SHORTSIGHTED; return FLAG_TYPE; }
 .		{ return yytext[0]; }
 %%
 #ifdef	AMIGA
-int32_t *alloc(n)
+long *alloc(n)
 	unsigned n;
 {
-	return ((int32_t *)malloc (n));
+	return ((long *)malloc (n));
 }
 #endif
 

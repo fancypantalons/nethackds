@@ -32,8 +32,8 @@ register xchar omx,omy,gx,gy;
 	register schar i;
 	schar chcnt,cnt;
 	coord poss[9];
-	int32_t info[9];
-	int32_t allowflags;
+	long info[9];
+	long allowflags;
 	struct obj *ib = (struct obj *)0;
 
 	if(omx == gx && omy == gy)
@@ -460,7 +460,7 @@ register struct monst *priest;
 #else
 	if(!money_cnt(invent)) {
 	    if(coaligned && !strayed) {
-                int32_t pmoney = money_cnt(priest->minvent);
+                long pmoney = money_cnt(priest->minvent);
 		if (pmoney > 0L) {
 		    /* Note: two bits is actually 25 cents.  Hmm. */
 		    pline("%s gives you %s for an ale.", Monnam(priest),
@@ -474,7 +474,7 @@ register struct monst *priest;
 		pline("%s is not interested.", Monnam(priest));
 	    return;
 	} else {
-	    int32_t offer;
+	    long offer;
 
 	    pline("%s asks you for a contribution for the temple.",
 			Monnam(priest));

@@ -109,9 +109,9 @@ int how;
 
 	/* Put $ on stone */
 #ifndef GOLDOBJ
-	Sprintf(buf, "%d Au", u.ugold);
+	Sprintf(buf, "%ld Au", u.ugold);
 #else
-	Sprintf(buf, "%d Au", done_money);
+	Sprintf(buf, "%ld Au", done_money);
 #endif
 	buf[STONE_LINE_LEN] = 0; /* It could be a *lot* of gold :-) */
 	center(GOLD_LINE, buf);

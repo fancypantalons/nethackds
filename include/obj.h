@@ -26,7 +26,7 @@ struct obj {
 	xchar ox,oy;
 	short otyp;		/* object class number */
 	unsigned owt;
-	int32_t quan;		/* number of items */
+	long quan;		/* number of items */
 
 	schar spe;		/* quality of weapon, armor or ring (+ or -)
 				   number of charges for wand ( >= -1 )
@@ -98,14 +98,14 @@ struct obj {
 #define spestudied corpsenm	/* # of times a spellbook has been studied */
 #define fromsink  corpsenm	/* a potion from a sink */
 	unsigned oeaten;	/* nutrition left in food, if partly eaten */
-	int32_t age;		/* creation date */
+	long age;		/* creation date */
 
 	uchar onamelth;		/* length of name (following oxlth) */
 	short oxlth;		/* length of following data */
 	/* in order to prevent alignment problems oextra should
-	   be (or follow) a int32_t int */
-	int32_t owornmask;
-	int32_t oextra[1];		/* used for name of ordinary objects - length
+	   be (or follow) a long int */
+	long owornmask;
+	long oextra[1];		/* used for name of ordinary objects - length
 				   is flexible; amount for tmp gold objects */
 };
 
@@ -204,7 +204,7 @@ struct obj {
 
 				
 /* Eggs and other food */
-#define MAX_EGG_HATCH_TIME 200	/* int32_test an egg can remain unhatched */
+#define MAX_EGG_HATCH_TIME 200	/* longest an egg can remain unhatched */
 #define stale_egg(egg)	((monstermoves - (egg)->age) > (2*MAX_EGG_HATCH_TIME))
 #define ofood(o) ((o)->otyp == CORPSE || (o)->otyp == EGG || (o)->otyp == TIN)
 #define polyfodder(obj) (ofood(obj) && \

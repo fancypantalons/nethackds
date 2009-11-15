@@ -770,7 +770,7 @@ struct permonst *mdat;
 		You_feel("a slight illness.");
 		return FALSE;
 	} else {
-		make_sick(Sick ? Sick/3L + 1L : (int32_t)rn1(ACURR(A_CON), 20),
+		make_sick(Sick ? Sick/3L + 1L : (long)rn1(ACURR(A_CON), 20),
 			mdat->mname, TRUE, SICK_NONVOMITABLE);
 		return TRUE;
 	}
@@ -1035,7 +1035,7 @@ hitmu(mtmp, mattk)
 	    case AD_BLND:
 		if (can_blnd(mtmp, &youmonst, mattk->aatyp, (struct obj*)0)) {
 		    if (!Blind) pline("%s blinds you!", Monnam(mtmp));
-		    make_blinded(Blinded+(int32_t)dmg,FALSE);
+		    make_blinded(Blinded+(long)dmg,FALSE);
 		    if (!Blind) Your(vision_clears);
 		}
 		dmg = 0;
@@ -1134,7 +1134,7 @@ dopois:
 		}
 		break;
 	    case AD_LEGS:
-		{ register int32_t side = rn2(2) ? RIGHT_SIDE : LEFT_SIDE;
+		{ register long side = rn2(2) ? RIGHT_SIDE : LEFT_SIDE;
 		  const char *sidestr = (side == RIGHT_SIDE) ? "right" : "left";
 
 		/* This case is too obvious to ignore, but Nethack is not in
@@ -1741,7 +1741,7 @@ gulpmu(mtmp, mattk)	/* monster swallows you, or damage if u.uswallow */
 		    if (can_blnd(mtmp, &youmonst, mattk->aatyp, (struct obj*)0)) {
 			if(!Blind) {
 			    You_cant("see in here!");
-			    make_blinded((int32_t)tmp,FALSE);
+			    make_blinded((long)tmp,FALSE);
 			    if (!Blind) Your(vision_clears);
 			} else
 			    /* keep him blind until disgorged */
@@ -1857,7 +1857,7 @@ common:
 		    /* sometimes you're affected even if it's invisible */
 		    if (mon_visible(mtmp) || (rnd(tmp /= 2) > u.ulevel)) {
 			You("are blinded by a blast of light!");
-			make_blinded((int32_t)tmp, FALSE);
+			make_blinded((long)tmp, FALSE);
 			if (!Blind) Your(vision_clears);
 		    } else if (flags.verbose)
 			You("get the impression it was not terribly bright.");
@@ -1873,7 +1873,7 @@ common:
 		    boolean chg;
 		    if (!Hallucination)
 			You("are caught in a blast of kaleidoscopic light!");
-		    chg = make_hallucinated(HHallucination + (int32_t)tmp,FALSE,0L);
+		    chg = make_hallucinated(HHallucination + (long)tmp,FALSE,0L);
 		    You("%s.", chg ? "are freaked out" : "seem unaffected");
 		}
 		break;
@@ -1980,13 +1980,13 @@ gazemu(mtmp, mattk)	/* monster gazes at you */
 
 		    You("are blinded by %s radiance!",
 			              s_suffix(mon_nam(mtmp)));
-		    make_blinded((int32_t)blnd,FALSE);
+		    make_blinded((long)blnd,FALSE);
 		    stop_occupation();
 		    /* not blind at this point implies you're wearing
 		       the Eyes of the Overworld; make them block this
 		       particular stun attack too */
 		    if (!Blind) Your(vision_clears);
-		    else make_stunned((int32_t)d(1,3),TRUE);
+		    else make_stunned((long)d(1,3),TRUE);
 		}
 		break;
 	    case AD_FIRE:
@@ -2360,12 +2360,12 @@ register struct monst *mon;
 				noit_Monnam(mon));
 	else {
 #ifndef GOLDOBJ
-		int32_t cost;
+		long cost;
 
-		if (u.ugold > (int32_t)LARGEST_INT - 10L)
-			cost = (int32_t) rnd(LARGEST_INT) + 500L;
+		if (u.ugold > (long)LARGEST_INT - 10L)
+			cost = (long) rnd(LARGEST_INT) + 500L;
 		else
-			cost = (int32_t) rnd((int)u.ugold + 10) + 500L;
+			cost = (long) rnd((int)u.ugold + 10) + 500L;
 		if (mon->mpeaceful) {
 			cost /= 5L;
 			if (!cost) cost = 1L;
@@ -2373,20 +2373,20 @@ register struct monst *mon;
 		if (cost > u.ugold) cost = u.ugold;
 		if (!cost) verbalize("It's on the house!");
 		else {
-		    pline("%s takes %d %s for services rendered!",
+		    pline("%s takes %ld %s for services rendered!",
 			    noit_Monnam(mon), cost, currency(cost));
 		    u.ugold -= cost;
 		    mon->mgold += cost;
 		    flags.botl = 1;
 		}
 #else
-		int32_t cost;
-                int32_t umoney = money_cnt(invent);
+		long cost;
+                long umoney = money_cnt(invent);
 
-		if (umoney > (int32_t)LARGEST_INT - 10L)
-			cost = (int32_t) rnd(LARGEST_INT) + 500L;
+		if (umoney > (long)LARGEST_INT - 10L)
+			cost = (long) rnd(LARGEST_INT) + 500L;
 		else
-			cost = (int32_t) rnd((int)umoney + 10) + 500L;
+			cost = (long) rnd((int)umoney + 10) + 500L;
 		if (mon->mpeaceful) {
 			cost /= 5L;
 			if (!cost) cost = 1L;
@@ -2394,7 +2394,7 @@ register struct monst *mon;
 		if (cost > umoney) cost = umoney;
 		if (!cost) verbalize("It's on the house!");
 		else { 
-		    pline("%s takes %d %s for services rendered!",
+		    pline("%s takes %ld %s for services rendered!",
 			    noit_Monnam(mon), cost, currency(cost));
                     money2mon(mon, cost);
 		    flags.botl = 1;
@@ -2480,7 +2480,7 @@ register struct attack *mattk;
 		goto assess_dmg;
 	    case AD_STON: /* cockatrice */
 	    {
-		int32_t protector = attk_protection((int)mattk->aatyp),
+		long protector = attk_protection((int)mattk->aatyp),
 		     wornitems = mtmp->misc_worn_check;
 
 		/* wielded weapon gives same protection as gloves here */

@@ -2135,7 +2135,7 @@ boolean stoning;
     mon_adjust_speed(mon, -3, (struct obj *)0);
 
     if (canseemon(mon)) {
-	int32_t save_quan = obj->quan;
+	long save_quan = obj->quan;
 
 	obj->quan = 1L;
 	pline("%s %ss %s.", Monnam(mon),

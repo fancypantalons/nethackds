@@ -129,11 +129,11 @@ extern void FDECL(show_borlandc_stats, (winid));
 #ifdef DEBUG_MIGRATING_MONS
 STATIC_PTR int NDECL(wiz_migrate_mons);
 #endif
-STATIC_DCL void FDECL(count_obj, (struct obj *, int32_t *, int32_t *, BOOLEAN_P, BOOLEAN_P));
-STATIC_DCL void FDECL(obj_chain, (winid, const char *, struct obj *, int32_t *, int32_t *));
-STATIC_DCL void FDECL(mon_invent_chain, (winid, const char *, struct monst *, int32_t *, int32_t *));
-STATIC_DCL void FDECL(mon_chain, (winid, const char *, struct monst *, int32_t *, int32_t *));
-STATIC_DCL void FDECL(contained, (winid, const char *, int32_t *, int32_t *));
+STATIC_DCL void FDECL(count_obj, (struct obj *, long *, long *, BOOLEAN_P, BOOLEAN_P));
+STATIC_DCL void FDECL(obj_chain, (winid, const char *, struct obj *, long *, long *));
+STATIC_DCL void FDECL(mon_invent_chain, (winid, const char *, struct monst *, long *, long *));
+STATIC_DCL void FDECL(mon_chain, (winid, const char *, struct monst *, long *, long *));
+STATIC_DCL void FDECL(contained, (winid, const char *, long *, long *));
 STATIC_PTR int NDECL(wiz_show_stats);
 #  ifdef PORT_DEBUG
 STATIC_DCL int NDECL(wiz_port_debug);
@@ -526,7 +526,7 @@ wiz_map()
 {
 	if (wizard) {
 	    struct trap *t;
-	    int32_t save_Hconf = HConfusion,
+	    long save_Hconf = HConfusion,
 		 save_Hhallu = HHallucination;
 
 	    HConfusion = HHallucination = 0L;
@@ -660,7 +660,7 @@ wiz_show_seenv()
 	 */
 	startx = max(1, u.ux-(COLNO/4));
 	stopx = min(startx+(COLNO/2), COLNO);
-	/* can't have a line exactly 80 chars int32_t */
+	/* can't have a line exactly 80 chars long */
 	if (stopx - startx == COLNO/2) startx++;
 
 	for (y = 0; y < ROWNO; y++) {
@@ -1277,7 +1277,7 @@ int final;
 	    you_have_never("hit with a wielded weapon");
 #ifdef WIZARD
 	else if (wizard) {
-	    Sprintf(buf, "used a wielded weapon %d time%s",
+	    Sprintf(buf, "used a wielded weapon %ld time%s",
 		    u.uconduct.weaphit, plur(u.uconduct.weaphit));
 	    you_have_X(buf);
 	}
@@ -1289,7 +1289,7 @@ int final;
 	    you_have_been("illiterate");
 #ifdef WIZARD
 	else if (wizard) {
-	    Sprintf(buf, "read items or engraved %d time%s",
+	    Sprintf(buf, "read items or engraved %ld time%s",
 		    u.uconduct.literate, plur(u.uconduct.literate));
 	    you_have_X(buf);
 	}
@@ -1308,7 +1308,7 @@ int final;
 	    you_have_never("polymorphed an object");
 #ifdef WIZARD
 	else if (wizard) {
-	    Sprintf(buf, "polymorphed %d item%s",
+	    Sprintf(buf, "polymorphed %ld item%s",
 		    u.uconduct.polypiles, plur(u.uconduct.polypiles));
 	    you_have_X(buf);
 	}
@@ -1318,7 +1318,7 @@ int final;
 	    you_have_never("changed form");
 #ifdef WIZARD
 	else if (wizard) {
-	    Sprintf(buf, "changed form %d time%s",
+	    Sprintf(buf, "changed form %ld time%s",
 		    u.uconduct.polyselfs, plur(u.uconduct.polyselfs));
 	    you_have_X(buf);
 	}
@@ -1327,7 +1327,7 @@ int final;
 	if (!u.uconduct.wishes)
 	    you_have_X("used no wishes");
 	else {
-	    Sprintf(buf, "used %d wish%s",
+	    Sprintf(buf, "used %ld wish%s",
 		    u.uconduct.wishes, (u.uconduct.wishes > 1L) ? "es" : "");
 	    you_have_X(buf);
 
@@ -1583,19 +1583,19 @@ add_debug_extended_commands()
 }
 
 
-static const char template[] = "%-18s %4d  %6d";
+static const char template[] = "%-18s %4ld  %6ld";
 static const char count_str[] = "                   count  bytes";
 static const char separator[] = "------------------ -----  ------";
 
 STATIC_OVL void
 count_obj(chain, total_count, total_size, top, recurse)
 	struct obj *chain;
-	int32_t *total_count;
-	int32_t *total_size;
+	long *total_count;
+	long *total_size;
 	boolean top;
 	boolean recurse;
 {
-	int32_t count, size;
+	long count, size;
 	struct obj *obj;
 
 	for (count = size = 0, obj = chain; obj; obj = obj->nobj) {
@@ -1615,11 +1615,11 @@ obj_chain(win, src, chain, total_count, total_size)
 	winid win;
 	const char *src;
 	struct obj *chain;
-	int32_t *total_count;
-	int32_t *total_size;
+	long *total_count;
+	long *total_size;
 {
 	char buf[BUFSZ];
-	int32_t count = 0, size = 0;
+	long count = 0, size = 0;
 
 	count_obj(chain, &count, &size, TRUE, FALSE);
 	*total_count += count;
@@ -1633,11 +1633,11 @@ mon_invent_chain(win, src, chain, total_count, total_size)
 	winid win;
 	const char *src;
 	struct monst *chain;
-	int32_t *total_count;
-	int32_t *total_size;
+	long *total_count;
+	long *total_size;
 {
 	char buf[BUFSZ];
-	int32_t count = 0, size = 0;
+	long count = 0, size = 0;
 	struct monst *mon;
 
 	for (mon = chain; mon; mon = mon->nmon)
@@ -1652,11 +1652,11 @@ STATIC_OVL void
 contained(win, src, total_count, total_size)
 	winid win;
 	const char *src;
-	int32_t *total_count;
-	int32_t *total_size;
+	long *total_count;
+	long *total_size;
 {
 	char buf[BUFSZ];
-	int32_t count = 0, size = 0;
+	long count = 0, size = 0;
 	struct monst *mon;
 
 	count_obj(invent, &count, &size, FALSE, TRUE);
@@ -1680,11 +1680,11 @@ mon_chain(win, src, chain, total_count, total_size)
 	winid win;
 	const char *src;
 	struct monst *chain;
-	int32_t *total_count;
-	int32_t *total_size;
+	long *total_count;
+	long *total_size;
 {
 	char buf[BUFSZ];
-	int32_t count, size;
+	long count, size;
 	struct monst *mon;
 
 	for (count = size = 0, mon = chain; mon; mon = mon->nmon) {
@@ -1705,8 +1705,8 @@ wiz_show_stats()
 {
 	char buf[BUFSZ];
 	winid win;
-	int32_t total_obj_size = 0, total_obj_count = 0;
-	int32_t total_mon_size = 0, total_mon_count = 0;
+	long total_obj_size = 0, total_obj_count = 0;
+	long total_mon_size = 0, total_mon_count = 0;
 
 	win = create_nhwindow(NHW_TEXT);
 	putstr(win, 0, "Current memory statistics:");

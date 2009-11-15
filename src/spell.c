@@ -685,7 +685,7 @@ STATIC_OVL void
 spell_backfire(spell)
 int spell;
 {
-    int32_t duration = (int32_t)((spellev(spell) + 1) * 3);	 /* 6..24 */
+    long duration = (long)((spellev(spell) + 1) * 3);	 /* 6..24 */
 
     /* prior to 3.4.1, the only effect was confusion; it still predominates */
     switch (rn2(10)) {

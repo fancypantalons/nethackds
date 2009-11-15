@@ -13,7 +13,7 @@
 #include <ctype.h>
 
 STATIC_DCL boolean FDECL(restrap,(struct monst *));
-STATIC_DCL int32_t FDECL(mm_aggression, (struct monst *,struct monst *));
+STATIC_DCL long FDECL(mm_aggression, (struct monst *,struct monst *));
 #ifdef OVL2
 STATIC_DCL int NDECL(pick_animal);
 STATIC_DCL int FDECL(select_newcham_form, (struct monst *));
@@ -34,7 +34,7 @@ STATIC_DCL void FDECL(kill_eggs, (struct obj *));
 /* part of the original warning code which was replaced in 3.3.1 */
 #ifdef OVL1
 #define warnDelay 10
-int32_t lastwarntime;
+long lastwarntime;
 int lastwarnlev;
 
 const char *warnings[] = {
@@ -252,7 +252,7 @@ register struct monst *mtmp;
 		break;
 	    case PM_CLAY_GOLEM:
 		obj = mksobj_at(ROCK, x, y, FALSE, FALSE);
-		obj->quan = (int32_t)(rn2(20) + 50);
+		obj->quan = (long)(rn2(20) + 50);
 		obj->owt = weight(obj);
 		mtmp->mnamelth = 0;
 		break;
@@ -275,7 +275,7 @@ register struct monst *mtmp;
 		break;
 	    case PM_GOLD_GOLEM:
 		/* Good luck gives more coins */
-		obj = mkgold((int32_t)(200 - rnl(101)), x, y);
+		obj = mkgold((long)(200 - rnl(101)), x, y);
 		mtmp->mnamelth = 0;
 		break;
 	    case PM_PAPER_GOLEM:
@@ -347,7 +347,7 @@ warn_effects()
     if (!Blind &&
 	    (warnlevel > lastwarnlev || moves > lastwarntime + warnDelay)) {
 	const char *which, *what, *how;
-	int32_t rings = (EWarning & (LEFT_RING|RIGHT_RING));
+	long rings = (EWarning & (LEFT_RING|RIGHT_RING));
 
 	if (rings) {
 	    what = Hallucination ? "mood ring" : "ring";
@@ -928,7 +928,7 @@ int
 max_mon_load(mtmp)
 register struct monst *mtmp;
 {
-	register int32_t maxload;
+	register long maxload;
 
 	/* Base monster carrying capacity is equal to human maximum
 	 * carrying capacity, or half human maximum if not strong.
@@ -939,10 +939,10 @@ register struct monst *mtmp;
 	 * proportional to their size instead of weight.
 	 */
 	if (!mtmp->data->cwt)
-		maxload = (MAX_CARR_CAP * (int32_t)mtmp->data->msize) / MZ_HUMAN;
+		maxload = (MAX_CARR_CAP * (long)mtmp->data->msize) / MZ_HUMAN;
 	else if (!strongmonst(mtmp->data)
 		|| (strongmonst(mtmp->data) && (mtmp->data->cwt > WT_HUMAN)))
-		maxload = (MAX_CARR_CAP * (int32_t)mtmp->data->cwt) / WT_HUMAN;
+		maxload = (MAX_CARR_CAP * (long)mtmp->data->cwt) / WT_HUMAN;
 	else	maxload = MAX_CARR_CAP; /*strong monsters w/cwt <= WT_HUMAN*/
 
 	if (!strongmonst(mtmp->data)) maxload /= 2;
@@ -1000,8 +1000,8 @@ int
 mfndpos(mon, poss, info, flag)
 	register struct monst *mon;
 	coord *poss;	/* coord poss[9] */
-	int32_t *info;	/* int32_t info[9] */
-	int32_t flag;
+	long *info;	/* long info[9] */
+	long flag;
 {
 	struct permonst *mdat = mon->data;
 	register xchar x,y,nx,ny;
@@ -1116,7 +1116,7 @@ nexttry:	/* eels prefer the water, but if there is no water nearby,
 		} else {
 			if(MON_AT(nx, ny)) {
 				struct monst *mtmp2 = m_at(nx, ny);
-				int32_t mmflag = flag | mm_aggression(mon, mtmp2);
+				long mmflag = flag | mm_aggression(mon, mtmp2);
 
 				if (!(mmflag & ALLOW_M)) continue;
 				info[cnt] |= ALLOW_M;
@@ -1212,7 +1212,7 @@ impossible("A monster looked at a very strange trap of type %d.", ttmp->ttyp);
    in the absence of Conflict.  There is no provision for targetting
    other monsters; just hand to hand fighting when they happen to be
    next to each other. */
-STATIC_OVL int32_t
+STATIC_OVL long
 mm_aggression(magr, mdef)
 struct monst *magr,	/* monster that is currently deciding where to move */
 	     *mdef;	/* another monster which is next to it */
@@ -2456,7 +2456,7 @@ boolean msg;		/* "The oldmon turns into a newmon!" */
 
 	/* new hp: same fraction of max as before */
 #ifndef LINT
-	mtmp->mhp = (int)(((int32_t)hpn*(int32_t)mhp)/(int32_t)hpd);
+	mtmp->mhp = (int)(((long)hpn*(long)mhp)/(long)hpd);
 #endif
 	if(mtmp->mhp < 0) mtmp->mhp = hpn;	/* overflow */
 /* Unlikely but not impossible; a 1HD creature with 1HP that changes into a
@@ -2466,7 +2466,7 @@ boolean msg;		/* "The oldmon turns into a newmon!" */
 /* and the same for maximum hit points */
 	hpn = mtmp->mhpmax;
 #ifndef LINT
-	mtmp->mhpmax = (int)(((int32_t)hpn*(int32_t)mhp)/(int32_t)hpd);
+	mtmp->mhpmax = (int)(((long)hpn*(long)mhp)/(long)hpd);
 #endif
 	if(mtmp->mhpmax < 0) mtmp->mhpmax = hpn;	/* overflow */
 	if (!mtmp->mhpmax) mtmp->mhpmax = 1;

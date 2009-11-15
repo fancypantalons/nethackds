@@ -282,7 +282,7 @@ int curse_bless;
 		useup(obj);
 		losehp(s, "exploding ring", KILLED_BY_AN);
 	    } else {
-		int32_t mask = is_on ? (obj == uleft ? LEFT_RING :
+		long mask = is_on ? (obj == uleft ? LEFT_RING :
 				     RIGHT_RING) : 0L;
 		Your("%s spins %sclockwise for a moment.",
 		     xname(obj), s < 0 ? "counter" : "");
@@ -906,7 +906,7 @@ register struct obj	*sobj;
 		    pline_The("scroll disintegrates.");
 		} else {
 		    for (obj = invent; obj; obj = obj->nobj) {
-			int32_t wornmask;
+			long wornmask;
 #ifdef GOLDOBJ
 			/* gold isn't subject to cursing and blessing */
 			if (obj->oclass == COIN_CLASS) continue;

@@ -119,7 +119,7 @@ del_light_source(type, id)
 	    return;
 	}
     }
-    impossible("del_light_source: not found type=%d, id=0x%x", type, (int32_t)id);
+    impossible("del_light_source: not found type=%d, id=0x%lx", type, (long)id);
 }
 
 /* Mark locations that are temporarily lit via mobile light sources. */
@@ -562,7 +562,7 @@ struct obj *obj;
 	 *	 7..48  candles, range 3;
 	 *	49..342 candles, range 4; &c.
 	 */
-	int32_t n = obj->quan;
+	long n = obj->quan;
 
 	radius = 1;	/* always incremented at least once */
 	do {

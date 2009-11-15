@@ -307,7 +307,7 @@ checkfile(inp, pm, user_typed_name, without_asking)
     dlb *fp;
     char buf[BUFSZ], newstr[BUFSZ];
     char *ep, *dbase_str;
-    int32_t txt_offset;
+    long txt_offset;
     int chk_skip;
     boolean found_in_file = FALSE, skipping_entry = FALSE;
 
@@ -377,7 +377,7 @@ checkfile(inp, pm, user_typed_name, without_asking)
 	    impossible("can't read 'data' file");
 	    (void) dlb_fclose(fp);
 	    return;
-	} else if (sscanf(buf, "%8x\n", &txt_offset) < 1 || txt_offset <= 0)
+	} else if (sscanf(buf, "%8lx\n", &txt_offset) < 1 || txt_offset <= 0)
 	    goto bad_data_file;
 
 	/* look for the appropriate entry */
@@ -407,7 +407,7 @@ checkfile(inp, pm, user_typed_name, without_asking)
     }
 
     if(found_in_file) {
-	int32_t entry_offset;
+	long entry_offset;
 	int  entry_count;
 	int  i;
 
@@ -415,7 +415,7 @@ checkfile(inp, pm, user_typed_name, without_asking)
 	do {
 	    if (!dlb_fgets(buf, BUFSZ, fp)) goto bad_data_file;
 	} while (!digit(*buf));
-	if (sscanf(buf, "%d,%d\n", &entry_offset, &entry_count) < 2) {
+	if (sscanf(buf, "%ld,%d\n", &entry_offset, &entry_count) < 2) {
 bad_data_file:	impossible("'data' file in wrong format");
 		(void) dlb_fclose(fp);
 		return;

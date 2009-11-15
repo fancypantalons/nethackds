@@ -10,15 +10,15 @@ boolean notonhead = FALSE;
 static NEARDATA int nothing, unkn;
 static NEARDATA const char beverages[] = { POTION_CLASS, 0 };
 
-STATIC_DCL int32_t FDECL(itimeout, (int32_t));
-STATIC_DCL int32_t FDECL(itimeout_incr, (int32_t,int));
+STATIC_DCL long FDECL(itimeout, (long));
+STATIC_DCL long FDECL(itimeout_incr, (long,int));
 STATIC_DCL void NDECL(ghost_from_bottle);
 STATIC_DCL short FDECL(mixtype, (struct obj *,struct obj *));
 
 /* force `val' to be within valid range for intrinsic timeout value */
-STATIC_OVL int32_t
+STATIC_OVL long
 itimeout(val)
-int32_t val;
+long val;
 {
     if (val >= TIMEOUT) val = TIMEOUT;
     else if (val < 1) val = 0;
@@ -27,18 +27,18 @@ int32_t val;
 }
 
 /* increment `old' by `incr' and force result to be valid intrinsic timeout */
-STATIC_OVL int32_t
+STATIC_OVL long
 itimeout_incr(old, incr)
-int32_t old;
+long old;
 int incr;
 {
-    return itimeout((old & TIMEOUT) + (int32_t)incr);
+    return itimeout((old & TIMEOUT) + (long)incr);
 }
 
 /* set the timeout field of intrinsic `which' */
 void
 set_itimeout(which, val)
-int32_t *which, val;
+long *which, val;
 {
     *which &= ~TIMEOUT;
     *which |= itimeout(val);
@@ -47,7 +47,7 @@ int32_t *which, val;
 /* increment the timeout field of intrinsic `which' */
 void
 incr_itimeout(which, incr)
-int32_t *which;
+long *which;
 int incr;
 {
     set_itimeout(which, itimeout_incr(*which, incr));
@@ -55,10 +55,10 @@ int incr;
 
 void
 make_confused(xtime,talk)
-int32_t xtime;
+long xtime;
 boolean talk;
 {
-	int32_t old = HConfusion;
+	long old = HConfusion;
 
 	if (!xtime && old) {
 		if (talk)
@@ -72,10 +72,10 @@ boolean talk;
 
 void
 make_stunned(xtime,talk)
-int32_t xtime;
+long xtime;
 boolean talk;
 {
-	int32_t old = HStun;
+	long old = HStun;
 
 	if (!xtime && old) {
 		if (talk)
@@ -99,12 +99,12 @@ boolean talk;
 
 void
 make_sick(xtime, cause, talk, type)
-int32_t xtime;
+long xtime;
 const char *cause;	/* sickness cause */
 boolean talk;
 int type;
 {
-	int32_t old = Sick;
+	long old = Sick;
 
 	if (xtime > 0L) {
 	    if (Sick_resistance) return;
@@ -146,10 +146,10 @@ int type;
 
 void
 make_vomiting(xtime, talk)
-int32_t xtime;
+long xtime;
 boolean talk;
 {
-	int32_t old = Vomiting;
+	long old = Vomiting;
 
 	if(!xtime && old)
 	    if(talk) You_feel("much less nauseated now.");
@@ -162,10 +162,10 @@ static const char eyemsg[] = "%s momentarily %s.";
 
 void
 make_blinded(xtime, talk)
-int32_t xtime;
+long xtime;
 boolean talk;
 {
-	int32_t old = Blinded;
+	long old = Blinded;
 	boolean u_could_see, can_see_now;
 	int eyecnt;
 	char buf[BUFSZ];
@@ -240,11 +240,11 @@ boolean talk;
 
 boolean
 make_hallucinated(xtime, talk, mask)
-int32_t xtime;	/* nonzero if this is an attempt to turn on hallucination */
+long xtime;	/* nonzero if this is an attempt to turn on hallucination */
 boolean talk;
-int32_t mask;	/* nonzero if resistance status should change by mask */
+long mask;	/* nonzero if resistance status should change by mask */
 {
-	int32_t old = HHallucination;
+	long old = HHallucination;
 	boolean changed = 0;
 	const char *message, *verb;
 

@@ -39,15 +39,15 @@
 struct artifact {
 	short	    otyp;
 	const char  *name;
-	uint32_t spfx;	/* special effect from wielding/wearing */
-	uint32_t cspfx;	/* special effect just from carrying obj */
-	uint32_t mtype;	/* monster type, symbol, or flag */
+	unsigned long spfx;	/* special effect from wielding/wearing */
+	unsigned long cspfx;	/* special effect just from carrying obj */
+	unsigned long mtype;	/* monster type, symbol, or flag */
 	struct attack attk, defn, cary;
 	uchar	    inv_prop;	/* property obtained by invoking artifact */
 	aligntyp    alignment;	/* alignment of bequeathing gods */
 	short	    role;	/* character role associated with */
 	short	    race;	/* character race associated with */
-	int32_t        cost;	/* price when sold to hero (default 100 x base cost) */
+	long        cost;	/* price when sold to hero (default 100 x base cost) */
 };
 
 /* invoked properties with special powers */

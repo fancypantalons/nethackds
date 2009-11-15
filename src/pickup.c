@@ -24,14 +24,14 @@ STATIC_DCL boolean FDECL(allow_cat_no_uchain, (struct obj *));
 #endif
 STATIC_DCL int FDECL(autopick, (struct obj*, int, menu_item **));
 STATIC_DCL int FDECL(count_categories, (struct obj *,int));
-STATIC_DCL int32_t FDECL(carry_count,
-		      (struct obj *,struct obj *,int32_t,BOOLEAN_P,int *,int *));
-STATIC_DCL int FDECL(lift_object, (struct obj *,struct obj *,int32_t *,BOOLEAN_P));
+STATIC_DCL long FDECL(carry_count,
+		      (struct obj *,struct obj *,long,BOOLEAN_P,int *,int *));
+STATIC_DCL int FDECL(lift_object, (struct obj *,struct obj *,long *,BOOLEAN_P));
 STATIC_DCL boolean FDECL(mbag_explodes, (struct obj *,int));
 STATIC_PTR int FDECL(in_container,(struct obj *));
 STATIC_PTR int FDECL(ck_bag,(struct obj *));
 STATIC_PTR int FDECL(out_container,(struct obj *));
-STATIC_DCL int32_t FDECL(mbag_item_gone, (int,struct obj *));
+STATIC_DCL long FDECL(mbag_item_gone, (int,struct obj *));
 STATIC_DCL void FDECL(observe_quantum_cat, (struct obj *));
 STATIC_DCL int FDECL(menu_loot, (int, struct obj *, BOOLEAN_P));
 STATIC_DCL int FDECL(in_or_out_menu, (const char *,struct obj *, BOOLEAN_P, BOOLEAN_P));
@@ -276,7 +276,7 @@ boolean picked_some;
 }
 
 /* Value set by query_objlist() for n_or_more(). */
-static int32_t val_for_n_or_more;
+static long val_for_n_or_more;
 
 /* query_objlist callback: return TRUE if obj's count is >= reference value */
 STATIC_OVL boolean
@@ -493,7 +493,7 @@ menu_pickup:
 	} else {
 	    /* old style interface */
 	    int ct = 0;
-	    int32_t lcount;
+	    long lcount;
 	    boolean all_of_a_type, selective;
 	    char oclasses[MAXOCLASSES];
 	    struct obj *obj, *obj2;
@@ -510,7 +510,7 @@ menu_pickup:
 	    if (ct == 1 && count) {
 		/* if only one thing, then pick it */
 		obj = objchain;
-		lcount = min(obj->quan, (int32_t)count);
+		lcount = min(obj->quan, (long)count);
 		n_tried++;
 		if (pickup_object(obj, lcount, FALSE) > 0)
 		    n_picked++;	/* picked something */
@@ -566,7 +566,7 @@ menu_pickup:
 			break;
 		    case '#':	/* count was entered */
 			if (!yn_number) continue; /* 0 count => No */
-			lcount = (int32_t) yn_number;
+			lcount = (long) yn_number;
 			if (lcount > obj->quan) lcount = obj->quan;
 			/* fall thru */
 		    default:	/* 'y' */
@@ -1015,19 +1015,19 @@ int qflags;
 }
 
 /* could we carry `obj'? if not, could we carry some of it/them? */
-STATIC_OVL int32_t
+STATIC_OVL long
 carry_count(obj, container, count, telekinesis, wt_before, wt_after)
 struct obj *obj, *container;	/* object to pick up, bag it's coming out of */
-int32_t count;
+long count;
 boolean telekinesis;
 int *wt_before, *wt_after;
 {
     boolean adjust_wt = container && carried(container),
 	    is_gold = obj->oclass == COIN_CLASS;
     int wt, iw, ow, oow;
-    int32_t qq, savequan;
+    long qq, savequan;
 #ifdef GOLDOBJ
-    int32_t umoney = money_cnt(invent);
+    long umoney = money_cnt(invent);
 #endif
     unsigned saveowt;
     const char *verb, *prefx1, *prefx2, *suffx;
@@ -1069,14 +1069,14 @@ int *wt_before, *wt_after;
 #ifndef GOLDOBJ
 	iw -= (int)GOLD_WT(u.ugold);
 	if (!adjust_wt) {
-	    qq = GOLD_CAPACITY((int32_t)iw, u.ugold);
+	    qq = GOLD_CAPACITY((long)iw, u.ugold);
 	} else {
 	    oow = 0;
 	    qq = 50L - (u.ugold % 100L) - 1L;
 #else
 	iw -= (int)GOLD_WT(umoney);
 	if (!adjust_wt) {
-	    qq = GOLD_CAPACITY((int32_t)iw, umoney);
+	    qq = GOLD_CAPACITY((long)iw, umoney);
 	} else {
 	    oow = 0;
 	    qq = 50L - (umoney % 100L) - 1L;
@@ -1182,7 +1182,7 @@ STATIC_OVL
 int 
 lift_object(obj, container, cnt_p, telekinesis)
 struct obj *obj, *container;	/* object to pick up, bag it's coming out of */
-int32_t *cnt_p;
+long *cnt_p;
 boolean telekinesis;
 {
     int result, old_wt, new_wt, prev_encumbr, next_encumbr;
@@ -1218,7 +1218,7 @@ boolean telekinesis;
 		result = 0;	/* don't lift */
 	    } else {
 		char qbuf[BUFSZ];
-		int32_t savequan = obj->quan;
+		long savequan = obj->quan;
 
 		obj->quan = *cnt_p;
 		Strcpy(qbuf,
@@ -1278,7 +1278,7 @@ unsigned padlength;
 int
 pickup_object(obj, count, telekinesis)
 struct obj *obj;
-int32_t count;
+long count;
 boolean telekinesis;	/* not picking it up directly by hand */
 {
 	int res, nearload;
@@ -1288,7 +1288,7 @@ boolean telekinesis;	/* not picking it up directly by hand */
 #endif
 
 	if (obj->quan < count) {
-	    impossible("pickup_object: count %d > quan %d?",
+	    impossible("pickup_object: count %ld > quan %ld?",
 		count, obj->quan);
 	    return 0;
 	}
@@ -1308,20 +1308,20 @@ boolean telekinesis;	/* not picking it up directly by hand */
 #ifndef GOLDOBJ
 	} else if (obj->oclass == COIN_CLASS) {
 	    /* Special consideration for gold pieces... */
-	    int32_t iw = (int32_t)max_capacity() - GOLD_WT(u.ugold);
-	    int32_t gold_capacity = GOLD_CAPACITY(iw, u.ugold);
+	    long iw = (long)max_capacity() - GOLD_WT(u.ugold);
+	    long gold_capacity = GOLD_CAPACITY(iw, u.ugold);
 
 	    if (gold_capacity <= 0L) {
 		pline(
-	       "There %s %d gold piece%s %s, but you cannot carry any more.",
+	       "There %s %ld gold piece%s %s, but you cannot carry any more.",
 		      otense(obj, "are"),
 		      obj->quan, plur(obj->quan), where);
 		return 0;
 	    } else if (gold_capacity < count) {
-		You("can only %s %s of the %d gold pieces lying %s.",
+		You("can only %s %s of the %ld gold pieces lying %s.",
 		    telekinesis ? "acquire" : "carry",
 		    gold_capacity == 1L ? "one" : "some", obj->quan, where);
-		pline("%s %d gold piece%s.",
+		pline("%s %ld gold piece%s.",
 		    nearloadmsg, gold_capacity, plur(gold_capacity));
 		u.ugold += gold_capacity;
 		obj->quan -= gold_capacity;
@@ -1329,7 +1329,7 @@ boolean telekinesis;	/* not picking it up directly by hand */
 	    } else {
 		u.ugold += count;
 		if ((nearload = near_capacity()) != 0)
-		    pline("%s %d gold piece%s.",
+		    pline("%s %ld gold piece%s.",
 			  nearload < MOD_ENCUMBER ?
 			  moderateloadmsg : nearloadmsg,
 			  count, plur(count));
@@ -1611,7 +1611,7 @@ lootcont:
     } else if (Confusion) {
 #ifndef GOLDOBJ
 	if (u.ugold){
-	    int32_t contribution = rnd((int)min(LARGEST_INT,u.ugold));
+	    long contribution = rnd((int)min(LARGEST_INT,u.ugold));
 	    struct obj *goldob = mkgoldobj(contribution);
 #else
 	struct obj *goldob;
@@ -1620,7 +1620,7 @@ lootcont:
 	    if (goldob->oclass == COIN_CLASS) break;
 	}
 	if (goldob){
-	    int32_t contribution = rnd((int)min(LARGEST_INT, goldob->quan));
+	    long contribution = rnd((int)min(LARGEST_INT, goldob->quan));
 	    if (contribution < goldob->quan)
 		goldob = splitobj(goldob, contribution);
 	    freeinv(goldob);
@@ -1733,7 +1733,7 @@ boolean *prev_loot;
     /* 	*passed_info is set to TRUE if a loot query was given.               */
     /*	*prev_loot is set to TRUE if something was actually acquired in here. */
     if (mtmp && mtmp != u.usteed && (otmp = which_armor(mtmp, W_SADDLE))) {
-	int32_t unwornmask;
+	long unwornmask;
 	if (passed_info) *passed_info = 1;
 	Sprintf(qbuf, "Do you want to remove the saddle from %s?",
 		x_monnam(mtmp, ARTICLE_THE, (char *)0, SUPPRESS_SADDLE, FALSE));
@@ -1912,7 +1912,7 @@ register struct obj *obj;
 		obj->age = monstermoves - obj->age; /* actual age */
 		/* stop any corpse timeouts when frozen */
 		if (obj->otyp == CORPSE && obj->timed) {
-			int32_t rot_alarm = stop_timer(ROT_CORPSE, (genericptr_t)obj);
+			long rot_alarm = stop_timer(ROT_CORPSE, (genericptr_t)obj);
 			(void) stop_timer(REVIVE_MON, (genericptr_t)obj);
 			/* mark a non-reviving corpse as such */
 			if (rot_alarm) obj->norevive = 1;
@@ -1971,7 +1971,7 @@ register struct obj *obj;
 	register struct obj *otmp;
 	boolean is_gold = (obj->oclass == COIN_CLASS);
 	int res, loadlev;
-	int32_t count;
+	long count;
 
 	if (!current_container) {
 		impossible("<out> no current_container?");
@@ -2043,13 +2043,13 @@ register struct obj *obj;
 }
 
 /* an object inside a cursed bag of holding is being destroyed */
-STATIC_OVL int32_t
+STATIC_OVL long
 mbag_item_gone(held, item)
 int held;
 struct obj *item;
 {
     struct monst *shkp;
-    int32_t loss = 0L;
+    long loss = 0L;
 
     if (item->dknown)
 	pline("%s %s vanished!", Doname2(item), otense(item, "have"));
@@ -2121,7 +2121,7 @@ register int held;
 		loot_out = FALSE, loot_in = FALSE;
 	char select[MAXOCLASSES+1];
 	char qbuf[BUFSZ], emptymsg[BUFSZ], pbuf[QBUFSZ];
-	int32_t loss = 0L;
+	long loss = 0L;
 	int cnt = 0, used = 0,
 	    menu_on_request;
 
@@ -2168,7 +2168,7 @@ register int held;
 	}
 
 	if (loss)	/* magic bag lost some shop goods */
-	    You("owe %d %s for lost merchandise.", loss, currency(loss));
+	    You("owe %ld %s for lost merchandise.", loss, currency(loss));
 	obj->owt = weight(obj);	/* in case any items were lost */
 
 	if (!cnt)
@@ -2351,7 +2351,7 @@ boolean put_in;
     struct obj *otmp, *otmp2;
     menu_item *pick_list;
     int mflags, res;
-    int32_t count;
+    long count;
 
     if (retry) {
 	all_categories = (retry == -2);

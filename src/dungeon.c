@@ -373,7 +373,7 @@ insert_branch(new_branch, extract_first)
    boolean extract_first;
 {
     branch *curr, *prev;
-    int32_t new_val, curr_val, prev_val;
+    long new_val, curr_val, prev_val;
 
     if (extract_first) {
 	for (prev = 0, curr = branches; curr; prev = curr, curr = curr->next)
@@ -389,9 +389,9 @@ insert_branch(new_branch, extract_first)
 
 /* Convert the branch into a unique number so we can sort them. */
 #define branch_val(bp) \
-	((((int32_t)(bp)->end1.dnum * (MAXLEVEL+1) + \
-	  (int32_t)(bp)->end1.dlevel) * (MAXDUNGEON+1) * (MAXLEVEL+1)) + \
-	 ((int32_t)(bp)->end2.dnum * (MAXLEVEL+1) + (int32_t)(bp)->end2.dlevel))
+	((((long)(bp)->end1.dnum * (MAXLEVEL+1) + \
+	  (long)(bp)->end1.dlevel) * (MAXDUNGEON+1) * (MAXLEVEL+1)) + \
+	 ((long)(bp)->end2.dnum * (MAXLEVEL+1) + (long)(bp)->end2.dlevel))
 
     /*
      * Insert the new branch into the correct place in the branch list.

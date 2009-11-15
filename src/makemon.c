@@ -151,7 +151,7 @@ int otyp,oquan;
 	register struct obj *otmp;
 
 	otmp = mksobj(otyp, TRUE, FALSE);
-	otmp->quan = (int32_t) rn1(oquan, 3);
+	otmp->quan = (long) rn1(oquan, 3);
 	otmp->owt = weight(otmp);
 	if (otyp == ORCISH_ARROW) otmp->opoisoned = TRUE;
 	(void) mpickobj(mtmp, otmp);
@@ -476,7 +476,7 @@ register struct monst *mtmp;
 void 
 mkmonmoney(mtmp, amount)
 struct monst *mtmp;
-int32_t amount;
+long amount;
 {
     struct obj *gold = mksobj(GOLD_PIECE, FALSE, FALSE);
     gold->quan = amount;
@@ -572,9 +572,9 @@ register struct	monst	*mtmp;
 						 CLOAK_OF_MAGIC_RESISTANCE);
 		    (void) mongets(mtmp, SMALL_SHIELD);
 #ifndef GOLDOBJ
-		    mtmp->mgold = (int32_t)rn1(10,20);
+		    mtmp->mgold = (long)rn1(10,20);
 #else
-		    mkmonmoney(mtmp,(int32_t)rn1(10,20));
+		    mkmonmoney(mtmp,(long)rn1(10,20));
 #endif
 		} else if (quest_mon_represents_role(ptr,PM_MONK)) {
 		    (void) mongets(mtmp, rn2(11) ? ROBE :
@@ -593,7 +593,7 @@ register struct	monst	*mtmp;
 		    for (cnt = rn2((int)(mtmp->m_lev / 2)); cnt; cnt--) {
 			otmp = mksobj(rnd_class(DILITHIUM_CRYSTAL,LUCKSTONE-1),
 				      FALSE, FALSE);
-			otmp->quan = (int32_t) rn1(2, 3);
+			otmp->quan = (long) rn1(2, 3);
 			otmp->owt = weight(otmp);
 			(void) mpickobj(mtmp, otmp);
 		    }
@@ -630,9 +630,9 @@ register struct	monst	*mtmp;
 		break;
 	    case S_LEPRECHAUN:
 #ifndef GOLDOBJ
-		mtmp->mgold = (int32_t) d(level_difficulty(), 30);
+		mtmp->mgold = (long) d(level_difficulty(), 30);
 #else
-		mkmonmoney(mtmp, (int32_t) d(level_difficulty(), 30));
+		mkmonmoney(mtmp, (long) d(level_difficulty(), 30));
 #endif
 		break;
 	    case S_DEMON:
@@ -659,10 +659,10 @@ register struct	monst	*mtmp;
 #ifndef GOLDOBJ
 	if (likes_gold(ptr) && !mtmp->mgold && !rn2(5))
 		mtmp->mgold =
-		      (int32_t) d(level_difficulty(), mtmp->minvent ? 5 : 10);
+		      (long) d(level_difficulty(), mtmp->minvent ? 5 : 10);
 #else
 	if (likes_gold(ptr) && !findgold(mtmp->minvent) && !rn2(5))
-		mkmonmoney(mtmp, (int32_t) d(level_difficulty(), mtmp->minvent ? 5 : 10));
+		mkmonmoney(mtmp, (long) d(level_difficulty(), mtmp->minvent ? 5 : 10));
 #endif
 }
 
@@ -1166,7 +1166,7 @@ STATIC_OVL int
 align_shift(ptr)
 register struct permonst *ptr;
 {
-    static NEARDATA int32_t oldmoves = 0L;	/* != 1, starting value of moves */
+    static NEARDATA long oldmoves = 0L;	/* != 1, starting value of moves */
     static NEARDATA s_level *lev;
     register int alshift;
 

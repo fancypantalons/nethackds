@@ -623,7 +623,7 @@ boolean called;
 	if (mtmp->ispriest || mtmp->isminion) {
 	    char priestnambuf[BUFSZ];
 	    char *name;
-	    int32_t save_prop = EHalluc_resistance;
+	    long save_prop = EHalluc_resistance;
 	    unsigned save_invis = mtmp->minvis;
 
 	    /* when true name is wanted, explicitly block Hallucination */

@@ -1329,7 +1329,7 @@ bury_an_obj(otmp)
 	    ;		/* should cancel timer if under_ice */
 	} else if ((under_ice ? otmp->oclass == POTION_CLASS : is_organic(otmp))
 		&& !obj_resists(otmp, 5, 95)) {
-	    (void) start_timer((under_ice ? 0L : 250L) + (int32_t)rnd(250),
+	    (void) start_timer((under_ice ? 0L : 250L) + (long)rnd(250),
 			       TIMER_OBJECT, ROT_ORGANIC, (genericptr_t)otmp);
 	}
 	add_to_buried(otmp);
@@ -1391,7 +1391,7 @@ int x, y;
 void
 rot_organic(arg, timeout)
 genericptr_t arg;
-int32_t timeout;	/* unused */
+long timeout;	/* unused */
 {
 	struct obj *obj = (struct obj *) arg;
 
@@ -1414,7 +1414,7 @@ int32_t timeout;	/* unused */
 void
 rot_corpse(arg, timeout)
 genericptr_t arg;
-int32_t timeout;	/* unused */
+long timeout;	/* unused */
 {
 	xchar x = 0, y = 0;
 	struct obj *obj = (struct obj *) arg;

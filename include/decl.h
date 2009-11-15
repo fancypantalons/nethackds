@@ -167,7 +167,7 @@ E const char ynchars[];
 E const char ynqchars[];
 E const char ynaqchars[];
 E const char ynNaqchars[];
-E NEARDATA int32_t yn_number;
+E NEARDATA long yn_number;
 
 E const char disclosure_options[];
 
@@ -181,7 +181,7 @@ E NEARDATA int killer_format;
 E const char *killer;
 E const char *delayed_killer;
 #ifdef GOLDOBJ
-E int32_t done_money;
+E long done_money;
 #endif
 E char killer_buf[BUFSZ];
 E const char *configfile;
@@ -206,12 +206,12 @@ E NEARDATA struct dig_info {		/* apply.c, hack.c */
 	int	effort;
 	d_level level;
 	coord	pos;
-	int32_t lastdigtime;
+	long lastdigtime;
 	boolean down, chew, warned, quiet;
 } digging;
 
-E NEARDATA int32_t moves, monstermoves;
-E NEARDATA int32_t wailmsg;
+E NEARDATA long moves, monstermoves;
+E NEARDATA long wailmsg;
 
 E NEARDATA boolean in_mklev;
 E NEARDATA boolean stoned;

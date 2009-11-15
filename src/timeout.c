@@ -12,7 +12,7 @@ STATIC_DCL void NDECL(slime_dialogue);
 STATIC_DCL void NDECL(slip_or_trip);
 STATIC_DCL void FDECL(see_lamp_flicker, (struct obj *, const char *));
 STATIC_DCL void FDECL(lantern_message, (struct obj *));
-STATIC_DCL void FDECL(cleanup_burn, (genericptr_t,int32_t));
+STATIC_DCL void FDECL(cleanup_burn, (genericptr_t,long));
 
 #ifdef OVLB
 
@@ -28,7 +28,7 @@ static NEARDATA const char * const stoned_texts[] = {
 STATIC_OVL void
 stoned_dialogue()
 {
-	register int32_t i = (Stoned & TIMEOUT);
+	register long i = (Stoned & TIMEOUT);
 
 	if (i > 0L && i <= SIZE(stoned_texts))
 		pline(stoned_texts[SIZE(stoned_texts) - i]);
@@ -51,7 +51,7 @@ static NEARDATA const char * const vomiting_texts[] = {
 STATIC_OVL void
 vomiting_dialogue()
 {
-	register int32_t i = (Vomiting & TIMEOUT) / 3L;
+	register long i = (Vomiting & TIMEOUT) / 3L;
 
 	if ((((Vomiting & TIMEOUT) % 3L) == 2) && (i >= 0)
 	    && (i < SIZE(vomiting_texts)))
@@ -91,7 +91,7 @@ static NEARDATA const char * const choke_texts2[] = {
 STATIC_OVL void
 choke_dialogue()
 {
-	register int32_t i = (Strangled & TIMEOUT);
+	register long i = (Strangled & TIMEOUT);
 
 	if(i > 0 && i <= SIZE(choke_texts)) {
 	    if (Breathless || !rn2(50))
@@ -119,7 +119,7 @@ static NEARDATA const char * const slime_texts[] = {
 STATIC_OVL void
 slime_dialogue()
 {
-	register int32_t i = (Slimed & TIMEOUT) / 2L;
+	register long i = (Slimed & TIMEOUT) / 2L;
 
 	if (((Slimed & TIMEOUT) % 2L) && i >= 0L
 		&& i < SIZE(slime_texts)) {
@@ -357,14 +357,14 @@ nh_timeout()
 #ifdef OVL1
 
 void
-fall_asleep(how_int32_t, wakeup_msg)
-int how_int32_t;
+fall_asleep(how_long, wakeup_msg)
+int how_long;
 boolean wakeup_msg;
 {
 	stop_occupation();
-	nomul(how_int32_t);
+	nomul(how_long);
 	/* generally don't notice sounds while sleeping */
-	if (wakeup_msg && multi == how_int32_t) {
+	if (wakeup_msg && multi == how_long) {
 	    /* caller can follow with a direct call to Hear_again() if
 	       there's a need to override this when wakeup_msg is true */
 	    flags.soundok = 0;
@@ -394,7 +394,7 @@ struct obj *egg;
 	for (i = (MAX_EGG_HATCH_TIME-50)+1; i <= MAX_EGG_HATCH_TIME; i++)
 	    if (rnd(i) > 150) {
 		/* egg will hatch */
-		(void) start_timer((int32_t)i, TIMER_OBJECT,
+		(void) start_timer((long)i, TIMER_OBJECT,
 						HATCH_EGG, (genericptr_t)egg);
 		break;
 	    }
@@ -413,7 +413,7 @@ struct obj *egg;
 void
 hatch_egg(arg, timeout)
 genericptr_t arg;
-int32_t timeout;
+long timeout;
 {
 	struct obj *egg;
 	struct monst *mon, *mon2;
@@ -460,7 +460,7 @@ int32_t timeout;
 		}
 		if (!mon) mon = mon2;
 		hatchcount -= i;
-		egg->quan -= (int32_t)hatchcount;
+		egg->quan -= (long)hatchcount;
 	    }
 	}
 #if 0
@@ -567,7 +567,7 @@ int32_t timeout;
 		if (egg->timed) {
 		    /* replace ordinary egg timeout with a short one */
 		    (void) stop_timer(HATCH_EGG, (genericptr_t)egg);
-		    (void) start_timer((int32_t)rnd(12), TIMER_OBJECT,
+		    (void) start_timer((long)rnd(12), TIMER_OBJECT,
 					HATCH_EGG, (genericptr_t)egg);
 		}
 	    } else if (carried(egg)) {
@@ -608,7 +608,7 @@ struct obj *figurine;
 	 */
 	i = rnd(9000) + 200;
 	/* figurine will transform */
-	(void) start_timer((int32_t)i, TIMER_OBJECT,
+	(void) start_timer((long)i, TIMER_OBJECT,
 				FIG_TRANSFORM, (genericptr_t)figurine);
 }
 
@@ -743,7 +743,7 @@ struct obj *obj;
 void
 burn_object(arg, timeout)
 genericptr_t arg;
-int32_t timeout;
+long timeout;
 {
 	struct obj *obj = (struct obj *) arg;
 	boolean canseeit, many, menorah, need_newsym;
@@ -755,9 +755,9 @@ int32_t timeout;
 
 	/* timeout while away */
 	if (timeout != monstermoves) {
-	    int32_t how_int32_t = monstermoves - timeout;
+	    long how_long = monstermoves - timeout;
 
-	    if (how_int32_t >= obj->age) {
+	    if (how_long >= obj->age) {
 		obj->age = 0;
 		end_burn(obj, FALSE);
 
@@ -771,7 +771,7 @@ int32_t timeout;
 		}
 
 	    } else {
-		obj->age -= how_int32_t;
+		obj->age -= how_long;
 		begin_burn(obj, TRUE);
 	    }
 	    return;
@@ -1045,7 +1045,7 @@ begin_burn(obj, already_lit)
 	boolean already_lit;
 {
 	int radius = 3;
-	int32_t turns = 0;
+	long turns = 0;
 	boolean do_timer = TRUE;
 
 	if (obj->age == 0 && obj->otyp != MAGIC_LAMP && !artifact_light(obj))
@@ -1164,7 +1164,7 @@ end_burn(obj, timer_attached)
 static void
 cleanup_burn(arg, expire_time)
     genericptr_t arg;
-    int32_t expire_time;
+    long expire_time;
 {
     struct obj *obj = (struct obj *)arg;
     if (!obj->lamplit) {
@@ -1236,7 +1236,7 @@ do_storms()
  * Interface:
  *
  * General:
- *	boolean start_timer(int32_t timeout,short kind,short func_index,
+ *	boolean start_timer(long timeout,short kind,short func_index,
  *							genericptr_t arg)
  *		Start a timer of kind 'kind' that will expire at time
  *		monstermoves+'timeout'.  Call the function at 'func_index'
@@ -1245,7 +1245,7 @@ do_storms()
  *		"sooner" to "later".  If an object, increment the object's
  *		timer count.
  *
- *	int32_t stop_timer(short func_index, genericptr_t arg)
+ *	long stop_timer(short func_index, genericptr_t arg)
  *		Stop a timer specified by the (func_index, arg) pair.  This
  *		assumes that such a pair is unique.  Return the time the
  *		timer would have gone off.  If no timer is found, return 0.
@@ -1262,7 +1262,7 @@ do_storms()
  *		are saved with a level.  Object and monster timers are
  *		saved using their respective id's instead of pointers.
  *
- *	void restore_timers(int fd, int range, boolean ghostly, int32_t adjust)
+ *	void restore_timers(int fd, int range, boolean ghostly, long adjust)
  *		Restore timers of range 'range'.  If from a ghost pile,
  *		adjust the timeout by 'adjust'.  The object and monster
  *		ids are not restored until later.
@@ -1296,7 +1296,7 @@ STATIC_DCL int FDECL(maybe_write_timer, (int, int, BOOLEAN_P));
 
 /* ordered timer list */
 static timer_element *timer_base;		/* "active" */
-static uint32_t timer_id = 1;
+static unsigned long timer_id = 1;
 
 /* If defined, then include names when printing out the timer queue */
 #define VERBOSE_TIMER
@@ -1352,12 +1352,12 @@ print_queue(win, base)
 	putstr(win, 0, "timeout  id   kind   call");
 	for (curr = base; curr; curr = curr->next) {
 #ifdef VERBOSE_TIMER
-	    Sprintf(buf, " %4d   %4d  %-6s %s(%s)",
+	    Sprintf(buf, " %4ld   %4ld  %-6s %s(%s)",
 		curr->timeout, curr->tid, kind_name(curr->kind),
 		timeout_funcs[curr->func_index].name,
 		fmt_ptr((genericptr_t)curr->arg, arg_address));
 #else
-	    Sprintf(buf, " %4d   %4d  %-6s #%d(%s)",
+	    Sprintf(buf, " %4ld   %4ld  %-6s #%d(%s)",
 		curr->timeout, curr->tid, kind_name(curr->kind),
 		curr->func_index,
 		fmt_ptr((genericptr_t)curr->arg, arg_address));
@@ -1376,7 +1376,7 @@ wiz_timeout_queue()
     win = create_nhwindow(NHW_MENU);	/* corner text window */
     if (win == WIN_ERR) return 0;
 
-    Sprintf(buf, "Current time = %d.", monstermoves);
+    Sprintf(buf, "Current time = %ld.", monstermoves);
     putstr(win, 0, buf);
     putstr(win, 0, "");
     putstr(win, 0, "Active timeout queue:");
@@ -1400,7 +1400,7 @@ timer_sanity_check()
 	if (curr->kind == TIMER_OBJECT) {
 	    struct obj *obj = (struct obj *) curr->arg;
 	    if (obj->timed == 0) {
-		pline("timer sanity: untimed obj %s, timer %d",
+		pline("timer sanity: untimed obj %s, timer %ld",
 		      fmt_ptr((genericptr_t)obj, obj_address), curr->tid);
 	    }
 	}
@@ -1439,7 +1439,7 @@ run_timers()
  */
 boolean
 start_timer(when, kind, func_index, arg)
-int32_t when;
+long when;
 short kind;
 short func_index;
 genericptr_t arg;
@@ -1471,13 +1471,13 @@ genericptr_t arg;
  * Remove the timer from the current list and free it up.  Return the time
  * it would have gone off, 0 if not found.
  */
-int32_t
+long
 stop_timer(func_index, arg)
 short func_index;
 genericptr_t arg;
 {
     timer_element *doomed;
-    int32_t timeout;
+    long timeout;
 
     doomed = remove_timer(&timer_base, func_index, arg);
 
@@ -1804,7 +1804,7 @@ void
 restore_timers(fd, range, ghostly, adjust)
     int fd, range;
     boolean ghostly;	/* restoring from a ghost level */
-    int32_t adjust;	/* how much to adjust timeout */
+    long adjust;	/* how much to adjust timeout */
 {
     int count;
     timer_element *curr;

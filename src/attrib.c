@@ -23,7 +23,7 @@ const char	* const plusattr[] = {
 static
 const struct innate {
 	schar	ulevel;
-	int32_t	*ability;
+	long	*ability;
 	const char *gainstr, *losestr;
 }	arc_abil[] = { {	 1, &(HStealth), "", "" },
 		     {   1, &(HFast), "", "" },
@@ -96,9 +96,9 @@ const struct innate {
 	orc_abil[] = { {	1, &(HPoison_resistance), "", "" },
 		     {	 0, 0, 0, 0 } };
 
-static int32_t next_check = 600L;	/* arbitrary first setting */
+static long next_check = 600L;	/* arbitrary first setting */
 STATIC_DCL void NDECL(exerper);
-STATIC_DCL void FDECL(postadjabil, (int32_t *));
+STATIC_DCL void FDECL(postadjabil, (long *));
 
 /* adjust an attribute; return TRUE if change is made, FALSE otherwise */
 boolean
@@ -209,7 +209,7 @@ stone_luck(parameter)
 boolean parameter; /* So I can't think up of a good name.  So sue me. --KAA */
 {
 	register struct obj *otmp;
-	register int32_t bonchance = 0;
+	register long bonchance = 0;
 
 	for (otmp = invent; otmp; otmp = otmp->nobj)
 	    if (confers_luck(otmp)) {
@@ -440,7 +440,7 @@ exerchk()
 	    }
 	    next_check += rn1(200,800);
 #ifdef DEBUG
-	    pline("exerchk: next check at %d.", next_check);
+	    pline("exerchk: next check at %ld.", next_check);
 #endif
 	}
 }
@@ -525,7 +525,7 @@ redist_attr()
 STATIC_OVL
 void
 postadjabil(ability)
-int32_t *ability;
+long *ability;
 {
 	if (!ability) return;
 	if (ability == &(HWarning) || ability == &(HSee_invisible))
@@ -537,7 +537,7 @@ adjabil(oldlevel,newlevel)
 int oldlevel, newlevel;
 {
 	register const struct innate *abil, *rabil;
-	int32_t mask = FROMEXPER;
+	long mask = FROMEXPER;
 
 
 	switch (Role_switch) {
@@ -569,7 +569,7 @@ int oldlevel, newlevel;
 	}
 
 	while (abil || rabil) {
-	    int32_t prevabil;
+	    long prevabil;
 	    /* Have we finished with the intrinsics list? */
 	    if (!abil || !abil->ability) {
 	    	/* Try the race intrinsics */

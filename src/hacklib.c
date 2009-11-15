@@ -27,7 +27,7 @@ NetHack, except that rounddiv may call panic().
 	const char *	ordin		(int)
 	char *		sitoa		(int)
 	int		sgn		(int)
-	int		rounddiv	(int32_t, int)
+	int		rounddiv	(long, int)
 	int		distmin		(int, int, int, int)
 	int		dist2		(int, int, int, int)
 	boolean		online2		(int, int)
@@ -38,7 +38,7 @@ NetHack, except that rounddiv may call panic().
 	void		setrandom	(void)
 	int		getyear		(void)
 	char *		yymmdd		(time_t)
-	int32_t		yyyymmdd	(time_t)
+	long		yyyymmdd	(time_t)
 	int		phase_of_the_moon	(void)
 	boolean		friday_13th	(void)
 	int		night		(void)
@@ -270,7 +270,7 @@ sgn(n)			/* return the sign of a number: -1, 0, or 1 */
 #ifdef OVLB
 int
 rounddiv(x, y)		/* calculate x/y, rounding as appropriate */
-    int32_t x;
+    long x;
     int  y;
 {
     int r, m;
@@ -471,13 +471,13 @@ setrandom()
 #   if defined(SUNOS4)
 	(void)
 #   endif
-		srandom((int) time((int32_t *)0));
+		srandom((int) time((long *)0));
 #  else
 		srandom((int) time((time_t *)0));
 #  endif
 # else
 #  ifdef UNIX	/* system srand48() */
-	srand48((int32_t) time((time_t *)0));
+	srand48((long) time((time_t *)0));
 #  else		/* poor quality system routine */
 	srand((int) time((time_t *)0));
 #  endif
@@ -491,12 +491,12 @@ getlt()
 	time_t date;
 
 #if defined(BSD) && !defined(POSIX_TYPES)
-	(void) time((int32_t *)(&date));
+	(void) time((long *)(&date));
 #else
 	(void) time(&date);
 #endif
 #if (defined(ULTRIX) && !(defined(ULTRIX_PROTO) || defined(NHSTDC))) || (defined(BSD) && !defined(POSIX_TYPES))
-	return(localtime((int32_t *)(&date)));
+	return(localtime((long *)(&date)));
 #else
 	return(localtime(&date));
 #endif
@@ -521,7 +521,7 @@ time_t date;
 		lt = getlt();
 	else
 #if (defined(ULTRIX) && !(defined(ULTRIX_PROTO) || defined(NHSTDC))) || defined(BSD)
-		lt = localtime((int32_t *)(&date));
+		lt = localtime((long *)(&date));
 #else
 		lt = localtime(&date);
 #endif
@@ -532,18 +532,18 @@ time_t date;
 }
 #endif
 
-int32_t
+long
 yyyymmdd(date)
 time_t date;
 {
-	int32_t datenum;
+	long datenum;
 	struct tm *lt;
 
 	if (date == 0)
 		lt = getlt();
 	else
 #if (defined(ULTRIX) && !(defined(ULTRIX_PROTO) || defined(NHSTDC))) || (defined(BSD) && !defined(POSIX_TYPES))
-		lt = localtime((int32_t *)(&date));
+		lt = localtime((long *)(&date));
 #else
 		lt = localtime(&date);
 #endif
@@ -551,13 +551,13 @@ time_t date;
 	/* just in case somebody's localtime supplies (year % 100)
 	   rather than the expected (year - 1900) */
 	if (lt->tm_year < 70)
-	    datenum = (int32_t)lt->tm_year + 2000L;
+	    datenum = (long)lt->tm_year + 2000L;
 	else
-	    datenum = (int32_t)lt->tm_year + 1900L;
+	    datenum = (long)lt->tm_year + 1900L;
 	/* yyyy --> yyyymm */
-	datenum = datenum * 100L + (int32_t)(lt->tm_mon + 1);
+	datenum = datenum * 100L + (long)(lt->tm_mon + 1);
 	/* yyyymm --> yyyymmdd */
-	datenum = datenum * 100L + (int32_t)lt->tm_mday;
+	datenum = datenum * 100L + (long)lt->tm_mday;
 	return datenum;
 }
 

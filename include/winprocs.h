@@ -7,8 +7,8 @@
 
 struct window_procs {
     const char *name;
-    uint32_t wincap;	/* window port capability options supported */
-    uint32_t wincap2;	/* additional window port capability options supported */
+    unsigned long wincap;	/* window port capability options supported */
+    unsigned long wincap2;	/* additional window port capability options supported */
     void FDECL((*win_init_nhwindows), (int *, char **));
     void NDECL((*win_player_selection));
     void NDECL((*win_askname));
@@ -51,7 +51,7 @@ struct window_procs {
     void FDECL((*win_number_pad), (int));
     void NDECL((*win_delay_output));
 #ifdef CHANGE_COLOR
-    void FDECL((*win_change_color), (int,int32_t,int));
+    void FDECL((*win_change_color), (int,long,int));
 #ifdef MAC
     void FDECL((*win_change_background), (int));
     short FDECL((*win_set_font_name), (winid, char *));
@@ -176,7 +176,7 @@ extern NEARDATA struct window_procs windowprocs;
 
 #define WC2_FULLSCREEN		0x01L	/* 01 display full screen                    */
 #define WC2_SOFTKEYBOARD	0x02L	/* 02 software keyboard                      */
-#define WC2_WRAPTEXT		0x04L	/* 04 wrap int32_t lines of text                */
+#define WC2_WRAPTEXT		0x04L	/* 04 wrap long lines of text                */
 					/* 29 free bits */
 
 #define ALIGN_LEFT	1
@@ -214,7 +214,7 @@ extern NEARDATA struct window_procs windowprocs;
 
 struct wc_Opt {
 	const char *wc_name;
-	uint32_t wc_bit;
+	unsigned long wc_bit;
 };
 
 #endif /* WINPROCS_H */

@@ -60,7 +60,7 @@ extern int amii_numcolors;
 
 boolean restoring = FALSE;
 static NEARDATA struct fruit *oldfruit;
-static NEARDATA int32_t omoves;
+static NEARDATA long omoves;
 
 #define Is_IceBox(o) ((o)->otyp == ICE_BOX ? TRUE : FALSE)
 

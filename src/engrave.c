@@ -355,7 +355,7 @@ void
 make_engr_at(x,y,s,e_time,e_type)
 register int x,y;
 register const char *s;
-register int32_t e_time;
+register long e_time;
 register xchar e_type;
 {
 	register struct engr *ep;
@@ -1104,7 +1104,7 @@ doengrave()
 
 	if (doblind && !resists_blnd(&youmonst)) {
 	    You("are blinded by the flash!");
-	    make_blinded((int32_t)rnd(50),FALSE);
+	    make_blinded((long)rnd(50),FALSE);
 	    if (!Blind) Your(vision_clears);
 	}
 

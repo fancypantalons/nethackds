@@ -220,7 +220,7 @@ ranged_attk(ptr)	/* returns TRUE if monster can attack at range */
 struct permonst *ptr;
 {
 	register int i, atyp;
-	int32_t atk_mask = (1L << AT_BREA) | (1L << AT_SPIT) | (1L << AT_GAZE);
+	long atk_mask = (1L << AT_BREA) | (1L << AT_SPIT) | (1L << AT_GAZE);
 
 	/* was: (attacktype(ptr, AT_BREA) || attacktype(ptr, AT_WEAP) ||
 		attacktype(ptr, AT_SPIT) || attacktype(ptr, AT_GAZE) ||
@@ -385,8 +385,8 @@ monsndx(ptr)		/* return an index into the mons array */
 	i = (int)(ptr - &mons[0]);
 	if (i < LOW_PM || i >= NUMMONS) {
 		/* ought to switch this to use `fmt_ptr' */
-	    panic("monsndx - could not index monster (%x)",
-		  (uint32_t)ptr);
+	    panic("monsndx - could not index monster (%lx)",
+		  (unsigned long)ptr);
 	    return NON_PM;		/* will not get here */
 	}
 

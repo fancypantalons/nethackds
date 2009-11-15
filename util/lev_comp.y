@@ -214,7 +214,7 @@ room_level	: level_def flags lev_init messages rreg_init rooms corridors_def
 			      "%s : %d errors detected. No output created!\n",
 					fname, fatal_error);
 			} else {
-				special_lev.flags = (int32_t) $2;
+				special_lev.flags = (long) $2;
 				(void) memcpy(
 					(genericptr_t)&(special_lev.init_lev),
 					(genericptr_t)&(init_lev),

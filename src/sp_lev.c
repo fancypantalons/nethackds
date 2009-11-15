@@ -1165,7 +1165,7 @@ struct mkroom	*croom;
 
 	if (g->amount == -1)
 	    g->amount = rnd(200);
-	(void) mkgold((int32_t) g->amount, x, y);
+	(void) mkgold((long) g->amount, x, y);
 }
 
 /*
@@ -1480,7 +1480,7 @@ boolean prefilled;
 		case VAULT:
 		    for (x=croom->lx;x<=croom->hx;x++)
 			for (y=croom->ly;y<=croom->hy;y++)
-			    (void) mkgold((int32_t)rn1(abs(depth(&u.uz))*100, 51), x, y);
+			    (void) mkgold((long)rn1(abs(depth(&u.uz))*100, 51), x, y);
 		    break;
 		case COURT:
 		case ZOO:
@@ -1707,7 +1707,7 @@ dlb *fd;
 int typ;
 {
 	uchar	n;
-	int32_t	lev_flags;
+	long	lev_flags;
 	int	i;
 
       {

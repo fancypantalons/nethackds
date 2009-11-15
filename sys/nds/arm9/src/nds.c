@@ -204,6 +204,8 @@ void init_screen()
 
   PrintConsole *console = consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 0, 1, false, true);
 
+  REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
+
   /* Main screen setup. */
 
   /* Console and Status/Message layers */

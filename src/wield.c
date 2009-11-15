@@ -163,7 +163,7 @@ struct obj *wep;
 		 * Lifesaved rewielding.  Yet we want the message to
 		 * say "weapon in hand", thus this kludge.
 		 */
-		long dummy = wep->owornmask;
+		int32_t dummy = wep->owornmask;
 		wep->owornmask |= W_WEP;
 		prinv((char *)0, wep, 0L);
 		wep->owornmask = dummy;
@@ -375,7 +375,7 @@ dowieldquiver()
 		You("cannot ready that!");
 		return (0);
 	} else {
-		long dummy;
+		int32_t dummy;
 
 
 		/* Check if it's the secondary weapon */
@@ -787,7 +787,7 @@ void
 weldmsg(obj)
 register struct obj *obj;
 {
-	long savewornmask;
+	int32_t savewornmask;
 
 	savewornmask = obj->owornmask;
 	Your("%s %s welded to your %s!",

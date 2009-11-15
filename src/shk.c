@@ -26,31 +26,31 @@ STATIC_DCL void FDECL(kops_gone, (BOOLEAN_P));
 extern const struct shclass shtypes[];	/* defined in shknam.c */
 extern struct obj *thrownobj;		/* defined in dothrow.c */
 
-STATIC_VAR NEARDATA long int followmsg;	/* last time of follow message */
+STATIC_VAR NEARDATA int32_t followmsg;	/* last time of follow message */
 
 STATIC_DCL void FDECL(setpaid, (struct monst *));
-STATIC_DCL long FDECL(addupbill, (struct monst *));
+STATIC_DCL int32_t FDECL(addupbill, (struct monst *));
 STATIC_DCL void FDECL(pacify_shk, (struct monst *));
 STATIC_DCL struct bill_x *FDECL(onbill, (struct obj *, struct monst *, BOOLEAN_P));
 STATIC_DCL struct monst *FDECL(next_shkp, (struct monst *, BOOLEAN_P));
-STATIC_DCL long FDECL(shop_debt, (struct eshk *));
+STATIC_DCL int32_t FDECL(shop_debt, (struct eshk *));
 STATIC_DCL char *FDECL(shk_owns, (char *,struct obj *));
 STATIC_DCL char *FDECL(mon_owns, (char *,struct obj *));
 STATIC_DCL void FDECL(clear_unpaid,(struct obj *));
-STATIC_DCL long FDECL(check_credit, (long, struct monst *));
-STATIC_DCL void FDECL(pay, (long, struct monst *));
-STATIC_DCL long FDECL(get_cost, (struct obj *, struct monst *));
-STATIC_DCL long FDECL(set_cost, (struct obj *, struct monst *));
-STATIC_DCL const char *FDECL(shk_embellish, (struct obj *, long));
-STATIC_DCL long FDECL(cost_per_charge, (struct monst *,struct obj *,BOOLEAN_P));
-STATIC_DCL long FDECL(cheapest_item, (struct monst *));
+STATIC_DCL int32_t FDECL(check_credit, (int32_t, struct monst *));
+STATIC_DCL void FDECL(pay, (int32_t, struct monst *));
+STATIC_DCL int32_t FDECL(get_cost, (struct obj *, struct monst *));
+STATIC_DCL int32_t FDECL(set_cost, (struct obj *, struct monst *));
+STATIC_DCL const char *FDECL(shk_embellish, (struct obj *, int32_t));
+STATIC_DCL int32_t FDECL(cost_per_charge, (struct monst *,struct obj *,BOOLEAN_P));
+STATIC_DCL int32_t FDECL(cheapest_item, (struct monst *));
 STATIC_DCL int FDECL(dopayobj, (struct monst *, struct bill_x *,
 			    struct obj **, int, BOOLEAN_P));
-STATIC_DCL long FDECL(stolen_container, (struct obj *, struct monst *, long,
+STATIC_DCL int32_t FDECL(stolen_container, (struct obj *, struct monst *, int32_t,
 				     BOOLEAN_P));
-STATIC_DCL long FDECL(getprice, (struct obj *,BOOLEAN_P));
+STATIC_DCL int32_t FDECL(getprice, (struct obj *,BOOLEAN_P));
 STATIC_DCL void FDECL(shk_names_obj,
-		 (struct monst *,struct obj *,const char *,long,const char *));
+		 (struct monst *,struct obj *,const char *,int32_t,const char *));
 STATIC_DCL struct obj *FDECL(bp_to_obj, (struct bill_x *));
 STATIC_DCL boolean FDECL(inherits, (struct monst *,int,int));
 STATIC_DCL void FDECL(set_repo_loc, (struct eshk *));
@@ -90,10 +90,10 @@ static boolean FDECL(rob_shop, (struct monst *));
     Returns the amount actually paid, so we can know
     if the monster kept the change.
  */
-long
+int32_t
 money2mon(mon, amount)
 struct monst *mon;
-long amount;
+int32_t amount;
 {
     struct obj *ygold = findgold(invent);
 
@@ -125,7 +125,7 @@ long amount;
 void
 money2u(mon, amount)
 struct monst *mon;
-long amount;
+int32_t amount;
 {
     struct obj *mongold = findgold(mon->minvent);
 
@@ -305,13 +305,13 @@ register struct monst *shkp;
 	}
 }
 
-STATIC_OVL long
+STATIC_OVL int32_t
 addupbill(shkp)
 register struct monst *shkp;
 {
 	register int ct = ESHK(shkp)->billct;
 	register struct bill_x *bp = ESHK(shkp)->bill_p;
-	register long total = 0L;
+	register int32_t total = 0L;
 
 	while(ct--){
 		total += bp->price * bp->bquan;
@@ -471,13 +471,13 @@ rob_shop(shkp)
 struct monst *shkp;
 {
 	struct eshk *eshkp;
-	long total;
+	int32_t total;
 
 	eshkp = ESHK(shkp);
 	rouse_shk(shkp, TRUE);
 	total = (addupbill(shkp) + eshkp->debit);
 	if (eshkp->credit >= total) {
-	    Your("credit of %ld %s is used to cover your shopping bill.",
+	    Your("credit of %d %s is used to cover your shopping bill.",
 		 eshkp->credit, currency(eshkp->credit));
 	    total = 0L;		/* credit gets cleared by setpaid() */
 	} else {
@@ -489,7 +489,7 @@ struct monst *shkp;
 
 	/* by this point, we know an actual robbery has taken place */
 	eshkp->robbed += total;
-	You("stole %ld %s worth of merchandise.",
+	You("stole %d %s worth of merchandise.",
 	    total, currency(total));
 	if (!Role_if(PM_ROGUE))	/* stealing is unlawful */
 	    adjalign(-sgn(u.ualign.type));
@@ -653,13 +653,13 @@ struct obj *obj1, *obj2;
  * turning the `$' command into a way to discover that the current
  * level is bones data which has a shk on the warpath.
  */
-STATIC_OVL long
+STATIC_OVL int32_t
 shop_debt(eshkp)
 struct eshk *eshkp;
 {
 	struct bill_x *bp;
 	int ct;
-	long debt = eshkp->debit;
+	int32_t debt = eshkp->debit;
 
 	for (bp = eshkp->bill_p, ct = eshkp->billct; ct > 0; bp++, ct--)
 	    debt += bp->price * bp->bquan;
@@ -672,7 +672,7 @@ shopper_financial_report()
 {
 	struct monst *shkp, *this_shkp = shop_keeper(inside_shop(u.ux, u.uy));
 	struct eshk *eshkp;
-	long amt;
+	int32_t amt;
 	int pass;
 
 	if (this_shkp &&
@@ -689,13 +689,13 @@ shopper_financial_report()
 		if ((shkp != this_shkp) ^ pass) continue;
 		eshkp = ESHK(shkp);
 		if ((amt = eshkp->credit) != 0)
-		    You("have %ld %s credit at %s %s.",
+		    You("have %d %s credit at %s %s.",
 			amt, currency(amt), s_suffix(shkname(shkp)),
 			shtypes[eshkp->shoptype - SHOPBASE].name);
 		else if (shkp == this_shkp)
 		    You("have no credit in here.");
 		if ((amt = shop_debt(eshkp)) != 0)
-		    You("owe %s %ld %s.",
+		    You("owe %s %d %s.",
 			shkname(shkp), amt, currency(amt));
 		else if (shkp == this_shkp)
 		    You("don't owe any money here.");
@@ -838,12 +838,12 @@ register struct obj *obj, *merge;
 #endif /* OVLB */
 #ifdef OVL3
 
-STATIC_OVL long
+STATIC_OVL int32_t
 check_credit(tmp, shkp)
-long tmp;
+int32_t tmp;
 register struct monst *shkp;
 {
-	long credit = ESHK(shkp)->credit;
+	int32_t credit = ESHK(shkp)->credit;
 
 	if(credit == 0L) return(tmp);
 	if(credit >= tmp) {
@@ -860,11 +860,11 @@ register struct monst *shkp;
 
 STATIC_OVL void
 pay(tmp,shkp)
-long tmp;
+int32_t tmp;
 register struct monst *shkp;
 {
-	long robbed = ESHK(shkp)->robbed;
-	long balance = ((tmp <= 0L) ? tmp : check_credit(tmp, shkp));
+	int32_t robbed = ESHK(shkp)->robbed;
+	int32_t balance = ((tmp <= 0L) ? tmp : check_credit(tmp, shkp));
 
 #ifndef GOLDOBJ
 	u.ugold -= balance;
@@ -927,7 +927,7 @@ register struct monst *shkp;
 
 		ESHK(shkp)->surcharge = FALSE;
 		while (ct-- > 0) {
-			register long reduction = (bp->price + 3L) / 4L;
+			register int32_t reduction = (bp->price + 3L) / 4L;
 			bp->price -= reduction;		/* undo 33% increase */
 			bp++;
 		}
@@ -946,7 +946,7 @@ register struct monst *shkp;
 
 		ESHK(shkp)->surcharge = TRUE;
 		while (ct-- > 0) {
-			register long surcharge = (bp->price + 2L) / 3L;
+			register int32_t surcharge = (bp->price + 2L) / 3L;
 			bp->price += surcharge;
 			bp++;
 		}
@@ -1072,13 +1072,13 @@ STATIC_VAR const char not_enough_money[];
 
 #ifdef OVL3
 
-STATIC_OVL long
+STATIC_OVL int32_t
 cheapest_item(shkp)   /* delivers the cheapest item on the list */
 register struct monst *shkp;
 {
 	register int ct = ESHK(shkp)->billct;
 	register struct bill_x *bp = ESHK(shkp)->bill_p;
-	register long gmin = (bp->price * bp->bquan);
+	register int32_t gmin = (bp->price * bp->bquan);
 
 	while(ct--){
 		if(bp->price * bp->bquan < gmin)
@@ -1096,9 +1096,9 @@ dopay()
 	register struct eshk *eshkp;
 	register struct monst *shkp;
 	struct monst *nxtm, *resident;
-	long ltmp;
+	int32_t ltmp;
 #ifdef GOLDOBJ
-	long umoney;
+	int32_t umoney;
 #endif
 	int pass, tmp, sk = 0, seensk = 0;
 	boolean paid = FALSE, stashed_gold = (hidden_gold() > 0L);
@@ -1222,12 +1222,12 @@ proceed:
 			pline("But you have some gold stashed away.");
 		} else {
 #ifndef GOLDOBJ
-		    long ugold = u.ugold;
+		    int32_t ugold = u.ugold;
 		    if(ugold > ltmp) {
 #else
 		    if(umoney > ltmp) {
 #endif
-			You("give %s the %ld gold piece%s %s asked for.",
+			You("give %s the %d gold piece%s %s asked for.",
 			    mon_nam(shkp), ltmp, plur(ltmp), mhe(shkp));
 			pay(ltmp, shkp);
 		    } else {
@@ -1331,13 +1331,13 @@ proceed:
 	}        
 	/* pay debt, if any, first */
 	if(eshkp->debit) {
-		long dtmp = eshkp->debit;
-		long loan = eshkp->loan;
+		int32_t dtmp = eshkp->debit;
+		int32_t loan = eshkp->loan;
 		char sbuf[BUFSZ];
 #ifdef GOLDOBJ
                 umoney = money_cnt(invent);
 #endif
-		Sprintf(sbuf, "You owe %s %ld %s ",
+		Sprintf(sbuf, "You owe %s %d %s ",
 					   shkname(shkp), dtmp, currency(dtmp));
 		if(loan) {
 		    if(loan == dtmp)
@@ -1493,9 +1493,9 @@ int	which;		/* 0 => used-up item, 1 => other (unpaid or lost) */
 boolean itemize;
 {
 	register struct obj *obj = *obj_p;
-	long ltmp, quan, save_quan;
+	int32_t ltmp, quan, save_quan;
 #ifdef GOLDOBJ
-	long umoney = money_cnt(invent);
+	int32_t umoney = money_cnt(invent);
 #endif
 	int buy;
 	boolean stashed_gold = (hidden_gold() > 0L),
@@ -1533,7 +1533,7 @@ boolean itemize;
 
 	if (itemize) {
 	    char qbuf[BUFSZ];
-	    Sprintf(qbuf,"%s for %ld %s.  Pay?", quan == 1L ?
+	    Sprintf(qbuf,"%s for %d %s.  Pay?", quan == 1L ?
 		    Doname2(obj) : doname(obj), ltmp, currency(ltmp));
 	    if (yn(qbuf) == 'n') {
 		buy = PAY_SKIP;		/* don't want to buy */
@@ -1566,8 +1566,8 @@ boolean itemize;
 
 	pay(ltmp, shkp);
 	shk_names_obj(shkp, obj, consumed ?
-			"paid for %s at a cost of %ld gold piece%s.%s" :
-			"bought %s for %ld gold piece%s.%s", ltmp, "");
+			"paid for %s at a cost of %d gold piece%s.%s" :
+			"bought %s for %d gold piece%s.%s", ltmp, "");
 	obj->quan = save_quan;		/* restore original count */
 	/* quan => amount just bought, save_quan => remaining unpaid count */
 	if (consumed) {
@@ -1638,9 +1638,9 @@ struct monst *shkp;
 int numsk;
 int croaked;
 {
-	long loss = 0L;
+	int32_t loss = 0L;
 #ifdef GOLDOBJ
-	long umoney;
+	int32_t umoney;
 #endif
 	struct eshk *eshkp = ESHK(shkp);
 	boolean take = FALSE, taken = FALSE;
@@ -1721,7 +1721,7 @@ int croaked;
                         money2mon(shkp, loss);
 #endif
 			flags.botl = 1;
-			pline("%s %s the %ld %s %sowed %s.",
+			pline("%s %s the %d %s %sowed %s.",
 			      Monnam(shkp), takes,
 			      loss, currency(loss),
 			      strncmp(eshkp->customer, plname, PL_NSIZ) ?
@@ -1842,12 +1842,12 @@ unsigned id;
 #ifdef OVL3
 
 /* calculate the value that the shk will charge for [one of] an object */
-STATIC_OVL long
+STATIC_OVL int32_t
 get_cost(obj, shkp)
 register struct obj *obj;
 register struct monst *shkp;	/* if angry, impose a surcharge */
 {
-	register long tmp = getprice(obj, FALSE);
+	register int32_t tmp = getprice(obj, FALSE);
 
 	if (!tmp) tmp = 5L;
 	/* shopkeeper may notice if the player isn't very knowledgeable -
@@ -1894,7 +1894,7 @@ register struct monst *shkp;	/* if angry, impose a surcharge */
 			    i = STRANGE_OBJECT;
 			    break;
 		    }
-		    tmp = (long) objects[i].oc_cost;
+		    tmp = (int32_t) objects[i].oc_cost;
 		} else if (!(obj->o_id % 4)) /* arbitrarily impose surcharge */
 		    tmp += tmp / 3L;
 	}
@@ -1926,11 +1926,11 @@ register struct monst *shkp;	/* if angry, impose a surcharge */
  * of the "top" container is added in the calling functions.
  * a different price quoted for selling as vs. buying.
  */
-long
+int32_t
 contained_cost(obj, shkp, price, usell, unpaid_only)
 register struct obj *obj;
 register struct monst *shkp;
-long price;
+int32_t price;
 register boolean usell;
 register boolean unpaid_only;
 {
@@ -1945,7 +1945,7 @@ register boolean unpaid_only;
 			!otmp->unpaid && otmp->oclass != BALL_CLASS &&
 			!(otmp->oclass == FOOD_CLASS && otmp->oeaten) &&
 			!(Is_candle(otmp) && otmp->age <
-				20L * (long)objects[otmp->otyp].oc_cost))
+				20L * (int32_t)objects[otmp->otyp].oc_cost))
 		    price += set_cost(otmp, shkp);
 	    } else if (!otmp->no_charge &&
 		      (!unpaid_only || (unpaid_only && otmp->unpaid))) {
@@ -1959,12 +1959,12 @@ register boolean unpaid_only;
 	return(price);
 }
 
-long
+int32_t
 contained_gold(obj)
 register struct obj *obj;
 {
 	register struct obj *otmp;
-	register long value = 0L;
+	register int32_t value = 0L;
 
 	/* accumulate contained gold */
 	for (otmp = obj->cobj; otmp; otmp = otmp->nobj)
@@ -2017,12 +2017,12 @@ register struct obj *obj;
 #ifdef OVL3
 
 /* calculate how much the shk will pay when buying [all of] an object */
-STATIC_OVL long
+STATIC_OVL int32_t
 set_cost(obj, shkp)
 register struct obj *obj;
 register struct monst *shkp;
 {
-	long tmp = getprice(obj, TRUE) * obj->quan;
+	int32_t tmp = getprice(obj, TRUE) * obj->quan;
 
 #ifdef TOURIST
 	if ((Role_if(PM_TOURIST) && u.ulevel < (MAXULEV/2))
@@ -2055,7 +2055,7 @@ register struct monst *shkp;
 #ifdef OVLB
 
 /* called from doinv(invent.c) for inventory of unpaid objects */
-long
+int32_t
 unpaid_cost(unp_obj)
 register struct obj *unp_obj;	/* known to be unpaid */
 {
@@ -2155,8 +2155,8 @@ STATIC_OVL void
 shk_names_obj(shkp, obj, fmt, amt, arg)
 struct monst *shkp;
 struct obj *obj;
-const char *fmt;	/* "%s %ld %s %s", doname(obj), amt, plur(amt), arg */
-long amt;
+const char *fmt;	/* "%s %d %s %s", doname(obj), amt, plur(amt), arg */
+int32_t amt;
 const char *arg;
 {
 	char *obj_name, fmtbuf[BUFSZ];
@@ -2193,7 +2193,7 @@ register boolean ininv, dummy, silent;
 {
 	register struct monst *shkp;
 	register char roomno = *u.ushops;
-	long ltmp = 0L, cltmp = 0L, gltmp = 0L;
+	int32_t ltmp = 0L, cltmp = 0L, gltmp = 0L;
 	register boolean container = Has_contents(obj);
 
 	if(!*u.ushops) return;
@@ -2277,17 +2277,17 @@ speak:
 		    Strcat(buf, (flags.female) ? " lady" : " sir");
 	    }
 	    if(ininv) {
-		long quan = obj->quan;
+		int32_t quan = obj->quan;
 		obj->quan = 1L; /* fool xname() into giving singular */
-		pline("%s; only %ld %s %s.\"", buf, ltmp,
+		pline("%s; only %d %s %s.\"", buf, ltmp,
 			(quan > 1L) ? "per" : "for this", xname(obj));
 		obj->quan = quan;
 	    } else
-		pline("%s will cost you %ld %s%s.",
+		pline("%s will cost you %d %s%s.",
 			The(xname(obj)), ltmp, currency(ltmp),
 			(obj->quan > 1L) ? " each" : "");
 	} else if(!silent) {
-	    if(ltmp) pline_The("list price of %s is %ld %s%s.",
+	    if(ltmp) pline_The("list price of %s is %d %s%s.",
 				   the(xname(obj)), ltmp, currency(ltmp),
 				   (obj->quan > 1L) ? " each" : "");
 	    else pline("%s does not notice.", Monnam(shkp));
@@ -2300,7 +2300,7 @@ register struct obj *obj, *otmp;
 {
 	/* otmp has been split off from obj */
 	register struct bill_x *bp;
-	register long tmp;
+	register int32_t tmp;
 	register struct monst *shkp = shop_keeper(*u.ushops);
 
 	if(!shkp || !inhishop(shkp)) {
@@ -2398,11 +2398,11 @@ register struct monst *shkp;
 #endif /*OVLB*/
 #ifdef OVL3
 
-STATIC_OVL long
+STATIC_OVL int32_t
 stolen_container(obj, shkp, price, ininv)
 register struct obj *obj;
 register struct monst *shkp;
-long price;
+int32_t price;
 register boolean ininv;
 {
 	register struct obj *otmp;
@@ -2440,13 +2440,13 @@ register boolean ininv;
 #endif /*OVL3*/
 #ifdef OVLB
 
-long
+int32_t
 stolen_value(obj, x, y, peaceful, silent)
 register struct obj *obj;
 register xchar x, y;
 register boolean peaceful, silent;
 {
-	register long value = 0L, gvalue = 0L;
+	register int32_t value = 0L, gvalue = 0L;
 	register struct monst *shkp = shop_keeper(*in_rooms(x, y, SHOPBASE));
 
 	if (!shkp || !inhishop(shkp))
@@ -2483,7 +2483,7 @@ register boolean peaceful, silent;
 
 		if (credit_use) {
 		    if (ESHK(shkp)->credit) {
-			You("have %ld %s credit remaining.",
+			You("have %d %s credit remaining.",
 				 ESHK(shkp)->credit, currency(ESHK(shkp)->credit));
 			return value;
 		    } else if (!value) {
@@ -2493,10 +2493,10 @@ register boolean peaceful, silent;
 		    still = "still ";
 		}
 		if(obj->oclass == COIN_CLASS)
-		    You("%sowe %s %ld %s!", still,
+		    You("%sowe %s %d %s!", still,
 			mon_nam(shkp), value, currency(value));
 		else
-		    You("%sowe %s %ld %s for %s!", still,
+		    You("%sowe %s %d %s for %s!", still,
 			mon_nam(shkp), value, currency(value),
 			obj->quan > 1L ? "them" : "it");
 	    }
@@ -2544,7 +2544,7 @@ xchar x, y;
 {
 	register struct monst *shkp;
 	register struct eshk *eshkp;
-	long ltmp = 0L, cltmp = 0L, gltmp = 0L, offer;
+	int32_t ltmp = 0L, cltmp = 0L, gltmp = 0L, offer;
 	boolean saleitem, cgold = FALSE, container = Has_contents(obj);
 	boolean isgold = (obj->oclass == COIN_CLASS);
 	boolean only_partially_your_contents = FALSE;
@@ -2625,7 +2625,7 @@ xchar x, y;
 		    Your("debt is %spaid off.",
 				eshkp->debit ? "partially " : "");
 		} else {
-		    long delta = gltmp - eshkp->debit;
+		    int32_t delta = gltmp - eshkp->debit;
 
 		    eshkp->credit += delta;
 		    if(eshkp->debit) {
@@ -2633,7 +2633,7 @@ xchar x, y;
 			eshkp->loan = 0L;
 			Your("debt is paid off.");
 		    }
-		    pline("%ld %s %s added to your credit.",
+		    pline("%d %s %s added to your credit.",
 				delta, currency(delta), delta > 1L ? "are" : "is");
 		}
 		if(offer) goto move_on;
@@ -2654,7 +2654,7 @@ move_on:
 	   || obj->oclass == CHAIN_CLASS || offer == 0L
 	   || (obj->oclass == FOOD_CLASS && obj->oeaten)
 	   || (Is_candle(obj) &&
-		   obj->age < 20L * (long)objects[obj->otyp].oc_cost)) {
+		   obj->age < 20L * (int32_t)objects[obj->otyp].oc_cost)) {
 		pline("%s seems uninterested%s.", Monnam(shkp),
 			cgold ? " in the rest" : "");
 		if (container)
@@ -2669,14 +2669,14 @@ move_on:
 	if(!money_cnt(shkp->minvent)) {
 #endif
 		char c, qbuf[BUFSZ];
-		long tmpcr = ((offer * 9L) / 10L) + (offer <= 1L);
+		int32_t tmpcr = ((offer * 9L) / 10L) + (offer <= 1L);
 
 		if (sell_how == SELL_NORMAL || auto_credit) {
 		    c = sell_response = 'y';
 		} else if (sell_response != 'n') {
 		    pline("%s cannot pay you at present.", Monnam(shkp));
 		    Sprintf(qbuf,
-			    "Will you accept %ld %s in credit for %s?",
+			    "Will you accept %d %s in credit for %s?",
 			    tmpcr, currency(tmpcr), doname(obj));
 		    /* won't accept 'a' response here */
 		    /* KLY - 3/2000 yes, we will, it's a damn nuisance
@@ -2691,8 +2691,8 @@ move_on:
 
 		if (c == 'y') {
 		    shk_names_obj(shkp, obj, (sell_how != SELL_NORMAL) ?
-			    "traded %s for %ld zorkmid%s in %scredit." :
-			"relinquish %s and acquire %ld zorkmid%s in %scredit.",
+			    "traded %s for %d zorkmid%s in %scredit." :
+			"relinquish %s and acquire %d zorkmid%s in %scredit.",
 			    tmpcr,
 			    (eshkp->credit > 0L) ? "additional " : "");
 		    eshkp->credit += tmpcr;
@@ -2710,7 +2710,7 @@ move_on:
 		boolean short_funds = (offer > shkp->mgold);
 		if (short_funds) offer = shkp->mgold;
 #else
-                long shkmoney = money_cnt(shkp->minvent);
+                int32_t shkmoney = money_cnt(shkp->minvent);
 		boolean short_funds = (offer > shkmoney);
 		if (short_funds) offer = shkmoney;
 #endif
@@ -2719,7 +2719,7 @@ move_on:
 			(contained_cost(obj, shkp, 0L, FALSE, FALSE) !=
 			 contained_cost(obj, shkp, 0L, FALSE, TRUE));
 		    Sprintf(qbuf,
-			 "%s offers%s %ld gold piece%s for%s %s %s.  Sell %s?",
+			 "%s offers%s %d gold piece%s for%s %s %s.  Sell %s?",
 			    Monnam(shkp), short_funds ? " only" : "",
 			    offer, plur(offer),
 			    (!ltmp && cltmp && only_partially_your_contents) ?
@@ -2745,9 +2745,9 @@ move_on:
 			    pay(-offer, shkp);
 			    shk_names_obj(shkp, obj, (sell_how != SELL_NORMAL) ?
 				    (!ltmp && cltmp && only_partially_your_contents) ?
-			    	    "sold some items inside %s for %ld gold pieces%s.%s" :
-				    "sold %s for %ld gold piece%s.%s" :
-	       "relinquish %s and receive %ld gold piece%s in compensation.%s",
+			    	    "sold some items inside %s for %d gold pieces%s.%s" :
+				    "sold %s for %d gold piece%s.%s" :
+	       "relinquish %s and receive %d gold piece%s in compensation.%s",
 				    offer, "");
 			    break;
 		 default:   impossible("invalid sell response");
@@ -2766,7 +2766,7 @@ int mode;		/* 0: deliver count 1: paged */
 	struct eshk *eshkp;
 	struct bill_x *bp, *end_bp;
 	struct obj *obj;
-	long totused;
+	int32_t totused;
 	char *buf_p;
 	winid datawin;
 
@@ -2803,7 +2803,7 @@ int mode;		/* 0: deliver count 1: paged */
 		goto quit;
 	    }
 	    if(bp->useup || bp->bquan > obj->quan) {
-		long oquan, uquan, thisused;
+		int32_t oquan, uquan, thisused;
 		unsigned save_unpaid;
 
 		save_unpaid = obj->unpaid;
@@ -2843,12 +2843,12 @@ int mode;		/* 0: deliver count 1: paged */
 
 #define HUNGRY	2
 
-STATIC_OVL long
+STATIC_OVL int32_t
 getprice(obj, shk_buying)
 register struct obj *obj;
 boolean shk_buying;
 {
-	register long tmp = (long) objects[obj->otyp].oc_cost;
+	register int32_t tmp = (int32_t) objects[obj->otyp].oc_cost;
 
 	if (obj->oartifact) {
 	    tmp = arti_cost(obj);
@@ -2857,7 +2857,7 @@ boolean shk_buying;
 	switch(obj->oclass) {
 	case FOOD_CLASS:
 		/* simpler hunger check, (2-4)*cost */
-		if (u.uhs >= HUNGRY && !shk_buying) tmp *= (long) u.uhs;
+		if (u.uhs >= HUNGRY && !shk_buying) tmp *= (int32_t) u.uhs;
 		if (obj->oeaten) tmp = 0L;
 		break;
 	case WAND_CLASS:
@@ -2869,11 +2869,11 @@ boolean shk_buying;
 		break;
 	case ARMOR_CLASS:
 	case WEAPON_CLASS:
-		if (obj->spe > 0) tmp += 10L * (long) obj->spe;
+		if (obj->spe > 0) tmp += 10L * (int32_t) obj->spe;
 		break;
 	case TOOL_CLASS:
 		if (Is_candle(obj) &&
-			obj->age < 20L * (long)objects[obj->otyp].oc_cost)
+			obj->age < 20L * (int32_t)objects[obj->otyp].oc_cost)
 		    tmp /= 2L;
 		break;
 	}
@@ -2918,7 +2918,7 @@ register xchar x, y;
 void
 add_damage(x, y, cost)
 register xchar x, y;
-long cost;
+int32_t cost;
 {
 	struct damage *tmp_dam;
 	char *shops;
@@ -3455,7 +3455,7 @@ boolean cant_mollify;
 			  !strcmp(dmgstr, "damage");		/* pick-axe */
 	struct damage *tmp_dam, *appear_here = 0;
 	/* any number >= (80*80)+(24*24) would do, actually */
-	long cost_of_damage = 0L;
+	int32_t cost_of_damage = 0L;
 	unsigned int nearest_shk = 7000, nearest_damage = 7000;
 	int picks = 0;
 
@@ -3575,7 +3575,7 @@ getcad:
 	}
 
 	if (Invis) Your("invisibility does not fool %s!", shkname(shkp));
-	Sprintf(qbuf,"\"Cad!  You did %ld %s worth of damage!\"  Pay? ",
+	Sprintf(qbuf,"\"Cad!  You did %d %s worth of damage!\"  Pay? ",
 		 cost_of_damage, currency(cost_of_damage));
 	if(yn(qbuf) != 'n') {
 		cost_of_damage = check_credit(cost_of_damage, shkp);
@@ -3645,7 +3645,7 @@ register struct obj *first_obj;
 {
     register struct obj *otmp;
     char buf[BUFSZ], price[40];
-    long cost;
+    int32_t cost;
     int cnt = 0;
     winid tmpwin;
     struct monst *shkp = shop_keeper(inside_shop(u.ux, u.uy));
@@ -3662,7 +3662,7 @@ register struct obj *first_obj;
 	if (!cost) {
 	    Strcpy(price, "no charge");
 	} else {
-	    Sprintf(price, "%ld %s%s", cost, currency(cost),
+	    Sprintf(price, "%d %s%s", cost, currency(cost),
 		    otmp->quan > 1L ? " each" : "");
 	}
 	Sprintf(buf, "%s, %s", doname(otmp), price);
@@ -3678,7 +3678,7 @@ register struct obj *first_obj;
 	    cost = get_cost(first_obj, (struct monst *)0);
 	    if (Has_contents(first_obj))
 		cost += contained_cost(first_obj, shkp, 0L, FALSE, FALSE);
-	    pline("%s, price %ld %s%s%s", doname(first_obj),
+	    pline("%s, price %d %s%s%s", doname(first_obj),
 		cost, currency(cost), first_obj->quan > 1L ? " each" : "",
 		shk_embellish(first_obj, cost));
 	}
@@ -3691,7 +3691,7 @@ register struct obj *first_obj;
 STATIC_OVL const char *
 shk_embellish(itm, cost)
 register struct obj *itm;
-long cost;
+int32_t cost;
 {
     if (!rn2(3)) {
 	register int o, choice = rn2(5);
@@ -3739,7 +3739,7 @@ struct monst *shkp;
 {
 	struct eshk *eshk;
 #ifdef GOLDOBJ
-	long shkmoney;
+	int32_t shkmoney;
 #endif
 	if (!shkp->isshk) {
 		/* The monster type is shopkeeper, but this monster is
@@ -3769,15 +3769,15 @@ struct monst *shkp;
 			      Hello(shkp), plname);
 		}
 	} else if (eshk->billct) {
-		register long total = addupbill(shkp) + eshk->debit;
-		pline("%s says that your bill comes to %ld %s.",
+		register int32_t total = addupbill(shkp) + eshk->debit;
+		pline("%s says that your bill comes to %d %s.",
 		      shkname(shkp), total, currency(total));
 	} else if (eshk->debit)
-		pline("%s reminds you that you owe %s %ld %s.",
+		pline("%s reminds you that you owe %s %d %s.",
 		      shkname(shkp), mhim(shkp),
 		      eshk->debit, currency(eshk->debit));
 	else if (eshk->credit)
-		pline("%s encourages you to use your %ld %s of credit.",
+		pline("%s encourages you to use your %d %s of credit.",
 		      shkname(shkp), eshk->credit, currency(eshk->credit));
 	else if (eshk->robbed)
 		pline("%s complains about a recent robbery.", shkname(shkp));
@@ -3823,13 +3823,13 @@ register boolean silent;
 #endif /*OVLB*/
 #ifdef OVL3
 
-STATIC_OVL long
+STATIC_OVL int32_t
 cost_per_charge(shkp, otmp, altusage)
 struct monst *shkp;
 struct obj *otmp;
 boolean altusage; /* some items have an "alternate" use with different cost */
 {
-	long tmp = 0L;
+	int32_t tmp = 0L;
 
 	if(!shkp || !inhishop(shkp)) return(0L); /* insurance */
 	tmp = get_cost(otmp, shkp);
@@ -3843,7 +3843,7 @@ boolean altusage; /* some items have an "alternate" use with different cost */
 		   identifcation too easy; charge an amount comparable to
 		   what is charged for an ordinary lamp (don't bother with
 		   angry shk surchage) */
-		if (!altusage) tmp = (long) objects[OIL_LAMP].oc_cost;
+		if (!altusage) tmp = (int32_t) objects[OIL_LAMP].oc_cost;
 		else tmp += tmp / 3L;	/* djinni is being released */
 	} else if(otmp->otyp == MAGIC_MARKER) {		 /* 70 - 100 */
 		/* no way to determine in advance   */
@@ -3890,7 +3890,7 @@ boolean altusage;
 {
 	struct monst *shkp;
 	const char *fmt, *arg1, *arg2;
-	long tmp;
+	int32_t tmp;
 
 	if (!otmp->unpaid || !*u.ushops ||
 		(otmp->spe <= 0 && objects[otmp->otyp].oc_charged))
@@ -3902,13 +3902,13 @@ boolean altusage;
 
 	arg1 = arg2 = "";
 	if (otmp->oclass == SPBOOK_CLASS) {
-	    fmt = "%sYou owe%s %ld %s.";
+	    fmt = "%sYou owe%s %d %s.";
 	    arg1 = rn2(2) ? "This is no free library, cad!  " : "";
 	    arg2 = ESHK(shkp)->debit > 0L ? " an additional" : "";
 	} else if (otmp->otyp == POT_OIL) {
-	    fmt = "%s%sThat will cost you %ld %s (Yendorian Fuel Tax).";
+	    fmt = "%s%sThat will cost you %d %s (Yendorian Fuel Tax).";
 	} else {
-	    fmt = "%s%sUsage fee, %ld %s.";
+	    fmt = "%s%sUsage fee, %d %s.";
 	    if (!rn2(3)) arg1 = "Hey!  ";
 	    if (!rn2(3)) arg2 = "Ahem.  ";
 	}
@@ -3930,9 +3930,9 @@ struct obj *otmp;
 void
 costly_gold(x, y, amount)
 register xchar x, y;
-register long amount;
+register int32_t amount;
 {
-	register long delta;
+	register int32_t delta;
 	register struct monst *shkp;
 	register struct eshk *eshkp;
 
@@ -3943,7 +3943,7 @@ register long amount;
 	eshkp = ESHK(shkp);
 	if(eshkp->credit >= amount) {
 	    if(eshkp->credit > amount)
-		Your("credit is reduced by %ld %s.",
+		Your("credit is reduced by %d %s.",
 					amount, currency(amount));
 	    else Your("credit is erased.");
 	    eshkp->credit -= amount;
@@ -3952,9 +3952,9 @@ register long amount;
 	    if(eshkp->credit)
 		Your("credit is erased.");
 	    if(eshkp->debit)
-		Your("debt increases by %ld %s.",
+		Your("debt increases by %d %s.",
 					delta, currency(delta));
-	    else You("owe %s %ld %s.",
+	    else You("owe %s %d %s.",
 				shkname(shkp), delta, currency(delta));
 	    eshkp->debit += delta;
 	    eshkp->loan += delta;

@@ -291,7 +291,7 @@ const char * const *nlp;
 	       and restore support which would be necessary for randomization;
 	       try not to make too many assumptions about time_t's internals;
 	       use ledger_no rather than depth to keep mine town distinct. */
-	    int nseed = (int)((long)u.ubirthday / 257L);
+	    int nseed = (int)((int32_t)u.ubirthday / 257L);
 
 	    name_wanted = ledger_no(&u.uz) + (nseed % 13) - (nseed % 5);
 	    if (name_wanted < 0) name_wanted += (13 + 5);
@@ -409,9 +409,9 @@ struct mkroom	*sroom;
 	ESHK(shk)->following = 0;
 	ESHK(shk)->billct = 0;
 #ifndef GOLDOBJ
-	shk->mgold = 1000L + 30L*(long)rnd(100);	/* initial capital */
+	shk->mgold = 1000L + 30L*(int32_t)rnd(100);	/* initial capital */
 #else
-        mkmonmoney(shk, 1000L + 30L*(long)rnd(100));	/* initial capital */
+        mkmonmoney(shk, 1000L + 30L*(int32_t)rnd(100));	/* initial capital */
 #endif
 	if (shp->shknms == shkrings)
 	    (void) mongets(shk, TOUCHSTONE);

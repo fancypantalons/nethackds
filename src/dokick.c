@@ -18,7 +18,7 @@ STATIC_DCL void FDECL(kickdmg, (struct monst *, BOOLEAN_P));
 STATIC_DCL void FDECL(kick_monster, (XCHAR_P, XCHAR_P));
 STATIC_DCL int FDECL(kick_object, (XCHAR_P, XCHAR_P));
 STATIC_DCL char *FDECL(kickstr, (char *));
-STATIC_DCL void FDECL(otransit_msg, (struct obj *, BOOLEAN_P, long));
+STATIC_DCL void FDECL(otransit_msg, (struct obj *, BOOLEAN_P, int32_t));
 STATIC_DCL void FDECL(drop_to, (coord *,SCHAR_P));
 
 static NEARDATA struct obj *kickobj;
@@ -251,7 +251,7 @@ register struct obj *gold;
 		}
 	} else {
 #ifdef GOLDOBJ
-                long value = gold->quan * objects[gold->otyp].oc_cost;
+                int32_t value = gold->quan * objects[gold->otyp].oc_cost;
 #endif
 		mtmp->msleeping = 0;
 		mtmp->meating = 0;
@@ -264,7 +264,7 @@ register struct obj *gold;
 		mtmp->mgold += gold->quan;
 #endif
 		if (mtmp->isshk) {
-			long robbed = ESHK(mtmp)->robbed;
+			int32_t robbed = ESHK(mtmp)->robbed;
 
 			if (robbed) {
 #ifndef GOLDOBJ
@@ -286,7 +286,7 @@ register struct obj *gold;
 #else
 				    ESHK(mtmp)->credit += value;
 #endif
-				    You("have %ld %s in credit.",
+				    You("have %d %s in credit.",
 					ESHK(mtmp)->credit,
 					currency(ESHK(mtmp)->credit));
 				} else verbalize("Thanks, scum!");
@@ -296,7 +296,7 @@ register struct obj *gold;
 			    verbalize("Thank you for your contribution.");
 			else verbalize("Thanks, scum!");
 		} else if (is_mercenary(mtmp->data)) {
-		    long goldreqd = 0L;
+		    int32_t goldreqd = 0L;
 
 		    if (rn2(3)) {
 			if (mtmp->data == &mons[PM_SOLDIER])
@@ -344,7 +344,7 @@ struct obj *obj;
 {
 	struct monst *shkp;
 	struct obj *otmp, *otmp2;
-	long loss = 0L;
+	int32_t loss = 0L;
 	boolean costly, insider;
 	xchar x = obj->ox, y = obj->oy;
 
@@ -387,10 +387,10 @@ struct obj *obj;
 	}
 	if (costly && loss) {
 	    if (!insider) {
-		You("caused %ld %s worth of damage!", loss, currency(loss));
+		You("caused %d %s worth of damage!", loss, currency(loss));
 		make_angry_shk(shkp, x, y);
 	    } else {
-		You("owe %s %ld %s for objects destroyed.",
+		You("owe %s %d %s for objects destroyed.",
 		    mon_nam(shkp), loss, currency(loss));
 	    }
 	}
@@ -645,7 +645,7 @@ dokick()
 #endif
 	} else if (Wounded_legs) {
 		/* note: jump() has similar code */
-		long wl = (EWounded_legs & BOTH_SIDES);
+		int32_t wl = (EWounded_legs & BOTH_SIDES);
 		const char *bp = body_part(LEG);
 
 		if (wl == BOTH_SIDES) bp = makeplural(bp);
@@ -831,7 +831,7 @@ dokick()
 		    if((Luck < 0 || maploc->doormask) && !rn2(3)) {
 			maploc->typ = ROOM;
 			maploc->doormask = 0; /* don't leave loose ends.. */
-			(void) mkgold((long)rnd(200), x, y);
+			(void) mkgold((int32_t)rnd(200), x, y);
 			if (Blind)
 			    pline("CRASH!  You destroy it.");
 			else {
@@ -841,7 +841,7 @@ dokick()
 			exercise(A_DEX, TRUE);
 			return(1);
 		    } else if(Luck > 0 && !rn2(3) && !maploc->looted) {
-			(void) mkgold((long) rn1(201, 300), x, y);
+			(void) mkgold((int32_t) rn1(201, 300), x, y);
 			i = Luck + 1;
 			if(i > 6) i = 6;
 			while(i--)
@@ -897,7 +897,7 @@ dokick()
 		    }
 		    if (rn2(15) && !(maploc->looted & TREE_LOOTED) &&
 			  (treefruit = rnd_treefruit_at(x, y))) {
-			long nfruit = 8L-rnl(7), nfall;
+			int32_t nfruit = 8L-rnl(7), nfall;
 			short frtype = treefruit->otyp;
 			treefruit->quan = nfruit;
 			if (is_plural(treefruit))
@@ -910,7 +910,7 @@ dokick()
 			     * may not refer to the correct object */
 			    treefruit = mksobj(frtype, TRUE, FALSE);
 			    treefruit->quan = nfruit-nfall;
-			    pline("%ld %s got caught in the branches.",
+			    pline("%d %s got caught in the branches.",
 				nfruit-nfall, xname(treefruit));
 			    dealloc_obj(treefruit);
 			}
@@ -1154,7 +1154,7 @@ xchar x, y, dlev;
 	schar toloc;
 	register struct obj *obj, *obj2;
 	register struct monst *shkp;
-	long oct, dct, price, debit, robbed;
+	int32_t oct, dct, price, debit, robbed;
 	boolean angry, costly, isrock;
 	coord cc;
 
@@ -1218,7 +1218,7 @@ xchar x, y, dlev;
 		add_to_migration(obj);
 		obj->ox = cc.x;
 		obj->oy = cc.y;
-		obj->owornmask = (long)toloc;
+		obj->owornmask = (int32_t)toloc;
 
 		/* number of fallen objects */
 		dct += obj->quan;
@@ -1241,7 +1241,7 @@ xchar x, y, dlev;
 
 	if(costly && shkp && price) {
 		if(ESHK(shkp)->robbed > robbed) {
-		    You("removed %ld %s worth of goods!", price, currency(price));
+		    You("removed %d %s worth of goods!", price, currency(price));
 		    if(cansee(shkp->mx, shkp->my)) {
 			if(ESHK(shkp)->customer[0] == 0)
 			    (void) strncpy(ESHK(shkp)->customer,
@@ -1255,8 +1255,8 @@ xchar x, y, dlev;
 		    return;
 		}
 		if(ESHK(shkp)->debit > debit) {
-		    long amt = (ESHK(shkp)->debit - debit);
-		    You("owe %s %ld %s for goods lost.",
+		    int32_t amt = (ESHK(shkp)->debit - debit);
+		    You("owe %s %d %s for goods lost.",
 			Monnam(shkp),
 			amt, currency(amt));
 		}
@@ -1280,7 +1280,7 @@ boolean shop_floor_obj;
 	struct obj *obj;
 	struct trap *t;
 	boolean nodrop, unpaid, container, impact = FALSE;
-	long n = 0L;
+	int32_t n = 0L;
 
 	if (!otmp) return(FALSE);
 	if ((toloc = down_gate(x, y)) == MIGR_NOWHERE) return(FALSE);
@@ -1367,7 +1367,7 @@ boolean shop_floor_obj;
 	add_to_migration(otmp);
 	otmp->ox = cc.x;
 	otmp->oy = cc.y;
-	otmp->owornmask = (long)toloc;
+	otmp->owornmask = (int32_t)toloc;
 	/* boulder from rolling boulder trap, no longer part of the trap */
 	if (otmp->otyp == BOULDER) otmp->otrapped = 0;
 
@@ -1392,7 +1392,7 @@ obj_delivery()
 {
 	register struct obj *otmp, *otmp2;
 	register int nx, ny;
-	long where;
+	int32_t where;
 
 	for (otmp = migrating_objs; otmp; otmp = otmp2) {
 	    otmp2 = otmp->nobj;
@@ -1432,7 +1432,7 @@ STATIC_OVL void
 otransit_msg(otmp, nodrop, num)
 register struct obj *otmp;
 register boolean nodrop;
-long num;
+int32_t num;
 {
 	char obuf[BUFSZ];
 

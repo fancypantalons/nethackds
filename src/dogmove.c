@@ -172,7 +172,7 @@ boolean devour;
 	    edog->apport = 0;
 #else
 	    edog->apport += (int)(200L/
-		((long)edog->dropdist + monstermoves - edog->droptime));
+		((int32_t)edog->dropdist + monstermoves - edog->droptime));
 #endif
 	if (mtmp->data == &mons[PM_RUST_MONSTER] && obj->oerodeproof) {
 	    /* The object's rustproofing is gone now */
@@ -492,7 +492,7 @@ register int after;	/* this is extra fast monster movement */
 	xchar cnt, uncursedcnt, chcnt;
 	int chi = -1, nidist, ndist;
 	coord poss[9];
-	long info[9], allowflags;
+	int32_t info[9], allowflags;
 #define GDIST(x,y) (dist2(x,y,gx,gy))
 
 	/*

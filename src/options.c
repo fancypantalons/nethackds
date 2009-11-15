@@ -936,7 +936,7 @@ const char *optn;
 {
 	char buf[BUFSZ];
 	boolean rejectver = FALSE;
-	unsigned long fnv = get_feature_notice_ver(op);		/* version.c */
+	uint32_t fnv = get_feature_notice_ver(op);		/* version.c */
 	if (fnv == 0L) return 0;
 	if (fnv > get_current_feature_ver())
 		rejectver = TRUE;
@@ -954,7 +954,7 @@ const char *optn;
 		return 0;
 	}
 	if (!initial) {
-		Sprintf(buf, "%lu.%lu.%lu", FEATURE_NOTICE_VER_MAJ,
+		Sprintf(buf, "%u.%u.%u", FEATURE_NOTICE_VER_MAJ,
 			FEATURE_NOTICE_VER_MIN, FEATURE_NOTICE_VER_PATCH);
 		pline("Feature change alerts disabled for NetHack %s features and prior.",
 			buf);
@@ -1489,7 +1489,7 @@ boolean tinitial, tfrom_file;
 	    if ((op = string_for_opt(opts, FALSE)) != (char *)0) {
 		char *pt = op;
 		int cnt, tmp, reverse;
-		long rgb;
+		int32_t rgb;
 
 		while (*pt && color_number >= 0) {
 		    cnt = 3;
@@ -3384,7 +3384,7 @@ char *buf;
 	    if (flags.suppress_alert == 0L)
 		Strcpy(buf, none);
 	    else
-		Sprintf(buf, "%lu.%lu.%lu",
+		Sprintf(buf, "%u.%u.%u",
 			FEATURE_NOTICE_VER_MAJ,
 			FEATURE_NOTICE_VER_MIN,
 			FEATURE_NOTICE_VER_PATCH);
@@ -3941,7 +3941,7 @@ int status;
  */
 void
 set_wc_option_mod_status(optmask, status)
-unsigned long optmask;
+uint32_t optmask;
 int status;
 {
 	int k = 0;
@@ -3997,7 +3997,7 @@ const char *optnam;
 
 void
 set_wc2_option_mod_status(optmask, status)
-unsigned long optmask;
+uint32_t optmask;
 int status;
 {
 	int k = 0;

@@ -55,7 +55,7 @@ struct permonst {
 	uchar		msize;			/* physical size (3 bits) */
 	uchar		mresists;		/* resistances */
 	uchar		mconveys;		/* conveyed by eating */
-	unsigned long	mflags1,		/* boolean bitflags */
+	uint32_t	mflags1,		/* boolean bitflags */
 			mflags2;		/* more boolean bitflags */
 	unsigned short	mflags3;		/* yet more boolean bitflags */
 # ifdef TEXTCOLOR

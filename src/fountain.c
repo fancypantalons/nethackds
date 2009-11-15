@@ -451,14 +451,14 @@ register struct obj *obj;
 			}
 #else
 			{
-			    long money = money_cnt(invent);
+			    int32_t money = money_cnt(invent);
 			    struct obj *otmp;
                             if (money > 10) {
 				/* Amount to loose.  Might get rounded up as fountains don't pay change... */
 			        money = somegold(money) / 10; 
 			        for (otmp = invent; otmp && money > 0; otmp = otmp->nobj) if (otmp->oclass == COIN_CLASS) {
 				    int denomination = objects[otmp->otyp].oc_cost;
-				    long coin_loss = (money + denomination - 1) / denomination;
+				    int32_t coin_loss = (money + denomination - 1) / denomination;
                                     coin_loss = min(coin_loss, otmp->quan);
 				    otmp->quan -= coin_loss;
 				    money -= coin_loss * denomination;				  
@@ -479,7 +479,7 @@ register struct obj *obj;
 
 		    if (FOUNTAIN_IS_LOOTED(u.ux,u.uy)) break;
 		    SET_FOUNTAIN_LOOTED(u.ux,u.uy);
-		    (void) mkgold((long)
+		    (void) mkgold((int32_t)
 			(rnd((dunlevs_in_dungeon(&u.uz)-dunlev(&u.uz)+1)*2)+5),
 			u.ux, u.uy);
 		    if (!Blind)

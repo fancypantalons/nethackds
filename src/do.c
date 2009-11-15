@@ -640,7 +640,7 @@ menu_drop(retry)
 int retry;
 {
     int n, i, n_dropped = 0;
-    long cnt;
+    int32_t cnt;
     struct obj *otmp, *otmp2;
 #ifndef GOLDOBJ
     struct obj *u_gold = 0;
@@ -1574,7 +1574,7 @@ struct obj *corpse;
 void
 revive_mon(arg, timeout)
 genericptr_t arg;
-long timeout;
+int32_t timeout;
 {
     struct obj *body = (struct obj *) arg;
 
@@ -1635,7 +1635,7 @@ dowipe()
 
 void
 set_wounded_legs(side, timex)
-register long side;
+register int32_t side;
 register int timex;
 {
 	/* KMH -- STEED

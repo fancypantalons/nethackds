@@ -286,7 +286,7 @@ typedef xchar	boolean;		/* 0 or 1 */
 
 /* primitive memory leak debugging; see alloc.c */
 #ifdef MONITOR_HEAP
-extern long *FDECL(nhalloc, (unsigned int,const char *,int));
+extern int32_t *FDECL(nhalloc, (unsigned int,const char *,int));
 extern void FDECL(nhfree, (genericptr_t,const char *,int));
 # ifndef __FILE__
 #  define __FILE__ ""
@@ -297,7 +297,7 @@ extern void FDECL(nhfree, (genericptr_t,const char *,int));
 # define alloc(a) nhalloc(a,__FILE__,(int)__LINE__)
 # define free(a) nhfree(a,__FILE__,(int)__LINE__)
 #else	/* !MONITOR_HEAP */
-extern long *FDECL(alloc, (unsigned int));		/* alloc.c */
+extern int32_t *FDECL(alloc, (unsigned int));		/* alloc.c */
 #endif
 
 /* Used for consistency checks of various data files; declare it here so
@@ -329,7 +329,7 @@ struct version_info {
 #define BUFSZ		256	/* for getlin buffers */
 #define QBUFSZ		128	/* for building question text */
 #define TBUFSZ		300	/* toplines[] buffer max msg: 3 81char names */
-				/* plus longest prefix plus a few extra words */
+				/* plus int32_test prefix plus a few extra words */
 
 #define PL_NSIZ		32	/* name of player, ghost, shopkeeper */
 #define PL_CSIZ		32	/* sizeof pl_character */

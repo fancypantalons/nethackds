@@ -36,14 +36,14 @@ typedef unsigned int	size_t;
 #endif
 #if defined(ULTRIX) && !(defined(ULTRIX_PROTO) || defined(NHSTDC))
 /* The Ultrix v3.0 <sys/types.h> seems to be very wrong. */
-# define time_t long
+# define time_t int32_t
 #endif
 
 #if defined(ULTRIX) || defined(VMS)
-# define off_t long
+# define off_t int32_t
 #endif
 #if defined(AZTEC) || defined(THINKC4) || defined(__TURBOC__)
-typedef long	off_t;
+typedef int32_t	off_t;
 #endif
 
 #endif /* !__cplusplus && !__GO32__ */
@@ -77,7 +77,7 @@ typedef long	off_t;
 # undef random
 # endif
 # if !defined(__SC__) && !defined(LINUX)
-E  long NDECL(random);
+E  int32_t NDECL(random);
 # endif
 # if (!defined(SUNOS4) && !defined(bsdi) && !defined(__FreeBSD__)) || defined(RANDOM)
 E void FDECL(srandom, (unsigned int));
@@ -151,14 +151,14 @@ E   void FDECL(qsort, (genericptr_t,size_t,size_t,
 #  ifdef ULTRIX_PROTO
 E int FDECL(lseek, (int,off_t,int));
 #  else
-E long FDECL(lseek, (int,off_t,int));
+E int32_t FDECL(lseek, (int,off_t,int));
 #  endif
   /* Ultrix 3.0 man page mistakenly says it returns an int. */
 E int FDECL(write, (int,char *,int));
 E int FDECL(link, (const char *, const char*));
 # else
 # ifndef bsdi
-E long FDECL(lseek, (int,long,int));
+E int32_t FDECL(lseek, (int,int32_t,int));
 # endif
 #  if defined(POSIX_TYPES) || defined(__TURBOC__)
 #   ifndef bsdi
@@ -237,7 +237,7 @@ E int FDECL(isatty, (int));	/* 1==yes, 0==no, -1==error */
 # if defined(ULTRIX_PROTO) || defined(__GNUC__)
 E int NDECL(fork);
 # else
-E long NDECL(fork);
+E int32_t NDECL(fork);
 # endif
 #endif /* ULTRIX */
 
@@ -262,7 +262,7 @@ E int VDECL(creat, (const char *,unsigned,...));
 E int FDECL(delete, (const char *));
 E int FDECL(fstat, ( /*_ int, stat_t * _*/ ));
 E int FDECL(isatty, (int));	/* 1==yes, 0==no, -1==error */
-E long FDECL(lseek, (int,long,int));
+E int32_t FDECL(lseek, (int,int32_t,int));
 E int VDECL(open, (const char *,int,unsigned,...));
 E int FDECL(read, (int,genericptr_t,unsigned));
 E int FDECL(rename, (const char *,const char *));
@@ -289,7 +289,7 @@ E void FDECL(_exit, (int));
 E int FDECL(system, (const char *));
 #endif
 #if defined(HPUX) && !defined(_POSIX_SOURCE)
-E long NDECL(fork);
+E int32_t NDECL(fork);
 #endif
 
 #ifdef POSIX_TYPES
@@ -358,9 +358,9 @@ E int FDECL(sleep, (unsigned));
 E char *FDECL(getenv, (const char *));
 E char *getlogin();
 #if defined(HPUX) && !defined(_POSIX_SOURCE)
-E long NDECL(getuid);
-E long NDECL(getgid);
-E long NDECL(getpid);
+E int32_t NDECL(getuid);
+E int32_t NDECL(getgid);
+E int32_t NDECL(getpid);
 #else
 # ifdef POSIX_TYPES
 E pid_t NDECL(getpid);
@@ -524,7 +524,7 @@ E struct tm *FDECL(localtime, (const time_t *));
 # if defined(ULTRIX) || (defined(BSD) && defined(POSIX_TYPES)) || defined(SYSV) || defined(MICRO) || defined(VMS) || defined(MAC) || (defined(HPUX) && defined(_POSIX_SOURCE))
 E time_t FDECL(time, (time_t *));
 # else
-E long FDECL(time, (time_t *));
+E int32_t FDECL(time, (time_t *));
 # endif /* ULTRIX */
 
 #ifdef VMS

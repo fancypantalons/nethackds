@@ -31,11 +31,11 @@
 STATIC_DCL void FDECL(init_rumors, (dlb *));
 STATIC_DCL void FDECL(init_oracles, (dlb *));
 
-static long true_rumor_start,  true_rumor_size,  true_rumor_end,
+static int32_t true_rumor_start,  true_rumor_size,  true_rumor_end,
 	    false_rumor_start, false_rumor_size, false_rumor_end;
 static int oracle_flg = 0;  /* -1=>don't use, 0=>need init, 1=>init done */
 static unsigned oracle_cnt = 0;
-static long *oracle_loc = 0;
+static int32_t *oracle_loc = 0;
 
 STATIC_OVL void
 init_rumors(fp)
@@ -45,7 +45,7 @@ dlb *fp;
 
 	(void) dlb_fgets(line, sizeof line, fp); /* skip "don't edit" comment */
 	(void) dlb_fgets(line, sizeof line, fp);
-	if (sscanf(line, "%6lx\n", &true_rumor_size) == 1 &&
+	if (sscanf(line, "%6x\n", &true_rumor_size) == 1 &&
 	    true_rumor_size > 0L) {
 	    (void) dlb_fseek(fp, 0L, SEEK_CUR);
 	    true_rumor_start  = dlb_ftell(fp);
@@ -70,7 +70,7 @@ char *rumor_buf;
 boolean exclude_cookie; 
 {
 	dlb	*rumors;
-	long tidbit, beginning;
+	int32_t tidbit, beginning;
 	char	*endp, line[BUFSZ], xbuf[BUFSZ];
 
 	rumor_buf[0] = '\0';
@@ -192,10 +192,10 @@ dlb *fp;
 	(void) dlb_fgets(line, sizeof line, fp);
 	if (sscanf(line, "%5d\n", &cnt) == 1 && cnt > 0) {
 	    oracle_cnt = (unsigned) cnt;
-	    oracle_loc = (long *) alloc((unsigned)cnt * sizeof (long));
+	    oracle_loc = (int32_t *) alloc((unsigned)cnt * sizeof (int32_t));
 	    for (i = 0; i < cnt; i++) {
 		(void) dlb_fgets(line, sizeof line, fp);
-		(void) sscanf(line, "%5lx\n", &oracle_loc[i]);
+		(void) sscanf(line, "%5x\n", &oracle_loc[i]);
 	    }
 	}
 	return;
@@ -208,7 +208,7 @@ int fd, mode;
 	if (perform_bwrite(mode)) {
 	    bwrite(fd, (genericptr_t) &oracle_cnt, sizeof oracle_cnt);
 	    if (oracle_cnt)
-		bwrite(fd, (genericptr_t)oracle_loc, oracle_cnt*sizeof (long));
+		bwrite(fd, (genericptr_t)oracle_loc, oracle_cnt*sizeof (int32_t));
 	}
 	if (release_data(mode)) {
 	    if (oracle_cnt) {
@@ -224,8 +224,8 @@ int fd;
 {
 	mread(fd, (genericptr_t) &oracle_cnt, sizeof oracle_cnt);
 	if (oracle_cnt) {
-	    oracle_loc = (long *) alloc(oracle_cnt * sizeof (long));
-	    mread(fd, (genericptr_t) oracle_loc, oracle_cnt * sizeof (long));
+	    oracle_loc = (int32_t *) alloc(oracle_cnt * sizeof (int32_t));
+	    mread(fd, (genericptr_t) oracle_loc, oracle_cnt * sizeof (int32_t));
 	    oracle_flg = 1;	/* no need to call init_oracles() */
 	}
 }
@@ -288,7 +288,7 @@ doconsult(oracl)
 register struct monst *oracl;
 {
 #ifdef GOLDOBJ
-        long umoney = money_cnt(invent);
+        int32_t umoney = money_cnt(invent);
 #endif
 	int u_pay, minor_cost = 50, major_cost = 500 + 50 * u.ulevel;
 	int add_xpts;
@@ -313,16 +313,16 @@ register struct monst *oracl;
 
 	Sprintf(qbuf,
 		"\"Wilt thou settle for a minor consultation?\" (%d %s)",
-		minor_cost, currency((long)minor_cost));
+		minor_cost, currency((int32_t)minor_cost));
 	switch (ynq(qbuf)) {
 	    default:
 	    case 'q':
 		return 0;
 	    case 'y':
 #ifndef GOLDOBJ
-		if (u.ugold < (long)minor_cost) {
+		if (u.ugold < (int32_t)minor_cost) {
 #else
-		if (umoney < (long)minor_cost) {
+		if (umoney < (int32_t)minor_cost) {
 #endif
 		    You("don't even have enough money for that!");
 		    return 0;
@@ -331,29 +331,29 @@ register struct monst *oracl;
 		break;
 	    case 'n':
 #ifndef GOLDOBJ
-		if (u.ugold <= (long)minor_cost ||	/* don't even ask */
+		if (u.ugold <= (int32_t)minor_cost ||	/* don't even ask */
 #else
-		if (umoney <= (long)minor_cost ||	/* don't even ask */
+		if (umoney <= (int32_t)minor_cost ||	/* don't even ask */
 #endif
 		    (oracle_cnt == 1 || oracle_flg < 0)) return 0;
 		Sprintf(qbuf,
 			"\"Then dost thou desire a major one?\" (%d %s)",
-			major_cost, currency((long)major_cost));
+			major_cost, currency((int32_t)major_cost));
 		if (yn(qbuf) != 'y') return 0;
 #ifndef GOLDOBJ
-		u_pay = (u.ugold < (long)major_cost ? (int)u.ugold
+		u_pay = (u.ugold < (int32_t)major_cost ? (int)u.ugold
 						    : major_cost);
 #else
-		u_pay = (umoney < (long)major_cost ? (int)umoney
+		u_pay = (umoney < (int32_t)major_cost ? (int)umoney
 						    : major_cost);
 #endif
 		break;
 	}
 #ifndef GOLDOBJ
-	u.ugold -= (long)u_pay;
-	oracl->mgold += (long)u_pay;
+	u.ugold -= (int32_t)u_pay;
+	oracl->mgold += (int32_t)u_pay;
 #else
-        money2mon(oracl, (long)u_pay);
+        money2mon(oracl, (int32_t)u_pay);
 #endif
 	flags.botl = 1;
 	add_xpts = 0;	/* first oracle of each type gives experience points */

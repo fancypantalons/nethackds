@@ -4,16 +4,16 @@
 
 #include "hack.h"
 
-STATIC_DCL long FDECL(newuexp, (int));
+STATIC_DCL int32_t FDECL(newuexp, (int));
 STATIC_DCL int FDECL(enermod, (int));
 
-STATIC_OVL long
+STATIC_OVL int32_t
 newuexp(lev)
 int lev;
 {
 	if (lev < 10) return (10L * (1L << lev));
 	if (lev < 20) return (10000L * (1L << (lev - 10)));
-	return (10000000L * ((long)(lev - 19)));
+	return (10000000L * ((int32_t)(lev - 19)));
 }
 
 STATIC_OVL int
@@ -203,7 +203,7 @@ boolean incr;	/* true iff via incremental experience growth */
 	u.uen += num;
 	if (u.ulevel < MAXULEV) {
 	    if (incr) {
-		long tmp = newuexp(u.ulevel + 1);
+		int32_t tmp = newuexp(u.ulevel + 1);
 		if (u.uexp >= tmp) u.uexp = tmp - 1;
 	    } else {
 		u.uexp = newuexp(u.ulevel);
@@ -220,19 +220,19 @@ boolean incr;	/* true iff via incremental experience growth */
 /* compute a random amount of experience points suitable for the hero's
    experience level:  base number of points needed to reach the current
    level plus a random portion of what it takes to get to the next level */
-long
+int32_t
 rndexp(gaining)
 boolean gaining;	/* gaining XP via potion vs setting XP for polyself */
 {
-	long minexp, maxexp, diff, factor, result;
+	int32_t minexp, maxexp, diff, factor, result;
 
 	minexp = (u.ulevel == 1) ? 0L : newuexp(u.ulevel - 1);
 	maxexp = newuexp(u.ulevel);
 	diff = maxexp - minexp,  factor = 1L;
 	/* make sure that `diff' is an argument which rn2() can handle */
-	while (diff >= (long)LARGEST_INT)
+	while (diff >= (int32_t)LARGEST_INT)
 	    diff /= 2L,  factor *= 2L;
-	result = minexp + factor * (long)rn2((int)diff);
+	result = minexp + factor * (int32_t)rn2((int)diff);
 	/* 3.4.1:  if already at level 30, add to current experience
 	   points rather than to threshold needed to reach the current
 	   level; otherwise blessed potions of gain level can result

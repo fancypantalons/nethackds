@@ -24,21 +24,21 @@ static FILE *heaplog = 0;
 static boolean tried_heaplog = FALSE;
 #endif
 
-long *FDECL(alloc,(unsigned int));
+int32_t *FDECL(alloc,(unsigned int));
 extern void VDECL(panic, (const char *,...)) PRINTF_F(1,2);
 
 
-long *
+int32_t *
 alloc(lth)
 register unsigned int lth;
 {
 #ifdef LINT
 /*
  * a ridiculous definition, suppressing
- *	"possible pointer alignment problem" for (long *) malloc()
+ *	"possible pointer alignment problem" for (int32_t *) malloc()
  * from lint
  */
-	long dummy = ftell(stderr);
+	int32_t dummy = ftell(stderr);
 
 	if(lth) dummy = 0;	/* make sure arg is used */
 	return(&dummy);
@@ -49,7 +49,7 @@ register unsigned int lth;
 #ifndef MONITOR_HEAP
 	if (!ptr) panic("Memory allocation failure; cannot get %u bytes", lth);
 #endif
-	return((long *) ptr);
+	return((int32_t *) ptr);
 #endif
 }
 
@@ -71,8 +71,8 @@ register unsigned int lth;
 #  define PTR_FMT "%p"
 #  define PTR_TYP genericptr_t
 # else
-#  define PTR_FMT "%06lx"
-#  define PTR_TYP unsigned long
+#  define PTR_FMT "%06x"
+#  define PTR_TYP uint32_t
 # endif
 
 /* format a pointer for display purposes; caller supplies the result buffer */
@@ -101,13 +101,13 @@ heapmon_init()
 	tried_heaplog = TRUE;
 }
 
-long *
+int32_t *
 nhalloc(lth, file, line)
 unsigned int lth;
 const char *file;
 int line;
 {
-	long *ptr = alloc(lth);
+	int32_t *ptr = alloc(lth);
 	char ptr_address[20];
 
 	if (!tried_heaplog) heapmon_init();

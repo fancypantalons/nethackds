@@ -58,7 +58,7 @@ doextversion()
 #ifdef MICRO
 boolean
 comp_times(filetime)
-long filetime;
+int32_t filetime;
 {
 	return((boolean)(filetime < BUILD_TIME));
 }
@@ -145,7 +145,7 @@ int fd;
 const char amiga_version_string[] = AMIGA_VERSION_STRING;
 #endif
 
-unsigned long
+uint32_t
 get_feature_notice_ver(str)
 char *str;
 {
@@ -176,7 +176,7 @@ char *str;
 	/* macro from hack.h */
 }
 
-unsigned long
+uint32_t
 get_current_feature_ver()
 {
 	return FEATURE_NOTICE_VER(VERSION_MAJOR,VERSION_MINOR,PATCHLEVEL);

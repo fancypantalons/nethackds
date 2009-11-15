@@ -66,6 +66,7 @@ pline VA_DECL(const char *, line)
 	if (vision_full_recalc) vision_recalc(0);
 	if (u.ux) flush_screen(1);		/* %% */
 	putstr(WIN_MESSAGE, 0, line);
+        iprintf(line);
 }
 
 /*VARARGS1*/
@@ -297,7 +298,7 @@ register struct monst *mtmp;
 	    if (wizard) {
 		Sprintf(eos(info), " (%d", mtmp->mtame);
 		if (!mtmp->isminion)
-		    Sprintf(eos(info), "; hungry %ld; apport %d",
+		    Sprintf(eos(info), "; hungry %d; apport %d",
 			EDOG(mtmp)->hungrytime, EDOG(mtmp)->apport);
 		Strcat(info, ")");
 	    }
@@ -378,7 +379,7 @@ ustatusline()
 	if (Blind) {
 	    Strcat(info, ", blind");
 	    if (u.ucreamed) {
-		if ((long)u.ucreamed < Blinded || Blindfolded
+		if ((int32_t)u.ucreamed < Blinded || Blindfolded
 						|| !haseyes(youmonst.data))
 		    Strcat(info, ", cover");
 		Strcat(info, "ed by sticky goop");

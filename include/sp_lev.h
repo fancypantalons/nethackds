@@ -180,7 +180,7 @@ typedef struct {
 } mazepart;
 
 typedef struct {
-	long flags;
+	int32_t flags;
 	lev_init init_lev;
 	schar filling;
 	char numpart;
@@ -231,7 +231,7 @@ typedef struct NDS_PACKED {
 
 /* used only by lev_comp */
 typedef struct {
-	long flags;
+	int32_t flags;
 	lev_init init_lev;
 	char nrobjects;
 	char *robjects;

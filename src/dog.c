@@ -280,7 +280,7 @@ boolean with_you;
 
 	if (mtmp->mlstmv < monstermoves - 1L) {
 	    /* heal monster for time spent in limbo */
-	    long nmv = monstermoves - 1L - mtmp->mlstmv;
+	    int32_t nmv = monstermoves - 1L - mtmp->mlstmv;
 
 	    mon_catchup_elapsed_time(mtmp, nmv);
 	    mtmp->mlstmv = monstermoves - 1L;
@@ -399,7 +399,7 @@ boolean with_you;
 void
 mon_catchup_elapsed_time(mtmp, nmv)
 struct monst *mtmp;
-long nmv;		/* number of moves */
+int32_t nmv;		/* number of moves */
 {
 	int imv = 0;	/* avoid zillions of casts and lint warnings */
 

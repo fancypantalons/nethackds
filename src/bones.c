@@ -7,7 +7,7 @@
 
 extern char bones[];	/* from files.c */
 #ifdef MFLOPPY
-extern long bytes_counted;
+extern int32_t bytes_counted;
 #endif
 
 STATIC_DCL boolean FDECL(no_bones_level, (d_level *));
@@ -103,7 +103,7 @@ boolean restore;
 			    otmp->otyp = WAX_CANDLE;
 			    otmp->age = 50L;  /* assume used */
 			    if (otmp->spe > 0)
-				otmp->quan = (long)otmp->spe;
+				otmp->quan = (int32_t)otmp->spe;
 			    otmp->spe = 0;
 			    otmp->owt = weight(otmp);
 			    curse(otmp);
@@ -147,7 +147,7 @@ struct obj *cont;
 	}
 #ifndef GOLDOBJ
 	if(u.ugold) {
-		long ugold = u.ugold;
+		int32_t ugold = u.ugold;
 		if (mtmp) mtmp->mgold = ugold;
 		else if (cont) (void) add_to_container(cont, mkgoldobj(ugold));
 		else (void)mkgold(ugold, u.ux, u.uy);

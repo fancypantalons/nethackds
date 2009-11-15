@@ -20,8 +20,8 @@ STATIC_DCL boolean FDECL(mon_has_arti, (struct monst *,SHORT_P));
 STATIC_DCL struct monst *FDECL(other_mon_has_arti, (struct monst *,SHORT_P));
 STATIC_DCL struct obj *FDECL(on_ground, (SHORT_P));
 STATIC_DCL boolean FDECL(you_have, (int));
-STATIC_DCL long FDECL(target_on, (int,struct monst *));
-STATIC_DCL long FDECL(strategy, (struct monst *));
+STATIC_DCL int32_t FDECL(target_on, (int,struct monst *));
+STATIC_DCL int32_t FDECL(strategy, (struct monst *));
 
 static NEARDATA const int nasties[] = {
 	PM_COCKATRICE, PM_ETTIN, PM_STALKER, PM_MINOTAUR, PM_RED_DRAGON,
@@ -128,7 +128,7 @@ register struct monst *mtmp;
  *	The strategy section decides *what* the monster is going
  *	to attempt, the tactics section implements the decision.
  */
-#define STRAT(w, x, y, typ) (w | ((long)(x)<<16) | ((long)(y)<<8) | (long)typ)
+#define STRAT(w, x, y, typ) (w | ((int32_t)(x)<<16) | ((int32_t)(y)<<8) | (int32_t)typ)
 
 #define M_Wants(mask)	(mtmp->data->mflags3 & (mask))
 
@@ -214,7 +214,7 @@ you_have(mask)
 	return(0);
 }
 
-STATIC_OVL long
+STATIC_OVL int32_t
 target_on(mask, mtmp)
 	register int mask;
 	register struct monst *mtmp;
@@ -237,11 +237,11 @@ target_on(mask, mtmp)
 	return(STRAT_NONE);
 }
 
-STATIC_OVL long
+STATIC_OVL int32_t
 strategy(mtmp)
 	register struct monst *mtmp;
 {
-	long strat, dstrat;
+	int32_t strat, dstrat;
 
 	if (!is_covetous(mtmp->data) ||
 		/* perhaps a shopkeeper has been polymorphed into a master
@@ -300,7 +300,7 @@ int
 tactics(mtmp)
 	register struct monst *mtmp;
 {
-	long strat = strategy(mtmp);
+	int32_t strat = strategy(mtmp);
 
 	mtmp->mstrategy = (mtmp->mstrategy & STRAT_WAITMASK) | strat;
 
@@ -330,7 +330,7 @@ tactics(mtmp)
 
 	    default:		/* kill, maim, pillage! */
 	    {
-		long  where = (strat & STRAT_STRATMASK);
+		int32_t  where = (strat & STRAT_STRATMASK);
 		xchar tx = STRAT_GOALX(strat),
 		      ty = STRAT_GOALY(strat);
 		int   targ = strat & STRAT_GOAL;
@@ -473,7 +473,7 @@ void
 resurrect()
 {
 	struct monst *mtmp, **mmtmp;
-	long elapsed;
+	int32_t elapsed;
 	const char *verb;
 
 	if (!flags.no_of_wizards) {

@@ -96,7 +96,7 @@ extern void NDECL(monst_init);
 extern void NDECL(objects_init);
 extern void NDECL(decl_init);
 
-static boolean FDECL(write_common_data, (int,int,lev_init *,long));
+static boolean FDECL(write_common_data, (int,int,lev_init *,int32_t));
 static boolean FDECL(write_monsters, (int,char *,monster ***));
 static boolean FDECL(write_objects, (int,char *,object ***));
 static boolean FDECL(write_engravings, (int,char *,engraving ***));
@@ -971,7 +971,7 @@ static boolean
 write_common_data(fd, typ, init, flgs)
 int fd, typ;
 lev_init *init;
-long flgs;
+int32_t flgs;
 {
 	char c;
 	uchar len;

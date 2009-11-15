@@ -168,7 +168,7 @@ forcelock()	/* try to force a locked chest */
 	if(!xlock.picktyp && !rn2(3)) {
 	    struct monst *shkp;
 	    boolean costly;
-	    long loss = 0L;
+	    int32_t loss = 0L;
 
 	    costly = (*u.ushops && costly_spot(u.ux, u.uy));
 	    shkp = costly ? shop_keeper(*u.ushops) : 0;
@@ -201,7 +201,7 @@ forcelock()	/* try to force a locked chest */
 	    if (costly)
 		loss += stolen_value(xlock.box, u.ux, u.uy,
 					     (boolean)shkp->mpeaceful, TRUE);
-	    if(loss) You("owe %ld %s for objects destroyed.", loss, currency(loss));
+	    if(loss) You("owe %d %s for objects destroyed.", loss, currency(loss));
 	    delobj(xlock.box);
 	}
 	exercise((xlock.picktyp) ? A_DEX : A_STR, TRUE);
@@ -883,7 +883,7 @@ struct obj *otmp;
 {
 	const char *disposition;
 	const char *thing;
-	long save_Blinded;
+	int32_t save_Blinded;
 
 	if (otmp->oclass == POTION_CLASS) {
 		You("%s %s shatter!", Blind ? "hear" : "see", an(bottlename()));

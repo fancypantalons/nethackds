@@ -148,7 +148,7 @@ invault()
 	register int x, y, dd, gx, gy;
 	int lx = 0, ly = 0;
 #ifdef GOLDOBJ
-        long umoney;
+        int32_t umoney;
 #endif
 	/* first find the goal for the guard */
 	for(dd = 2; (dd < ROWNO || dd < COLNO); dd++) {
@@ -451,7 +451,7 @@ register struct monst *grd;
 #ifndef GOLDOBJ
 	register boolean u_carry_gold = ((u.ugold + hidden_gold()) > 0L);
 #else
-        long umoney = money_cnt(invent);
+        int32_t umoney = money_cnt(invent);
 	register boolean u_carry_gold = ((umoney + hidden_gold()) > 0L);
 #endif
 	boolean see_guard;
@@ -745,7 +745,7 @@ paygd()
 #ifndef GOLDOBJ
 	struct obj *gold;
 #else
-        long umoney = money_cnt(invent);
+        int32_t umoney = money_cnt(invent);
 	struct obj *coins, *nextcoins;
 #endif
 	int gx,gy;
@@ -758,7 +758,7 @@ paygd()
 #endif
 
 	if (u.uinvault) {
-	    Your("%ld %s goes into the Magic Memory Vault.",
+	    Your("%d %s goes into the Magic Memory Vault.",
 #ifndef GOLDOBJ
 		u.ugold,
 		currency(u.ugold));
@@ -798,10 +798,10 @@ paygd()
 	mongone(grd);
 }
 
-long
+int32_t
 hidden_gold()
 {
-	register long value = 0L;
+	register int32_t value = 0L;
 	register struct obj *obj;
 
 	for (obj = invent; obj; obj = obj->nobj)

@@ -244,7 +244,7 @@ nartifact_exist()
 boolean
 spec_ability(otmp, abil)
 struct obj *otmp;
-unsigned long abil;
+uint32_t abil;
 {
 	const struct artifact *arti = get_artifact(otmp);
 
@@ -354,12 +354,12 @@ void
 set_artifact_intrinsic(otmp,on,wp_mask)
 register struct obj *otmp;
 boolean on;
-long wp_mask;
+int32_t wp_mask;
 {
-	long *mask = 0;
+	int32_t *mask = 0;
 	register const struct artifact *oart = get_artifact(otmp);
 	uchar dtyp;
-	long spfx;
+	int32_t spfx;
 
 	if (!oart) return;
 
@@ -387,7 +387,7 @@ long wp_mask;
 		if(obj != otmp && obj->oartifact) {
 		    register const struct artifact *art = get_artifact(obj);
 		    if(art->cary.adtyp == dtyp) {
-			mask = (long *) 0;
+			mask = (int32_t *) 0;
 			break;
 		    }
 		}
@@ -420,7 +420,7 @@ long wp_mask;
 	     * that can print a message--need to guard against being printed
 	     * when restoring a game
 	     */
-	    (void) make_hallucinated((long)!on, restoring ? FALSE : TRUE, wp_mask);
+	    (void) make_hallucinated((int32_t)!on, restoring ? FALSE : TRUE, wp_mask);
 	}
 	if (spfx & SPFX_ESP) {
 	    if(on) ETelepat |= wp_mask;
@@ -575,7 +575,7 @@ struct monst *mtmp;
 	if (weap->spfx & SPFX_DMONS) {
 	    return (ptr == &mons[(int)weap->mtype]);
 	} else if (weap->spfx & SPFX_DCLAS) {
-	    return (weap->mtype == (unsigned long)ptr->mlet);
+	    return (weap->mtype == (uint32_t)ptr->mlet);
 	} else if (weap->spfx & SPFX_DFLAG1) {
 	    return ((ptr->mflags1 & weap->mtype) != 0L);
 	} else if (weap->spfx & SPFX_DFLAG2) {
@@ -615,7 +615,7 @@ struct monst *mtmp;
 }
 
 /* return the M2 flags of monster that an artifact's special attacks apply against */
-long
+int32_t
 spec_m2(otmp)
 struct obj *otmp;
 {
@@ -1202,7 +1202,7 @@ arti_invoke(obj)
 	    You_feel("that %s %s ignoring you.",
 		     the(xname(obj)), otense(obj, "are"));
 	    /* and just got more so; patience is essential... */
-	    obj->age += (long) d(3,10);
+	    obj->age += (int32_t) d(3,10);
 	    return 1;
 	}
 	obj->age = monstermoves + rnz(100);
@@ -1218,7 +1218,7 @@ arti_invoke(obj)
 	  }
 	case HEALING: {
 	    int healamt = (u.uhpmax + 1 - u.uhp) / 2;
-	    long creamed = (long)u.ucreamed;
+	    int32_t creamed = (int32_t)u.ucreamed;
 
 	    if (Upolyd) healamt = (u.mhmax + 1 - u.mh) / 2;
 	    if (healamt || Sick || Slimed || Blinded > creamed)
@@ -1351,7 +1351,7 @@ arti_invoke(obj)
 	  }
 	}
     } else {
-	long eprop = (u.uprops[oart->inv_prop].extrinsic ^= W_ARTI),
+	int32_t eprop = (u.uprops[oart->inv_prop].extrinsic ^= W_ARTI),
 	     iprop = u.uprops[oart->inv_prop].intrinsic;
 	boolean on = (eprop & W_ARTI) != 0; /* true if invoked prop just set */
 
@@ -1361,7 +1361,7 @@ arti_invoke(obj)
 	    You_feel("that %s %s ignoring you.",
 		     the(xname(obj)), otense(obj, "are"));
 	    /* can't just keep repeatedly trying */
-	    obj->age += (long) d(3,10);
+	    obj->age += (int32_t) d(3,10);
 	    return 1;
 	} else if(!on) {
 	    /* when turning off property, determine downtime */
@@ -1444,16 +1444,16 @@ uchar inv_prop;
 }
 
 /* Return the price sold to the hero of a given artifact or unique item */
-long
+int32_t
 arti_cost(otmp)
 struct obj *otmp;
 {
 	if (!otmp->oartifact)
-	    return ((long)objects[otmp->otyp].oc_cost);
+	    return ((int32_t)objects[otmp->otyp].oc_cost);
 	else if (artilist[(int) otmp->oartifact].cost)
 	    return (artilist[(int) otmp->oartifact].cost);
 	else
-	    return (100L * (long)objects[otmp->otyp].oc_cost);
+	    return (100L * (int32_t)objects[otmp->otyp].oc_cost);
 }
 
 #endif /* OVLB */

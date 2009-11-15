@@ -209,6 +209,7 @@
 # define NDS_GRAPHICS
 # define NEED_VARARGS
 # define USE_STDARGS
+# define STRNCMPI
 #endif
 
 #endif	/* CONFIG1_H */

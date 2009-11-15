@@ -58,17 +58,17 @@ struct u_event {
  * times a challenge has been violated.
  */
 struct u_conduct {		/* number of times... */
-	long	unvegetarian;	/* eaten any animal */
-	long	unvegan;	/* ... or any animal byproduct */
-	long	food;		/* ... or any comestible */
-	long	gnostic;	/* used prayer, priest, or altar */
-	long	weaphit;	/* hit a monster with a weapon */
-	long	killer;		/* killed a monster yourself */
-	long	literate;	/* read something (other than BotD) */
-	long	polypiles;	/* polymorphed an object */
-	long	polyselfs;	/* transformed yourself */
-	long	wishes;		/* used a wish */
-	long	wisharti;	/* wished for an artifact */
+	int32_t	unvegetarian;	/* eaten any animal */
+	int32_t	unvegan;	/* ... or any animal byproduct */
+	int32_t	food;		/* ... or any comestible */
+	int32_t	gnostic;	/* used prayer, priest, or altar */
+	int32_t	weaphit;	/* hit a monster with a weapon */
+	int32_t	killer;		/* killed a monster yourself */
+	int32_t	literate;	/* read something (other than BotD) */
+	int32_t	polypiles;	/* polymorphed an object */
+	int32_t	polyselfs;	/* transformed yourself */
+	int32_t	wishes;		/* used a wish */
+	int32_t	wisharti;	/* wished for an artifact */
 				/* genocides already listed at end of game */
 };
 
@@ -305,7 +305,7 @@ struct you {
 	Bitfield(uedibility,1);		/* blessed food detection; sense unsafe food */
 	/* 1 free bit! */
 
-	unsigned udg_cnt;		/* how long you have been demigod */
+	unsigned udg_cnt;		/* how int32_t you have been demigod */
 	struct u_event	uevent;		/* certain events have happened */
 	struct u_have	uhave;		/* you're carrying special objects */
 	struct u_conduct uconduct;	/* KMH, conduct */
@@ -337,18 +337,18 @@ struct you {
 	int ugifts;			/* number of artifacts bestowed */
 	int ublessed, ublesscnt;	/* blessing/duration from #pray */
 #ifndef GOLDOBJ
-	long	ugold, ugold0;
+	int32_t	ugold, ugold0;
 #else
-	long	umoney0;
+	int32_t	umoney0;
 #endif
-	long	uexp, urexp;
-	long	ucleansed;	/* to record moves when player was cleansed */
-	long	usleep;		/* sleeping; monstermove you last started */
+	int32_t	uexp, urexp;
+	int32_t	ucleansed;	/* to record moves when player was cleansed */
+	int32_t	usleep;		/* sleeping; monstermove you last started */
 	int uinvault;
 	struct monst *ustuck;
 #ifdef STEED
 	struct monst *usteed;
-	long ugallop;
+	int32_t ugallop;
 	int urideturns;
 #endif
 	int	umortality;		/* how many times you died */

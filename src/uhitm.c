@@ -315,7 +315,7 @@ register struct monst *mtmp;
 		 * there's also a chance of displacing a "frozen" monster.
 		 * sleeping monsters might magically walk in their sleep.
 		 */
-		boolean foo = (Punished || !rn2(7) || is_longworm(mtmp->data)),
+		boolean foo = (Punished || !rn2(7) || is_int32_tworm(mtmp->data)),
 			inshop = FALSE;
 		char *p;
 
@@ -746,7 +746,7 @@ int thrown;
 #define useup_eggs(o)	{ if (thrown) obfree(o,(struct obj *)0); \
 			  else useupall(o); \
 			  o = (struct obj *)0; }	/* now gone */
-			long cnt = obj->quan;
+			int32_t cnt = obj->quan;
 
 			tmp = 1;		/* nominal physical damage */
 			get_dmg_bonus = FALSE;
@@ -1198,7 +1198,7 @@ struct monst *mdef;
 struct attack *mattk;
 {
 	struct obj *otmp, *stealoid, **minvent_ptr;
-	long unwornmask;
+	int32_t unwornmask;
 
 	if (!mdef->minvent) return;		/* nothing to take */
 
@@ -2177,7 +2177,7 @@ uchar aatyp;
 	    break;
 	  case AD_STON:
 	    if (mhit) {		/* successful attack */
-		long protector = attk_protection((int)aatyp);
+		int32_t protector = attk_protection((int)aatyp);
 
 		/* hero using monsters' AT_MAGC attack is hitting hand to
 		   hand rather than casting a spell */
@@ -2303,7 +2303,7 @@ uchar aatyp;
 		break;
 	      case AD_STUN:		/* specifically yellow mold */
 		if(!Stunned)
-		    make_stunned((long)tmp, TRUE);
+		    make_stunned((int32_t)tmp, TRUE);
 		break;
 	      case AD_FIRE:
 		if(monnear(mon, u.ux, u.uy)) {

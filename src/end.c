@@ -16,7 +16,7 @@
 #define FIRST_AMULET AMULET_OF_ESP
 #define LAST_AMULET  AMULET_OF_YENDOR
  
-struct valuable_data { long count; int typ; };
+struct valuable_data { int32_t count; int typ; };
 
 static struct valuable_data
 	gems[LAST_GEM+1 - FIRST_GEM + 1], /* 1 extra for glass */
@@ -502,7 +502,7 @@ winid endwin;
 {
     char pbuf[BUFSZ];
     struct obj *otmp;
-    long value, points;
+    int32_t value, points;
     short dummy;	/* object type returned by artifact_name() */
 
     for (otmp = list; otmp; otmp = otmp->nobj) {
@@ -518,7 +518,7 @@ winid endwin;
 		makeknown(otmp->otyp);
 		otmp->known = otmp->dknown = otmp->bknown = otmp->rknown = 1;
 		/* assumes artifacts don't have quan > 1 */
-		Sprintf(pbuf, "%s%s (worth %ld %s and %ld points)",
+		Sprintf(pbuf, "%s%s (worth %d %s and %d points)",
 			the_unique_obj(otmp) ? "The " : "",
 			otmp->oartifact ? artifact_name(xname(otmp), &dummy) :
 				OBJ_NAME(objects[otmp->otyp]),
@@ -541,7 +541,7 @@ int how;
 	winid endwin = WIN_ERR;
 	boolean bones_ok, have_windows = iflags.window_inited;
 	struct obj *corpse = (struct obj *)0;
-	long umoney;
+	int32_t umoney;
 
 	if (how == TRICKED) {
 	    if (killer) {
@@ -699,7 +699,7 @@ die:
 
 	/* calculate score, before creating bones [container gold] */
 	{
-	    long tmp;
+	    int32_t tmp;
 	    int deepest = deepest_lev_reached(FALSE);
 
 #ifndef GOLDOBJ
@@ -717,9 +717,9 @@ die:
 	    if (how < PANICKED)
 		tmp -= tmp / 10L;
 	    u.urexp += tmp;
-	    u.urexp += 50L * (long)(deepest - 1);
+	    u.urexp += 50L * (int32_t)(deepest - 1);
 	    if (deepest > 20)
-		u.urexp += 1000L * (long)((deepest > 30) ? 10 : deepest - 20);
+		u.urexp += 1000L * (int32_t)((deepest > 30) ? 10 : deepest - 20);
 	    if (how == ASCENDED) u.urexp *= 2L;
 	}
 
@@ -797,7 +797,7 @@ die:
 		for (i = 0; i < val->size; i++)
 		    if (val->list[i].count != 0L)
 			u.urexp += val->list[i].count
-				  * (long)objects[val->list[i].typ].oc_cost;
+				  * (int32_t)objects[val->list[i].typ].oc_cost;
 
 	    /* count the points for artifacts */
 	    artifact_score(invent, TRUE, endwin);
@@ -820,7 +820,7 @@ die:
 		if (!done_stopprint) Strcat(pbuf, " ");
 	    }
 	    if (!done_stopprint) {
-		Sprintf(eos(pbuf), "%s with %ld point%s,",
+		Sprintf(eos(pbuf), "%s with %d point%s,",
 			how==ASCENDED ? "went to your reward" :
 					"escaped from the dungeon",
 			u.urexp, plur(u.urexp));
@@ -835,7 +835,7 @@ die:
 		sort_valuables(val->list, val->size);
 		for (i = 0; i < val->size && !done_stopprint; i++) {
 		    int typ = val->list[i].typ;
-		    long count = val->list[i].count;
+		    int32_t count = val->list[i].count;
 
 		    if (count == 0L) continue;
 		    if (objects[typ].oc_class != GEM_CLASS || typ <= LAST_GEM) {
@@ -845,13 +845,13 @@ die:
 			otmp->dknown = 1;	/* seen it (blindness fix) */
 			otmp->onamelth = 0;
 			otmp->quan = count;
-			Sprintf(pbuf, "%8ld %s (worth %ld %s),",
+			Sprintf(pbuf, "%8d %s (worth %d %s),",
 				count, xname(otmp),
-				count * (long)objects[typ].oc_cost, currency(2L));
+				count * (int32_t)objects[typ].oc_cost, currency(2L));
 			obfree(otmp, (struct obj *)0);
 		    } else {
 			Sprintf(pbuf,
-				"%8ld worthless piece%s of colored glass,",
+				"%8d worthless piece%s of colored glass,",
 				count, plur(count));
 		    }
 		    putstr(endwin, 0, pbuf);
@@ -876,13 +876,13 @@ die:
 			    In_quest(&u.uz) ? dunlev(&u.uz) : depth(&u.uz));
 	    }
 
-	    Sprintf(eos(pbuf), " with %ld point%s,",
+	    Sprintf(eos(pbuf), " with %d point%s,",
 		    u.urexp, plur(u.urexp));
 	    putstr(endwin, 0, pbuf);
 	}
 
 	if (!done_stopprint) {
-	    Sprintf(pbuf, "and %ld piece%s of gold, after %ld move%s.",
+	    Sprintf(pbuf, "and %d piece%s of gold, after %d move%s.",
 		    umoney, plur(umoney), moves, plur(moves));
 	    putstr(endwin, 0, pbuf);
 	}
@@ -1024,7 +1024,7 @@ boolean ask;
 {
     register int i, lev;
     int ntypes = 0, max_lev = 0, nkilled;
-    long total_killed = 0L;
+    int32_t total_killed = 0L;
     char c;
     winid klwin;
     char buf[BUFSZ];
@@ -1032,7 +1032,7 @@ boolean ask;
     /* get totals first */
     for (i = LOW_PM; i < NUMMONS; i++) {
 	if (mvitals[i].died) ntypes++;
-	total_killed += (long)mvitals[i].died;
+	total_killed += (int32_t)mvitals[i].died;
 	if (mons[i].mlevel > max_lev) max_lev = mons[i].mlevel;
     }
 
@@ -1082,7 +1082,7 @@ boolean ask;
 	     */
 	    if (ntypes > 1) {
 		putstr(klwin, 0, "");
-		Sprintf(buf, "%ld creatures vanquished.", total_killed);
+		Sprintf(buf, "%d creatures vanquished.", total_killed);
 		putstr(klwin, 0, buf);
 	    }
 	    display_nhwindow(klwin, TRUE);

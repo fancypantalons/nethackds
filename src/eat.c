@@ -48,7 +48,7 @@ char msgbuf[BUFSZ];
 
 #endif /* OVLB */
 
-/* hunger texts used on bottom line (each 8 chars long) */
+/* hunger texts used on bottom line (each 8 chars int32_t) */
 #define SATIATED	0
 #define NOT_HUNGRY	1
 #define HUNGRY		2
@@ -829,7 +829,7 @@ register int pm;
 		break;
 	    case PM_STALKER:
 		if(!Invis) {
-			set_itimeout(&HInvis, (long)rn1(100, 50));
+			set_itimeout(&HInvis, (int32_t)rn1(100, 50));
 			if (!Blind && !BInvis) self_invis_message();
 		} else {
 			if (!(HInvis & INTRINSIC)) You_feel("hidden!");
@@ -1087,7 +1087,7 @@ opentin()		/* called during each move whilst opening a tin */
 	    costly_tin((const char*)0);
 
 	    /* check for vomiting added by GAN 01/16/87 */
-	    if(tintxts[r].nut < 0) make_vomiting((long)rn1(15,10), FALSE);
+	    if(tintxts[r].nut < 0) make_vomiting((int32_t)rn1(15,10), FALSE);
 	    else lesshungry(tintxts[r].nut);
 
 	    if(r == 0 || r == FRENCH_FRIED_TIN) {
@@ -1207,7 +1207,7 @@ struct obj *obj;
 		make_confused(HConfusion + d(2,4),FALSE);
 	} else if(!rn2(4) && !Blind) {
 		pline("Everything suddenly goes dark.");
-		make_blinded((long)d(2,10),FALSE);
+		make_blinded((int32_t)d(2,10),FALSE);
 		if (!Blind) Your(vision_clears);
 	} else if(!rn2(3)) {
 		const char *what, *where;
@@ -1237,7 +1237,7 @@ eatcorpse(otmp)		/* called when a corpse is selected as food */
 	register struct obj *otmp;
 {
 	int tp = 0, mnum = otmp->corpsenm;
-	long rotted = 0L;
+	int32_t rotted = 0L;
 	boolean uniq = !!(mons[mnum].geno & G_UNIQ);
 	int retcode = 0;
 	boolean stoneable = (touch_petrifies(&mons[mnum]) && !Stone_resistance &&
@@ -1248,7 +1248,7 @@ eatcorpse(otmp)		/* called when a corpse is selected as food */
 	if (!vegetarian(&mons[mnum])) violated_vegetarian();
 
 	if (mnum != PM_LIZARD && mnum != PM_LICHEN) {
-		long age = peek_at_iced_corpse_age(otmp);
+		int32_t age = peek_at_iced_corpse_age(otmp);
 
 		rotted = (monstermoves - age)/(10L + rn2(20));
 		if (otmp->cursed) rotted += 2L;
@@ -1265,9 +1265,9 @@ eatcorpse(otmp)		/* called when a corpse is selected as food */
 			pline("It doesn't seem at all sickening, though...");
 		} else {
 			char buf[BUFSZ];
-			long sick_time;
+			int32_t sick_time;
 
-			sick_time = (long) rn1(10, 10);
+			sick_time = (int32_t) rn1(10, 10);
 			/* make sure new ill doesn't result in improvement */
 			if (Sick && (sick_time > Sick))
 			    sick_time = (Sick > 1L) ? Sick - 1L : 1L;
@@ -1398,7 +1398,7 @@ struct obj *otmp;
 		    /* not cannibalism, but we use similar criteria
 		       for deciding whether to be sickened by this meal */
 		    if (rn2(2) && !CANNIBAL_ALLOWED())
-			make_vomiting((long)rn1(victual.reqtime, 14), FALSE);
+			make_vomiting((int32_t)rn1(victual.reqtime, 14), FALSE);
 		}
 		break;
 	    case MEATBALL:
@@ -1409,7 +1409,7 @@ struct obj *otmp;
 	     /* break; */
 	    case CLOVE_OF_GARLIC:
 		if (is_undead(youmonst.data)) {
-			make_vomiting((long)rn1(victual.reqtime, 5), FALSE);
+			make_vomiting((int32_t)rn1(victual.reqtime, 5), FALSE);
 			break;
 		}
 		/* Fall through otherwise */
@@ -1468,7 +1468,7 @@ eataccessory(otmp)
 struct obj *otmp;
 {
 	int typ = otmp->otyp;
-	long oldprop;
+	int32_t oldprop;
 
 	/* Note: rings are not so common that this is unbalancing. */
 	/* (How often do you even _find_ 3 rings of polymorph in a game?) */
@@ -1681,7 +1681,7 @@ register struct obj *otmp;
 		    you_unwere(TRUE);
 		break;
 	    case CARROT:
-		make_blinded((long)u.ucreamed,TRUE);
+		make_blinded((int32_t)u.ucreamed,TRUE);
 		break;
 	    case FORTUNE_COOKIE:
 		outrumor(bcsign(otmp), BY_COOKIE);
@@ -1751,7 +1751,7 @@ struct obj *otmp;
 		stoneorslime = FALSE;
 	int material = objects[otmp->otyp].oc_material,
 	    mnum = otmp->corpsenm;
-	long rotted = 0L;
+	int32_t rotted = 0L;
 
 	Strcpy(foodsmell, Tobjnam(otmp, "smell"));
 	Strcpy(it_or_they, (otmp->quan == 1L) ? "it" : "they");
@@ -1769,7 +1769,7 @@ struct obj *otmp;
 			youmonst.data != &mons[PM_GREEN_SLIME]);
 
 		if (cadaver && mnum != PM_LIZARD && mnum != PM_LICHEN) {
-			long age = peek_at_iced_corpse_age(otmp);
+			int32_t age = peek_at_iced_corpse_age(otmp);
 			/* worst case rather than random
 			   in this calculation to force prompt */
 			rotted = (monstermoves - age)/(10L + 0 /* was rn2(20) */);
@@ -2069,7 +2069,7 @@ doeat()		/* generic "eat" command funtion (see cmd.c) */
 	debugpline("oeaten == %d, basenutrit == %d", otmp->oeaten, basenutrit);
 #endif
 	victual.reqtime = (basenutrit == 0 ? 0 :
-		rounddiv(victual.reqtime * (long)otmp->oeaten, basenutrit));
+		rounddiv(victual.reqtime * (int32_t)otmp->oeaten, basenutrit));
 #ifdef DEBUG
 	debugpline("after rounddiv: victual.reqtime == %d", victual.reqtime);
 #endif
@@ -2442,7 +2442,7 @@ floorfood(verb,corpsecheck)	/* get food from floor or pack */
 		if (gold->quan == 1L)
 		    Sprintf(qbuf, "There is 1 gold piece here; eat it?");
 		else
-		    Sprintf(qbuf, "There are %ld gold pieces here; eat them?",
+		    Sprintf(qbuf, "There are %d gold pieces here; eat them?",
 			    gold->quan);
 		if ((c = yn_function(qbuf, ynqchars, 'n')) == 'y') {
 		    return gold;
@@ -2497,19 +2497,19 @@ eaten_stat(base, obj)
 register int base;
 register struct obj *obj;
 {
-	long uneaten_amt, full_amount;
+	int32_t uneaten_amt, full_amount;
 
-	uneaten_amt = (long)obj->oeaten;
-	full_amount = (obj->otyp == CORPSE) ? (long)mons[obj->corpsenm].cnutrit
-					: (long)objects[obj->otyp].oc_nutrition;
+	uneaten_amt = (int32_t)obj->oeaten;
+	full_amount = (obj->otyp == CORPSE) ? (int32_t)mons[obj->corpsenm].cnutrit
+					: (int32_t)objects[obj->otyp].oc_nutrition;
 	if (uneaten_amt > full_amount) {
 	    impossible(
-	  "partly eaten food (%ld) more nutritious than untouched food (%ld)",
+	  "partly eaten food (%d) more nutritious than untouched food (%d)",
 		       uneaten_amt, full_amount);
 	    uneaten_amt = full_amount;
 	}
 
-	base = (int)(full_amount ? (long)base * uneaten_amt / full_amount : 0L);
+	base = (int)(full_amount ? (int32_t)base * uneaten_amt / full_amount : 0L);
 	return (base < 1) ? 1 : base;
 }
 

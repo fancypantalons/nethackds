@@ -201,7 +201,7 @@ moverock()
 			get_level(&dest, newlev);
 			otmp->ox = dest.dnum;
 			otmp->oy = dest.dlevel;
-			otmp->owornmask = (long)MIGR_RANDOM;
+			otmp->owornmask = (int32_t)MIGR_RANDOM;
 		    }
 		    seetrap(ttmp);
 		    continue;
@@ -220,12 +220,12 @@ moverock()
 	    }
 
 	    {
-#ifdef LINT /* static long lastmovetime; */
-		long lastmovetime;
+#ifdef LINT /* static int32_t lastmovetime; */
+		int32_t lastmovetime;
 		lastmovetime = 0;
 #else
 		/* note: reset to zero after save/restore cycle */
-		static NEARDATA long lastmovetime;
+		static NEARDATA int32_t lastmovetime;
 #endif
 #ifdef STEED
 		if (!u.usteed) {
@@ -455,7 +455,7 @@ dosinkfall()
 	if (is_floater(youmonst.data) || (HLevitation & FROMOUTSIDE)) {
 	    You("wobble unsteadily for a moment.");
 	} else {
-	    long save_ELev = ELevitation, save_HLev = HLevitation;
+	    int32_t save_ELev = ELevitation, save_HLev = HLevitation;
 
 	    /* fake removal of levitation in advance so that final
 	       disclosure will be right in case this turns out to
@@ -2162,7 +2162,7 @@ boolean k_format;
 int
 weight_cap()
 {
-	register long carrcap;
+	register int32_t carrcap;
 
 	carrcap = 25*(ACURRSTR + ACURR(A_CON)) + 50;
 	if (Upolyd) {
@@ -2170,10 +2170,10 @@ weight_cap()
 		if (youmonst.data->mlet == S_NYMPH)
 			carrcap = MAX_CARR_CAP;
 		else if (!youmonst.data->cwt)
-			carrcap = (carrcap * (long)youmonst.data->msize) / MZ_HUMAN;
+			carrcap = (carrcap * (int32_t)youmonst.data->msize) / MZ_HUMAN;
 		else if (!strongmonst(youmonst.data)
 			|| (strongmonst(youmonst.data) && (youmonst.data->cwt > WT_HUMAN)))
-			carrcap = (carrcap * (long)youmonst.data->cwt / WT_HUMAN);
+			carrcap = (carrcap * (int32_t)youmonst.data->cwt / WT_HUMAN);
 	}
 
 	if (Levitation || Is_airlevel(&u.uz)    /* pugh@cornell */
@@ -2216,7 +2216,7 @@ inv_weight()
 		if (otmp->otyp != BOULDER || !throws_rocks(youmonst.data))
 #else
 		if (otmp->oclass == COIN_CLASS)
-			wt += (int)(((long)otmp->quan + 50L) / 100L);
+			wt += (int)(((int32_t)otmp->quan + 50L) / 100L);
 		else if (otmp->otyp != BOULDER || !throws_rocks(youmonst.data))
 #endif
 			wt += otmp->owt;
@@ -2291,7 +2291,7 @@ inv_cnt()
 /* Intended use is for your or some monsters inventory, */
 /* now that u.gold/m.gold is gone.*/
 /* Counting money in a container might be possible too. */
-long
+int32_t
 money_cnt(otmp)
 struct obj *otmp;
 {

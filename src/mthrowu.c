@@ -449,7 +449,7 @@ m_throw(mon, x, y, dx, dy, range, obj)
 
 	if (blindinc) {
 		u.ucreamed += blindinc;
-		make_blinded(Blinded + (long)blindinc, FALSE);
+		make_blinded(Blinded + (int32_t)blindinc, FALSE);
 		if (!Blind) Your(vision_clears);
 	}
 }
@@ -574,7 +574,7 @@ struct monst *mtmp;
 		    mwep && mwep->otyp == ORCISH_BOW))
 		multishot++;
 
-	    if ((long)multishot > otmp->quan) multishot = (int)otmp->quan;
+	    if ((int32_t)multishot > otmp->quan) multishot = (int)otmp->quan;
 	    if (multishot < 1) multishot = 1;
 	    else multishot = rnd(multishot);
 	}

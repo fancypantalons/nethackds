@@ -112,7 +112,7 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #include "rect.h"
 #include "region.h"
 
-#ifdef USE_TRAMPOLI /* This doesn't belong here, but we have little choice */
+#ifdef USE_TRAMPOLI /* This doesn't beint32_t here, but we have little choice */
 #undef NDECL
 #define NDECL(f) f()
 #endif
@@ -264,14 +264,14 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define DISP_IN_GAME	2 /* may be set via extern program, displayed in game */
 #define SET_IN_GAME	3 /* may be set via extern program or set in the game */
 
-#define FEATURE_NOTICE_VER(major,minor,patch) (((unsigned long)major << 24) | \
-	((unsigned long)minor << 16) | \
-	((unsigned long)patch << 8) | \
-	((unsigned long)0))
+#define FEATURE_NOTICE_VER(major,minor,patch) (((uint32_t)major << 24) | \
+	((uint32_t)minor << 16) | \
+	((uint32_t)patch << 8) | \
+	((uint32_t)0))
 
 #define FEATURE_NOTICE_VER_MAJ	  (flags.suppress_alert >> 24)
-#define FEATURE_NOTICE_VER_MIN	  (((unsigned long)(0x0000000000FF0000L & flags.suppress_alert)) >> 16)
-#define FEATURE_NOTICE_VER_PATCH  (((unsigned long)(0x000000000000FF00L & flags.suppress_alert)) >>  8)
+#define FEATURE_NOTICE_VER_MIN	  (((uint32_t)(0x0000000000FF0000L & flags.suppress_alert)) >> 16)
+#define FEATURE_NOTICE_VER_PATCH  (((uint32_t)(0x000000000000FF00L & flags.suppress_alert)) >>  8)
 
 #ifndef max
 #define max(a,b) ((a) > (b) ? (a) : (b))

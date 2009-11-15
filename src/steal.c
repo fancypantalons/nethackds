@@ -26,13 +26,13 @@ register struct obj *otmp;
 }
 
 #ifndef GOLDOBJ
-long		/* actually returns something that fits in an int */
+int32_t		/* actually returns something that fits in an int */
 somegold()
 {
-#ifdef LINT	/* long conv. ok */
+#ifdef LINT	/* int32_t conv. ok */
 	return(0L);
 #else
-	return (long)( (u.ugold < 100) ? u.ugold :
+	return (int32_t)( (u.ugold < 100) ? u.ugold :
 		(u.ugold > 10000) ? rnd(10000) : rnd((int) u.ugold) );
 #endif
 }
@@ -42,7 +42,7 @@ stealgold(mtmp)
 register struct monst *mtmp;
 {
 	register struct obj *gold = g_at(u.ux, u.uy);
-	register long tmp;
+	register int32_t tmp;
 
 	if (gold && ( !u.ugold || gold->quan > u.ugold || !rn2(5))) {
 	    mtmp->mgold += gold->quan;
@@ -68,14 +68,14 @@ register struct monst *mtmp;
 
 #else /* !GOLDOBJ */
 
-long		/* actually returns something that fits in an int */
+int32_t		/* actually returns something that fits in an int */
 somegold(umoney)
-long umoney;
+int32_t umoney;
 {
-#ifdef LINT	/* long conv. ok */
+#ifdef LINT	/* int32_t conv. ok */
 	return(0L);
 #else
-	return (long)( (umoney < 100) ? umoney :
+	return (int32_t)( (umoney < 100) ? umoney :
 		(umoney > 10000) ? rnd(10000) : rnd((int) umoney) );
 #endif
 }
@@ -105,7 +105,7 @@ register struct monst *mtmp;
 {
 	register struct obj *fgold = g_at(u.ux, u.uy);
 	register struct obj *ygold;
-	register long tmp;
+	register int32_t tmp;
 
         /* skip lesser coins on the floor */        
         while (fgold && fgold->otyp != GOLD_PIECE) fgold = fgold->nexthere; 
@@ -617,10 +617,10 @@ boolean is_pet;		/* If true, pet should keep wielded/worn items */
 	}
 #ifndef GOLDOBJ
 	if (mtmp->mgold) {
-		register long g = mtmp->mgold;
+		register int32_t g = mtmp->mgold;
 		(void) mkgold(g, omx, omy);
 		if (is_pet && cansee(omx, omy) && flags.verbose)
-			pline("%s drops %ld gold piece%s.", Monnam(mtmp),
+			pline("%s drops %d gold piece%s.", Monnam(mtmp),
 				g, plur(g));
 		mtmp->mgold = 0L;
 	}

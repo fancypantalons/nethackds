@@ -142,7 +142,7 @@ int
 demon_talk(mtmp)		/* returns 1 if it won't attack. */
 register struct monst *mtmp;
 {
-	long cash, demand, offer;
+	int32_t cash, demand, offer;
 
 	if (uwep && uwep->oartifact == ART_EXCALIBUR) {
 	    pline("%s looks very angry.", Amonnam(mtmp));
@@ -181,15 +181,15 @@ register struct monst *mtmp;
 	       has the Amulet, preventing monster from being satisified
 	       and removed from the game (along with said Amulet...) */
 	    if (mon_has_amulet(mtmp))
-		demand = cash + (long)rn1(1000,40);
+		demand = cash + (int32_t)rn1(1000,40);
 
-	    pline("%s demands %ld %s for safe passage.",
+	    pline("%s demands %d %s for safe passage.",
 		  Amonnam(mtmp), demand, currency(demand));
 
 	    if ((offer = bribe(mtmp)) >= demand) {
 		pline("%s vanishes, laughing about cowardly mortals.",
 		      Amonnam(mtmp));
-	    } else if (offer > 0L && (long)rnd(40) > (demand - offer)) {
+	    } else if (offer > 0L && (int32_t)rnd(40) > (demand - offer)) {
 		pline("%s scowls at you menacingly, then vanishes.",
 		      Amonnam(mtmp));
 	    } else {
@@ -203,18 +203,18 @@ register struct monst *mtmp;
 	return(1);
 }
 
-long
+int32_t
 bribe(mtmp)
 struct monst *mtmp;
 {
 	char buf[BUFSZ];
-	long offer;
+	int32_t offer;
 #ifdef GOLDOBJ
-	long umoney = money_cnt(invent);
+	int32_t umoney = money_cnt(invent);
 #endif
 
 	getlin("How much will you offer?", buf);
-	if (sscanf(buf, "%ld", &offer) != 1) offer = 0L;
+	if (sscanf(buf, "%d", &offer) != 1) offer = 0L;
 
 	/*Michael Paddon -- fix for negative offer to monster*/
 	/*JAR880815 - */
@@ -230,7 +230,7 @@ struct monst *mtmp;
 		You("give %s all your gold.", mon_nam(mtmp));
 		offer = u.ugold;
 	} else {
-		You("give %s %ld %s.", mon_nam(mtmp), offer, currency(offer));
+		You("give %s %d %s.", mon_nam(mtmp), offer, currency(offer));
 	}
 	u.ugold -= offer;
 	mtmp->mgold += offer;
@@ -239,7 +239,7 @@ struct monst *mtmp;
 		You("give %s all your gold.", mon_nam(mtmp));
 		offer = umoney;
 	} else {
-		You("give %s %ld %s.", mon_nam(mtmp), offer, currency(offer));
+		You("give %s %d %s.", mon_nam(mtmp), offer, currency(offer));
 	}
 	(void) money2mon(mtmp, offer);
 #endif

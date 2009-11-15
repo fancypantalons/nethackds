@@ -367,7 +367,7 @@ struct rm {
  *							F|R
  *
  *	TWALL:	0 none				tlwall, mode 3
- *		1 long edge (1/2 rock)			F|F
+ *		1 int32_t edge (1/2 rock)			F|F
  *		2 bottom left (on a tdwall)		-+F
  *		3 bottom right (on a tdwall)		R|F
  *
@@ -436,7 +436,7 @@ struct rm {
 
 struct damage {
 	struct damage *next;
-	long when, cost;
+	int32_t when, cost;
 	coord place;
 	schar typ;
 };

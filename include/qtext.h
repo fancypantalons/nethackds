@@ -28,7 +28,7 @@ struct msghdr {
 struct	qthdr {
 	int	n_hdr;
 	char	id[N_HDR][LEN_HDR];
-	long	offset[N_HDR];
+	int32_t	offset[N_HDR];
 };
 
 /* Error message macros */

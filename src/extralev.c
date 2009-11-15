@@ -303,7 +303,7 @@ makerogueghost()
 
 	if (rn2(4)) {
 		ghostobj = mksobj_at(FOOD_RATION, x, y, FALSE, FALSE);
-		ghostobj->quan = (long) rnd(7);
+		ghostobj->quan = (int32_t) rnd(7);
 		ghostobj->owt = weight(ghostobj);
 	}
 	if (rn2(2)) {
@@ -321,7 +321,7 @@ makerogueghost()
 
 	ghostobj = mksobj_at(ARROW, x, y, FALSE, FALSE);
 	ghostobj->spe = 0;
-	ghostobj->quan = (long) rn1(10,25);
+	ghostobj->quan = (int32_t) rn1(10,25);
 	ghostobj->owt = weight(ghostobj);
 	if (rn2(4)) curse(ghostobj);
 

@@ -584,7 +584,7 @@ u_init()
 	u.ulycn = NON_PM;
 
 #if defined(BSD) && !defined(POSIX_TYPES)
-	(void) time((long *)&u.ubirthday);
+	(void) time((int32_t *)&u.ubirthday);
 #else
 	(void) time(&u.ubirthday);
 #endif
@@ -992,7 +992,7 @@ register struct trobj *trop;
 			    obj->opoisoned = 0;
 			if (obj->oclass == WEAPON_CLASS ||
 				obj->oclass == TOOL_CLASS) {
-			    obj->quan = (long) trop->trquan;
+			    obj->quan = (int32_t) trop->trquan;
 			    trop->trquan = 1;
 			} else if (obj->oclass == GEM_CLASS &&
 				is_graystone(obj) && obj->otyp != FLINT) {

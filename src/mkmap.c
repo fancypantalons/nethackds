@@ -40,7 +40,7 @@ init_fill(bg_typ, fg_typ)
 	schar	bg_typ, fg_typ;
 {
 	register int i,j;
-	long limit, count;
+	int32_t limit, count;
 
 	limit = (WIDTH * HEIGHT * 2) / 5;
 	count = 0;

@@ -12,15 +12,15 @@
 struct bill_x {
 	unsigned bo_id;
 	boolean useup;
-	long price;		/* price per unit */
-	long bquan;		/* amount used up */
+	int32_t price;		/* price per unit */
+	int32_t bquan;		/* amount used up */
 };
 
 struct eshk {
-	long robbed;		/* amount stolen by most recent customer */
-	long credit;		/* amount credited to customer */
-	long debit;		/* amount of debt for using unpaid items */
-	long loan;		/* shop-gold picked (part of debit) */
+	int32_t robbed;		/* amount stolen by most recent customer */
+	int32_t credit;		/* amount credited to customer */
+	int32_t debit;		/* amount of debt for using unpaid items */
+	int32_t loan;		/* shop-gold picked (part of debit) */
 	int shoptype;		/* the value of rooms[shoproom].rtype */
 	schar shoproom;		/* index in rooms; set by inshop() */
 	schar unused;		/* to force alignment for stupid compilers */

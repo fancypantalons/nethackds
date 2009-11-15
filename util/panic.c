@@ -51,10 +51,10 @@ panic VA_DECL(char *,str)
  * have it then just use malloc() instead.  This may not work on some
  * systems, but they should either use yacc or get a real alloca routine.
  */
-long *alloca(cnt)
+int32_t *alloca(cnt)
 unsigned cnt;
 {
-	return cnt ? alloc(cnt) : (long *)0;
+	return cnt ? alloc(cnt) : (int32_t *)0;
 }
 #endif
 

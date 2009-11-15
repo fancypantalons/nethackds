@@ -99,7 +99,7 @@ use_towel(obj)
 		You("cannot use it while you're wearing it!");
 		return 0;
 	} else if (obj->cursed) {
-		long old;
+		int32_t old;
 		switch (rn2(3)) {
 		case 2:
 		    old = Glib;
@@ -113,7 +113,7 @@ use_towel(obj)
 			u.ucreamed += rn1(10, 3);
 			pline("Yecch! Your %s %s gunk on it!", body_part(FACE),
 			      (old ? "has more" : "now has"));
-			make_blinded(Blinded + (long)u.ucreamed - old, TRUE);
+			make_blinded(Blinded + (int32_t)u.ucreamed - old, TRUE);
 		    } else {
 			const char *what = (ublindf->otyp == LENSES) ?
 					    "lenses" : "blindfold";
@@ -204,7 +204,7 @@ STATIC_OVL int
 use_stethoscope(obj)
 	register struct obj *obj;
 {
-	static long last_used_move = -1;
+	static int32_t last_used_move = -1;
 	static short last_used_movement = 0;
 	struct monst *mtmp;
 	struct rm *lev;
@@ -563,7 +563,7 @@ register xchar x, y;
 		} else if (otmp->cursed && !breathless(mtmp->data)) {
 		    if (um_dist(mtmp->mx, mtmp->my, 5) ||
 			    (mtmp->mhp -= rnd(2)) <= 0) {
-			long save_pacifism = u.uconduct.killer;
+			int32_t save_pacifism = u.uconduct.killer;
 
 			Your("leash chokes %s to death!", mon_nam(mtmp));
 			/* hero might not have intended to kill pet, but
@@ -943,10 +943,10 @@ struct obj **optr;
 		use_lamp(obj);
 		return;
 	} else {
-		if ((long)otmp->spe + obj->quan > 7L)
-		    obj = splitobj(obj, 7L - (long)otmp->spe);
+		if ((int32_t)otmp->spe + obj->quan > 7L)
+		    obj = splitobj(obj, 7L - (int32_t)otmp->spe);
 		else *optr = 0;
-		You("attach %ld%s %s to %s.",
+		You("attach %d%s %s to %s.",
 		    obj->quan, !otmp->spe ? "" : " more",
 		    s, the(xname(otmp)));
 		if (!otmp->spe || otmp->age > obj->age)
@@ -1099,7 +1099,7 @@ struct obj *obj;
 			plur(obj->quan), otense(obj, "burn"),
 			Blind ? "." : " brightly!");
 		    if (obj->unpaid && costly_spot(u.ux, u.uy) &&
-			  obj->age == 20L * (long)objects[obj->otyp].oc_cost) {
+			  obj->age == 20L * (int32_t)objects[obj->otyp].oc_cost) {
 			const char *ithem = obj->quan > 1L ? "them" : "it";
 			verbalize("You burn %s, you bought %s!", ithem, ithem);
 			bill_dummy_object(obj);
@@ -1262,7 +1262,7 @@ int magic; /* 0=Physical, otherwise skill level */
 		You("lack the strength to jump!");
 		return 0;
 	} else if (Wounded_legs) {
-		long wl = (Wounded_legs & BOTH_SIDES);
+		int32_t wl = (Wounded_legs & BOTH_SIDES);
 		const char *bp = body_part(LEG);
 
 		if (wl == BOTH_SIDES) bp = makeplural(bp);
@@ -1312,7 +1312,7 @@ int magic; /* 0=Physical, otherwise skill level */
 	    if(u.utrap)
 		switch(u.utraptype) {
 		case TT_BEARTRAP: {
-		    register long side = rn2(3) ? LEFT_SIDE : RIGHT_SIDE;
+		    register int32_t side = rn2(3) ? LEFT_SIDE : RIGHT_SIDE;
 		    You("rip yourself free of the bear trap!  Ouch!");
 		    losehp(rnd(10), "jumping out of a bear trap", KILLED_BY);
 		    set_wounded_legs(side, rn1(1000,500));
@@ -1452,10 +1452,10 @@ struct obj *obj;
 	int trouble_list[PROP_COUNT + ATTR_COUNT];
 
 	if (obj && obj->cursed) {
-	    long lcount = (long) rnd(100);
+	    int32_t lcount = (int32_t) rnd(100);
 
 	    switch (rn2(6)) {
-	    case 0: make_sick(Sick ? Sick/3L + 1L : (long)rn1(ACURR(A_CON),20),
+	    case 0: make_sick(Sick ? Sick/3L + 1L : (int32_t)rn1(ACURR(A_CON),20),
 			xname(obj), TRUE, SICK_NONVOMITABLE);
 		    break;
 	    case 1: make_blinded(Blinded + lcount, TRUE);
@@ -1487,7 +1487,7 @@ struct obj *obj;
 
 	/* collect property troubles */
 	if (Sick) prop_trouble(SICK);
-	if (Blinded > (long)u.ucreamed) prop_trouble(BLINDED);
+	if (Blinded > (int32_t)u.ucreamed) prop_trouble(BLINDED);
 	if (HHallucination) prop_trouble(HALLUC);
 	if (Vomiting) prop_trouble(VOMITING);
 	if (HConfusion) prop_trouble(CONFUSION);
@@ -1542,7 +1542,7 @@ struct obj *obj;
 		did_prop++;
 		break;
 	    case prop2trbl(BLINDED):
-		make_blinded((long)u.ucreamed, TRUE);
+		make_blinded((int32_t)u.ucreamed, TRUE);
 		did_prop++;
 		break;
 	    case prop2trbl(HALLUC):
@@ -1593,7 +1593,7 @@ struct obj *obj;
 void
 fig_transform(arg, timeout)
 genericptr_t arg;
-long timeout;
+int32_t timeout;
 {
 	struct obj *figurine = (struct obj *)arg;
 	struct monst *mtmp;
@@ -1617,7 +1617,7 @@ long timeout;
 	if (!okay_spot ||
 	    !figurine_location_checks(figurine,&cc, TRUE)) {
 		/* reset the timer to try again later */
-		(void) start_timer((long)rnd(5000), TIMER_OBJECT,
+		(void) start_timer((int32_t)rnd(5000), TIMER_OBJECT,
 				FIG_TRANSFORM, (genericptr_t)figurine);
 		return;
 	}
@@ -2451,7 +2451,7 @@ struct obj *obj;
 	if(can_blnd((struct monst*)0, &youmonst, AT_WEAP, obj)) {
 		int blindinc = rnd(25);
 		u.ucreamed += blindinc;
-		make_blinded(Blinded + (long)blindinc, FALSE);
+		make_blinded(Blinded + (int32_t)blindinc, FALSE);
 		if (!Blind || (Blind && wasblind))
 			pline("There's %ssticky goop all over your %s.",
 				wascreamed ? "more " : "",

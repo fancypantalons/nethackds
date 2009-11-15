@@ -111,7 +111,7 @@ struct monst {
 	Bitfield(wormno,5);	/* at most 31 worms on any level */
 #define MAX_NUM_WORMS	32	/* should be 2^(wormno bitfield size) */
 
-	long mstrategy;		/* for monsters with mflag3: current strategy */
+	int32_t mstrategy;		/* for monsters with mflag3: current strategy */
 #define STRAT_ARRIVE	0x40000000L	/* just arrived on current level */
 #define STRAT_WAITFORU	0x20000000L
 #define STRAT_CLOSE	0x10000000L
@@ -128,23 +128,23 @@ struct monst {
 #define STRAT_GOALX(s)	((xchar)((s & STRAT_XMASK) >> 16))
 #define STRAT_GOALY(s)	((xchar)((s & STRAT_YMASK) >> 8))
 
-	long mtrapseen;		/* bitmap of traps we've been trapped in */
-	long mlstmv;		/* for catching up with lost time */
+	int32_t mtrapseen;		/* bitmap of traps we've been trapped in */
+	int32_t mlstmv;		/* for catching up with lost time */
 #ifndef GOLDOBJ
-	long mgold;
+	int32_t mgold;
 #endif
 	struct obj *minvent;
 
 	struct obj *mw;
-	long misc_worn_check;
+	int32_t misc_worn_check;
 	xchar weapon_check;
 
 	uchar mnamelth;		/* length of name (following mxlth) */
 	short mxlth;		/* length of following data */
 	/* in order to prevent alignment problems mextra should
-	   be (or follow) a long int */
+	   be (or follow) a int32_t int */
 	int meating;		/* monster is eating timeout */
-	long mextra[1]; /* monster dependent info */
+	int32_t mextra[1]; /* monster dependent info */
 };
 
 /*

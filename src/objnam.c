@@ -205,7 +205,7 @@ char *FDECL((*func), (OBJ_P));
 {
 	char *str;
 
-	long save_Blinded = Blinded;
+	int32_t save_Blinded = Blinded;
 	Blinded = 1;
 	str = (*func)(obj);
 	Blinded = save_Blinded;
@@ -592,7 +592,7 @@ register struct obj *obj;
 	}
 
 	if(obj->quan != 1L)
-		Sprintf(prefix, "%ld ", obj->quan);
+		Sprintf(prefix, "%d ", obj->quan);
 	else if (obj_is_pname(obj) || the_unique_obj(obj)) {
 		if (!strncmpi(bp, "the ", 4))
 		    bp += 4;
@@ -689,7 +689,7 @@ plus:
 		} else if (obj->otyp == OIL_LAMP || obj->otyp == MAGIC_LAMP ||
 			obj->otyp == BRASS_LANTERN || Is_candle(obj)) {
 			if (Is_candle(obj) &&
-			    obj->age < 20L * (long)objects[obj->otyp].oc_cost)
+			    obj->age < 20L * (int32_t)objects[obj->otyp].oc_cost)
 				Strcat(prefix, "partly used ");
 			if(obj->lamplit)
 				Strcat(bp, " (lit)");
@@ -780,7 +780,7 @@ ring:
 	if(obj->owornmask & W_QUIVER) Strcat(bp, " (in quiver)");
 	if(obj->unpaid) {
 		xchar ox, oy; 
-		long quotedprice = unpaid_cost(obj);
+		int32_t quotedprice = unpaid_cost(obj);
 		struct monst *shkp = (struct monst *)0;
 
 		if (Has_contents(obj) &&
@@ -788,7 +788,7 @@ ring:
 		    costly_spot(ox, oy) &&
 		    (shkp = shop_keeper(*in_rooms(ox, oy, SHOPBASE))))
 			quotedprice += contained_cost(obj, shkp, 0L, FALSE, TRUE);
-		Sprintf(eos(bp), " (unpaid, %ld %s)",
+		Sprintf(eos(bp), " (unpaid, %d %s)",
 			quotedprice, currency(quotedprice));
 	}
 	if (!strncmp(prefix, "a ", 2) &&
@@ -928,7 +928,7 @@ singular(otmp, func)
 register struct obj *otmp;
 char *FDECL((*func), (OBJ_P));
 {
-	long savequan;
+	int32_t savequan;
 	char *nam;
 
 	/* Note: using xname for corpses will not give the monster type */
@@ -1048,7 +1048,7 @@ register const char *verb;
 	char prefix[PREFIX];
 
 	if(otmp->quan != 1L) {
-		Sprintf(prefix, "%ld ", otmp->quan);
+		Sprintf(prefix, "%d ", otmp->quan);
 		bp = strprepend(bp, prefix);
 	}
 
@@ -2503,7 +2503,7 @@ typfnd:
 		 (cnt <= 20 &&
 		  ((oclass == WEAPON_CLASS && is_ammo(otmp))
 				|| typ == ROCK || is_missile(otmp)))))
-			otmp->quan = (long) cnt;
+			otmp->quan = (int32_t) cnt;
 
 #ifdef WIZARD
 	if (oclass == VENOM_CLASS) otmp->spe = 1;

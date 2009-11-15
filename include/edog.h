@@ -17,11 +17,11 @@
 #define TABU	7
 
 struct edog {
-	long droptime;			/* moment dog dropped object */
+	int32_t droptime;			/* moment dog dropped object */
 	unsigned dropdist;		/* dist of drpped obj from @ */
 	int apport;			/* amount of training */
-	long whistletime;		/* last time he whistled */
-	long hungrytime;		/* will get hungry at this time */
+	int32_t whistletime;		/* last time he whistled */
+	int32_t hungrytime;		/* will get hungry at this time */
 	coord ogoal;			/* previous goal location */
 	int abuse;			/* track abuses to this pet */
 	int revivals;			/* count pet deaths */

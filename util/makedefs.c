@@ -347,7 +347,7 @@ void
 do_rumors()
 {
 	char	infile[60];
-	long	true_rumor_size;
+	int32_t	true_rumor_size;
 
 	filename[0]='\0';
 #ifdef FILE_PREFIX
@@ -381,7 +381,7 @@ do_rumors()
 	while (fgets(in_line, sizeof in_line, ifp) != 0)
 		true_rumor_size += strlen(in_line);	/* includes newline */
 #endif /* VMS */
-	Fprintf(ofp,"%06lx\n", true_rumor_size);
+	Fprintf(ofp,"%06x\n", true_rumor_size);
 	(void) fseek(ifp, 0L, SEEK_SET);
 
 	/* copy true rumors */
@@ -543,7 +543,7 @@ const char *build_date;
 void
 do_date()
 {
-	long clocktim = 0;
+	int32_t clocktim = 0;
 	char *c, cbuf[60], buf[BUFSZ];
 	const char *ul_sfx;
 
@@ -569,24 +569,24 @@ do_date()
 	for (c = cbuf; *c; c++) if (*c == '\n') break;
 	*c = '\0';	/* strip off the '\n' */
 	Fprintf(ofp,"#define BUILD_DATE \"%s\"\n", cbuf);
-	Fprintf(ofp,"#define BUILD_TIME (%ldL)\n", clocktim);
+	Fprintf(ofp,"#define BUILD_TIME (%dL)\n", clocktim);
 	Fprintf(ofp,"\n");
 #ifdef NHSTDC
 	ul_sfx = "UL";
 #else
 	ul_sfx = "L";
 #endif
-	Fprintf(ofp,"#define VERSION_NUMBER 0x%08lx%s\n",
+	Fprintf(ofp,"#define VERSION_NUMBER ((uint32_t)0x%08x%s)\n",
 		version.incarnation, ul_sfx);
-	Fprintf(ofp,"#define VERSION_FEATURES 0x%08lx%s\n",
+	Fprintf(ofp,"#define VERSION_FEATURES ((uint32_t)0x%08x%s)\n",
 		version.feature_set, ul_sfx);
 #ifdef IGNORED_FEATURES
-	Fprintf(ofp,"#define IGNORED_FEATURES 0x%08lx%s\n",
+	Fprintf(ofp,"#define IGNORED_FEATURES ((uint32_t)0x%08x%s)\n",
 		(uint32_t) IGNORED_FEATURES, ul_sfx);
 #endif
-	Fprintf(ofp,"#define VERSION_SANITY1 0x%08lx%s\n",
+	Fprintf(ofp,"#define VERSION_SANITY1 ((uint32_t)0x%08x%s)\n",
 		version.entity_count, ul_sfx);
-	Fprintf(ofp,"#define VERSION_SANITY2 0x%08lx%s\n",
+	Fprintf(ofp,"#define VERSION_SANITY2 ((uint32_t)0x%08x%s)\n",
 		version.struct_sizes, ul_sfx);
 	Fprintf(ofp,"\n");
 	Fprintf(ofp,"#define VERSION_STRING \"%s\"\n", version_string(buf));
@@ -909,7 +909,7 @@ do_data()
 {
 	char	infile[60], tempfile[60];
 	boolean ok;
-	long	txt_offset;
+	int32_t	txt_offset;
 	int	entry_cnt, line_cnt;
 
 	Sprintf(tempfile, DATA_TEMPLATE, "database.tmp");
@@ -986,7 +986,7 @@ do_data()
 	ok = (rewind(ofp) == 0);
 	if (ok) {
 	   Sprintf(in_line, "header rewrite of \"%s\"", filename);
-	   ok = (fprintf(ofp, "%s%08lx\n", Dont_Edit_Data, txt_offset) >= 0);
+	   ok = (fprintf(ofp, "%s%08x\n", Dont_Edit_Data, txt_offset) >= 0);
 	}
 	if (!ok) {
 dead_data:  perror(in_line);	/* report the problem */
@@ -1052,7 +1052,7 @@ do_oracles()
 {
 	char	infile[60], tempfile[60];
 	boolean in_oracle, ok;
-	long	txt_offset, offset, fpos;
+	int32_t	txt_offset, offset, fpos;
 	int	oracle_cnt;
 	register int i;
 
@@ -1151,7 +1151,7 @@ do_oracles()
 #endif
 		if (!(ok = (fpos = ftell(ofp)) >= 0)) break;
 		if (!(ok = (fseek(ofp, fpos, SEEK_SET) >= 0))) break;
-		if (!(ok = (fscanf(ofp, "%5lx", &offset) == 1))) break;
+		if (!(ok = (fscanf(ofp, "%5x", &offset) == 1))) break;
 #ifdef MAC
 # ifdef __MWERKS__
 		/*
@@ -1164,7 +1164,7 @@ do_oracles()
 # endif
 #endif
 		if (!(ok = (fseek(ofp, fpos, SEEK_SET) >= 0))) break;
-		if (!(ok = (fprintf(ofp, "%05lx\n", offset + txt_offset) >= 0)))
+		if (!(ok = (fprintf(ofp, "%05x\n", offset + txt_offset) >= 0)))
 		    break;
 	    }
 	}
@@ -1564,8 +1564,8 @@ static void
 adjust_qt_hdrs()
 {
 	int	i, j;
-	long count = 0L, hdr_offset = sizeof(int) +
-			(sizeof(char)*LEN_HDR + sizeof(uint32_t)) * qt_hdr.n_hdr;
+	int32_t count = 0L, hdr_offset = sizeof(int) +
+			(sizeof(char)*LEN_HDR + sizeof(int32_t)) * qt_hdr.n_hdr;
 
 	for(i = 0; i < qt_hdr.n_hdr; i++) {
 	    qt_hdr.offset[i] = hdr_offset;
@@ -1595,7 +1595,7 @@ put_qt_hdrs()
 	(void) fwrite((genericptr_t)&(qt_hdr.n_hdr), sizeof(int), 1, ofp);
 	(void) fwrite((genericptr_t)&(qt_hdr.id[0][0]), sizeof(char)*LEN_HDR,
 							qt_hdr.n_hdr, ofp);
-	(void) fwrite((genericptr_t)&(qt_hdr.offset[0]), sizeof(uint32_t),
+	(void) fwrite((genericptr_t)&(qt_hdr.offset[0]), sizeof(int32_t),
 							qt_hdr.n_hdr, ofp);
 #ifdef DEBUG
 	for(i = 0; i < qt_hdr.n_hdr; i++)
@@ -2032,7 +2032,7 @@ C_close_gen()
 #endif
 	for (dx = 0; dx < TEST_WIDTH; dx++) {
 	    src_col = block_col - dx;
-	    Fprintf(ofp, "  /*%2d*/ {", dx);
+	    Fprintf(ofp, "  /*%2ld*/ {", dx);
 
 	    no_more = 0;
 	    for (this_row = 0; this_row < TEST_HEIGHT; this_row++) {

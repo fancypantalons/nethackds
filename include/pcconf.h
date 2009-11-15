@@ -331,7 +331,7 @@
 # define msleep(k) delay(k)
 # endif
 # ifdef __SC__
-# define msleep(k) (void) usleep((long)((k)*1000))
+# define msleep(k) (void) usleep((int32_t)((k)*1000))
 # endif
 #endif
 

@@ -12,7 +12,7 @@ typedef struct IMG_HEADER{
   short pix_h;    /* Pixel height in 1/1000 mmm (372)    */
   short img_w;    /* Pixels per line (=(x+7)/8 Bytes)    */
   short img_h;    /* Total number of lines               */
-  long  magic;    /* Contains "XIMG" if standard color   */
+  int32_t  magic;    /* Contains "XIMG" if standard color   */
   short paltype;  /* palette type (0=RGB (short each)) */
   short *palette;	/* palette etc.                        */
   char *addr;     /* Address for the depacked bit-planes */
@@ -33,7 +33,7 @@ void get_colors(int handle, short *palette, int col);
 void img_set_colors(int handle,short *palette, int col);
 
 /* converts MFDB  of size from standard to deviceformat (0 if succeded, else error). */
-int convert(MFDB *, long );
+int convert(MFDB *, int32_t );
 
 /* transforms image in VDI-Device format */
 int transform_img(MFDB *);

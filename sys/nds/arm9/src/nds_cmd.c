@@ -1663,6 +1663,8 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
     return cmd.f_char;
   } else if (strstr(ques, "What do you look for?") != NULL) {
     return nds_prompt_char(ques, cstr, 0);
+  } else if (strstr(ques, "adjust?") != NULL) {
+    cstr = ynchars;
   }
 
   if ((index(ques, '[') == NULL) && (cstr == NULL)) {

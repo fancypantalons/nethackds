@@ -271,9 +271,6 @@ void splash_screen()
  */
 void nethack_exit()
 {
-  while (1) {
-    swiWaitForVBlank();
-  }
   REG_IPC_FIFO_TX = 0xDEADBEEF;
 }
 

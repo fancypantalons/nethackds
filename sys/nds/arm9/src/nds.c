@@ -7,6 +7,7 @@
 
 #include "ndsx_ledblink.h"
 
+#include <dswifi9.h>
 #include <debug_stub.h>
 #include <debug_tcp.h>
 
@@ -18,7 +19,6 @@
 #include "nds_gfx.h"
 #include "nds_util.h"
 #include "bmp.h"
-#include "wifi.h"
 
 #ifdef MENU_COLOR
 #  include <pcre.h>
@@ -33,9 +33,12 @@ int console_enabled = 0;
 int was_console_layer_visible = 0;
 int debug_mode = 0;
 int power_state = 0;
+int wifi_connected = 0;
 char *goodbye_msg = NULL;
 
 int have_error = 0;
+
+int debugger_triggered = 0;
 
 void mallinfo_dump();
 
@@ -59,28 +62,19 @@ void keysInterruptHandler()
  */
 void vsyncHandler()
 {
-  int lid_closed = (((~IPC->buttons)<<6) & KEY_LID ) ^ KEY_LID;
+  int lid_closed = keysCurrent() & KEY_LID;
 
   switch (power_state) {
     case POWER_STATE_ON:
       if (lid_closed) {
-        powerOff(POWER_ALL_2D);
-        REG_IPC_FIFO_TX = SET_LEDBLINK_ON;
-        power_state = POWER_STATE_TRANSITIONING;
+        systemSleep();
+        power_state = POWER_STATE_ASLEEP;
       }
       
       break;
 
-    case POWER_STATE_TRANSITIONING:
-      REG_IPC_FIFO_TX = SET_LEDBLINK_SLOW;
-      power_state = POWER_STATE_ASLEEP;
-
-      break;
-
     case POWER_STATE_ASLEEP:
       if (! lid_closed) {
-        powerOn(POWER_ALL_2D);
-        REG_IPC_FIFO_TX = SET_LEDBLINK_OFF;
         power_state = POWER_STATE_ON;
       }
 
@@ -88,6 +82,7 @@ void vsyncHandler()
 
     default:
       power_state = POWER_STATE_ON;
+
       break;
   }
 }
@@ -125,7 +120,7 @@ void nds_error()
 
 void enable_interrupts()
 {
-  irqEnable(IRQ_KEYS | IRQ_IPC_SYNC);
+  irqEnable(IRQ_KEYS);
 
   irqSet(IRQ_VBLANK, vsyncHandler);
   irqSet(IRQ_KEYS, keysInterruptHandler);
@@ -133,10 +128,49 @@ void enable_interrupts()
   REG_KEYCNT |= 0x8000 | 0x4000 | KEY_SELECT | KEY_START;
 }
 
+int wifi_connect()
+{
+  int wifiStatus = Wifi_AssocStatus();
+
+  if (wifiStatus != ASSOCSTATUS_ASSOCIATED) {
+    Wifi_AutoConnect();
+  }
+
+  while (wifiStatus != ASSOCSTATUS_ASSOCIATED) {
+    wifiStatus = Wifi_AssocStatus(); // check status
+
+    if (wifiStatus == ASSOCSTATUS_CANNOTCONNECT) {
+      return 0;
+    }
+
+    swiWaitForVBlank();
+  }  
+
+  return 1;
+}
+
+void wifi_disconnect()
+{
+  Wifi_DisconnectAP();
+}
+
+int break_into_debugger()
+{
+  struct tcp_debug_comms_init_data init_data = {
+    .port = 30000
+  };
+
+  wifi_connect();
+
+  if (init_debug(&tcpCommsIf_debug, &init_data)) {
+    debugHalt();
+  }
+
+  return 0;
+}
+
 void check_debug()
 {
-  NDSX_SetLedBlink_Off();
-
   scanKeys();
   
   int pressed = nds_keysDown();
@@ -145,16 +179,10 @@ void check_debug()
     debug_mode = 1;
   }
 
-  if (pressed & KEY_SELECT) {
-    struct tcp_debug_comms_init_data init_data = {
-      .port = 30000
-    };
+  Wifi_InitDefault(false);
 
-    if (init_debug(&tcpCommsIf_debug, &init_data)) {
-      debugHalt();
-    }
-  } else {
-    wifi_setup();
+  if (pressed & KEY_SELECT) {
+    break_into_debugger();
   }
 }
 
@@ -175,7 +203,6 @@ void check_debug()
  */
 void init_screen()
 {
-  powerOn(POWER_ALL_2D | POWER_SWAP_LCDS);
   lcdMainOnBottom();
 
   videoSetMode(MODE_5_2D | 
@@ -271,7 +298,7 @@ void splash_screen()
  */
 void nethack_exit()
 {
-  REG_IPC_FIFO_TX = 0xDEADBEEF;
+  powerOn(BIT(6));
 }
 
 void mallinfo_dump()
@@ -337,11 +364,11 @@ void start_game()
 
 int main()
 {
-  srand(IPC->unixTime);
+  srand(time(NULL));
 
   enable_interrupts();
-  check_debug();
   init_screen();
+  check_debug();
 
   if (! fatInitDefault())
   {

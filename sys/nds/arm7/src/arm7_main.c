@@ -1,273 +1,82 @@
 /*---------------------------------------------------------------------------------
-	$Id: template.c,v 1.2 2005/09/07 20:06:06 wntrmute Exp $
 
-	Simple ARM7 stub (sends RTC, TSC, and X/Y data to the ARM 9)
+	default ARM7 core
 
-	$Log: template.c,v $
-	Revision 1.2  2005/09/07 20:06:06  wntrmute
-	updated for latest libnds changes
-	
-	Revision 1.8  2005/08/03 05:13:16  wntrmute
-	corrected sound code
+		Copyright (C) 2005
+		Michael Noland (joat)
+		Jason Rogers (dovoto)
+		Dave Murphy (WinterMute)
 
+	This software is provided 'as-is', without any express or implied
+	warranty.  In no event will the authors be held liable for any
+	damages arising from the use of this software.
+
+	Permission is granted to anyone to use this software for any
+	purpose, including commercial applications, and to alter it and
+	redistribute it freely, subject to the following restrictions:
+
+	1.	The origin of this software must not be misrepresented; you
+		must not claim that you wrote the original software. If you use
+		this software in a product, an acknowledgment in the product
+		documentation would be appreciated but is not required.
+
+	2.	Altered source versions must be plainly marked as such, and
+		must not be misrepresented as being the original software.
+
+	3.	This notice may not be removed or altered from any source
+		distribution.
 
 ---------------------------------------------------------------------------------*/
-// #define _DEBUG_
-
 #include <nds.h>
-
-#include <nds/bios.h>
-#include <nds/arm7/touch.h>
-#include <nds/arm7/clock.h>
-
 #include <dswifi7.h>
-
-#include "ndsx_ledblink.h"
-
-//---------------------------------------------------------------------------------
-void startSound(int sampleRate, const void* data, u32 bytes, u8 channel, u8 vol,  u8 pan, u8 format) {
-//---------------------------------------------------------------------------------
-	SCHANNEL_TIMER(channel)  = SOUND_FREQ(sampleRate);
-	SCHANNEL_SOURCE(channel) = (u32)data;
-	SCHANNEL_LENGTH(channel) = bytes >> 2 ;
-	SCHANNEL_CR(channel)     = SCHANNEL_ENABLE | SOUND_ONE_SHOT | SOUND_VOL(vol) | SOUND_PAN(pan) | (format==1?SOUND_FORMAT_8BIT:SOUND_FORMAT_16BIT);
-}
+#include <maxmod7.h>
 
 
 //---------------------------------------------------------------------------------
-s32 getFreeSoundChannel() {
+void VcountHandler() {
 //---------------------------------------------------------------------------------
-	int i;
-	for (i=0; i<16; i++) {
-		if ( (SCHANNEL_CR(i) & SCHANNEL_ENABLE) == 0 ) return i;
-	}
-	return -1;
-}
-
-#define SAMPLE_COUNT 8
-#define OUTLIER_TEST_MAX 16
-
-typedef touchPosition sample_set_t[SAMPLE_COUNT];
-typedef int index_set_t[SAMPLE_COUNT];
-
-void sortTouchSamples(sample_set_t samples, index_set_t indices, int sort_x)
-{
-  int i;
-  int done = 0;
-
-  /* Yeah, this is a bubble sort... live with it */
-  /* We re-order, here, so we can take the median */
-
-  while (! done) {
-    done = 1;
-
-    for (i = 0; i < SAMPLE_COUNT - 1; i++) {
-      int swap = sort_x ? samples[indices[i]].rawx > samples[indices[i + 1]].rawx :
-                          samples[indices[i]].rawy > samples[indices[i + 1]].rawy;
-
-      if (swap) {
-        int tmp = indices[i + 1];
-
-        indices[i + 1] = indices[i];
-        indices[i] = tmp;
-        
-        done = 0;
-      }
-    }
-  }
-}
-
-touchPosition readSampledPosition() {
-  int i;
-  sample_set_t posData;
-  index_set_t indices_by_x;
-  index_set_t indices_by_y;
-  touchPosition ret;
-
-  /* First, take our samples */
-
-  for (i = 0; i < SAMPLE_COUNT; i++) {
-    int j;
-
-    for (j = 0; j < OUTLIER_TEST_MAX; j++) {
-      touchReadXY(&(posData[i]));
-
-      /* 
-       * Yeah, this means you can't tap the far-right part of the screen...
-       * luckily, I don't care.  And this way, we toss out outliers that
-       * were throwing off the touchscreen handling code.
-       */
-      if (posData[i].px < 255) {
-        break;
-      }
-    }
-
-    indices_by_x[i] = i;
-    indices_by_y[i] = i;
-  }
-
-  sortTouchSamples(posData, indices_by_x, 1);
-  sortTouchSamples(posData, indices_by_y, 0);
-
-  /* And now get the median values for x and y */
-
-  ret.rawx = posData[indices_by_x[SAMPLE_COUNT / 2]].rawx;
-  ret.px = posData[indices_by_x[SAMPLE_COUNT / 2]].px;
-
-  ret.rawy = posData[indices_by_y[SAMPLE_COUNT / 2]].rawy;
-  ret.py = posData[indices_by_y[SAMPLE_COUNT / 2]].py;
-
-  return ret;
+	inputGetAndSend();
 }
 
 //---------------------------------------------------------------------------------
 void VblankHandler(void) {
 //---------------------------------------------------------------------------------
-        static int lastbut = -1;
+	Wifi_Update();
+}
 
-	uint16 but=0, x=0, y=0, xpx=0, ypx=0, z1=0, z2=0, batt=0, aux=0;
-	int t1=0, t2=0;
-	uint32 temp=0;
-	// uint8 ct[sizeof(IPC->time.curtime)];
-	u32 i;
 
-	// Read the touch screen
+//---------------------------------------------------------------------------------
+int main() {
+//---------------------------------------------------------------------------------
 
-        but = REG_KEYXY;
+	// read User Settings from firmware
+	readUserSettings();
 
-        if (!( (but ^ lastbut) & (1<<6))) {
- 
-                touchPosition tempPos = readSampledPosition();
+	powerOn(POWER_SOUND);
 
-                if ( tempPos.rawx == 0 || tempPos.rawy == 0 ) {
-                        but |= (1 << 6);
-                        lastbut = but;
-                } else {
-                        x = tempPos.rawx;
-                        y = tempPos.rawy;
-                        xpx = tempPos.px;
-                        ypx = tempPos.py;
-                        z1 = tempPos.z1;
-                        z2 = tempPos.z2;
-                }
-                
-        } else {
-                lastbut = but;
-                but |= (1 << 6);
-        }
+	irqInit();
+	irqSet(IRQ_WIFI, 0);
+	fifoInit();
+
+
+	SetYtrigger(80);
+
+	installWifiFIFO();
+	installSoundFIFO();
+	mmInstall(FIFO_MAXMOD);
+
+	installSystemFIFO();
 	
-	batt = touchRead(TSC_MEASURE_BATTERY);
-	aux  = touchRead(TSC_MEASURE_AUX);
+	irqSet(IRQ_VCOUNT, VcountHandler);
+	irqSet(IRQ_VBLANK, VblankHandler);
 
-	// Read the time
-	// rtcGetTime((uint8 *)ct);
-	// BCDToInteger((uint8 *)&(ct[1]), 7);
+	// Start the RTC tracking IRQ
+	initClockIRQ();
 
-	// Read the temperature
-	temp = touchReadTemperature(&t1, &t2);
+	irqEnable( IRQ_VBLANK | IRQ_VCOUNT | IRQ_NETWORK);   
 
-	// Update the IPC struct
-	IPC->buttons		= but;
-	IPC->touchX			= x;
-	IPC->touchY			= y;
-	IPC->touchXpx		= xpx;
-	IPC->touchYpx		= ypx;
-	IPC->touchZ1		= z1;
-	IPC->touchZ2		= z2;
-
-        /*
-	for(i=0; i<sizeof(ct); i++) {
-		IPC->time.curtime[i] = ct[i];
-	}
-        */
-
-	//sound code  :)
-        /*
-	TransferSound *snd = IPC->soundData;
-	IPC->soundData = 0;
-
-	if (0 != snd) {
-
-		for (i=0; i<snd->count; i++) {
-			s32 chan = getFreeSoundChannel();
-
-			if (chan >= 0) {
-				startSound(snd->data[i].rate, snd->data[i].data, snd->data[i].len, chan, snd->data[i].vol, snd->data[i].pan, snd->data[i].format);
-			}
-		}
-	}
-        */
-
-	Wifi_Update(); // update wireless in vblank
-
-}
-
-// callback to allow wifi library to notify arm9
-void arm7_synctoarm9() { // send fifo message
-   REG_IPC_FIFO_TX = 0x87654321;
-}
-// interrupt handler to allow incoming notifications from arm9
-void arm7_fifo() { // check incoming fifo messages
-   u32 msg = REG_IPC_FIFO_RX;
-
-   if (msg == 0x87654321) {
-     Wifi_Sync();
-   } else if (msg == 0xDEADBEEF) {
-     writePowerManagement(PM_CONTROL_REG, (1<<6));
-   } else {
-     NDSX_LedBlinkFifo(msg);
-   }
-}
-
-//---------------------------------------------------------------------------------
-int main(int argc, char ** argv) {
-//---------------------------------------------------------------------------------
-  REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR; // enable & prepare fifo asap
-  // Reset the clock if needed
-  rtcReset();
-
-  //enable sound
-  powerOff(POWER_SOUND);
-  REG_SOUNDCNT = SOUND_ENABLE | SOUND_VOL(0x7F);
-
-  irqInit();
-  initClockIRQ();
-
-  irqSet(IRQ_VBLANK, VblankHandler);
-  irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
-
-  irqEnable(IRQ_VBLANK | IRQ_WIFI);
-
-  { // sync with arm9 and init wifi
-    u32 fifo_temp;   
-
-    while (1) { // wait for magic number
-      while(REG_IPC_FIFO_CR & IPC_FIFO_RECV_EMPTY) 
-        swiWaitForVBlank();
-
-      fifo_temp=REG_IPC_FIFO_RX;
-
-      if (fifo_temp==0x12345678) 
-        break;
-    }
-
-    while (REG_IPC_FIFO_CR & IPC_FIFO_RECV_EMPTY) 
-      swiWaitForVBlank();
-    
-    fifo_temp=REG_IPC_FIFO_RX; // give next value to wifi_init
-    Wifi_Init(fifo_temp);
-
-    irqSet(IRQ_FIFO_NOT_EMPTY,arm7_fifo); // set up fifo irq
-    irqEnable(IRQ_FIFO_NOT_EMPTY);
-    
-    REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_RECV_IRQ;
-
-    Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
-  } // arm7 wifi init complete
-
-  // Keep the ARM7 out of main RAM
-  while (1) 
-    swiWaitForVBlank();
+	// Keep the ARM7 mostly idle
+	while (1) swiWaitForVBlank();
 }
 
 

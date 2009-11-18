@@ -1,6 +1,5 @@
 *.lev
 *.o
-Makefile
 binary
 build
 tags

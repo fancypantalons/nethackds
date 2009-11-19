@@ -10,7 +10,7 @@
 #include "ppm-lite.h"
 #include "nds_util.h"
 #include "nds_map.h"
-#include "ds_kbd.h"
+#include "nds_kbd.h"
 
 #define KEY_MAGIC 0xDECAFBAD
 

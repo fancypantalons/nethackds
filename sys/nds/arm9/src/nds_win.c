@@ -17,7 +17,7 @@
 #include "nds_map.h"
 #include "nds_getlin.h"
 
-#include "ds_kbd.h"
+#include "nds_kbd.h"
 #include "ppm-lite.h"
 #include "font-bdf.h"
 

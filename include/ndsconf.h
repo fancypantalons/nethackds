@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
-#include "ds_io.h"
+#include "nds_io.h"
 #include "onames.h"
 
 #ifdef SCR_MAIL

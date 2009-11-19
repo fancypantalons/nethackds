@@ -6,7 +6,7 @@
 #include "nds_getlin.h"
 #include "nds_gfx.h"
 
-#include "ds_kbd.h"
+#include "nds_kbd.h"
 #include "ppm-lite.h"
 
 #define HISTORY_SIZE 10

@@ -2,7 +2,7 @@
 
 #include "hack.h"
 
-#include "ds_io.h"
+#include "nds_io.h"
 
 #include <unistd.h>
 #include <reent.h>

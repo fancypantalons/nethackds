@@ -13,7 +13,7 @@
 
 #include "hack.h"
 #include "dlb.h"
-#include "ds_kbd.h"
+#include "nds_kbd.h"
 #include "nds_main.h"
 #include "nds_win.h"
 #include "nds_gfx.h"

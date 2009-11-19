@@ -17,11 +17,11 @@
 
 #include <string.h>
 
-#include "ds_kbd.h"
+#include "nds_kbd.h"
 #include "nds_util.h"
 #include "nds_gfx.h"
 
-#include "ds_kbd_layout.h"
+#include "nds_kbd_layout.h"
 
 // down-left, down, down-right, left, pause, right, up-left, up, up-right
 

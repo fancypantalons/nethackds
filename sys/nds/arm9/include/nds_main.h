@@ -9,5 +9,6 @@ int nds_power_state();
 void nds_show_console();
 void nds_hide_console();
 void nds_error();
+void nds_break_into_debugger();
 
 #endif

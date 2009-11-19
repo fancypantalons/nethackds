@@ -154,7 +154,7 @@ void wifi_disconnect()
   Wifi_DisconnectAP();
 }
 
-int break_into_debugger()
+void nds_break_into_debugger()
 {
   struct tcp_debug_comms_init_data init_data = {
     .port = 30000
@@ -165,8 +165,6 @@ int break_into_debugger()
   if (init_debug(&tcpCommsIf_debug, &init_data)) {
     debugHalt();
   }
-
-  return 0;
 }
 
 void check_debug()
@@ -182,7 +180,7 @@ void check_debug()
   Wifi_InitDefault(false);
 
   if (pressed & KEY_SELECT) {
-    break_into_debugger();
+    nds_break_into_debugger();
   }
 }
 

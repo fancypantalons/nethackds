@@ -31,5 +31,6 @@ touchPosition get_touch_coords();
 
 char *nds_strip(char *str, int front, int back);
 int nds_count_bits(int val);
+int nds_ends_width(char *str, char *suffix);
 
 #endif

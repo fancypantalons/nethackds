@@ -1814,7 +1814,8 @@ char **_nds_read_saves(int *cnt)
 
   while ((ent = readdir(dp)) != NULL) {
     if ((strcmp(ent->d_name, ".") == 0) ||
-        (strcmp(ent->d_name, "..") == 0)) {
+        (strcmp(ent->d_name, "..") == 0) ||
+        nds_ends_width(ent->d_name, ".bak")) {
       continue;
     }
 
@@ -1836,7 +1837,8 @@ char **_nds_read_saves(int *cnt)
     int j;
 
     if ((strcmp(ent->d_name, ".") == 0) ||
-        (strcmp(ent->d_name, "..") == 0)) {
+        (strcmp(ent->d_name, "..") == 0) ||
+        nds_ends_width(ent->d_name, ".bak")) {
       continue;
     }
 

@@ -952,7 +952,33 @@ open_savefile()
 int
 delete_savefile()
 {
-	(void) unlink(fqname(SAVEF, SAVEPREFIX, 0));
+        const char *name = fqname(SAVEF, SAVEPREFIX, 0);
+        char backup_name[BUFSZ + 2];
+        int save_fd, backup_fd;
+
+        sprintf(backup_name, "%s.bak", name);
+
+        (void) unlink(backup_name);
+
+        save_fd = open_savefile();
+
+#if defined(MICRO) || defined(WIN32)
+	backup_fd = open(backup_name, O_WRONLY |O_CREAT | O_TRUNC | O_BINARY, FCMASK);
+#else
+# ifdef MAC
+	backup_fd = maccreat(backup_name, BONE_TYPE);
+# else
+	backup_fd = creat(backup_name, FCMASK);
+# endif
+#endif
+
+        copy_bytes(save_fd, backup_fd);
+
+        close(save_fd);
+        close(backup_fd);
+
+	(void) unlink(name);
+
 	return 0;	/* for restore_saved_game() (ex-xxxmain.c) test */
 }
 

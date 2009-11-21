@@ -263,3 +263,12 @@ int nds_count_bits(int val)
 
   return cnt;
 }
+
+int nds_ends_width(char *str, char *suffix)
+{
+  if (strlen(str) < strlen(suffix)) {
+    return 0;
+  } else {
+    return strcmp(str + strlen(str) - strlen(suffix), suffix) == 0;
+  }
+}

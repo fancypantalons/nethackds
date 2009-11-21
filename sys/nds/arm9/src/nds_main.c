@@ -177,8 +177,6 @@ void check_debug()
     debug_mode = 1;
   }
 
-  Wifi_InitDefault(false);
-
   if (pressed & KEY_SELECT) {
     nds_break_into_debugger();
   }
@@ -229,7 +227,7 @@ void init_screen()
 
   consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 0, 1, false, true);
 
-  REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
+  //REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
 
   /* Main screen setup. */
 
@@ -364,7 +362,9 @@ int main()
 {
   srand(time(NULL));
 
-  enable_interrupts();
+  //enable_interrupts();
+  //Wifi_InitDefault(false);
+
   init_screen();
   check_debug();
 

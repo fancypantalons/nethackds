@@ -23,7 +23,7 @@ export PATH		:=	$(DEVKITARM)/bin:$(PATH)
 
 .PHONY: $(TARGET).arm7 $(TARGET).arm9
 
-all: dat image
+all: dat image tags
 
 #---------------------------------------------------------------------------------
 # main targets
@@ -34,6 +34,10 @@ dat::
 	@if egrep -s librarian dat/options ; then $(CCMAKE) dlb ; else true ; fi
 
 image: binary/$(TARGET).ds.gba
+
+tags::
+	@echo "Rebuilding tag databases..."
+	@./build_idx
 
 binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@echo Copying files...
@@ -50,9 +54,9 @@ binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@echo 'dat/dlb.lst to binary/NetHack.  Try: cd dat; cp `cat dlb.lst` ../binary/NetHack'
 	@echo 
 
-install: binary/$(TARGET).ds.gba
-	cp binary/$(TARGET).nds /media/flash/default.nds
-	umount /media/flash
+install: tags binary/$(TARGET).ds.gba
+	cp binary/$(TARGET).nds /media/373A-579A/DEFAULT.NDS
+	umount /media/373A-579A
 
 build/$(TARGET).ds.gba	: build/$(TARGET).nds
 	@dsbuild $<

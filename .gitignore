@@ -3,7 +3,6 @@
 binary
 build
 tags
-.lvimrc
 cscope.out
 build_idx
 gdb

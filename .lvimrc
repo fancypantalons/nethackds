@@ -1,0 +1,15 @@
+if (!exists("g:nethackds_lvimrc"))
+  let g:nethackds_lvimrc = 1
+  let _rcpath=expand("<sfile>:p:h")
+
+  exec "set path=" . _rcpath . "/**"
+
+  cs kill -1
+  exec "cs add " . _rcpath . "/cscope.out " . _rcpath
+  exec "set makeprg=" . fnameescape("cd " . _rcpath . " && make -f sys/nds/Makefile")
+
+  au QuickFixCmdPre make exec("cs kill -1")
+  au QuickFixCmdPost make exec("cs add " . _rcpath . "/cscope.out " . _rcpath)
+
+  let g:compiler_gcc_ignore_unmatched_lines = 1
+endif

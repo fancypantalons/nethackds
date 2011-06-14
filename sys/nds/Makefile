@@ -23,20 +23,19 @@ export PATH		:=	$(DEVKITARM)/bin:$(PATH)
 
 .PHONY: $(TARGET).arm7 $(TARGET).arm9
 
-all: dat image tags
+all: tags dat image
 
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
 dat::
-	cd dat; $(CCMAKE)
-	cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h
+	@cd dat; $(CCMAKE)
+	@cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h
 	@if egrep -s librarian dat/options ; then $(CCMAKE) dlb ; else true ; fi
 
 image: binary/$(TARGET).ds.gba
 
 tags::
-	@echo "Rebuilding tag databases..."
 	@./build_idx
 
 binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba

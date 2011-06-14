@@ -2,7 +2,7 @@
 
 	default ARM7 core
 
-		Copyright (C) 2005
+		Copyright (C) 2005 - 2010
 		Michael Noland (joat)
 		Jason Rogers (dovoto)
 		Dave Murphy (WinterMute)
@@ -29,14 +29,6 @@
 ---------------------------------------------------------------------------------*/
 #include <nds.h>
 #include <dswifi7.h>
-#include <maxmod7.h>
-
-
-//---------------------------------------------------------------------------------
-void VcountHandler() {
-//---------------------------------------------------------------------------------
-	inputGetAndSend();
-}
 
 //---------------------------------------------------------------------------------
 void VblankHandler(void) {
@@ -46,37 +38,49 @@ void VblankHandler(void) {
 
 
 //---------------------------------------------------------------------------------
+void VcountHandler() {
+//---------------------------------------------------------------------------------
+	inputGetAndSend();
+}
+
+volatile bool exitflag = false;
+
+//---------------------------------------------------------------------------------
+void powerButtonCB() {
+//---------------------------------------------------------------------------------
+	exitflag = true;
+}
+
+//---------------------------------------------------------------------------------
 int main() {
 //---------------------------------------------------------------------------------
-
-	// read User Settings from firmware
 	readUserSettings();
 
-	powerOn(POWER_SOUND);
-
 	irqInit();
-	irqSet(IRQ_WIFI, 0);
+	// Start the RTC tracking IRQ
+	initClockIRQ();
 	fifoInit();
-
 
 	SetYtrigger(80);
 
 	installWifiFIFO();
 	installSoundFIFO();
-	mmInstall(FIFO_MAXMOD);
 
 	installSystemFIFO();
-	
+
 	irqSet(IRQ_VCOUNT, VcountHandler);
 	irqSet(IRQ_VBLANK, VblankHandler);
 
-	// Start the RTC tracking IRQ
-	initClockIRQ();
-
-	irqEnable( IRQ_VBLANK | IRQ_VCOUNT | IRQ_NETWORK);   
+	irqEnable( IRQ_VBLANK | IRQ_VCOUNT | IRQ_NETWORK);
+	
+	setPowerButtonCB(powerButtonCB);   
 
 	// Keep the ARM7 mostly idle
-	while (1) swiWaitForVBlank();
+	while (!exitflag) {
+		if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_START | KEY_L | KEY_R))) {
+			exitflag = true;
+		}
+		swiWaitForVBlank();
+	}
+	return 0;
 }
-
-

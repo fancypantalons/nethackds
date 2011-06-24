@@ -23,7 +23,7 @@
 
 #include "nds_win_gfx.h"
 
-#define PROMPT_LAYER_WIDTH 40
+#define PROMPT_LAYER_WIDTH 80
  
 /* Things we need for coloured menus */
 

@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fat.h>
+#include <dirent.h>
+#include <errno.h>
+#include <netinet/in.h>
 
 #include "ndsx_ledblink.h"
 
@@ -32,6 +35,7 @@ const unsigned char *_pcre_default_tables;
 int console_enabled = 0;
 int was_console_layer_visible = 0;
 int debug_mode = 0;
+int lid_closed = 0;
 int power_state = 0;
 int wifi_connected = 0;
 char *goodbye_msg = NULL;
@@ -48,6 +52,8 @@ void mallinfo_dump();
  */
 void keysInterruptHandler()
 {
+  lid_closed = keysCurrent() & KEY_LID;
+
   if (! console_enabled) {
     nds_show_console();
     mallinfo_dump();
@@ -62,8 +68,6 @@ void keysInterruptHandler()
  */
 void vsyncHandler()
 {
-  int lid_closed = keysCurrent() & KEY_LID;
-
   switch (power_state) {
     case POWER_STATE_ON:
       if (lid_closed) {
@@ -125,28 +129,7 @@ void enable_interrupts()
   irqSet(IRQ_VBLANK, vsyncHandler);
   irqSet(IRQ_KEYS, keysInterruptHandler);
 
-  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_SELECT | KEY_START;
-}
-
-int wifi_connect()
-{
-  int wifiStatus = Wifi_AssocStatus();
-
-  if (wifiStatus != ASSOCSTATUS_ASSOCIATED) {
-    Wifi_AutoConnect();
-  }
-
-  while (wifiStatus != ASSOCSTATUS_ASSOCIATED) {
-    wifiStatus = Wifi_AssocStatus(); // check status
-
-    if (wifiStatus == ASSOCSTATUS_CANNOTCONNECT) {
-      return 0;
-    }
-
-    swiWaitForVBlank();
-  }  
-
-  return 1;
+  REG_KEYCNT |= 0x8000 | 0x4000 | KEY_SELECT | KEY_START | KEY_LID;
 }
 
 void wifi_disconnect()
@@ -156,11 +139,23 @@ void wifi_disconnect()
 
 void nds_break_into_debugger()
 {
+  struct in_addr ip, gateway, mask, dns1, dns2;
+
   struct tcp_debug_comms_init_data init_data = {
     .port = 30000
   };
 
-  wifi_connect();
+  if (! Wifi_InitDefault(WFC_CONNECT)) {
+    iprintf("Failed to connect!");
+  } else {
+    ip = Wifi_GetIPInfo(&gateway, &mask, &dns1, &dns2);
+
+    iprintf("ip     : %s\n", inet_ntoa(ip) );
+    iprintf("gateway: %s\n", inet_ntoa(gateway) );
+    iprintf("mask   : %s\n", inet_ntoa(mask) );
+    iprintf("dns1   : %s\n", inet_ntoa(dns1) );
+    iprintf("dns2   : %s\n", inet_ntoa(dns2) );
+  }
 
   if (init_debug(&tcpCommsIf_debug, &init_data)) {
     debugHalt();
@@ -246,7 +241,7 @@ void init_screen()
   REG_BG0CNT = BG_MAP_BASE(4) | BG_TILE_BASE(0) | BG_COLOR_16 | BG_PRIORITY_0;
 
   /* Menu/Text/Command Layer */
-  REG_BG2CNT = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_2;
+  REG_BG2CNT = BG_BMP8_256x256 | BG_BMP_BASE(2) | BG_PRIORITY_1;
 
   REG_BG2PA = 1 << 8;
   REG_BG2PB = 0;
@@ -362,8 +357,7 @@ int main()
 {
   srand(time(NULL));
 
-  //enable_interrupts();
-  //Wifi_InitDefault(false);
+  enable_interrupts();
 
   init_screen();
   check_debug();
@@ -371,6 +365,17 @@ int main()
   if (! fatInitDefault())
   {
     iprintf("Unable to initialize FAT driver!\n");
+    nds_show_console();
+
+    return 0;
+  }
+
+  DIR *tmp = opendir("/");
+  struct dirent *ent;
+
+  if (! tmp)
+  {
+    iprintf("Unable to open root directory!\n");
     nds_show_console();
 
     return 0;

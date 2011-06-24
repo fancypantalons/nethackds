@@ -52,10 +52,7 @@ typedef struct {
   int row;
   int col;
 
-  int x1;
-  int y1;
-  int x2;
-  int y2;
+  rectangle_t region;
 
   int focused;
   int highlighted;
@@ -178,6 +175,9 @@ static nds_cmd_t wiz_cmdlist[] = {
         {0, NULL}
 };
 
+rectangle_t up_arrow_rect;
+rectangle_t down_arrow_rect;
+
 /* Since this isn't exported anywhere, we duplicate the definition here. */
 
 extern struct Bool_Opt
@@ -243,6 +243,17 @@ int nds_init_cmd()
 {
   int i;
   u16 chord_keys_config, cmd_key_config;
+  rectangle_t up_rect = {
+    .start = { .x = 256 / 2 - up_arrow->width / 2, .y = 0 },
+    .dims = { .width = up_arrow->width, .height = up_arrow->height }
+  };
+  rectangle_t down_rect = {
+    .start = { .x = 256 / 2 - down_arrow->width / 2, .y = 192 - down_arrow->height },
+    .dims = { .width = down_arrow->width, .height = down_arrow->height }
+  };
+
+  up_arrow_rect = up_rect;
+  down_arrow_rect = down_rect;
 
   if (flags.debug) {
     int idx = 0;
@@ -1155,51 +1166,48 @@ void nds_show_keys()
   destroy_nhwindow(win);
 }
 
-int nds_handle_click(int px, int py, int *x, int *y, int *mod)
+int nds_handle_click(coord_t coords, int *x, int *y, int *mod)
 {
-  int mx, my;
+  coord_t map_coords = nds_map_translate_coords(coords);
   int ch;
-
-  nds_map_translate_coords(px, py, &mx, &my);
 
   /* 
    * If the click is somewhere around the user, or we're not in compass
    * mode, pass the click back to the game engine directly.
    */
-  if ( ((ABS(mx - u.ux) <= 1) && (ABS(my - u.uy) <= 1)) ||
+  if ( ((ABS(map_coords.x - u.ux) <= 1) && (ABS(map_coords.y - u.uy) <= 1)) ||
        (iflags.compassmode == 0) ) {
-    *x = mx;
-    *y = my;
+    *x = map_coords.x;
+    *y = map_coords.y;
     *mod = CLICK_1;
 
     ch = 0;
   } else {
-    int tmp_x = px;
-    int tmp_y = py;
+    coord_t tmp_coords = coords;
     int dist;
 
     if (iflags.compassmode == 1) {
-      nds_map_relativize(&tmp_x, &tmp_y);
+      tmp_coords = nds_map_relativize(tmp_coords);
     } else {
-      tmp_x -= 128;
-      tmp_y -= 96;
+      tmp_coords.x -= 128;
+      tmp_coords.y -= 96;
     }
 
-    dist = tmp_x * tmp_x + tmp_y * tmp_y;
+    dist = tmp_coords.x * tmp_coords.x + tmp_coords.y * tmp_coords.y;
 
     /* 
      * Here we take the click location and convert it to a direction key
      * based on a movement compass.
      */
 
-    if (ABS(tmp_x) > 2 * ABS(tmp_y)) {
-      ch = (tmp_x > 0) ? direction_keys[DIR_RIGHT] : direction_keys[DIR_LEFT];
-    } else if (ABS(tmp_y) > 2 * ABS(tmp_x)) {
-      ch = (tmp_y > 0) ? direction_keys[DIR_DOWN] : direction_keys[DIR_UP];
-    } else if (tmp_y > 0) {
-      ch = (tmp_x > 0) ? direction_keys[DIR_DOWN_RIGHT] : direction_keys[DIR_DOWN_LEFT];
+    if (ABS(tmp_coords.x) > 2 * ABS(tmp_coords.y)) {
+      ch = (tmp_coords.x > 0) ? direction_keys[DIR_RIGHT] : direction_keys[DIR_LEFT];
+    } else if (ABS(tmp_coords.y) > 2 * ABS(tmp_coords.x)) {
+      ch = (tmp_coords.y > 0) ? direction_keys[DIR_DOWN] : direction_keys[DIR_UP];
+    } else if (tmp_coords.y > 0) {
+      ch = (tmp_coords.x > 0) ? direction_keys[DIR_DOWN_RIGHT] : direction_keys[DIR_DOWN_LEFT];
     } else {
-      ch = (tmp_x > 0) ? direction_keys[DIR_UP_RIGHT] : direction_keys[DIR_UP_LEFT];
+      ch = (tmp_coords.x > 0) ? direction_keys[DIR_UP_RIGHT] : direction_keys[DIR_UP_LEFT];
     }
 
     if (dist > 1024) {
@@ -1232,41 +1240,36 @@ void nds_render_key_help_string(u16 keys)
   draw_ppm(help_img, vram, 4, 192 - system_font->height * 2, 256);
 }
 
+coord_t _to_map_coords(coord_t coords)
+{
+  coord_t res = { 
+    .x = coords.x / nds_map_tile_width(), 
+    .y = coords.y / nds_map_tile_height()
+  };
+
+  return res;
+}
+
 int nds_get_input(int *x, int *y, int *mod)
 {
   static int chord_pressed = 0;
 
-  int tx, ty, old_tx, old_ty, start_tx, start_ty;
-  int cx, cy;
-
-  touchPosition coords;
+  coord_t coords;
   int held_frames = 0;
   int dragging = 0;
   int held = 0;
   int prev_held = 0;
 
-  /* Set one, initialize these! */
-
   *x = 0;
   *y = 0;
   *mod = 0;
 
-  /* Initialize our own tracking variables */
-  
-  tx = 0;
-  ty = 0;
-  old_tx = 0;
-  old_ty = 0;
-  start_tx = 0;
-  start_ty = 0;
+  int touching = 0, was_touching = 0;
+  coord_t touch_coords;
+  coord_t old_touch_coords;
+  coord_t start_touch_coords;
 
-  cx = -1;
-  cy = -1;
-
-  /* 
-   * If there was characters stuffed in our input buffer, return one from
-   * there, instead.
-   */
+  coord_t map_center = { .x = u.ux, .y = u.uy };
 
   if (input_buffer[0] != 0) {
     int key = input_buffer[0];
@@ -1295,24 +1298,23 @@ int nds_get_input(int *x, int *y, int *mod)
     prev_held = held;
     held = nds_keysHeld();
 
+    was_touching = touching;
+
     scan_touch_screen();
 
-    old_tx = tx;
-    old_ty = ty;
+    old_touch_coords = touch_coords;
 
     if (held & KEY_TOUCH) {
       coords = get_touch_coords();
 
-      tx = coords.px / nds_map_tile_width();
-      ty = coords.py / nds_map_tile_height();
+      touch_coords = _to_map_coords(coords);
 
-      if ((start_tx == 0) && (start_ty == 0)) {
-        start_tx = tx;
-        start_ty = ty;
+      if (! touching) {
+        start_touch_coords = touch_coords;
+        touching = 1;
       }
     } else {
-      tx = 0;
-      ty = 0;
+      touching = 0;
     }
 
     swiWaitForVBlank();
@@ -1355,19 +1357,15 @@ int nds_get_input(int *x, int *y, int *mod)
       case CMD_PAN_LEFT:
       case CMD_PAN_RIGHT:
         {
-          nds_map_get_center(&cx, &cy);
-
           if (key == CMD_PAN_UP) {
-            cy--;
+            map_center.y--;
           } else if (key == CMD_PAN_DOWN) {
-            cy++;
+            map_center.y++;
           } else if (key == CMD_PAN_LEFT) {
-            cx--;
+            map_center.x--;
           } else if (key == CMD_PAN_RIGHT) {
-            cx++;
+            map_center.x++;
           }
-
-          nds_draw_map(windows[WIN_MAP]->map, &cx, &cy);
         }
 
         break;
@@ -1392,46 +1390,34 @@ int nds_get_input(int *x, int *y, int *mod)
         return key;
     }
     
-    if ((tx != 0) && (ty != 0) && (start_tx != 0) && (start_ty != 0) &&
-        ((old_tx != tx) || (old_ty != ty))) {
+    if (touching && (! COORDS_ARE_EQUAL(old_touch_coords, touch_coords))) {
 
-      int diff_x = start_tx - tx;
-      int diff_y = start_ty - ty;
+      coord_t diff = coord_subtract(start_touch_coords, touch_coords);
 
-      if ((ABS(diff_x) > 1) || (ABS(diff_y) > 1)) {
-        int new_cx, new_cy;
-
-        if ((cx < 0) && (cy < 0)) {
-          nds_map_get_center(&cx, &cy);
-        }
-
+      if ((ABS(diff.x) > 1) || (ABS(diff.y) > 1)) {
         dragging = 1;
 
-        new_cx = cx + diff_x;
-        new_cy = cy + diff_y;
-
-        nds_draw_map(windows[WIN_MAP]->map, &new_cx, &new_cy);
+        map_center = coord_add(map_center, diff);
       }
     }
 
-    if (dragging && (tx == 0) && (ty == 0) && (old_tx == 0) && (old_ty == 0)) {
-      start_tx = 0;
-      start_ty = 0;
-      cx = -1;
-      cy = -1;
+    //nds_draw_map(&map_center);
 
+    if (dragging && ! touching && ! was_touching) {
       dragging = 0;
     } else if (dragging) {
       continue;
     }
     
     if (get_tap_coords(&coords)) {
-      return nds_handle_click(coords.px, coords.py, x, y, mod);
+      return nds_handle_click(coords, x, y, mod);
     }
     
     if (held_frames > CLICK_2_FRAMES) {
-      nds_map_translate_coords(coords.px, coords.py, x, y);
+      coords = nds_map_translate_coords(coords);
 
+      *x = coords.x;
+      *y = coords.y;
       *mod = CLICK_2;
 
       return 0;
@@ -1879,15 +1865,15 @@ void nds_render_cmd_pages()
         cur_cmd->col = cmd_x;
         cur_cmd->refresh = 0;
 
-        cur_cmd->x1 = cur_col * cmd_col_width + xoffs;
-        cur_cmd->y1 = cur_row * system_font->height + yoffs;
-        cur_cmd->x2 = cur_cmd->x1 + cmd_col_width;
-        cur_cmd->y2 = cur_cmd->y1 + system_font->height;
+        cur_cmd->region.start.x = cur_col * cmd_col_width + xoffs;
+        cur_cmd->region.start.y = cur_row * system_font->height + yoffs;
+        cur_cmd->region.dims.width = cmd_col_width;
+        cur_cmd->region.dims.height = system_font->height;
 
         clear_ppm(img, MAP_COLOUR(CLR_BLACK));
         draw_string(system_font, cur_cmd->name, img,
                     0, 0, -1, -1);
-        draw_ppm(img, cmd_pages[cur_page], cur_cmd->x1, cur_cmd->y1 - yoffs, 256);
+        draw_ppm(img, cmd_pages[cur_page], cur_cmd->region.start.x, cur_cmd->region.start.y - yoffs, 256);
       }
     }
   }
@@ -1897,13 +1883,12 @@ RENDER_DONE:
   free_ppm(img);
 }
 
-nds_cmd_t *nds_find_command(int x, int y)
+nds_cmd_t *nds_find_command(coord_t coords)
 {
   int i;
 
   for (i = 0; cmdlist[i].name != NULL; i++) {
-    if ((x >= cmdlist[i].x1) && (x <= cmdlist[i].x2) &&
-        (y >= cmdlist[i].y1) && (y <= cmdlist[i].y2) &&
+    if (POINT_IN_RECT(coords, cmdlist[i].region) &&
         (cmdlist[i].page == cmd_cur_page)) {
 
       return &(cmdlist[i]);
@@ -1951,7 +1936,7 @@ void nds_repaint_cmds()
                   fg, bg);
 
       draw_ppm(img, vram, 
-               cmdlist[i].x1, cmdlist[i].y1,
+               cmdlist[i].region.start.x, cmdlist[i].region.start.y,
                256);
     }
 
@@ -1964,30 +1949,18 @@ nds_cmd_t *nds_cmd_loop_check_keys(int pressed, nds_cmd_t *curcmd, int *refresh)
   int row, col;
   nds_cmd_t *newcmd;
 
-  int up_arrow_x1 = 256 / 2 - up_arrow->width / 2;
-  int up_arrow_y1 = 0;
-  int up_arrow_x2 = 256 / 2 + up_arrow->width / 2;
-  int up_arrow_y2 = up_arrow->height;
-
-  int down_arrow_x1 = 256 / 2 - down_arrow->width / 2;
-  int down_arrow_y1 = 192 - down_arrow->height;
-  int down_arrow_x2 = 256 / 2 + down_arrow->width / 2;
-  int down_arrow_y2 = 192;
-
   int key_pressed = (pressed & KEY_DOWN) ||
                     (pressed & KEY_UP) ||
                     (pressed & KEY_LEFT) ||
                     (pressed & KEY_RIGHT);
 
   if ((cmd_page_count > 1) &&
-      touch_released_in(up_arrow_x1, up_arrow_y1, 
-                        up_arrow_x2, up_arrow_y2) && 
+      touch_released_in(up_arrow_rect) && 
       (cmd_cur_page != 0))  {
 
     cmd_cur_page--;
   } else if ((cmd_page_count > 1) &&
-             touch_released_in(down_arrow_x1, down_arrow_y1, 
-                               down_arrow_x2, down_arrow_y2) && 
+             touch_released_in(down_arrow_rect) && 
              (cmd_cur_page < (cmd_page_count - 1)))  {
 
     cmd_cur_page++;
@@ -2066,7 +2039,7 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
   u16 old_bg_cr;
   int held_frames = 0;
 
-  touchPosition coords = { .rawx = 0, .rawy = 0 };
+  coord_t coords = { .x = 0, .y = 0 };
 
   int prev_held = 0;
   int held = 0;
@@ -2097,11 +2070,11 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
     /* If the page has changed, we need to render the new one. */
 
     if (cmd_cur_page != displayed_page) {
-      dmaCopy(cmd_pages[cmd_cur_page], vram + 128 * cmdlist[0].y1, cmd_page_size);
+      dmaCopy(cmd_pages[cmd_cur_page], vram + 128 * cmdlist[0].region.start.y, cmd_page_size);
 
       if (cmd_page_count > 1) {
-        nds_draw_rect(0, 0, 256, up_arrow->height, 254, vram);
-        nds_draw_rect(0, 192 - up_arrow->height, 256, up_arrow->height, 254, vram);
+        nds_draw_rect(up_arrow_rect, 254, vram);
+        nds_draw_rect(down_arrow_rect, 254, vram);
 
         if (cmd_cur_page != 0) {
           draw_ppm(up_arrow, vram, 
@@ -2162,7 +2135,7 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
     }
 
     if (held & KEY_TOUCH) {
-      nds_cmd_t *cmd = nds_find_command(coords.px, coords.py);
+      nds_cmd_t *cmd = nds_find_command(coords);
 
       if (cmd != curcmd) {
         if (curcmd) {
@@ -2221,7 +2194,7 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
         held_frames++;
       }
     } else if (get_tap_coords(&coords)) {
-      nds_cmd_t *cmd = nds_find_command(coords.px, coords.py);
+      nds_cmd_t *cmd = nds_find_command(coords);
 
       refresh = 1;
       held_frames = 0;

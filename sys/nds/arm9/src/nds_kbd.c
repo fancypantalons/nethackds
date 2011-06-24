@@ -279,6 +279,9 @@ u8 kbd_do_one_loop() {
   static u16 last_code; /* The code of the previous key that was pressed */
   static u16 held_code; /* The code of the currently pressed key */
   u16 keys_down = nds_keysDownRepeat(); 
+  touchPosition position;
+
+  touchRead(&position);
 
   if (keys_down & KEY_UP) {
     return K_UP;
@@ -293,8 +296,8 @@ u8 kbd_do_one_loop() {
   last_code = held_code;
 
   if (nds_keysHeld() & KEY_TOUCH) {
-    u16 the_x = IPC->touchXpx;
-    u16 the_y = IPC->touchYpx;
+    u16 the_x = position.px;
+    u16 the_y = position.py;
 
     // get the keycode that corresponds to this key
     u16 keycode = kbd_xy2key(the_x,the_y);
@@ -319,8 +322,8 @@ u8 kbd_do_one_loop() {
   }
 
   if (keys_down & KEY_TOUCH) {
-    u16 the_x = IPC->touchXpx;
-    u16 the_y = IPC->touchYpx;
+    u16 the_x = position.px;
+    u16 the_y = position.py;
 
     // get the keycode that corresponds to this key
     u16 keycode = kbd_xy2key(the_x,the_y);

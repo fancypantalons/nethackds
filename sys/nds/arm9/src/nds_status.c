@@ -25,13 +25,10 @@ void nds_update_status(char *str)
 {
   u16 *vram = (u16 *)BG_BMP_RAM_SUB(4);
   int text_h = system_font->height;
+
+  rectangle_t map_rect = nds_minimap_dims();
   int status_x = 2;
-  int status_y;
-  int mx1, my1, mx2, my2;
-
-  nds_minimap_dims(&mx1, &my1, &mx2, &my2);
-
-  status_y = my2 + 2;
+  int status_y = RECT_END_Y(map_rect) + 2;
 
   if (status_img == NULL) {
     status_img = alloc_ppm(256, system_font->height);

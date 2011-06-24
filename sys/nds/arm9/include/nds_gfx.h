@@ -3,6 +3,14 @@
 
 #include "bmp.h"
 #include "font-bdf.h"
+#include "nds_util.h"
+
+#define SET_PIXEL(buffer, x, y, colour) \
+  ( \
+    ((x & 1) == 0) \
+    ? (dest[(y * 128) + (x / 2)] = ((dest[(y * 128) + (x / 2)]) & 0xFF00) | (colour & 0xFF)) \
+    : (dest[(y * 128) + (x / 2)] = ((dest[(y * 128) + (x / 2)]) & 0x00FF) | ((colour & 0xFF) << 8)) \
+  )
 
 typedef u16 nds_palette[16];
 
@@ -12,8 +20,8 @@ typedef u16 nds_palette[16];
 
 void nds_draw_hline(int x, int y, int width, u16 colour, u16 *dest);
 void nds_draw_vline(int x, int y, int height, u16 colour, u16 *dest);
-void nds_draw_rect(int x, int y, int width, int height, u16 colour, u16 *dest);
-void nds_draw_rect_outline(int x, int y, int width, int height, u8 fill_colour, u8 line_colour, u16 *dest);
+void nds_draw_rect(rectangle_t rect, u16 colour, u16 *dest);
+void nds_draw_rect_outline(rectangle_t rect, u16 colour, u16 *dest);
 
 void nds_draw_text(struct font *fnt, 
                    char *str,

@@ -30,21 +30,18 @@
 
 #define MINIMAP_X               4
 
-#define NDS_LOAD_TILE(tileidx, glyph, x, y) ((TILE_FILE == NULL) ? nds_load_text_tile(tileidx, glyph, x, y) : nds_load_graphics_tile(tileidx, glyph, x, y))
+#define NDS_LOAD_TILE(tile_idx, coords) ((TILE_FILE == NULL) ? nds_load_text_tile(tile_idx, coords) : nds_load_graphics_tile(tile_idx, coords))
 #define NDS_INIT_MAP(pal, pallen) ((TILE_FILE == NULL) ? nds_init_text_map(pal, pallen) : nds_init_tiled_map(pal, pallen))
 
 #define ROUND_UP(val) ( (((val) & 0x07) == 0) ? (val) : (((val / 8) + 1) * 8) )
 
 #define c2(a,i)		(RGB15((a[i+2]>>3),(a[i+1]>>3),(a[i]>>3)))
 
-typedef struct {
-  int glyph;
-  int tile;
-  int ch;
-  int colour;
-  int special;
-  long last_used;     /* This is in game time (moves)          */
-} tile_cache_entry_t;
+#define CACHE_SLOT_TO_TILE_INDEX(c) ((c + 1) * tile_width_in_tiles * tile_height_in_tiles)
+
+/* The map */
+
+nds_map_t *map;
 
 /* Tile-based graphics specific variables */
 
@@ -52,6 +49,8 @@ bmp_t tiles;
 
 int width_in_tiles;
 int height_in_tiles;
+int tile_width_in_tiles, tile_height_in_tiles;
+int tile_width_in_px, tile_height_in_px;
 
 /* Text-based graphics variables */
 
@@ -65,22 +64,12 @@ int font_char_h;
 u16 *tile_ram = (u16 *)BG_TILE_RAM(6);
 u16 *map_ram = (u16 *)BG_MAP_RAM(8);
 
-tile_cache_entry_t *tile_cache;
-int num_cache_entries;
+rectangle_t map_dimensions = {
+  .start = { .x = 0, .y = 0 },
+  .dims = { .width = COLNO, .height = ROWNO }
+};
 
-int tile_width;
-int tile_height;
-
-int map_width;
-int map_height;
-
-int cx, cy;
 int pet_count;
-
-/* Sprite-specific variables (for tile mode) */
-
-u16 *oam_ram = OAM;
-OAMTable oam_shadow;
 
 /*
  * Initialize our tile cache.
@@ -89,31 +78,32 @@ void nds_init_tile_cache()
 {
   int i;
 
-  num_cache_entries = (MAX_TILE_SLOTS - 1) / (tile_width * tile_height);
+  map->num_cache_entries = (MAX_TILE_SLOTS - 1) / (tile_width_in_tiles * tile_height_in_tiles);
 
-  tile_cache = (tile_cache_entry_t *)malloc(sizeof(tile_cache_entry_t) * num_cache_entries);
+  map->tile_cache = (tile_cache_entry_t *)malloc(sizeof(tile_cache_entry_t) * map->num_cache_entries);
 
-  for (i = 0; i < num_cache_entries; i++) {
-    tile_cache[i].glyph = -1;
+  for (i = 0; i < map->num_cache_entries; i++) {
+    map->tile_cache[i].glyph = -1;
   }
 }
 
 /*
  * Returns the cache slot number for the given glyph, if one exists.
  */
-int nds_find_cache_slot(int glyph, int gx, int gy)
+int nds_find_cache_slot(coord_t coords)
 {
+  int glyph = map->glyphs[coords.y][coords.x];
   int i;
   int ch, colour;
   unsigned int special;
   int tile = glyph2tile[glyph];
 
-  mapglyph(glyph, &ch, &colour, &special, gx, gy);
+  mapglyph(glyph, &ch, &colour, &special, coords.x, coords.y);
 
-  for (i = 0; i < num_cache_entries; i++) {
-    if ((tile_cache[i].glyph == glyph) && (tile_cache[i].colour == colour) && 
-        (tile_cache[i].special == special) && (tile_cache[i].ch == ch) &&
-        (tile_cache[i].tile == tile)) {
+  for (i = 0; i < map->num_cache_entries; i++) {
+    if ((map->tile_cache[i].glyph == glyph) && (map->tile_cache[i].colour == colour) && 
+        (map->tile_cache[i].special == special) && (map->tile_cache[i].ch == ch) &&
+        (map->tile_cache[i].tile == tile)) {
       return i;
     }
   }
@@ -125,8 +115,9 @@ int nds_find_cache_slot(int glyph, int gx, int gy)
  * Allocate a cache slot for the given glyph.  Note, this may evict an entry
  * if the cache is full.
  */
-int nds_allocate_cache_slot(int glyph, int gx, int gy)
-{
+int nds_allocate_cache_slot(coord_t coords)
+{ 
+  int glyph = map->glyphs[coords.y][coords.x];
   int cache_slot = -1;
   int i;
 
@@ -136,18 +127,18 @@ int nds_allocate_cache_slot(int glyph, int gx, int gy)
   int ch, colour;
   unsigned int special;
 
-  for (i = 0; i < num_cache_entries; i++) {
+  for (i = 0; i < map->num_cache_entries; i++) {
     int diff;
 
-    if (tile_cache[i].glyph < 0) {
+    if (map->tile_cache[i].glyph < 0) {
       cache_slot = i;
 
       break;
-    } else if (tile_cache[i].last_used < 0) {
+    } else if (map->tile_cache[i].last_used < 0) {
       continue;
     }
 
-    diff = moves - tile_cache[i].last_used;
+    diff = moves - map->tile_cache[i].last_used;
 
     if (diff > oldest_diff) {
       oldest = i;
@@ -159,13 +150,13 @@ int nds_allocate_cache_slot(int glyph, int gx, int gy)
     cache_slot = oldest;
   }
 
-  mapglyph(glyph, &ch, &colour, &special, gx, gy);
+  mapglyph(glyph, &ch, &colour, &special, coords.x, coords.y);
 
-  tile_cache[cache_slot].glyph = glyph;
-  tile_cache[cache_slot].colour = colour;
-  tile_cache[cache_slot].special = special;
-  tile_cache[cache_slot].ch = ch;
-  tile_cache[cache_slot].tile = glyph2tile[glyph];
+  map->tile_cache[cache_slot].glyph = glyph;
+  map->tile_cache[cache_slot].colour = colour;
+  map->tile_cache[cache_slot].special = special;
+  map->tile_cache[cache_slot].ch = ch;
+  map->tile_cache[cache_slot].tile = glyph2tile[glyph];
 
   return cache_slot;
 }
@@ -175,8 +166,9 @@ int nds_allocate_cache_slot(int glyph, int gx, int gy)
  * case of tiles with a width or height larger than 8 pixels, this will result
  * in multiple tile positions being occupied in video RAM.
  */
-void nds_load_graphics_tile(int tile_idx, int glyph, int gx, int gy) 
+void nds_load_graphics_tile(int tile_idx, coord_t coords) 
 {
+  int glyph = map->glyphs[coords.y][coords.x];
   int i, j, x;
   int width, height, bpp, row_bytes;
   int bmp_tile_x, bmp_tile_y;
@@ -197,7 +189,7 @@ void nds_load_graphics_tile(int tile_idx, int glyph, int gx, int gy)
    * ends up being bpp.
    */
 
-  row_bytes = tile_width * bpp;
+  row_bytes = tile_width_in_tiles * bpp;
 
   /* Now calculate the pointer which points to the start of the BMP row */
 
@@ -208,12 +200,12 @@ void nds_load_graphics_tile(int tile_idx, int glyph, int gx, int gy)
                   bmp_tile_y * TILE_HEIGHT * width_in_tiles * row_bytes - 
                   bmp_tile_x * row_bytes ;
 
-  for (j = 0; j < tile_height; j++) {
+  for (j = 0; j < tile_height_in_tiles; j++) {
     int y;
 
     for (y = 0; y < 8; y++) {
-      for (i = 0; i < tile_width; i++) {
-        tile_row_start = tile_ram + (tile_idx + j * tile_width + i) * bpp * 8 / 2 + y * bpp / 2; 
+      for (i = 0; i < tile_width_in_tiles; i++) {
+        tile_row_start = tile_ram + (tile_idx + j * tile_width_in_tiles + i) * bpp * 8 / 2 + y * bpp / 2; 
 
         /* Again, this works because 8 * (bpp / 8) == bpp */
 
@@ -242,8 +234,9 @@ void nds_load_graphics_tile(int tile_idx, int glyph, int gx, int gy)
 /*
  * Render the glyph into a tile.
  */
-void nds_load_text_tile(int tile_idx, int glyph, int gx, int gy) 
+void nds_load_text_tile(int tile_idx, coord_t coords) 
 {
+  int glyph = map->glyphs[coords.y][coords.x];
   int ch, color;
   unsigned int special;
   char tmp[BUFSZ];
@@ -254,7 +247,7 @@ void nds_load_text_tile(int tile_idx, int glyph, int gx, int gy)
 
   /* Alright, now convert the glyph to a character */
 
-  mapglyph(glyph, &ch, &color, &special, gx, gy);
+  mapglyph(glyph, &ch, &color, &special, coords.x, coords.y);
 
   /* Mmm... hacky... */
 
@@ -284,11 +277,11 @@ void nds_load_text_tile(int tile_idx, int glyph, int gx, int gy)
   /* Now copy the contents of the PPM to tile RAM */
 
   for (y = 0; y < text_img->height; y++) {
-    for (tile_x = 0; tile_x < tile_width; tile_x++) {
+    for (tile_x = 0; tile_x < tile_width_in_tiles; tile_x++) {
       int tile_y = y & 0xF0;
       int tile_row = y & 0x0F;
       u16 *row_ptr = tile_ptr + 
-                     ((tile_y * tile_width + tile_x) * 64 +
+                     ((tile_y * tile_width_in_tiles + tile_x) * 64 +
                       tile_row * 8) / 2;
 
       for (i = 0; i < 4; i++, img_data += 2) {
@@ -302,27 +295,32 @@ void nds_load_text_tile(int tile_idx, int glyph, int gx, int gy)
   }
 }
 
-int nds_load_tile(int glyph, int gx, int gy)
+int nds_load_tile(coord_t coords)
 {
   int cache_slot;
+  int tile_idx;
 
-  if ((cache_slot = nds_find_cache_slot(glyph, gx, gy)) < 0) {
-    cache_slot = nds_allocate_cache_slot(glyph, gx, gy);
+  if ((cache_slot = nds_find_cache_slot(coords)) < 0) {
+    cache_slot = nds_allocate_cache_slot(coords);
+    tile_idx = CACHE_SLOT_TO_TILE_INDEX(cache_slot);
 
-    NDS_LOAD_TILE((cache_slot + 1) * (tile_width * tile_height), glyph, gx, gy);
+    NDS_LOAD_TILE(tile_idx, coords);
+  } else {
+    tile_idx = CACHE_SLOT_TO_TILE_INDEX(cache_slot);
   }
 
-  tile_cache[cache_slot].last_used = moves;
+  map->tile_cache[cache_slot].last_used = moves;
 
-  return (cache_slot + 1) * (tile_width * tile_height);
+  return tile_idx;
 }
 
 /*
  * Plot the specified tile to the map.  Note, this represents the tile index
  * as present in the BMP file, *not* the tile RAM index.
  */
-void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
+void nds_draw_tile(coord_t coords)
 {
+  int glyph = map->glyphs[coords.y][coords.x];
   int midx, tidx;
   int i, j;
   int palette;
@@ -330,7 +328,7 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
   if (glyph < 0) {
     tidx = 0x0000;
   } else {
-    tidx = nds_load_tile(glyph, gx, gy);
+    tidx = nds_load_tile(coords);
   }
 
   /*
@@ -350,11 +348,11 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
   if (TILE_FILE == NULL) {
     switch (iflags.cursor) {
       case 0:
-        palette = ((gx == map->cx) && (gy == map->cy)) ? 3 : 2;
+        palette = COORDS_ARE_EQUAL(coords, map->cursor) ? 3 : 2;
         break;
 
       case 1:
-        palette = (((gx != u.ux) || (gy != u.uy)) && (gx == map->cx) && (gy == map->cy)) ? 3 : 2;
+        palette = (((coords.x != u.ux) || (coords.y != u.uy)) && COORDS_ARE_EQUAL(coords, map->cursor)) ? 3 : 2;
         break;
 
       case 2:
@@ -368,10 +366,12 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
     palette = 2;
   }
 
-  midx = (y * tile_height) * 32 + x * tile_width;
+  coord_t screen_tile_coords = coord_subtract(coords, map->viewport.start);
 
-  for (j = 0; j < tile_height; j++, midx += 32) {
-    for (i = 0; i < tile_width; i++) {
+  midx = screen_tile_coords.y * tile_height_in_tiles * 32 + screen_tile_coords.x * tile_width_in_tiles;
+
+  for (j = 0; j < tile_height_in_tiles; j++, midx += 32) {
+    for (i = 0; i < tile_width_in_tiles; i++) {
       map_ram[midx + i] = tidx | (palette << 12); 
 
       if (tidx > 0) {
@@ -388,13 +388,15 @@ void nds_draw_tile(nds_map_t *map, int glyph, int x, int y, int gx, int gy)
     int ch, color;
     unsigned int special;
 
-    mapglyph(glyph, &ch, &color, &special, gx, gy);
+    mapglyph(glyph, &ch, &color, &special, coords.x, coords.y);
 
+    /*
     if (special & MG_PET) {
-      oam_shadow.oamBuffer[++pet_count].x = x * TILE_WIDTH;
-      oam_shadow.oamBuffer[pet_count].y = y * TILE_HEIGHT;
+      oam_shadow.oamBuffer[++pet_count].x = x * tile_width_px;
+      oam_shadow.oamBuffer[pet_count].y = y * tile_height_px;
       oam_shadow.oamBuffer[pet_count].isHidden = 0;
     }
+    */
   }
 }
 
@@ -406,8 +408,11 @@ int nds_init_tiled_map(u16 *palette, int *pallen)
   char *fname = TILE_FILE;
   int i;
 
-  tile_width = TILE_WIDTH / 8;
-  tile_height = TILE_HEIGHT / 8;
+  tile_width_in_px = TILE_WIDTH;
+  tile_width_in_tiles = TILE_WIDTH / 8;
+
+  tile_height_in_px = TILE_HEIGHT;
+  tile_height_in_tiles = TILE_HEIGHT / 8;
 
   /* Now load the tiles into memory */
 
@@ -417,8 +422,8 @@ int nds_init_tiled_map(u16 *palette, int *pallen)
 
   /* Compute the width and height of our image, in tiles */
 
-  width_in_tiles = bmp_width(&tiles) / TILE_WIDTH;
-  height_in_tiles = bmp_height(&tiles) / TILE_HEIGHT;
+  width_in_tiles = bmp_width(&tiles) / tile_width_in_px;
+  height_in_tiles = bmp_height(&tiles) / tile_height_in_px;
 
   /* Alright, file loaded, let's copy over the palette */
 
@@ -471,170 +476,146 @@ int nds_init_text_map(u16 *palette, int *pallen)
 
   text_img = alloc_ppm(img_w, img_h);
 
-  tile_width = img_w / 8;
-  tile_height = img_h / 8;
+  tile_width_in_px = img_w;
+  tile_width_in_tiles = img_w / 8;
+
+  tile_height_in_px = img_h;
+  tile_height_in_tiles = img_h / 8;
 
   /* Lastly, create out "blank" tile */
 
-  for (i = 0; i < tile_width * tile_height * 32; i++) {
+  for (i = 0; i < tile_width_in_tiles * tile_height_in_tiles * 32; i++) {
     tile_ram[i] = 0x0101;
   }
 
   return 8;
 }
 
+/*
+ * Get the user sprite set up and drawn.
+ */
 void nds_clear_sprites()
 {
   int i;
 
-  for (i = 0; i < 128; i++) {
-    oam_shadow.oamBuffer[i].isHidden = 1;
+  for (i = 0; i < map->sprite_count; i++) {
+    map->sprites[i].hidden = true;
   }
 }
 
-/*
- * Get the user sprite set up and drawn.
- */
-void nds_draw_graphics_cursor(int x, int y)
+void nds_draw_sprites()
 {
-  if ((x < 0) || (y < 0) || (x > map_width) || (y > map_height) ||
-      (! iflags.cursor)) {
+  int i;
+
+  for (i = 0; i < map->sprite_count; i++) {
+    sprite_t *sprite = &(map->sprites[i]);
+
+    oamSet(
+      &oamMain,                // Video subsystem to use
+      sprite->index,           // The index of the allocate sprite
+      sprite->coords.x,        // Our coordinates
+      sprite->coords.y,            
+      2,                       // Sprite priority
+      0,                       // Alpha value for sprite
+      SpriteSize_64x64,        // Obviously the size
+      SpriteColorFormat_Bmp,   // and format
+      sprite->gfx,             // Pointer to our graphics memory
+      0,                       // Rotation index
+      false,                   // Don't double size of rotated sprites
+      sprite->hidden,          // Whether or not this sprite is hidden
+      false, false,            // Horizontal and vertical flip
+      false                    // Mosaic
+    );
+  }
+
+  oamUpdate(&oamMain);
+}
+
+void nds_set_graphics_cursor(coord_t coords)
+{
+  if (! POINT_IN_RECT(coords, map->viewport) ||
+      ! iflags.cursor) {
 
     return;
   } 
 
-  oam_shadow.oamBuffer[0].x = x * TILE_WIDTH;
-  oam_shadow.oamBuffer[0].y = y * TILE_HEIGHT;
-  oam_shadow.oamBuffer[0].isHidden = 0;
+  map->sprites[0].coords = coords;
+  map->sprites[0].hidden = false;
 }
 
-void nds_render_sprite(int bpp, int spr_size, int spr_num, int colour)
+void nds_highlight_tile(coord_t coords)
 {
-  u16 *spr_gfx_ram = SPRITE_GFX;
+  if (! POINT_IN_RECT(coords, map->viewport)) {
+    return;
+  } 
+
+  map->sprites[1].coords = coords;
+  map->sprites[1].hidden = false;
+}
+
+void nds_clear_highlight(int x, int y)
+{
+  map->sprites[1].hidden = true;
+}
+
+void nds_render_cursor(int sprite_num, int r, int g, int b)
+{
+  map->sprites[sprite_num].gfx = oamAllocateGfx(&oamMain, SpriteSize_64x64, SpriteColorFormat_Bmp);
+  map->sprites[sprite_num].index = map->sprite_count++;
+
   int x, y;
 
-  spr_gfx_ram += (spr_size * spr_size * bpp * 8 / 2) * spr_num;
-
-  for (y = 0; y < TILE_HEIGHT; y++) {
-    for (x = 0; x < TILE_WIDTH; x++) {
-      int tidx;
-      u16 *tptr;
-
-      int tx = x & 0x07;
-      int ty = y & 0x07;
-
-      if ((x != 0) && (x != (TILE_WIDTH - 1)) && 
-          (y != 0) && (y != (TILE_HEIGHT - 1))) {
+  for (y = 0; y < tile_height_in_px; y++) {
+    for (x = 0; x < tile_width_in_px; x++) {
+      if ((x != 0) && (x != (tile_width_in_px - 1)) && 
+          (y != 0) && (y != (tile_height_in_px - 1))) {
         continue;
       }
 
-      if ( ((x == 0) || (x == (TILE_WIDTH - 1))) &&
-           ((y > 2) && (y < (TILE_HEIGHT - 3))) ) {
+      if ( ((x == 0) || (x == (tile_width_in_px - 1))) &&
+           ((y > 2) && (y < (tile_height_in_px - 3))) ) {
         continue;
       }
 
-      if ( ((y == 0) || (y == (TILE_HEIGHT - 1))) &&
-           ((x > 2) && (x < (TILE_WIDTH - 3))) ) {
+      if ( ((y == 0) || (y == (tile_width_in_px - 1))) &&
+           ((x > 2) && (x < (tile_height_in_px - 3))) ) {
         continue;
       }
 
-      tidx = (y / 8) * spr_size + x / 8;
-      tptr = spr_gfx_ram + (tidx * bpp * 8) / 2 + ((ty * 8 + tx) / (8 / bpp)) / 2;
+      u16 *tptr = map->sprites[sprite_num].gfx + y * 64 + x;
 
-      switch (bpp) {
-        case 4:
-          *tptr |= colour << ((x & 3) << 2);
+      *tptr = ARGB16(1, r, g, b);
+    }
+  }
+}
 
-          break;
+void nds_render_highlighter(int sprite_num, int r, int g, int b)
+{
+  map->sprites[sprite_num].gfx = oamAllocateGfx(&oamMain, SpriteSize_64x64, SpriteColorFormat_Bmp);
+  map->sprites[sprite_num].index = map->sprite_count++;
 
-        case 8:
-          *tptr |= colour << ((x & 1) << 3);
+  int x, y;
 
-          break;
+  for (y = 0; y < tile_height_in_px; y++) {
+    for (x = 0; x < tile_width_in_px; x++) {
+      u16 *tptr = map->sprites[sprite_num].gfx + y * 64 + x;
 
-        default:
-          break;
-      }
+      *tptr = ARGB16(1, r, g, b);
     }
   }
 }
 
 void nds_init_sprite(int bpp)
 {
-  int dim = (TILE_WIDTH > TILE_HEIGHT) ? TILE_WIDTH : TILE_HEIGHT;
-  u16 *spr_palette = SPRITE_PALETTE;
-  int i;
-  int spr_size;
+  /* First, initialize the sprite subsystem */
 
-  /* First thing's f'ing last, let's disable all sprites */
-
-  for (i = 0; i < 128; i++) {
-    switch (dim) {
-      case 8:
-        oam_shadow.oamBuffer[i].size = OBJSIZE_8;
-        spr_size = 1;
-        break;
-
-      case 16:
-        oam_shadow.oamBuffer[i].size = OBJSIZE_16;
-        spr_size = 2;
-        break;
-
-      case 24:
-      case 32:
-        oam_shadow.oamBuffer[i].size = OBJSIZE_32;
-        spr_size = 4;
-        break;
-
-      case 48:
-      case 64:
-        oam_shadow.oamBuffer[i].size = OBJSIZE_64;
-        spr_size = 8;
-        break;
-
-      default:
-        break;
-    }
-
-    switch (bpp) {
-      case 4:
-        oam_shadow.oamBuffer[i].colorMode = OBJCOLOR_16;
-        break;
-
-      case 8:
-        oam_shadow.oamBuffer[i].colorMode = OBJCOLOR_256;
-        break;
-
-      default:
-        break;
-    }
-
-    oam_shadow.oamBuffer[i].isHidden = 1;
-    oam_shadow.oamBuffer[i].isRotateScale = 0;
-    oam_shadow.oamBuffer[i].isSizeDouble = 0;
-    oam_shadow.oamBuffer[i].blendMode = OBJMODE_BLENDED;
-    oam_shadow.oamBuffer[i].isMosaic = 0;
-    oam_shadow.oamBuffer[i].shape = OBJSHAPE_SQUARE;
-
-    oam_shadow.oamBuffer[i].x = 0;
-    oam_shadow.oamBuffer[i].y = 0;
-    oam_shadow.oamBuffer[i].priority = OBJPRIORITY_3;
-    oam_shadow.oamBuffer[i].palette = 0;
-
-    if (i == 0) {
-      oam_shadow.oamBuffer[i].gfxIndex = spr_size * spr_size * (bpp / 4);
-    } else {
-      oam_shadow.oamBuffer[i].gfxIndex = (spr_size * spr_size * (bpp / 4)) * 2;
-    }
-  }
+  oamInit(&oamMain, SpriteMapping_Bmp_2D_256, false);
   
   /* Let's draw our highlight thinger */
 
-  spr_palette[1] = RGB15(31, 31, 31);
-  spr_palette[2] = RGB15(0, 31, 0);
-
-  nds_render_sprite(bpp, spr_size, 1, 1);
-  nds_render_sprite(bpp, spr_size, 2, 2);
+  nds_render_cursor(0, 63, 63, 63);
+  //nds_render_cursor(1, 31, 0, 0);
+  nds_render_highlighter(1, 0, 0, 63);
 }
 
 /*
@@ -646,12 +627,14 @@ void nds_init_sprite(int bpp)
 int nds_init_map()
 {
   u16 *palette;
-  int i;
-  u16 blend_dst;
+  int i, x, y;
 
   int bpp;
   u16 palette_data[512];
   int palette_length;
+
+  map = (nds_map_t *)malloc(sizeof(nds_map_t));
+  memset(map, 0, sizeof(nds_map_t));
 
   /* 
    * Alright, load the tile file or font data, depending on the rendering
@@ -664,10 +647,16 @@ int nds_init_map()
 
   /* Initialize the data we need to manage the map and tiles */
 
-  map_width = 32 / tile_width;
-  map_height = 24 / tile_height;
+  for (y = 0; y < ROWNO; y++) {
+    for (x = 0; x < COLNO; x++) {
+      map->glyphs[y][x] = -1;
+    }
+  }
 
   nds_init_tile_cache();
+
+  map->viewport.dims.width = 32 / tile_width_in_tiles; 
+  map->viewport.dims.height = 24 / tile_height_in_tiles;
 
   /* Now initialize our graphics layer */
 
@@ -682,8 +671,6 @@ int nds_init_map()
       REG_BG1CNT = BG_32x32 | MAP_BASE | TILE_BASE | BG_COLOR_16 | BG_PRIORITY_3; 
       REG_DISPCNT |= DISPLAY_BG1_ACTIVE;
 
-      blend_dst = BLEND_DST_BG1;
-
       palette = (u16 *)BG_PALETTE + MAP_PALETTE_BASE;
       break;
 
@@ -696,8 +683,6 @@ int nds_init_map()
       REG_BG3PC = 0;
       REG_BG3PD = 1 << 8;
 
-      blend_dst = BLEND_DST_BG3;
-
       vramSetBankE(VRAM_E_LCD);
       palette = VRAM_E_EXT_PALETTE[3][2];
 
@@ -708,9 +693,6 @@ int nds_init_map()
 
       return -1;
   }
-
-  REG_BLDCNT = BLEND_ALPHA | BLEND_SRC_SPRITE | blend_dst;
-  REG_BLDALPHA = 0x0010;
 
   /* Alright, time to copy over the palette data. */
 
@@ -724,11 +706,14 @@ int nds_init_map()
     vramSetBankE(VRAM_E_BG_EXT_PALETTE);
   }
 
-  if (TILE_FILE != NULL) {
-    nds_init_sprite(bpp);
-  }
+  nds_init_sprite(bpp);
 
   return 0;
+}
+
+nds_map_t *nds_get_map()
+{
+  return map;
 }
 
 void nds_clear_map()
@@ -736,33 +721,32 @@ void nds_clear_map()
   memset(map_ram, 0, 32 * 24 * 2);
 }
 
-void nds_minimap_dims(int *x, int *y, int *x2, int *y2)
+rectangle_t nds_minimap_dims()
 {
   int minimap_x = MINIMAP_X;
   int minimap_y = system_font->height + 2;
+  rectangle_t res;
 
-  /* Clear the edges of the map */
+  res.start.x = minimap_x - 1;
+  res.start.y = minimap_y - 1;
+  res.dims.width = COLNO * 2 + 1;
+  res.dims.height = ROWNO * 2 + 1;
 
-  *x = minimap_x - 1;
-  *y = minimap_y - 1;
-  *x2 = minimap_x + COLNO * 2;
-  *y2 = minimap_y + ROWNO * 2;
+  return res;
 }
 
-void nds_draw_minimap(nds_map_t *map)
+void nds_draw_minimap()
 {
   u16 *sub_vram = (u16 *)BG_BMP_RAM_SUB(4);
   int x, y;
+  rectangle_t dims = nds_minimap_dims();
+
   int rx1, ry1, rx2, ry2;
-  int bx1, by1, bx2, by2;
 
-  nds_minimap_dims(&rx1, &ry1, &rx2, &ry2);
-
-  nds_draw_hline(rx1, ry1, COLNO * 2 + 1, 0, sub_vram);
-  nds_draw_hline(rx1, ry2, COLNO * 2 + 1, 0, sub_vram);
-
-  nds_draw_vline(rx1, ry1, ROWNO * 2 + 1, 0, sub_vram);
-  nds_draw_vline(rx2, ry1, ROWNO * 2 + 1, 0, sub_vram);
+  rx1 = dims.start.x;
+  ry1 = dims.start.y;
+  rx2 = RECT_END_X(dims);
+  ry2 = RECT_END_Y(dims);
 
   for (y = 0; y < ROWNO; y++) {
     for (x = 0; x < COLNO; x++) {
@@ -803,145 +787,142 @@ void nds_draw_minimap(nds_map_t *map)
     }
   }
 
-  bx1 = cx * 2 - map_width + rx1;
-  bx2 = cx * 2 + map_width + rx1 + 1;
+  nds_draw_rect_outline(dims, C_MAPBORDER, sub_vram);
 
-  by1 = cy * 2 - map_height + ry1;
-  by2 = cy * 2 + map_height + ry1 + 1;
+  int width = map->viewport.dims.width;
+  int height = map->viewport.dims.height;
 
-  nds_draw_hline(bx1, by1, map_width * 2 + 1, C_VISBORDER, sub_vram);
-  nds_draw_hline(bx1, by2, map_width * 2 + 1, C_VISBORDER, sub_vram);
-  nds_draw_vline(bx1, by1, map_height * 2 + 1, C_VISBORDER, sub_vram);
-  nds_draw_vline(bx2, by1, map_height * 2 + 1, C_VISBORDER, sub_vram);
+  rectangle_t visible_rect = {
+    .start = { .x = map->center.x * 2 - width + rx1, .y = map->center.y * 2 - height + ry1 },
+    .dims = { .width = width * 2 + 1, .height = height * 2 + 1 }
+  };
+
+  nds_draw_rect_outline(visible_rect, C_VISBORDER, sub_vram);
 }
 
 void nds_clear_minimap()
 {
   u16 *sub_vram = (u16 *)BG_BMP_RAM_SUB(4);
   int x, y;
-  int rx1, rx2, ry1, ry2;
-
-  nds_minimap_dims(&rx1, &ry1, &rx2, &ry2);
+  rectangle_t map_rect = nds_minimap_dims();
 
   for (y = 0; y < ROWNO; y++) {
     for (x = 0; x < COLNO; x++) {
-      sub_vram[(y + ry1 + 1) * 256 + x + rx1 + 1] = 0x0000;
-      sub_vram[(y + ry1 + 1) * 256 + x + rx1 + 1 + 128] = 0x0000;
+      sub_vram[(y + map_rect.start.y + 1) * 256 + x + map_rect.start.x + 1] = 0x0000;
+      sub_vram[(y + map_rect.start.y + 1) * 256 + x + map_rect.start.x + 1 + 128] = 0x0000;
     }
   }
 
-  nds_draw_hline(rx1 - 1, ry1 - 1, COLNO * 2 + 3, C_MAPBORDER, sub_vram);
-  nds_draw_hline(rx1 - 1, ry2 + 1, COLNO * 2 + 3, C_MAPBORDER, sub_vram);
+  nds_draw_hline(map_rect.start.x - 1, map_rect.start.y - 1, COLNO * 2 + 3, C_MAPBORDER, sub_vram);
+  nds_draw_hline(map_rect.start.x - 1, RECT_END_Y(map_rect) + 1, COLNO * 2 + 3, C_MAPBORDER, sub_vram);
 
-  nds_draw_vline(rx1 - 1, ry1 - 1, ROWNO * 2 + 3, C_MAPBORDER, sub_vram);
-  nds_draw_vline(rx2 + 2, ry1 - 1, ROWNO * 2 + 3, C_MAPBORDER, sub_vram);
+  nds_draw_vline(map_rect.start.x - 1, map_rect.start.y - 1, ROWNO * 2 + 3, C_MAPBORDER, sub_vram);
+  nds_draw_vline(RECT_END_X(map_rect) + 2, map_rect.start.y - 1, ROWNO * 2 + 3, C_MAPBORDER, sub_vram);
 }
 
-void nds_draw_map(nds_map_t *map, int *xp, int *yp)
+void nds_draw_map(coord_t *center)
 {
-  int sx, sy;
-
   swiWaitForVBlank();
 
-  if (xp == NULL) {
-    cx = u.ux;
-  } else {
-    cx = *xp;
+  if (center != NULL) {
+    nds_map_set_center(*center);
   }
-  
-  if (yp == NULL) {
-    cy = u.uy;
-  } else {
-    cy = *yp;
-  }
-
-  if ((cx + map_width / 2) > COLNO) {
-    cx = COLNO - map_width / 2;
-  } else if ((cx - map_width / 2) < 0) {
-    cx = map_width / 2;
-  }
-
-  if ((cy + map_height / 2) > ROWNO) {
-    cy = ROWNO - map_height / 2;
-  } else if ((cy - map_height / 2) < 0) {
-    cy = map_height / 2;
-  }
-
-  sx = cx - map_width / 2;
-  sy = cy - map_height / 2;
 
   pet_count = 0;
+
+  nds_clear_sprites();
 
   if (map != NULL) {
     int x, y;
 
-    if (TILE_FILE != NULL) {
-      nds_clear_sprites();
-    } 
+    for (y = map->viewport.start.y; y < RECT_END_Y(map->viewport); y++) {
+      for (x = map->viewport.start.x; x < RECT_END_X(map->viewport); x++) {
+        coord_t cur = { .x = x, .y = y };
 
-    for (y = 0; y < map_height; y++) {
-      for (x = 0; x < map_width; x++) {
-        if (((sx + x) < 0) || ((sx + x) >= COLNO) ||
-            ((sy + y) < 0) || ((sy + y) >= ROWNO)) {
-          nds_draw_tile(map, -1, x, y, sx + x, sy + y);
-        } else {
-          nds_draw_tile(map, map->glyphs[sy + y][sx + x], x, y, sx + x, sy + y);
-        }
+        nds_draw_tile(cur);
       }
     }
 
     if (TILE_FILE != NULL) {
-      nds_draw_graphics_cursor(map->cx - sx, map->cy - sy);
+      nds_set_graphics_cursor(map->cursor);
     }
 
     nds_draw_minimap(map);
   } else {
-    nds_draw_graphics_cursor(-1, -1);
-
     nds_clear_map();
     nds_clear_minimap();
   }
 
-  DC_FlushAll();
-  dmaCopy(&oam_shadow, oam_ram, sizeof(oam_shadow));
+  nds_draw_sprites();
 }
 
-void nds_map_translate_coords(int x, int y, int *tx, int *ty)
+coord_t nds_map_translate_coords(coord_t coords)
 {
-  int sx = cx - map_width / 2;
-  int sy = cy - map_height / 2;
+  coord_t res = {
+    .x = map->viewport.start.x + coords.x / tile_width_in_px,
+    .y = map->viewport.start.y + coords.y / tile_height_in_px
+  };
 
-  *tx = sx + x / (tile_width * 8);
-  *ty = sy + y / (tile_height * 8);
+  return res;
 }
 
 int nds_map_tile_width()
 {
-  return tile_width * 8;
+  return tile_width_in_px;
 }
 
 int nds_map_tile_height()
 {
-  return tile_height * 8;
+  return tile_height_in_px;
 }
 
-void nds_map_get_center(int *xp, int *yp)
+coord_t nds_map_get_center()
 {
-  *xp = cx;
-  *yp = cy;
+  return map->center;
 }
 
-void nds_map_relativize(int *px, int *py)
+void nds_map_set_center(coord_t center)
 {
-  int upx, upy;
-  int sx = cx - map_width / 2;
-  int sy = cy - map_height / 2;
-  int t_width = tile_width * 8;
-  int t_height = tile_height * 8;
+  int width = map->viewport.dims.width;
+  int height = map->viewport.dims.height;
 
-  upx = (u.ux - sx) * t_width + t_width / 2;
-  upy = (u.uy - sy) * t_height + t_height / 2;
+  if ((center.x + width / 2) > COLNO) {
+    map->center.x = COLNO - width / 2;
+  } else if ((center.x - width / 2) < 0) {
+    map->center.x = width / 2;
+  } else {
+    map->center.x = center.x;
+  }
 
-  *px -= upx;
-  *py -= upy;
+  if ((center.y + height / 2) > ROWNO) {
+    map->center.y = ROWNO - height / 2;
+  } else if ((center.y - height / 2) < 0) {
+    map->center.y = height / 2;
+  } else {
+    map->center.y = center.y;
+  }
+
+  map->viewport.start.x = map->center.x - width / 2;
+  map->viewport.start.y = map->center.y - height / 2;
+
+  map->dirty = 1;
+}
+
+void nds_map_set_cursor(coord_t cursor)
+{
+  map->cursor = cursor;
+  map->dirty = 1;
+}
+
+coord_t nds_map_relativize(coord_t coords)
+{
+  int u_center_px = (u.ux - map->viewport.start.x) * tile_width_in_px + tile_width_in_px / 2;
+  int u_center_py = (u.uy - map->viewport.start.y) * tile_height_in_px + tile_height_in_px / 2;
+
+  coord_t res = {
+    .x = coords.x - u_center_px,
+    .y = coords.y - u_center_py
+  };
+
+  return res;
 }

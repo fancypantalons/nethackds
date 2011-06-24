@@ -3,6 +3,8 @@
 
 #include "font-bdf.h"
 #include "nds_charbuf.h"
+#include "nds_util.h"
+#include "nds_map.h"
 
 #define MAX_WINDOWS 8
 
@@ -29,8 +31,7 @@ typedef struct {
   int selected;
   int highlighted;
   int refresh;
-  int x, y;
-  int width, height;
+  rectangle_t region;
   char title[TITLE_MAX_LINES][64];
 } nds_menuitem_t;
 
@@ -44,15 +45,8 @@ typedef struct {
 } nds_menu_t;
 
 typedef struct {
-  int glyphs[ROWNO][COLNO];
-  int cx, cy;
-  int dirty;
-} nds_map_t;
-
-typedef struct {
   u8 type;
-  int x, y;
-  int width, height;
+  rectangle_t region;
   int cur_page;
   int page_idxs[MAX_PAGE];
   int topidx, bottomidx;

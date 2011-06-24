@@ -611,7 +611,7 @@ void nds_clear_nhwindow(winid win)
 
   switch (window->type) {
     case NHW_MAP:
-      NULLFREE(window->map);
+      nds_clear_map();
 
       break;
 
@@ -698,9 +698,9 @@ void nds_curs(winid win, int x, int y)
     return;
   }
 
-  window->map->cx = x;
-  window->map->cy = y;
-  window->map->dirty = 1;
+  coord_t coords = { .x = x, .y = y };
+
+  nds_map_set_cursor(coords);
 }
 
 /***************************
@@ -752,8 +752,8 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
 
   int maxidx;
 
-  start_x = (256 / 2 - (window->width / 2));
-  end_x = 256 / 2 + (window->width / 2);
+  start_x = (256 / 2 - (window->region.dims.width / 2));
+  end_x = 256 / 2 + (window->region.dims.width / 2);
 
   if (window->buffer == NULL) {
     start_x -= tag_width;
@@ -765,12 +765,12 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     start_x = 0;
   }
 
-  if (window->height > 192 - 32) {
+  if (window->region.dims.height > 192 - 32) {
     start_y = 16;
     end_y = 192 - 16;
   } else {
-    start_y = 192 / 2 - window->height / 2;
-    end_y = 192 / 2 + window->height / 2;
+    start_y = 192 / 2 - window->region.dims.height / 2;
+    end_y = 192 / 2 + window->region.dims.height / 2;
   }
 
   swiWaitForVBlank();
@@ -788,7 +788,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
       window->img = alloc_ppm(end_x - start_x, system_font->height * TITLE_MAX_LINES);
     }
 
-    for (i = window->topidx; (i < menu->count) && ((cur_y + menu->items[i].height) <= (end_y - start_y)); i++) {
+    for (i = window->topidx; (i < menu->count) && ((cur_y + menu->items[i].region.dims.height) <= (end_y - start_y)); i++) {
       if (clear || menu->items[i].refresh) {
         char tag[3] = "  ";
         int linenum = 0;
@@ -797,7 +797,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
         fg = (menu->items[i].highlighted) ? CLR_BRIGHT_GREEN : -1;
         bg = (menu->focused_item == i) ? CLR_BLUE : -1;
 
-        window->img->height = menu->items[i].height;
+        window->img->height = menu->items[i].region.dims.height;
 
         clear_ppm(window->img, MAP_COLOUR(bg));
 
@@ -845,10 +845,10 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
         menu->items[i].refresh = 0;
       }
 
-      menu->items[i].x = start_x + tag_width;
-      menu->items[i].y = start_y + cur_y;
+      menu->items[i].region.start.x = start_x + tag_width;
+      menu->items[i].region.start.y = start_y + cur_y;
 
-      cur_y += menu->items[i].height;
+      cur_y += menu->items[i].region.dims.height;
     } 
 
     window->bottomidx = i - 1;
@@ -926,6 +926,50 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
 
   *refresh = 0;
 
+  rectangle_t okay_button_coords = {
+    .start = {
+      .x = 256 - okay_button->width * 2 - 8,
+      .y = 192 - okay_button->height
+    },
+    .dims = {
+      .width = okay_button->width,
+      .height = okay_button->height
+    }
+  };
+
+  rectangle_t cancel_button_coords = {
+    .start = {
+      .x = 256 - cancel_button->width,
+      .y = 192 - cancel_button->height
+    },
+    .dims = {
+      .width = cancel_button->width,
+      .height = cancel_button->height
+    }
+  };
+
+  rectangle_t up_arrow_coords = {
+    .start = {
+      .x = 256 / 2 - up_arrow->width / 2,
+      .y = 0
+    },
+    .dims = {
+      .width = up_arrow->width,
+      .height = up_arrow->height
+    }
+  };
+
+  rectangle_t down_arrow_coords = {
+    .start = {
+      .x = 256 / 2 - down_arrow->width / 2,
+      .y = 192 - down_arrow->height
+    },
+    .dims = {
+      .width = down_arrow->width,
+      .height = down_arrow->height
+    }
+  };
+
   /* 
    * Check for input 
    */
@@ -954,18 +998,12 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
   
   /* Now check the OK/Cancel buttons */
 
-  if (touch_released_in(256 - cancel_button->width, 
-                        192 - cancel_button->height,
-                        256, 
-                        192)) {
+  if (touch_released_in(cancel_button_coords)) {
     ret = -1;
   }
 
   if ((window->menu != NULL) && (window->menu->how == PICK_ANY) &&
-      touch_released_in(256 - okay_button->width * 2 - 8,
-                        192 - okay_button->height,
-                        256 - okay_button->width - 8,
-                        192)) {
+      touch_released_in(okay_button_coords)) {
     ret = 1;
   }
 
@@ -986,15 +1024,8 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
 
   /* Next, check if the scroll buttons were tapped */
 
-  scroll_up |= touch_released_in(256 / 2 - up_arrow->width / 2, 
-                                 0,
-                                 256 / 2 + up_arrow->width / 2, 
-                                 up_arrow->height);
-
-  scroll_down |= touch_released_in(256 / 2 - down_arrow->width / 2,
-                                   192 - down_arrow->height,
-                                   256 / 2 + down_arrow->width / 2,
-                                   192);
+  scroll_up |= touch_released_in(up_arrow_coords);
+  scroll_down |= touch_released_in(down_arrow_coords);
 
   /* And now to handle the actual scroll commands */
 
@@ -1036,7 +1067,9 @@ void _nds_wait_for_key()
 void _nds_display_map(nds_nhwindow_t *win, int blocking)
 {
   if ((win->map == NULL) || (win->map->dirty)) {
-    nds_draw_map(win->map, NULL, NULL);
+    coord_t center = { .x = u.ux, .y = u.uy };
+
+    nds_draw_map(&center);
   }
 
   if (win->map != NULL) {
@@ -1084,8 +1117,8 @@ void _nds_display_text(nds_nhwindow_t *win, int blocking)
     height += win->buffer->lines[i].height;
   }
 
-  win->width = width;
-  win->height = height;
+  win->region.dims.width = width;
+  win->region.dims.height = height;
 
   win->cur_page = 0;
   win->page_idxs[0] = 0;
@@ -1544,14 +1577,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
     /* Finally, check for taps on items */
 
     for (i = window->topidx; i <= window->bottomidx; i++) {
-      int item_x, item_y, item_x2, item_y2;
-
-      item_x = menu->items[i].x;
-      item_y = menu->items[i].y;
-      item_x2 = item_x + menu->items[i].width;
-      item_y2 = item_y + menu->items[i].height;
-
-      if (touch_down_in(item_x, item_y, item_x2, item_y2) &&
+      if (touch_down_in(menu->items[i].region) &&
           ! menu->items[i].highlighted) {
 
         if (menu->focused_item >= 0) {
@@ -1563,7 +1589,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
         menu->focused_item = i;
 
         refresh = 1;
-      } else if (touch_was_down_in(item_x, item_y, item_x2, item_y2) &&
+      } else if (touch_was_down_in(menu->items[i].region) &&
                  menu->items[i].highlighted) {
 
         menu->items[i].highlighted = 0;
@@ -1574,7 +1600,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
         }
 
         refresh = 1;
-      } else if (touch_released_in(item_x, item_y, item_x2, item_y2)) {
+      } else if (touch_released_in(menu->items[i].region)) {
 
         refresh = 1;
 
@@ -1645,8 +1671,8 @@ int nds_select_menu(winid win, int how, menu_item **sel)
       item_height += line_height;
     }
 
-    item->width = item_width;
-    item->height = item_height;
+    item->region.dims.width = item_width;
+    item->region.dims.height = item_height;
 
     if (width < item_width) {
       width = item_width;
@@ -1655,10 +1681,10 @@ int nds_select_menu(winid win, int how, menu_item **sel)
     height += item_height;
   }
 
-  window->x = 1;
-  window->y = 1;
-  window->width = width;
-  window->height = height;
+  window->region.start.x = 1;
+  window->region.start.y = 1;
+  window->region.dims.width = width;
+  window->region.dims.height = height;
 
   window->cur_page = 0;
   window->page_idxs[0] = 0;
@@ -1938,21 +1964,14 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
   nds_nhwindow_t *window = windows[win];
 
   if (window->map == NULL) {
-    int x, y;
-
-    window->map = (nds_map_t *)malloc(sizeof(nds_map_t));
-
-    for (y = 0; y < ROWNO; y++) {
-      for (x = 0; x < COLNO; x++) {
-        window->map->glyphs[y][x] = -1;
-      }
-    }
+    window->map = nds_get_map();
   }
 
   window->map->glyphs[y][x] = glyph;
-  window->map->cx = x;
-  window->map->cy = y;
-  window->map->dirty = 1;
+
+  coord_t coords = { .x = x, .y = y };
+
+  nds_map_set_cursor(coords);
 }
 
 void nds_nhbell()

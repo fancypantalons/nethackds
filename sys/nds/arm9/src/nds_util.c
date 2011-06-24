@@ -6,8 +6,13 @@
 #include "nds_main.h"
 #include "nds_util.h"
 
-touchPosition touch_coords = { .rawx = 0, .rawy = 0 };
-touchPosition old_touch_coords;
+touchPosition raw_touch_coords = { .rawx = 0, .rawy = 0 };
+
+coord_t touch_coords = { .x = 0, .y = 0 };
+coord_t old_touch_coords = { .x = 0, .y = 0 };
+
+int was_touching = 0;
+int touching = 0;
 
 /*
  * Copy a block of memory 2 bytes at a time.  This is needed for
@@ -157,73 +162,70 @@ u16 nds_keysUp()
 
 void scan_touch_screen()
 {
+  raw_touch_coords = touchReadXY();
+
   old_touch_coords = touch_coords;
-  touch_coords = touchReadXY();
-}
+  was_touching = touching;
 
-int touch_down_in(int x, int y, int x2, int y2)
-{
-  if ((touch_coords.rawx == 0) || (touch_coords.rawy == 0)) {
-    return 0;
-  }
-
-  if ((touch_coords.px >= x) && (touch_coords.px <= x2) &&
-      (touch_coords.py >= y) && (touch_coords.py <= y2)) {
-    return 1;
+  if ((raw_touch_coords.rawx == 0) || (raw_touch_coords.rawy == 0)) {
+    touching = 0;
   } else {
-    return 0;
+    touch_coords.x = raw_touch_coords.px;
+    touch_coords.y = raw_touch_coords.py;
+
+    touching = 1;
   }
 }
 
-int touch_was_down_in(int x, int y, int x2, int y2)
+int touch_down_in(rectangle_t region)
 {
-  if ((touch_coords.rawx == 0) || (touch_coords.rawy == 0)) {
-    return 0;
-  }
+  return touching && POINT_IN_RECT(touch_coords, region);
+}
 
-  if ((touch_coords.px >= x) && (touch_coords.px <= x2) &&
-      (touch_coords.py >= y) && (touch_coords.py <= y2)) {
-    return 0;
-  }
+int touch_was_down_in(rectangle_t region)
+{
+  return touching && POINT_IN_RECT(old_touch_coords, region) && ! POINT_IN_RECT(touch_coords, region);
+}
 
-  if ((old_touch_coords.px >= x) && (old_touch_coords.px <= x2) &&
-      (old_touch_coords.py >= y) && (old_touch_coords.py <= y2)) {
-    return 1;
+int touch_released_in(rectangle_t region)
+{
+  return ! touching && POINT_IN_RECT(old_touch_coords, region);
+}
+
+int get_tap_coords(coord_t *coords)
+{
+  if (! was_touching || touching) {
+    return 0;
   } else {
-    return 0;
-  }
-}
+    *coords = old_touch_coords;
 
-int touch_released_in(int x, int y, int x2, int y2)
-{
-  if ((touch_coords.rawx != 0) || (touch_coords.rawy != 0)) {
-    return 0;
-  }
-
-  if ((old_touch_coords.px >= x) && (old_touch_coords.px <= x2) &&
-      (old_touch_coords.py >= y) && (old_touch_coords.py <= y2)) {
     return 1;
-  } else {
-    return 0;
   }
 }
 
-int get_tap_coords(touchPosition *coords)
-{
-  if ((old_touch_coords.rawx == 0) && (old_touch_coords.rawy == 0)) {
-    return 0;
-  } else if ((touch_coords.rawx != 0) || (touch_coords.rawy != 0)) {
-    return 0;
-  } 
-
-  *coords = old_touch_coords;
-
-  return 1;
-}
-
-touchPosition get_touch_coords()
+coord_t get_touch_coords()
 {
   return touch_coords;
+}
+
+coord_t coord_add(coord_t a, coord_t b)
+{
+  coord_t ret = {
+    .x = a.x + b.x,
+    .y = a.y + b.y
+  };
+
+  return ret;
+}
+
+coord_t coord_subtract(coord_t a, coord_t b)
+{
+  coord_t ret = {
+    .x = a.x - b.x,
+    .y = a.y - b.y
+  };
+
+  return ret;
 }
 
 /*

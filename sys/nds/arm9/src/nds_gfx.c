@@ -10,19 +10,9 @@ void nds_draw_hline(int x, int y, int width, u16 colour, u16 *dest)
 {
   int i;
 
-  dest += (y * 128) + (x / 2);
-
-  if (x & 0x01) {
-    *dest = (*dest & 0x00FF) | (colour << 8);
-    dest++;
-  }
-
-  for (i = 0; i < (width - ((x & 0x01) ? 1 : 0)) / 2; i++, dest++) {
-    *dest = (colour << 8) | colour;
-  }
-
-  if ((x + width) & 0x01) {
-    *dest = (*dest & 0xFF00) | colour;
+  for (i = x; i <= (x + width); i++)
+  {
+    SET_PIXEL(dest, i, y, colour);
   }
 }
 
@@ -30,36 +20,29 @@ void nds_draw_vline(int x, int y, int height, u16 colour, u16 *dest)
 {
   int i;
 
-  dest += (y * 128) + (x / 2);
-
-  for (i = 0; i < height; i++, dest += 128) {
-    if (x & 0x01) {
-      *dest = (*dest & 0x00FF) | (colour << 8);
-    } else {
-      *dest = (*dest & 0xFF00) | colour;
-    }
+  for (i = y; i <= (y + height); i++)
+  {
+    SET_PIXEL(dest, x, i, colour);
   }
 }
 
-void nds_draw_rect(int x, int y, int width, int height, u16 colour, u16 *dest)
+void nds_draw_rect(rectangle_t rect, u16 colour, u16 *dest)
 {
   int i;
-  u16 tmp = (colour << 8) | colour;
 
-  for (i = 0; i < height; i++, dest += 128) {
-    nds_draw_hline(x, y, width, tmp, dest);
+  for (i = rect.start.y; i < RECT_END_Y(rect); i++)
+  {
+    nds_draw_hline(rect.start.x, i, RECT_END_X(rect), colour, dest);
   }
 }
 
-void nds_draw_rect_outline(int x, int y, int width, int height, u8 fill_colour, u8 line_colour, u16 *dest)
+void nds_draw_rect_outline(rectangle_t rect, u16 colour, u16 *dest)
 {
-  nds_draw_rect(x, y, width, height, fill_colour, dest);
+  nds_draw_hline(rect.start.x, rect.start.y, rect.dims.width, colour, dest);
+  nds_draw_hline(rect.start.x, RECT_END_Y(rect), rect.dims.width, colour, dest);
 
-  nds_draw_hline(x, y, width, line_colour, dest);
-  nds_draw_hline(x, y + height, width, line_colour, dest);
-
-  nds_draw_vline(x, y, height, line_colour, dest);
-  nds_draw_vline(x + width, y, height, line_colour, dest);
+  nds_draw_vline(rect.start.x, rect.start.y, rect.dims.height, colour, dest);
+  nds_draw_vline(RECT_END_X(rect), rect.start.y, rect.dims.height, colour, dest);
 }
 
 void nds_draw_text(struct font *fnt, 

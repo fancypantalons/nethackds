@@ -65,6 +65,26 @@ typedef struct {
   char command[INPUT_BUFFER_SIZE];
 } nds_keymap_entry_t;
 
+typedef struct {
+  int pressed;
+  int held;
+  int touching;
+  int tapped;
+
+  int press_and_hold;
+  int dragging;
+  int drag_started;
+  int drag_stopped;
+
+  coord_t touch_coords;
+  coord_t tap_coords;
+
+  coord_t initial_touch_coords;
+  coord_t drag_distance;
+
+  int held_frames;
+} nds_input_state_t;
+
 typedef enum {
   CMDLOOP_STANDARD,
   CMDLOOP_CONFIG,
@@ -1250,26 +1270,95 @@ coord_t _to_map_coords(coord_t coords)
   return res;
 }
 
+nds_input_state_t _nds_get_input_state(nds_input_state_t prev_state)
+{
+  nds_input_state_t state = prev_state;
+
+  scanKeys();
+  scan_touch_screen();
+
+  /*
+   * First, we'll process the touchscreen tap/drag events.
+   */
+  state.held = nds_keysHeld();
+
+  if (state.held & KEY_TOUCH) {
+    state.touch_coords = _to_map_coords(get_touch_coords());
+    state.touching = 1;
+  } else {
+    state.touching = 0;
+  }
+
+  if (state.touching && ! prev_state.touching) {
+    state.initial_touch_coords = state.touch_coords;
+  }
+
+  /*
+   * Alright, knowing the previous touch state and the current one, now
+   * check for dragging.
+   */
+  if (prev_state.touching && state.touching && 
+      ! COORDS_ARE_EQUAL(prev_state.initial_touch_coords, state.touch_coords)) {
+
+    state.drag_distance = coord_subtract(prev_state.initial_touch_coords, state.touch_coords);
+
+    if (! state.dragging) {
+      state.dragging = 1;
+      state.drag_started = 1;
+    } else {
+      state.drag_started = 0;
+    }
+  } else if (state.dragging) {
+    state.dragging = 0;
+    state.drag_stopped = 1;
+  } else if (state.drag_stopped) {
+    state.drag_stopped = 0;
+  }
+
+  /*
+   * Now, check for key pressed events...
+   */
+  if (iflags.keyrepeat) {
+    state.pressed = nds_keysDownRepeat();
+  } else {
+    state.pressed = nds_keysDown();
+  }
+
+  /*
+   * Tap events...
+   */
+  state.tapped = get_tap_coords(&(state.tap_coords)) && ! state.dragging && ! state.drag_stopped;
+  state.tap_coords = _to_map_coords(state.tap_coords);
+
+  /*
+   * And press-and-hold...
+   */
+  if (state.touching && ! state.dragging) {
+    state.held_frames = prev_state.held_frames + 1;
+
+    if (state.held_frames > CLICK_2_FRAMES) {
+      state.press_and_hold = 1;
+    }
+  } else {
+    state.press_and_hold = 0;
+    state.held_frames = 0;
+  }
+
+  return state;
+}
+
 int nds_get_input(int *x, int *y, int *mod)
 {
   static int chord_pressed = 0;
 
-  coord_t coords;
-  int held_frames = 0;
-  int dragging = 0;
-  int held = 0;
-  int prev_held = 0;
-
-  *x = 0;
-  *y = 0;
-  *mod = 0;
-
-  int touching = 0, was_touching = 0;
-  coord_t touch_coords;
-  coord_t old_touch_coords;
-  coord_t start_touch_coords;
+  nds_input_state_t prev_state;
+  nds_input_state_t state;
 
   coord_t map_center = { .x = u.ux, .y = u.uy };
+
+  memset(&state, 0, sizeof(state));
+
+  *x = *y = *mod = 0;
 
   if (input_buffer[0] != 0) {
     int key = input_buffer[0];
@@ -1285,41 +1374,11 @@ int nds_get_input(int *x, int *y, int *mod)
 
   while(1) {
     int key = 0;
-    int pressed;
 
-    scanKeys();
+    prev_state = state;
+    state = _nds_get_input_state(prev_state);
 
-    if (iflags.keyrepeat) {
-      pressed = nds_keysDownRepeat();
-    } else {
-      pressed = nds_keysDown();
-    }
-
-    prev_held = held;
-    held = nds_keysHeld();
-
-    was_touching = touching;
-
-    scan_touch_screen();
-
-    old_touch_coords = touch_coords;
-
-    if (held & KEY_TOUCH) {
-      coords = get_touch_coords();
-
-      touch_coords = _to_map_coords(coords);
-
-      if (! touching) {
-        start_touch_coords = touch_coords;
-        touching = 1;
-      }
-    } else {
-      touching = 0;
-    }
-
-    swiWaitForVBlank();
-
-    if (pressed & cmd_key) {
+    if (state.pressed & cmd_key) {
       nds_cmd_t cmd;
 
       if (! iflags.holdmode) {
@@ -1333,21 +1392,21 @@ int nds_get_input(int *x, int *y, int *mod)
       }
 
       key = cmd.f_char;
-    } else if ((prev_held & chord_keys) && (held == 0)) {
+    } else if ((prev_state.held & chord_keys) && (state.held == 0)) {
       if (! chord_pressed) {
-        key = nds_map_key(prev_held);
+        key = nds_map_key(prev_state.held);
       } else {
         chord_pressed = 0;
       }
-    } else if (pressed & ~chord_keys) {
-      key = nds_map_key(held | pressed);
+    } else if (state.pressed & ~chord_keys) {
+      key = nds_map_key(state.held | state.pressed);
       chord_pressed = 1;
     }
 
     switch (key) {
       case 0:
-        if (iflags.keyhelp && (held != prev_held)) {
-          nds_render_key_help_string(held);
+        if (iflags.keyhelp && (state.held != prev_state.held)) {
+          nds_render_key_help_string(state.held);
         }
 
         break;
@@ -1390,41 +1449,31 @@ int nds_get_input(int *x, int *y, int *mod)
         return key;
     }
     
-    if (touching && (! COORDS_ARE_EQUAL(old_touch_coords, touch_coords))) {
+    if (state.tapped) {
+      return nds_handle_click(state.tap_coords, x, y, mod);
+    } else if (state.press_and_hold) {
 
-      coord_t diff = coord_subtract(start_touch_coords, touch_coords);
-
-      if ((ABS(diff.x) > 1) || (ABS(diff.y) > 1)) {
-        dragging = 1;
-
-        map_center = coord_add(map_center, diff);
-      }
-    }
-
-    //nds_draw_map(&map_center);
-
-    if (dragging && ! touching && ! was_touching) {
-      dragging = 0;
-    } else if (dragging) {
-      continue;
-    }
-    
-    if (get_tap_coords(&coords)) {
-      return nds_handle_click(coords, x, y, mod);
-    }
-    
-    if (held_frames > CLICK_2_FRAMES) {
-      coords = nds_map_translate_coords(coords);
+      coord_t coords = nds_map_translate_coords(state.touch_coords);
 
       *x = coords.x;
       *y = coords.y;
       *mod = CLICK_2;
 
       return 0;
-    } else if (held & KEY_TOUCH) {
-      held_frames++;
+    }
+
+    swiWaitForVBlank();
+    
+    if (state.drag_stopped) {
+      map_center = coord_add(map_center, state.drag_distance);
+    }
+
+    if (state.dragging) {
+      coord_t drag_center = coord_add(map_center, state.drag_distance);
+
+      nds_draw_map(&drag_center);
     } else {
-      held_frames = 0;
+      nds_draw_map(&map_center);
     }
   }
 

@@ -859,8 +859,8 @@ void nds_draw_map(coord_t *center)
 coord_t nds_map_translate_coords(coord_t coords)
 {
   coord_t res = {
-    .x = map->viewport.start.x + coords.x / tile_width_in_px,
-    .y = map->viewport.start.y + coords.y / tile_height_in_px
+    .x = map->viewport.start.x + coords.x,
+    .y = map->viewport.start.y + coords.y
   };
 
   return res;

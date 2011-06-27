@@ -361,6 +361,7 @@ int main()
 
   init_screen();
   check_debug();
+  nds_show_console();
 
   if (! fatInitDefault())
   {

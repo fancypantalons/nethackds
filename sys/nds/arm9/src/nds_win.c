@@ -16,6 +16,7 @@
 #include "nds_cmd.h"
 #include "nds_map.h"
 #include "nds_getlin.h"
+#include "nds_config.h"
 
 #include "nds_kbd.h"
 #include "ppm-lite.h"
@@ -1747,7 +1748,7 @@ int nds_nh_poskey(int *x, int *y, int *mod)
   return ch;
 }
 
-char nds_prompt_char(const char *ques, const char *choices, int holdkey)
+char nds_prompt_char(const char *ques, const char *choices, int toggleable)
 {
   int key;
   int pressed;
@@ -1768,8 +1769,8 @@ char nds_prompt_char(const char *ques, const char *choices, int holdkey)
     pressed = nds_keysDown();
     held = nds_keysHeld();
 
-    if ((iflags.holdmode && holdkey && ! (held & holdkey)) ||
-        (! iflags.holdmode && holdkey && (pressed & holdkey))) {
+    if ( (iflags.holdmode && toggleable && ! nds_is_command_key(held) ) ||
+         (! iflags.holdmode && toggleable && nds_is_command_key(pressed)) ) {
 
       nds_flush(0);
       goto DONE;

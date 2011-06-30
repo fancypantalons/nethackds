@@ -9,6 +9,7 @@
 #include <sys/iosupport.h>
 #include <errno.h>
 
+#include "nds_util.h"
 #include "nds_cmd.h"
 #include "nds_main.h"
 

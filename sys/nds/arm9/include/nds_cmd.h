@@ -58,7 +58,6 @@ nds_cmd_t *nds_get_cmdlist();
 int nds_get_input(int *x, int *y, int *mod);
 int nds_get_ext_cmd();
 void nds_number_pad(int value);
-char nds_yn_function(const char *ques, const char *choices, CHAR_P def);
 
 nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype);
 

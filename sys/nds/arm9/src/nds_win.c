@@ -17,6 +17,7 @@
 #include "nds_map.h"
 #include "nds_getlin.h"
 #include "nds_config.h"
+#include "nds_yn.h"
 
 #include "nds_kbd.h"
 #include "ppm-lite.h"

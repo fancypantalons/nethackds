@@ -1937,7 +1937,7 @@ void nds_askname()
   }
 
   while (! *plname) {
-    getlin("Enter You Name:", plname);
+    getlin("Enter Your Name:", plname);
   }
 }
 

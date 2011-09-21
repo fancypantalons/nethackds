@@ -36,7 +36,7 @@ dat::
 image: binary/$(TARGET).ds.gba
 
 tags::
-	@if [ -f ./build_idx ]; then ./build_idx; fi
+	@if [ -x ./build_idx ]; then ./build_idx; fi
 
 binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@echo Copying files...

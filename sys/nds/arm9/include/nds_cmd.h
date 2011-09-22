@@ -51,7 +51,13 @@ typedef enum {
 } nds_cmdloop_op_type_t;
 
 int nds_init_cmd();
-char *nds_get_input_buffer();
+
+int nds_input_buffer_is_empty();
+void nds_input_buffer_push(char c);
+void nds_input_buffer_append(char* str);
+char nds_input_buffer_shift();
+char *nds_input_buffer_shiftall();
+
 char *nds_get_direction_keys();
 nds_cmd_t *nds_get_cmdlist();
 

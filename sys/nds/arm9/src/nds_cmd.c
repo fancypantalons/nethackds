@@ -30,6 +30,7 @@
 
 typedef struct {
   int pressed;
+  int released;
   int held;
   int touching;
   int tapped;
@@ -172,6 +173,8 @@ int cmd_cols = 0;
 int cmd_cur_page = 0;
 
 char input_buffer[INPUT_BUFFER_SIZE];
+int input_buffer_pos = 0;
+
 char direction_keys[NUMDIRS];
 
 /* We use this array for indexing into the key config list */
@@ -245,14 +248,55 @@ int nds_init_cmd()
   memcpy(helpline1, nds_parse_key_string(iflags.helpline1), sizeof(helpline1));
   memcpy(helpline2, nds_parse_key_string(iflags.helpline2), sizeof(helpline2));
 
-  memset(input_buffer, 0, sizeof(input_buffer));
+  input_buffer_pos = 0;
 
   return 0;
 }
 
-char *nds_get_input_buffer()
+/* Input buffer management */
+
+int nds_input_buffer_is_empty()
 {
-  return input_buffer;
+  return input_buffer_pos <= 0;
+}
+
+void nds_input_buffer_push(char c)
+{
+  input_buffer[input_buffer_pos++] = c;
+}
+
+void nds_input_buffer_append(char* str)
+{
+  int i = 0;
+
+  for (i = 0; i < strlen(str); i++) {
+    nds_input_buffer_push(str[i]);
+  }
+}
+
+char nds_input_buffer_shift()
+{
+  int c = '\0';
+
+  if (input_buffer_pos > 0) {
+    c = input_buffer[0];
+
+    memmove(input_buffer, input_buffer + 1, --input_buffer_pos);
+  }
+
+  return c;
+}
+
+char *nds_input_buffer_shiftall()
+{
+  static char buf[INPUT_BUFFER_SIZE];
+
+  memcpy(buf, input_buffer, input_buffer_pos);
+  buf[input_buffer_pos] = '\0';
+
+  input_buffer_pos = 0;
+
+  return buf;
 }
 
 char *nds_get_direction_keys()
@@ -340,8 +384,7 @@ int nds_handle_click(coord_t coords, int *x, int *y, int *mod)
     }
 
     if (dist > 1024) {
-      input_buffer[0] = ch;
-      ch = 'g';
+      nds_input_buffer_push('g');
     }
   }
 
@@ -433,6 +476,8 @@ nds_input_state_t _nds_get_input_state(nds_input_state_t prev_state)
     state.pressed = nds_keysDown();
   }
 
+  state.released = nds_keysUp();
+
   /*
    * Tap events...
    */
@@ -458,25 +503,25 @@ nds_input_state_t _nds_get_input_state(nds_input_state_t prev_state)
 
 int nds_get_input(int *x, int *y, int *mod)
 {
-  static int chord_pressed = 0;
+  // Tracks if, on the previous call, we returned a keypress that *wasn't*
+  // a single chordkey press-and-release.  This way, if we enter this loop
+  // while the chordkey is still held as part of a chorded key combo, 
+  // we don't accidentally trigger an action when it's released.
+
+  static int chord_key_was_held = 0;
 
   nds_input_state_t prev_state;
   nds_input_state_t state;
 
   coord_t map_center = { .x = u.ux, .y = u.uy };
+  coord_t prev_map_center = map_center;
 
   memset(&state, 0, sizeof(state));
 
   *x = *y = *mod = 0;
 
-  if (input_buffer[0] != 0) {
-    int key = input_buffer[0];
-
-    memmove(&(input_buffer[0]), &(input_buffer[1]), (INPUT_BUFFER_SIZE - 1) * sizeof(input_buffer[0]));
-
-    input_buffer[INPUT_BUFFER_SIZE - 1] = 0;
-
-    return key;
+  if (! nds_input_buffer_is_empty()) {
+    return nds_input_buffer_shift();
   }
 
   nds_flush(~KEY_TOUCH);
@@ -487,7 +532,7 @@ int nds_get_input(int *x, int *y, int *mod)
     prev_state = state;
     state = _nds_get_input_state(prev_state);
 
-    if (nds_is_command_key(state.pressed)) {
+    if (nds_command_key_pressed(state.pressed)) {
       nds_cmd_t cmd;
 
       if (! iflags.holdmode) {
@@ -501,15 +546,16 @@ int nds_get_input(int *x, int *y, int *mod)
       }
 
       key = cmd.f_char;
-    } else if (nds_is_chord_key(prev_state.held) && (state.held == 0)) {
-      if (! chord_pressed) {
-        key = nds_map_key(prev_state.held);
+    } else if (nds_chord_key_pressed(state.released)) {
+      if (! chord_key_was_held) {
+        key = nds_map_key(state.released);
       } else {
-        chord_pressed = 0;
+        chord_key_was_held = 0;
       }
-    } else if (! nds_is_chord_key(state.pressed)) {
-      key = nds_map_key(state.pressed);
-      chord_pressed = 1;
+    } else if (state.pressed && ! nds_chord_key_pressed(state.pressed)) {
+      chord_key_was_held = nds_chord_key_held(state.held);
+
+      key = nds_map_key(state.pressed | state.held);
     }
 
     switch (key) {
@@ -543,8 +589,7 @@ int nds_get_input(int *x, int *y, int *mod)
         break;
 
       case CMD_OPT_TOGGLE:
-        nds_toggle_bool_option(input_buffer);
-        *input_buffer = '\0';
+        nds_toggle_bool_option(nds_input_buffer_shiftall());
 
         display_nhwindow(WIN_MAP, FALSE);
 
@@ -581,8 +626,10 @@ int nds_get_input(int *x, int *y, int *mod)
       coord_t drag_center = coord_add(map_center, state.drag_distance);
 
       nds_draw_map(&drag_center);
-    } else {
+    } else if (! COORDS_ARE_EQUAL(map_center, prev_map_center))  {
       nds_draw_map(&map_center);
+
+      prev_map_center = map_center;
     }
   }
 
@@ -953,8 +1000,8 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
         ) 
         ||
         (
-          ((optype != CMDLOOP_CONFIG) && ! nds_is_command_key(held) && iflags.holdmode) ||
-          (! iflags.holdmode && nds_is_command_key(pressed)) 
+          ((optype != CMDLOOP_CONFIG) && ! nds_command_key_pressed(held) && iflags.holdmode) ||
+          (! iflags.holdmode && nds_command_key_pressed(pressed)) 
         )
        ) {
 
@@ -1004,7 +1051,6 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
       } else if (held_frames > CLICK_2_FRAMES) {
         char buffer[BUFSZ];
         char *bufptr = buffer;
-        int len;
 
         getlin("Enter Repeat Count", bufptr);
 
@@ -1018,11 +1064,8 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
             bufptr++;
           }
 
-          len = strlen(bufptr);
-
-          strcpy(input_buffer, bufptr);
-          input_buffer[len] = curcmd->f_char;
-          input_buffer[len + 1] = '\0';
+          nds_input_buffer_append(bufptr);
+          nds_input_buffer_push(curcmd->f_char);
 
           break;
         } else {
@@ -1085,7 +1128,7 @@ nds_cmd_t nds_cmd_loop(nds_cmdloop_op_type_t optype)
     if (idx >= 0) {
       /* Now stuff the command into our input buffer. */
 
-      strcpy(input_buffer, extcmdlist[idx].ef_txt);
+      nds_input_buffer_append((char *)extcmdlist[idx].ef_txt);
     } else {
       picked_cmd.f_char = 0;
       picked_cmd.name = NULL;
@@ -1167,11 +1210,8 @@ int nds_get_ext_cmd()
   menu_item *sel = NULL;
   int selected;
 
-  if (*input_buffer) {
-    char buffer[INPUT_BUFFER_SIZE];
-
-    strcpy(buffer, input_buffer);
-    *input_buffer = '\0';
+  if (! nds_input_buffer_is_empty()) {
+    char *buffer = nds_input_buffer_shiftall();
 
     for (i = 0; extcmdlist[i].ef_txt != NULL; i++) {
       if (strcmp(extcmdlist[i].ef_txt, buffer) == 0) {

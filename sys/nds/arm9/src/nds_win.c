@@ -1770,8 +1770,8 @@ char nds_prompt_char(const char *ques, const char *choices, int toggleable)
     pressed = nds_keysDown();
     held = nds_keysHeld();
 
-    if ( (iflags.holdmode && toggleable && ! nds_is_command_key(held) ) ||
-         (! iflags.holdmode && toggleable && nds_is_command_key(pressed)) ) {
+    if ( (iflags.holdmode && toggleable && ! nds_command_key_pressed(held) ) ||
+         (! iflags.holdmode && toggleable && nds_command_key_pressed(pressed)) ) {
 
       nds_flush(0);
       goto DONE;

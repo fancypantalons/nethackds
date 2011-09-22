@@ -331,21 +331,26 @@ int nds_get_key_cmds(int pressed, char commands[MAXCMDS][INPUT_BUFFER_SIZE])
   return numcmds;
 }
 
-int nds_is_command_key(int pressed)
+int nds_command_key_pressed(int pressed)
 {
   return pressed & cmd_key;
 }
 
-int nds_is_chord_key(int pressed)
+int nds_chord_key_held(int pressed)
 {
   return pressed & chord_keys;
+}
+
+int nds_chord_key_pressed(int pressed)
+{
+  return (pressed & chord_keys) &&
+         (! (pressed & ~chord_keys));
 }
 
 int nds_map_key(u16 pressed)
 {
   char commands[MAXCMDS][INPUT_BUFFER_SIZE];
   int numcmds = nds_get_key_cmds(pressed, commands);
-  char *input_buffer = nds_get_input_buffer();
 
   if (numcmds == 0) {
     /* Of course, if no command was mapped, return nothing */
@@ -359,7 +364,7 @@ int nds_map_key(u16 pressed)
    * the first character of the command.
    */
 
-  strcpy(input_buffer, &(commands[0][1]));
+  nds_input_buffer_append(&(commands[0][1]));
 
   return commands[0][0];
 }
@@ -497,7 +502,6 @@ nds_cmd_t nds_get_direction()
 
   char tmp[2];
   char *direction_keys = nds_get_direction_keys();
-  char *input_buffer = nds_get_input_buffer();
 
   win = create_nhwindow(NHW_MENU);
   start_menu(win);
@@ -543,17 +547,15 @@ nds_cmd_t nds_get_direction()
     cmd.f_char = direction_keys[sel->item.a_int - 1];
     cmd.name = nds_command_to_string(tmp);
   } else if (sel->item.a_int < 17) {
-    input_buffer[0] = direction_keys[sel->item.a_int - 9];
-    input_buffer[1] = '\0';
+    nds_input_buffer_push(direction_keys[sel->item.a_int - 9]);
 
     cmd.f_char = 'g';
-    cmd.name = nds_command_to_string(input_buffer);
+    cmd.name = nds_command_to_string(nds_input_buffer_shiftall());
   } else {
-    input_buffer[0] = direction_keys[sel->item.a_int - 17];
-    input_buffer[1] = '\0';
+    nds_input_buffer_push(direction_keys[sel->item.a_int - 17]);
 
     cmd.f_char = 'F';
-    cmd.name = nds_command_to_string(input_buffer);
+    cmd.name = nds_command_to_string(nds_input_buffer_shiftall());
   }
 
   NULLFREE(sel);
@@ -665,8 +667,6 @@ nds_cmd_t nds_get_config_cmd(u16 key)
   char tmp[BUFSZ];
   int res;
 
-  char *input_buffer = nds_get_input_buffer();
-
   win = create_nhwindow(NHW_MENU);
   start_menu(win);
 
@@ -709,7 +709,7 @@ nds_cmd_t nds_get_config_cmd(u16 key)
             cmd.f_char = CMD_OPT_TOGGLE;
             cmd.name = "Toggle Option";
 
-            strcpy(input_buffer, tmp);
+            nds_input_buffer_append((char *)tmp);
           } else {
             cmd.f_char = -1;
             cmd.name = NULL;
@@ -745,7 +745,6 @@ void nds_config_key()
 
   u16 key;
   char command[INPUT_BUFFER_SIZE];
-  char *input_buffer = nds_get_input_buffer();
 
   nds_flush(0);
 
@@ -784,15 +783,11 @@ void nds_config_key()
   command[0] = cmd.f_char;
   command[1] = '\0';
 
-  if (*input_buffer) {
-    strcat(command, input_buffer);
-    strcpy(input_buffer, command);
+  if (! nds_input_buffer_is_empty()) {
+    strcat(command, nds_input_buffer_shiftall());
 
-    input_buffer[strlen(input_buffer) - 1] = '\0';
-
-    sprintf(buf, "Mapped %s to %s x%s (%s).", nds_key_to_string(key), cmd.name, input_buffer, command);
-
-    input_buffer[0] = '\0';
+    iprintf("cmd: %s\n", command);
+    sprintf(buf, "Mapped %s to %s x%s.", nds_key_to_string(key), cmd.name, command);
   } else {
     sprintf(buf, "Mapped %s to %s.", nds_key_to_string(key), cmd.name);
   }

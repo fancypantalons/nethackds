@@ -14,8 +14,9 @@ extern struct Bool_Opt
 } boolopt[];
 
 int nds_map_key(u16 pressed);
-int nds_is_command_key(int pressed);
-int nds_is_chord_key(int pressed);
+int nds_command_key_pressed(int pressed);
+int nds_chord_key_held(int pressed);
+int nds_chord_key_pressed(int pressed);
 
 void nds_save_key_config();
 void nds_config_key();

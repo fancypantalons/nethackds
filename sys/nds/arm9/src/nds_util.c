@@ -189,7 +189,7 @@ int touch_was_down_in(rectangle_t region)
 
 int touch_released_in(rectangle_t region)
 {
-  return ! touching && POINT_IN_RECT(old_touch_coords, region);
+  return ! touching && was_touching && POINT_IN_RECT(old_touch_coords, region);
 }
 
 int get_tap_coords(coord_t *coords)

@@ -856,7 +856,7 @@ void _nds_draw_scroller(nds_nhwindow_t *window, int clear)
     window->bottomidx = i - 1;
     maxidx = menu->count - 1;
 
-    if (menu->how == PICK_ANY) {
+    if (CAN_MULTI_PICK(menu->how)) {
       draw_ppm(okay_button, vram,
                256 - okay_button->width * 2 - 8, 192 - okay_button->height,
                256);
@@ -1004,7 +1004,7 @@ int _nds_handle_scroller_buttons(nds_nhwindow_t *window, int *refresh, int *keys
     ret = -1;
   }
 
-  if ((window->menu != NULL) && (window->menu->how == PICK_ANY) &&
+  if ((window->menu != NULL) && CAN_MULTI_PICK(window->menu->how) &&
       touch_released_in(okay_button_coords)) {
     ret = 1;
   }
@@ -1391,9 +1391,37 @@ void _nds_menu_do_select(nds_menuitem_t *item, int decrement)
 
 void _nds_menu_select_item(nds_menu_t *menu, int index, int decrement)
 {
+  if (menu->how == PICK_ONE_TYPE) {
+    /*
+     * This selection mode allows the user to pick multiple of a specific
+     * item if they want, but *not* multiple things at once.  Right now
+     * this is used in nds_yn_function, but maybe it'll be used elsewhere,
+     * one day...
+     *
+     * By the way, yeah, it's a little weird to enforce this, here, but
+     * it makes it simpler, as then I don't have to repeat this logic
+     * over and over and over...
+     */
+
+    int i;
+
+    for (i = 0; i < menu->count; i++) {
+      if ((i != index) && menu->items[i].selected) {
+        // If an item is already selected that isn't this item, abort!
+        
+        return;
+      }    
+    }
+  }
+
   if (menu->items[index].id.a_int != 0) {
+    // If it was a non-header row, process the single item.
+    
     _nds_menu_do_select(&(menu->items[index]), decrement);
-  } else {
+  } else if (menu->how == PICK_ANY) {
+    // Otherwise, select all the items under the header.  Note, we can't
+    // do this unless unlimited multi-select is enabled for this menu.
+
     int i = 0;
 
     for (i = index + 1; (i < menu->count) && (menu->items[i].id.a_int != 0); i++) {
@@ -1410,6 +1438,13 @@ void _nds_menu_select_item(nds_menu_t *menu, int index, int decrement)
  * whether this window will allow it's lines to be selected.  If so,
  * taps will cause items to be selected accordingly.  Note, this
  * only works with NHW_MENU windows.
+ *
+ * There's some specific terminology at work, here, that's worth
+ * clarifying:
+ *
+ * A 'focused' item is one with the selector bar over it.
+ * A 'highlighted' item is one that's bright green because it's being
+ * selected by the user.
  */
 int _nds_do_menu(nds_nhwindow_t *window)
 {
@@ -1480,6 +1515,10 @@ int _nds_do_menu(nds_nhwindow_t *window)
       menu->focused_item = -1;
     }
 
+    /*
+     * Handle keyboard-based movement of the currently focused item.
+     */
+
     if ((pressed & KEY_UP) || (pressed & KEY_DOWN)) {
       int old_focused = menu->focused_item;
 
@@ -1532,37 +1571,56 @@ int _nds_do_menu(nds_nhwindow_t *window)
     }
 
     /* Check if an item was selected using the joypad */
+
+    /*
+     * This is a little state machine of it's own.  When a key is
+     * pressed, we select the item or items (in the case of a
+     * header) by marking the item as selected, adjusting the
+     * count appropriately, and setting the items as highlighted
+     * so they're flashed green.
+     *
+     * On the next iteration through, if the keys are still
+     * pressed, we check if the items are highlighted, and if
+     * so, we can ignore the press.
+     *
+     * Alternatively, if the keys are released, we unhighlight
+     * the focused item or items, so they're flipped back to their
+     * normal colour.
+     */
     
     if ((pressed & KEY_X) && (menu->focused_item >= 0) &&
         (! menu->items[menu->focused_item].highlighted)) {
 
       _nds_menu_select_item(menu, menu->focused_item, 0);
 
-      if (menu->how == PICK_ONE) {
+      if (! CAN_MULTI_PICK(menu->how)) {
         goto DONE;
       } 
 
       refresh = 1;
+
     } else if ((pressed & KEY_Y) && (menu->focused_item >= 0) &&
-               ! menu->items[menu->focused_item].highlighted) {
+               (! menu->items[menu->focused_item].highlighted)) {
 
       _nds_menu_select_item(menu, menu->focused_item, 1);
 
-      if (menu->how == PICK_ONE) {
+      if (! CAN_MULTI_PICK(menu->how)) {
         goto DONE;
       } 
 
       refresh = 1;
+
     } else if (((! (pressed & KEY_X) && (prev_pressed == KEY_X)) ||
                 (! (pressed & KEY_Y) && (prev_pressed == KEY_Y))) &&
-               (menu->focused_item >= 0) &&
-               menu->items[menu->focused_item].highlighted) {
+               (menu->focused_item >= 0) && menu->items[menu->focused_item].highlighted) {
 
       menu->items[menu->focused_item].highlighted = 0;
       menu->items[menu->focused_item].refresh = 1;
 
       refresh = 1;
-    } else if ((pressed & KEY_SELECT) && (menu->how == PICK_ANY)) {
+
+    } else if ((pressed & KEY_SELECT) && CAN_MULTI_PICK(menu->how)) {
+
       for (i = 0; i < menu->count; i++) {
         if (menu->items[i].id.a_int == 0) {
           continue;
@@ -1579,8 +1637,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
     /* Finally, check for taps on items */
 
     for (i = window->topidx; i <= window->bottomidx; i++) {
-      if (touch_down_in(menu->items[i].region) &&
-          ! menu->items[i].highlighted) {
+      if (touch_down_in(menu->items[i].region) && ! menu->items[i].highlighted) {
 
         if (menu->focused_item >= 0) {
           menu->items[menu->focused_item].refresh = 1;
@@ -1591,8 +1648,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
         menu->focused_item = i;
 
         refresh = 1;
-      } else if (touch_was_down_in(menu->items[i].region) &&
-                 menu->items[i].highlighted) {
+      } else if (touch_was_down_in(menu->items[i].region) && menu->items[i].highlighted) {
 
         menu->items[i].highlighted = 0;
         menu->items[i].refresh = 1;
@@ -1609,7 +1665,7 @@ int _nds_do_menu(nds_nhwindow_t *window)
         if ((! iflags.doubletap) || (menu->tapped_item == i)) {
           _nds_menu_select_item(menu, i, (held & KEY_L) || (held & KEY_R));
 
-          if (menu->how == PICK_ONE) {
+          if (! CAN_MULTI_PICK(menu->how)) {
             goto DONE;
           } 
         }

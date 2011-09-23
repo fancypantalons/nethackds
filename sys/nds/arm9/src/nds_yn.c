@@ -150,13 +150,26 @@ char *_nds_parse_choices(const char *ques)
   return choices;
 }
 
+/*
+ *   Generic yes/no function. 'def' is the default (returned by space or
+ *   return; 'esc' returns 'q', or 'n', or the default, depending on
+ *   what's in the string. The 'query' string is printed before the user
+ *   is asked about the string.
+ *   If resp is NULL, any single character is accepted and returned.
+ *   If not-NULL, only characters in it are allowed (exceptions:  the
+ *   quitchars are always allowed, and if it contains '#' then digits
+ *   are allowed); if it includes an <esc>, anything beyond that won't
+ *   be shown in the prompt to the user but will be acceptable as input.
+ */
 char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
 {
+  char buffer[INPUT_BUFFER_SIZE];
+
   char *choices;
   ANY_P header_id;
   ANY_P *ids;
   winid win;
-  menu_item *sel;
+  menu_item *sel = NULL;
   int ret;
   int yn = 0;
   int ynaq = 0;
@@ -313,10 +326,21 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
 
   end_menu(win, ques);
 
-  if (select_menu(win, PICK_ONE, &sel) <= 0) {
+  int mode = ((cstr == NULL) || (index(cstr, '#') != NULL)) ? PICK_ONE_TYPE : PICK_ONE;
+  int cnt = select_menu(win, mode, &sel);
+
+  if (cnt <= 0) {
     ret = yn ? 'n' : '\033';
-  } else {
+  } else if ((mode == PICK_ONE) || (sel->count < 0)) {
     ret = sel->item.a_int;
+  } else if (mode == PICK_ONE_TYPE) {
+    sprintf(buffer, "%d%c", sel->count, sel->item.a_int);
+
+    nds_input_buffer_append(buffer + 1);
+    ret = *buffer;
+  }
+
+  if (sel != NULL) {
     free(sel);
   }
 

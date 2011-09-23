@@ -25,6 +25,10 @@
 #define TITLE_MAX_LINES 4
 #define MAX_PAGE        255
 
+#define PICK_ONE_TYPE 0x0100
+
+#define CAN_MULTI_PICK(i) (((i) == PICK_ANY) || ((i) == PICK_ONE_TYPE))
+
 typedef struct {
   ANY_P id;
   int count;

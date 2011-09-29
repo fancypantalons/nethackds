@@ -719,6 +719,15 @@ nds_map_t *nds_get_map()
 void nds_clear_map()
 {
   memset(map_ram, 0, 32 * 24 * 2);
+
+  if (map != NULL) {
+    int x, y;
+    for (y = 0; y < ROWNO; y++) {
+      for (x = 0; x < COLNO; x++) {
+        map->glyphs[y][x] = -1;
+      }
+    }
+  }
 }
 
 rectangle_t nds_minimap_dims()

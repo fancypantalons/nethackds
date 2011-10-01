@@ -647,12 +647,7 @@ int nds_init_map()
 
   /* Initialize the data we need to manage the map and tiles */
 
-  for (y = 0; y < ROWNO; y++) {
-    for (x = 0; x < COLNO; x++) {
-      map->glyphs[y][x] = -1;
-    }
-  }
-
+  nds_clear_map();
   nds_init_tile_cache();
 
   map->viewport.dims.width = 32 / tile_width_in_tiles; 
@@ -722,6 +717,7 @@ void nds_clear_map()
 
   if (map != NULL) {
     int x, y;
+
     for (y = 0; y < ROWNO; y++) {
       for (x = 0; x < COLNO; x++) {
         map->glyphs[y][x] = -1;

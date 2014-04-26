@@ -6,6 +6,7 @@
 
 #include "hack.h"
 
+#include "nds_debug.h"
 #include "nds_main.h"
 #include "nds_win.h"
 #include "nds_charbuf.h"
@@ -114,13 +115,13 @@ void nds_init_nhwindows(int *argc, char **argv)
   system_font = read_bdf("font.bdf");
 
   if (system_font == NULL) {
-    iprintf("Error loading font!\n");
+    DEBUG_PRINT("Error loading font!\n");
 
     return;
   }
 
   if (nds_init_map()) {
-    iprintf("Error loading tiles!\n");
+    DEBUG_PRINT("Error loading tiles!\n");
 
     return;
   }
@@ -215,7 +216,7 @@ give_up:
       flags.initrole = pick_role(flags.initrace, flags.initgend,
                                  flags.initalign, PICK_RANDOM);
       if (flags.initrole < 0) {
-        iprintf("Incompatible role!");
+        DEBUG_PRINT("Incompatible role!");
 
         flags.initrole = randrole();
       }
@@ -302,7 +303,7 @@ give_up:
       flags.initrace = pick_race(flags.initrole, flags.initgend,
                                  flags.initalign, PICK_RANDOM);
       if (flags.initrace < 0) {
-        iprintf("Incompatible race!");
+        DEBUG_PRINT("Incompatible race!");
         flags.initrace = randrace(flags.initrole);
       }
     } else {	/* pick4u == 'n' */
@@ -386,7 +387,7 @@ give_up:
       flags.initgend = pick_gend(flags.initrole, flags.initrace,
                                  flags.initalign, PICK_RANDOM);
       if (flags.initgend < 0) {
-        iprintf("Incompatible gender!");
+        DEBUG_PRINT("Incompatible gender!");
         flags.initgend = randgend(flags.initrole, flags.initrace);
       }
     } else {	/* pick4u == 'n' */
@@ -469,7 +470,7 @@ give_up:
       flags.initalign = pick_align(flags.initrole, flags.initrace,
                                    flags.initgend, PICK_RANDOM);
       if (flags.initalign < 0) {
-        iprintf("Incompatible alignment!");
+        DEBUG_PRINT("Incompatible alignment!");
         flags.initalign = randalign(flags.initrole, flags.initrace);
       }
     } else {	/* pick4u == 'n' */
@@ -1180,7 +1181,7 @@ void nds_display_nhwindow(winid win, int blocking)
       if (window->buffer != NULL) { 
         _nds_display_text(window, blocking);
       } else {
-        iprintf("I thought this wasn't supposed to happen...\n");
+        DEBUG_PRINT("I thought this wasn't supposed to happen...\n");
       }
 
       break;
@@ -1276,7 +1277,7 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
                                     (window->menu->count + 1) * sizeof(nds_menuitem_t));
 
   if (items == NULL) {
-    iprintf("Doheth, ran out of memory...\n");
+    DEBUG_PRINT("Doheth, ran out of memory...\n");
   }
 
   window->menu->items = items;
@@ -1788,7 +1789,7 @@ int nds_select_menu(winid win, int how, menu_item **sel)
 
 int nds_nhgetch()
 {
-  iprintf("nds_nhgetch called...\n");
+  DEBUG_PRINT("nds_nhgetch called...\n");
   nds_wait_key(KEY_A);
 
   return 0;
@@ -1874,12 +1875,12 @@ DONE:
 
 void nds_raw_print(const char *str)
 {
-  iprintf("Raw: %s", str);
+  DEBUG_PRINT("Raw: %s", str);
 }
 
 void nds_raw_print_bold(const char *str)
 {
-  iprintf("Raw bold: %s", str);
+  DEBUG_PRINT("Raw bold: %s", str);
 }
 
 char **_nds_read_saves(int *cnt)
@@ -2034,7 +2035,7 @@ void nds_print_glyph(winid win, XCHAR_P x, XCHAR_P y, int glyph)
 
 void nds_nhbell()
 {
-  iprintf("*bing*\n");
+  DEBUG_PRINT("*bing*\n");
 }
 
 void nds_delay_output()
@@ -2044,12 +2045,12 @@ void nds_delay_output()
 
 void nds_preference_update(const char *preferences)
 {
-  iprintf("nds_preference_update called...\n");
+  DEBUG_PRINT("nds_preference_update called...\n");
 }
 
 void nds_outrip(winid win, int thinger)
 {
-  iprintf("nds_outrip stub called...\n");
+  DEBUG_PRINT("nds_outrip stub called...\n");
 }
 
 void do_null()

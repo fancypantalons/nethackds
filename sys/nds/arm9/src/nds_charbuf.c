@@ -3,6 +3,7 @@
 
 #include "hack.h"
 
+#include "nds_debug.h"
 #include "nds_charbuf.h"
 #include "nds_win.h"
 #include "nds_util.h"
@@ -56,7 +57,7 @@ nds_line_t *nds_charbuf_append(nds_charbuf_t *buffer, const char *str, int reflo
     buffer->avail += BLOCK_SIZE;
 
     if (ptr == NULL) {
-      iprintf("Uhoh, ran out of memory!\n");
+      DEBUG_PRINT("Uhoh, ran out of memory!\n");
       exit(0);
     } else {
       buffer->lines = ptr;

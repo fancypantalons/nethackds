@@ -1,6 +1,7 @@
 #include <nds.h>
 
 #include "hack.h"
+#include "nds_debug.h"
 #include "nds_win.h"
 #include "nds_config.h"
 #include "nds_util.h"
@@ -409,7 +410,7 @@ int nds_load_key_config()
   }
 
   if ((ret = fread(&magic, 1, sizeof(magic), fp)) < sizeof(magic)) {
-    iprintf("Unable to read magic number!\n");
+    DEBUG_PRINT("Unable to read magic number!\n");
     return -1;
   }
 
@@ -421,7 +422,7 @@ int nds_load_key_config()
 
     for (i = 0; i < OLD_NUMKEYS; i++) {
       if ((ret = fread(buffer, 1, sizeof(buffer), fp)) < sizeof(buffer)) {
-        iprintf("Unable to read keymap (%d != %d).\n", ret, sizeof(buffer));
+        DEBUG_PRINT("Unable to read keymap (%d != %d).\n", ret, sizeof(buffer));
         return -1;
       }
 
@@ -434,23 +435,23 @@ int nds_load_key_config()
     u16 key;
 
     if ((ret = fread(&chord_keys, 1, sizeof(chord_keys), fp)) < sizeof(chord_keys)) {
-      iprintf("Unable to read chord keys.\n");
+      DEBUG_PRINT("Unable to read chord keys.\n");
       return -1; 
     }
 
     if ((ret = fread(&mapcnt, 1, sizeof(mapcnt), fp)) < sizeof(mapcnt)) {
-      iprintf("Unable to read key count.\n");
+      DEBUG_PRINT("Unable to read key count.\n");
       return -1;
     }
 
     for (i = 0; i < mapcnt; i++) {
       if ((ret = fread(&key, 1, sizeof(key), fp)) < sizeof(key)) {
-        iprintf("Unable to read keymap key (%d != %d, %d of %d).\n", ret, sizeof(key), i, numkeys);
+        DEBUG_PRINT("Unable to read keymap key (%d != %d, %d of %d).\n", ret, sizeof(key), i, numkeys);
         return -1;
       }
 
       if ((ret = fread(buffer, 1, sizeof(buffer), fp)) < sizeof(buffer)) {
-        iprintf("Unable to read keymap command.\n");
+        DEBUG_PRINT("Unable to read keymap command.\n");
         return -1;
       }
 
@@ -786,7 +787,7 @@ void nds_config_key()
   if (! nds_input_buffer_is_empty()) {
     strcat(command, nds_input_buffer_shiftall());
 
-    iprintf("cmd: %s\n", command);
+    DEBUG_PRINT("cmd: %s\n", command);
     sprintf(buf, "Mapped %s to %s x%s.", nds_key_to_string(key), cmd.name, command);
   } else {
     sprintf(buf, "Mapped %s to %s.", nds_key_to_string(key), cmd.name);
@@ -879,7 +880,7 @@ int nds_key_config_init()
   if (nds_count_bits(cmd_key_config = nds_key_string_to_mask(iflags.cmdkey)) == 1) {
     cmd_key = cmd_key_config;
   } else {
-    iprintf("Invalid command key: %s\n", iflags.cmdkey);
+    DEBUG_PRINT("Invalid command key: %s\n", iflags.cmdkey);
 
     return -1;
   }

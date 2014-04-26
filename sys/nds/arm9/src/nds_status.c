@@ -4,6 +4,7 @@
 
 #include "hack.h"
 
+#include "nds_debug.h"
 #include "nds_win.h"
 #include "nds_gfx.h"
 #include "nds_util.h"

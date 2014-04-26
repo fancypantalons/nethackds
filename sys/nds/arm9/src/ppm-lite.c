@@ -19,6 +19,7 @@
 #include "config.h"
 #include "ppm-lite.h"
 #include "font-bdf.h"
+#include "nds_debug.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -63,8 +64,7 @@ copy_ppm (struct ppm *ppm)
   ppm2->bitmap = (unsigned char *) calloc (1, n);
   if (!ppm2->bitmap)
     {
-      iprintf ("out of memory (%d x %d)\n",
-               ppm->width, ppm->height);
+      DEBUG_PRINT ("out of memory (%d x %d)\n", ppm->width, ppm->height);
       return NULL;
     }
   memcpy (ppm2->bitmap, ppm->bitmap, n);

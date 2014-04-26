@@ -2,6 +2,7 @@
 
 #include "hack.h"
 
+#include "nds_debug.h"
 #include "nds_util.h"
 #include "nds_win.h"
 #include "nds_cmd.h"

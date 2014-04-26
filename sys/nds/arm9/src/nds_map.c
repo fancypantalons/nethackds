@@ -9,6 +9,7 @@
 #include "ppm-lite.h"
 #include "font-bdf.h"
 
+#include "nds_debug.h"
 #include "nds_win.h"
 #include "nds_util.h"
 #include "nds_map.h"
@@ -450,7 +451,7 @@ int nds_init_text_map(u16 *palette, int *pallen)
   int palcnt;
 
   if ((map_font = read_bdf(FONT_FILE_NAME)) == NULL) {
-    iprintf("Unable to open '%s'\n", FONT_FILE_NAME);
+    DEBUG_PRINT("Unable to open '%s'\n", FONT_FILE_NAME);
 
     return -1;
   }
@@ -684,7 +685,7 @@ int nds_init_map()
       break;
 
     default:
-      iprintf("Sorry, %d bpp tile files aren't supported.\n", bmp_bpp(&tiles));
+      DEBUG_PRINT("Sorry, %d bpp tile files aren't supported.\n", bmp_bpp(&tiles));
 
       return -1;
   }

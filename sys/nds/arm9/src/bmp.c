@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
+#include "nds_debug.h"
 #include "bmp.h"
 
 #define READ_LONG(f, var) { \
@@ -153,7 +155,7 @@ int bmp_read_bitmap(FILE *file, bmp_t *bmp) {
   bmp->bitmap = (u8 *)malloc(bmp->bitmap_length);
 
   if ((len = fread(bmp->bitmap, 1, bmp->bitmap_length, file)) < bmp->bitmap_length) {
-    iprintf("Short read on BMP, got %d bytes, expected %d\n", 
+    DEBUG_PRINT("Short read on BMP, got %d bytes, expected %d\n", 
             len, bmp->bitmap_length);
 
     return -1;

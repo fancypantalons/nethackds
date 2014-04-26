@@ -1,6 +1,7 @@
 #include <nds.h>
 #include <stdio.h>
 #include "hack.h"
+#include "nds_debug.h"
 #include "nds_gfx.h"
 #include "nds_util.h"
 #include "font-bdf.h"
@@ -135,7 +136,7 @@ int nds_load_palette(char *fname, nds_palette palette)
   int palidx = 0;
 
   if ((pfile = fopen(fname, "r")) == NULL) {
-    iprintf("Unable to open '%s'\n", fname);
+    DEBUG_PRINT("Unable to open '%s'\n", fname);
 
     return -1;
   }
@@ -156,7 +157,7 @@ int nds_load_palette(char *fname, nds_palette palette)
     }
 
     if (sscanf(tmp, "%2x%2x%2x", &r, &g, &b) < 3) {
-      iprintf("Malformed line: '%s'\n", tmp);
+      DEBUG_PRINT("Malformed line: '%s'\n", tmp);
 
       return -1;
     }

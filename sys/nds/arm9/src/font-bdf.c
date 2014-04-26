@@ -14,6 +14,7 @@
 
 #include <nds.h>
 
+#include "nds_debug.h"
 #include "hack.h"
 #include "config.h"
 #include "ppm-lite.h"
@@ -88,21 +89,21 @@ read_bdf (const char *file)
 
       if (!in)
         {
-          iprintf("Unable to open %s\n", file);
+          DEBUG_PRINT("Unable to open %s\n", file);
           return NULL;
         }
     }
 
   if (!fgets (buf, sizeof(buf)-1, in))
     {
-      iprintf ("%s: %d: premature EOF\n",
+      DEBUG_PRINT ("%s: %d: premature EOF\n",
                file, line);
       return NULL;
     }
 
   if (!!strncmp (buf, "STARTFONT 2.", 12))
     {
-      iprintf ("%s: %d: not a BDF 2 file\n",
+      DEBUG_PRINT ("%s: %d: not a BDF 2 file\n",
                file, line);
       return NULL;
     }
@@ -193,7 +194,7 @@ read_bdf (const char *file)
                 calloc (1, (ppm->width * ppm->height));
               if (!ppm->bitmap)
                 {
-                  iprintf ("%s: out of memory (%d x %d)\n",
+                  DEBUG_PRINT ("%s: out of memory (%d x %d)\n",
                            file, ppm->width, ppm->height);
                   return NULL;
                 }
@@ -207,7 +208,7 @@ read_bdf (const char *file)
 
           if (font->chars[current_char].width == 0)
             {
-              iprintf ("%s: %d: zero-width char ('%c') with bits?\n",
+              DEBUG_PRINT ("%s: %d: zero-width char ('%c') with bits?\n",
                        file, line, current_char);
               return NULL;
             }
@@ -219,7 +220,7 @@ read_bdf (const char *file)
           if (yoff < 0 ||
               yoff + current_char_height - 1 >= overall_bitmap_height)
             {
-              iprintf ("%s: %d: char %d bbox is not contained in font bbox\n",
+              DEBUG_PRINT ("%s: %d: char %d bbox is not contained in font bbox\n",
                        file, line, current_char);
               return NULL;
             }
@@ -228,7 +229,7 @@ read_bdf (const char *file)
             {
               if (!fgets (buf, sizeof(buf)-1, in))
                 {
-                  iprintf ("%s: %d: premature EOF\n",
+                  DEBUG_PRINT ("%s: %d: premature EOF\n",
                            file, line);
                   return NULL;
                 }
@@ -312,7 +313,7 @@ read_bdf (const char *file)
       else
         {
         FAIL:
-          iprintf ("%s: %d: unparsable line: '%s'\n",
+          DEBUG_PRINT ("%s: %d: unparsable line: '%s'\n",
                    file, line, buf);
           return NULL;
         }

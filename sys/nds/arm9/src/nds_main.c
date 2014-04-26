@@ -16,6 +16,7 @@
 
 #include "hack.h"
 #include "dlb.h"
+#include "nds_debug.h"
 #include "nds_kbd.h"
 #include "nds_main.h"
 #include "nds_win.h"
@@ -146,15 +147,15 @@ void nds_break_into_debugger()
   };
 
   if (! Wifi_InitDefault(WFC_CONNECT)) {
-    iprintf("Failed to connect!");
+    DEBUG_PRINT("Failed to connect!");
   } else {
     ip = Wifi_GetIPInfo(&gateway, &mask, &dns1, &dns2);
 
-    iprintf("ip     : %s\n", inet_ntoa(ip) );
-    iprintf("gateway: %s\n", inet_ntoa(gateway) );
-    iprintf("mask   : %s\n", inet_ntoa(mask) );
-    iprintf("dns1   : %s\n", inet_ntoa(dns1) );
-    iprintf("dns2   : %s\n", inet_ntoa(dns2) );
+    DEBUG_PRINT("ip     : %s\n", inet_ntoa(ip) );
+    DEBUG_PRINT("gateway: %s\n", inet_ntoa(gateway) );
+    DEBUG_PRINT("mask   : %s\n", inet_ntoa(mask) );
+    DEBUG_PRINT("dns1   : %s\n", inet_ntoa(dns1) );
+    DEBUG_PRINT("dns2   : %s\n", inet_ntoa(dns2) );
   }
 
   if (init_debug(&tcpCommsIf_debug, &init_data)) {
@@ -222,7 +223,7 @@ void init_screen()
 
   consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 0, 1, false, true);
 
-  //REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
+  REG_DISPCNT_SUB ^= DISPLAY_BG0_ACTIVE;
 
   /* Main screen setup. */
 
@@ -296,10 +297,10 @@ void mallinfo_dump()
 {
   struct mallinfo info = mallinfo();
 
-  iprintf("Arena: %d\n", info.arena);
-  iprintf("Ordblks: %d\n", info.ordblks);
-  iprintf("Uordblks: %d\n", info.uordblks);
-  iprintf("Fordblks: %d\n", info.fordblks);
+  DEBUG_PRINT("Arena: %d\n", info.arena);
+  DEBUG_PRINT("Ordblks: %d\n", info.ordblks);
+  DEBUG_PRINT("Uordblks: %d\n", info.uordblks);
+  DEBUG_PRINT("Fordblks: %d\n", info.fordblks);
 }
 
 void start_game()
@@ -322,7 +323,7 @@ void start_game()
   fd = create_levelfile(0, (char *)NULL);
 
   if (fd < 0) {
-    iprintf("Cannot create lock file");
+    DEBUG_PRINT("Cannot create lock file");
   } else {
     hackpid = 1;
     write(fd, (genericptr_t) &hackpid, sizeof(hackpid));
@@ -364,7 +365,7 @@ int main()
 
   if (! fatInitDefault())
   {
-    iprintf("Unable to initialize FAT driver!\n");
+    DEBUG_PRINT("Unable to initialize FAT driver!\n");
     nds_show_console();
 
     return 0;
@@ -375,7 +376,7 @@ int main()
 
   if (! tmp)
   {
-    iprintf("Unable to open root directory!\n");
+    DEBUG_PRINT("Unable to open root directory!\n");
     nds_show_console();
 
     return 0;
@@ -403,7 +404,7 @@ int main()
   /* Gotta initialize this before the command list is generated */
 
   if (debug_mode) {
-    iprintf("Enabling debug mode.\n");
+    DEBUG_PRINT("Enabling debug mode.\n");
 
     flags.debug = 1;
   }

@@ -3,3 +3,4 @@ hack.h-t
 monstr.c
 tile.c
 vis_tab.c
+Makefile

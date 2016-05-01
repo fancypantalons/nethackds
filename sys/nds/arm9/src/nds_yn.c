@@ -35,8 +35,7 @@ int class_slot_for_class(char oclass)
 
 void _nds_insert_choice(char *choices, char let)
 {
-#ifdef SORTLOOT
-  if (iflags.sortloot == 'f') {
+  if (flags.sortloot) {
     struct obj *otmp = obj_for_let(let);
     int len = strlen(choices);
     int i;
@@ -44,7 +43,7 @@ void _nds_insert_choice(char *choices, char let)
     for (i = 0; choices[i]; i++) {
       struct obj *ochoice = obj_for_let(choices[i]);
 
-      if (strcmpi(cxname2(otmp), cxname2(ochoice)) < 0) {
+      if (strcmpi(cxname_singular(otmp), cxname_singular(ochoice)) < 0) {
         break;
       }
     }
@@ -57,16 +56,13 @@ void _nds_insert_choice(char *choices, char let)
       choices[i] = let;
     }
   } else {
-#endif
     char tmp[2];
 
     tmp[0] = let;
     tmp[1] = '\0';
 
     strcat(choices, tmp);
-#ifdef SORTLOOT
   }
-#endif
 }
 
 char *_nds_parse_choices(const char *ques)
@@ -305,8 +301,10 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
         char oname[BUFSZ];
 
         if (choices[i] == '$') {
+          long int money = money_cnt(invent);
+
           oclass = COIN_CLASS;
-          sprintf(oname, "%ld gold piece%s", u.ugold, plur(u.ugold));
+          sprintf(oname, "%ld gold piece%s", money, plur(money));
         } else {
           struct obj *otmp = obj_for_let(choices[i]);
 
@@ -315,7 +313,7 @@ char nds_yn_function(const char *ques, const char *cstr, CHAR_P def)
         }
 
         if (oclass != curclass) {
-          add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, let_to_name(oclass, FALSE), 0);
+          add_menu(win, NO_GLYPH, &(header_id), 0, 0, 0, let_to_name(oclass, FALSE, FALSE), 0);
 
           curclass = oclass;
         } 

@@ -7,3 +7,4 @@ lev_lex.c
 lev_yacc.c
 makedefs
 tilemap
+Makefile

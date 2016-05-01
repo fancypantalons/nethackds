@@ -30,9 +30,7 @@
  
 /* Things we need for coloured menus */
 
-#ifdef MENU_COLOR
 extern struct menucoloring *menu_colorings;
-#endif
 
 /* Some prototypes. */
 
@@ -1213,19 +1211,22 @@ void nds_display_file(const char *fname, int complain)
 /**********************
  * Menu handling logic
  **********************/
-#ifdef MENU_COLOR
-void get_menu_coloring(char *str, int *color, int *attr)
+boolean
+get_menu_coloring(str, color, attr)
+char *str;
+int *color, *attr;
 {
     struct menucoloring *tmpmc;
 
     if (iflags.use_menu_color)
-       for (tmpmc = menu_colorings; tmpmc; tmpmc = tmpmc->next)
-           if (regexec(&tmpmc->match, str, 0, NULL, 0) == 0) {
-               *color = tmpmc->color;
-               *attr = tmpmc->attr;
-           }
+        for (tmpmc = menu_colorings; tmpmc; tmpmc = tmpmc->next)
+            if (regex_match(str, tmpmc->match)) {
+                *color = tmpmc->color;
+                *attr = tmpmc->attr;
+                return TRUE;
+            }
+    return FALSE;
 }
-#endif /* MENU_COLOR */
 
 /*
  * Prepare a window for use as a menu.  Technically we should check if the 
@@ -1263,9 +1264,7 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   int title_cnt;
   int title_len;
   char title_tmp[96];
-#ifdef MENU_COLOR
   int mccolor = CLR_WHITE, mcattr = ATR_NONE;
-#endif
 
   if (! str) {
     return;
@@ -1287,11 +1286,9 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
   title_len = 0;
   strcpy(title_tmp, str);
 
-#ifdef MENU_COLOR
   if (iflags.use_menu_color) {
     get_menu_coloring(title_tmp, &mccolor,&mcattr);
   }
-#endif
 
   memset(items[idx].title, 0, sizeof(items[idx].title));
                                           
@@ -1305,7 +1302,6 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
     *dest = '\0';
 
     if (title_len > 0) {
-#ifdef MENU_COLOR
       if (mccolor > CLR_GRAY) {
         sprintf(dest, "\e[1m\e[3%dm", mccolor - BRIGHT);
       } else {
@@ -1318,7 +1314,6 @@ void nds_add_menu(winid win, int glyph, const ANY_P *id,
         sprintf(buf, "\e[%dm", mcattr);
         strcat(dest, buf);
       }
-#endif
 
       if (! iflags.cmdwindow) {
         char tmp[3];
@@ -2080,6 +2075,7 @@ struct window_procs nds_procs = {
     nds_destroy_nhwindow,
     nds_curs,
     nds_putstr,
+    genl_putmixed,
     nds_display_file,
     nds_start_menu,
     nds_add_menu,
@@ -2108,13 +2104,26 @@ struct window_procs nds_procs = {
     nds_number_pad,
     nds_delay_output,
 #ifdef CHANGE_COLOR	/* only a Mac option currently */
-	donull,
-	donull,
+    do_null,
+    do_null,
 #endif
     /* other defs that really should go away (they're tty specific) */
     do_null,
     do_null,
-    nds_outrip,	
+
+    nds_outrip,
     nds_preference_update,
+    do_null,
+    do_null,
+#ifdef STATUS_VIA_WINDOWPORT
+    do_null,
+    do_null,
+    do_null,
+    do_null
+#ifdef STATUS_HILITES
+    do_null
+#endif
+#endif
+    do_null
 };
 

@@ -5,6 +5,7 @@
 #include "nds_win.h"
 #include "nds_getlin.h"
 #include "nds_gfx.h"
+#include "nds_debug.h"
 
 #include "nds_kbd.h"
 #include "ppm-lite.h"

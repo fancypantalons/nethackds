@@ -24,9 +24,7 @@
 #include "nds_util.h"
 #include "bmp.h"
 
-#ifdef MENU_COLOR
-#  include <pcre.h>
-#endif
+#include <pcre.h>
 
 #define SPLASH_IMAGE "nhlogo.bmp"
 #define SPLASH_PROMPT "Tap to begin, Adventurer!"
@@ -305,6 +303,7 @@ void mallinfo_dump()
 
 void start_game()
 {
+  boolean resuming = FALSE; /* assume new game */
   int fd;
 
   REG_DISPCNT = game_display_cr;
@@ -316,7 +315,7 @@ void start_game()
     askname();
   }
 
-  set_savefile_name();
+  set_savefile_name(TRUE);
 
   goodbye_msg = NULL;
 
@@ -340,18 +339,21 @@ void start_game()
   /* Now restore or start a new game */
 
   if (((fd = restore_saved_game()) >= 0) && dorecover(fd)) {
+    resuming = TRUE;
     check_special_room(FALSE);
   } else {
     player_selection();
     newgame();
-    set_wear();
 
     (void) pickup(1);
   }
 
-  flags.move = 0;
+  moveloop(resuming);
+}
 
-  moveloop();
+boolean authorize_wizard_mode()
+{
+  return TRUE;
 }
 
 int main()
@@ -422,9 +424,7 @@ int main()
 
   /* Get PCRE set up. */
 
-#ifdef MENU_COLOR
   _pcre_default_tables = pcre_maketables();
-#endif
 
   /* Show our splash screen */
 

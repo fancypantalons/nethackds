@@ -19,6 +19,7 @@ include $(DEVKITARM)/ds_rules
 BUILD		:=	build
 SOURCES		:=	sys/nds/arm9/src
 OTHERSRC	:=	src
+SYSSRC		:=	posixregex.c
 INCLUDES	:=	sys/nds/include sys/nds/arm9/include include
 DATA		:=
 
@@ -120,8 +121,10 @@ $(ARM9BIN)	:	$(ARM9ELF)
 
 $(ARM9ELF)	:	$(foreach ofile,$(OFILES),$(BUILD)/$(ofile)) $(foreach ofile,$(OTHEROBJ),$(BUILD)/$(ofile))
 	@echo linking $(notdir $@)
-	@$(LD)  $(LDFLAGS) $(foreach ofile,$(OFILES),$(BUILD)/$(ofile)) \
-		$(foreach ofile,$(OTHEROBJ),$(BUILD)/$(ofile)) $(LIBPATHS) $(LIBS) -o $@
+	$(LD)  $(LDFLAGS) $(foreach ofile,$(OFILES),$(BUILD)/$(ofile)) \
+		$(foreach ofile,$(OTHEROBJ),$(BUILD)/$(ofile)) \
+		$(foreach ofile,$(SYSSRC:.c=.o),$(BUILD)/$(ofile)) \
+		$(LIBPATHS) $(LIBS) -o $@
 	
 $(BUILD)/%.o	:	$(SOURCES)/%.c
 	@echo $(notdir $<)

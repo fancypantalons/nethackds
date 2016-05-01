@@ -14,8 +14,6 @@ export TARGET		:=	NetHackDS
 export TARGETDIR	:=	build
 export TOPDIR		:=	$(CURDIR)
 
-
-
 #---------------------------------------------------------------------------------
 # path to tools - this can be deleted if you set the path in windows
 #---------------------------------------------------------------------------------

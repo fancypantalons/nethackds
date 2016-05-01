@@ -17,6 +17,8 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 BUILD		:=	build
 SOURCES		:=	src
+SYSSHARE	:=	sys/share
+SYSSRC		:=	posixregex.c
 INCLUDES	:=	include sys/nds/arm9/include
 DATA		:=
 
@@ -63,7 +65,7 @@ endif
 #---------------------------------------------------------------------------------
 
 export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
-					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SYSSRC:.c=.o) $(SFILES:.s=.o)
  
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
@@ -117,6 +119,10 @@ DEPENDS	:=	$(OFILES:.o=.d)
 all	:	$(foreach ofile,$(OFILES),$(BUILD)/$(ofile))
 	
 $(BUILD)/%.o	:	$(SOURCES)/%.c
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
+	
+$(BUILD)/%.o	:	$(SYSSHARE)/%.c
 	@echo $(notdir $<)
 	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
 

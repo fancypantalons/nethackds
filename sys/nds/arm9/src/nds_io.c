@@ -24,6 +24,7 @@ uid_t getuid()
 }
 
 void error VA_DECL(const char*, line)
+{
   VA_INIT(line, char *);
   char choice;
 

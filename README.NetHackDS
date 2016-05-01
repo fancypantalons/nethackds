@@ -1,0 +1,57 @@
+                     NetHackDS -- General Information
+
+NetHackDS is what it sounds like:  a port of the famous game NetHack for the
+Nintendo DS.
+
+
+Building
+========
+
+Setting up the environment
+--------------------------
+
+In order to build NetHackDS, a number of pre-requisites must be in place:
+
+1. A working devkitpro and devkitARM environment.
+
+2. The following libraries must be installed in $DEVKITPRO/libnds:
+
+  - libnds
+  - libfat
+  - wifilib
+
+    These are all standard devkitpro libraries for the NDS.
+
+  - libpcre
+
+    This is available as a separate download from the NetHackDS github project.
+
+  - Masscat's gdb stub.
+
+    I'm now hosting this code as a separate github project, and have updated it
+    to build with the latest devkitarm.  You can find it here:
+
+    https://github.com/fancypantalons/NDS-Debug-Stub
+
+3. A working build environment for the host machine capable of producing
+   32-bit binaries.
+
+Compiling
+---------
+
+With the pre-requisites in place, a build can be triggered by running:
+
+(cd sys/nds; sh setup.sh)
+make -f sys/nds/Makefile
+
+The game and data files are then available in the binary directory.
+
+
+Installing
+==========
+
+To install, copy the NetHack data folder to the *root* of your flash device,
+and then place the NetHack.nds (or NetHack.ds.gba, if you're using a slot-2
+device) in the appropriate location.  Note, you may have to DLDI-patch the
+binary if your device doesn't support auto-patching.
+

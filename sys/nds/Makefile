@@ -44,7 +44,7 @@ binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@mkdir binary/NetHack
 	@mkdir binary/NetHack/save
 	@touch binary/NetHack/record
-	@cp dat/nhdat dat/license doc/Guidebook.txt doc/nethack.txt binary/NetHack
+	@cp dat/nhdat dat/license dat/symbols doc/Guidebook.txt doc/nethack.txt binary/NetHack
 	@cp sys/nds/NetHack/* binary/NetHack
 	@echo Done!  Copy everything in the 'binary' directory to your CF card.
 	@echo Note: If you compiled without DLB defined, you must copy the files listed in

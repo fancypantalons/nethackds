@@ -37,4 +37,6 @@
 #define ASCIIGRAPH
 #define TEXTCOLOR		/* Color text */
 
+#define exit(code) { while(1); }
+
 #endif

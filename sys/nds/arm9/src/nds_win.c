@@ -1211,22 +1211,6 @@ void nds_display_file(const char *fname, int complain)
 /**********************
  * Menu handling logic
  **********************/
-boolean
-get_menu_coloring(str, color, attr)
-char *str;
-int *color, *attr;
-{
-    struct menucoloring *tmpmc;
-
-    if (iflags.use_menu_color)
-        for (tmpmc = menu_colorings; tmpmc; tmpmc = tmpmc->next)
-            if (regex_match(str, tmpmc->match)) {
-                *color = tmpmc->color;
-                *attr = tmpmc->attr;
-                return TRUE;
-            }
-    return FALSE;
-}
 
 /*
  * Prepare a window for use as a menu.  Technically we should check if the 

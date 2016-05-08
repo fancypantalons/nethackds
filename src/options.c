@@ -1642,8 +1642,6 @@ char *str;
     return add_menu_coloring_parsed(tmps, c, a);
 }
 
-#ifndef NDS
-
 boolean
 get_menu_coloring(str, color, attr)
 char *str;
@@ -1660,8 +1658,6 @@ int *color, *attr;
             }
     return FALSE;
 }
-
-#endif
 
 void
 free_menu_coloring()

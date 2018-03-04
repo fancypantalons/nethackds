@@ -31,16 +31,16 @@ dat::
 	@cd src; $(CCMAKE) ../include/onames.h ../include/pm.h monstr.c ../include/vis_tab.h vis_tab.c tile.c ../include/date.h
 	@if egrep -s librarian dat/options ; then $(CCMAKE) dlb ; else true ; fi
 
-image: binary/$(TARGET).ds.gba
+image: binary/$(TARGET).nds
 
 tags::
 	@if [ -x ./build_idx ]; then ./build_idx; fi
 
-binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
+binary/$(TARGET).nds	: build/$(TARGET).nds
 	@echo Copying files...
 	@[ -d binary ] || mkdir binary
 	@rm -rf binary/*
-	@cp build/$(TARGET).ds.gba build/$(TARGET).nds binary
+	@cp build/$(TARGET).nds binary
 	@mkdir binary/NetHack
 	@mkdir binary/NetHack/save
 	@touch binary/NetHack/record
@@ -51,17 +51,13 @@ binary/$(TARGET).ds.gba	: build/$(TARGET).ds.gba
 	@echo 'dat/dlb.lst to binary/NetHack.  Try: cd dat; cp `cat dlb.lst` ../binary/NetHack'
 	@echo 
 
-install: tags binary/$(TARGET).ds.gba
+install: tags binary/$(TARGET).nds
 	cp binary/$(TARGET).nds /media/373A-579A/DEFAULT.NDS
 	umount /media/373A-579A
 
-build/$(TARGET).ds.gba	: build/$(TARGET).nds
-	@dsbuild $<
-	@echo built ... $(notdir $@)
-
 #---------------------------------------------------------------------------------
-build/$(TARGET).nds	:	build/$(TARGET).arm7 build/$(TARGET).arm9
-	ndstool	-c build/$(TARGET).nds -7 build/$(TARGET).arm7 -9 build/$(TARGET).arm9
+build/$(TARGET).nds	:	build/$(TARGET).arm7.elf build/$(TARGET).arm9.elf
+	ndstool	-c build/$(TARGET).nds -7 build/$(TARGET).arm7.elf -9 build/$(TARGET).arm9.elf
 
 #---------------------------------------------------------------------------------
 build/$(TARGET).arm7	: build/$(TARGET).arm7.elf

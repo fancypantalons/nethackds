@@ -34,7 +34,22 @@ In order to build NetHackDS, a number of pre-requisites must be in place:
     https://github.com/fancypantalons/NDS-Debug-Stub
 
 3. A working build environment for the host machine capable of producing
-   32-bit binaries.
+   and running 32-bit executable binaries.
+
+  - Nethack ships with a build tool that assembles the data library that
+    accompanies the game.  Obviously we can't run that executable on the NDS,
+    so we run it on the host OS.  Unfortunately, the library built with a
+    64-bit version of the tool is not readable on a 32-bit version of the
+    game, and vice versa.  And because the NDS is a 32-bit environment, we
+    must therefore create a 32-bit version of the tool and run it.
+
+  - The above notably means we can't build on the Windows Subsystem for Linux,
+    as that environment does not support 32-bit executables.
+
+  - NHDS is set up assuming a Unix host build environment.  Getting the build
+    working on an alternative host environment is left as an exercise to the
+    reader.
+
 
 Compiling
 ---------

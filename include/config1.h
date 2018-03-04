@@ -206,10 +206,8 @@
  */
 #if defined(NDS) || defined(ARM7) || defined(ARM9)
 # define NDS
-# define NDS_GRAPHICS
 # define NEED_VARARGS
-# define USE_STDARGS
-# define STRNCMPI
+# define USE_STDARG
 #endif
 
 #endif	/* CONFIG1_H */

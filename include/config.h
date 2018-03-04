@@ -56,11 +56,7 @@
  */
 
 #ifdef NDS
-# undef TTY_GRAPHICS
-# undef X11_GRAPHICS
-# undef QT_GRAPHICS
-# undef GNOME_GRAPHICS
-# undef MSWIN_GRAPHICS
+# define NDS_GRAPHICS
 # define DEFAULT_WINDOW_SYS "nds"
 # define HACKDIR	"/NetHack"
 # define NDS_PACKED	__attribute__((__packed__))	/* for sp_lev.h */

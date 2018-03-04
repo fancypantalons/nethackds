@@ -17,8 +17,6 @@
 #endif
 
 #define NO_SIGNAL
-#define NEED_VARARGS
-#define USE_STDARG
 #define PATHLEN		BUFSZ	/* maximum pathlength */
 #define FILENAME	BUFSZ	/* maximum filename length (conservative) */
 #define TRADITIONAL_GLYPHMAP	/* Store glyph mappings at level change time */
@@ -26,7 +24,6 @@
 				/* without first receiving confirmation. */
 #define SELF_RECOVER		/* Allow the game itself to recover from an aborted game */
 #define FCMASK	0660		/* file creation mask */
-#define STRNCMPI
 #define GCC_WARN
 #define Rand()	rand()
 #define NEARDATA
